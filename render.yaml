@@ -1,0 +1,22 @@
+# render.yaml — Blueprint deploy DEMO 2 (MCP) lên Render bằng Docker.
+# Thư mục demo_mcp_autocad/ chính là gốc repo GitHub (riêng, độc lập demo 1).
+#
+# Các bước:
+#   1) Push code (kèm vendor/ODAFileConverter.deb tải tay) lên repo GitHub PRIVATE riêng.
+#   2) Render -> New -> Blueprint -> chọn repo -> Render đọc file này.
+#   3) Nhập GEMINI_API_KEY khi được hỏi (sync:false -> không lưu trong git).
+services:
+  - type: web
+    name: doc-autocad-mcp-demo          # tên KHÁC demo 1 -> link riêng
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: free          # Free: ngủ sau 15p, RAM 512MB (đủ file nhỏ/vừa). File lớn -> nâng 'starter'/'2GB'.
+    healthCheckPath: /
+    envVars:
+      - key: GEMINI_API_KEY
+        sync: false      # nhập tay trên dashboard, KHÔNG commit
+      - key: MAX_UPLOAD_MB
+        value: "150"
+      - key: READFILE_MAX_MB
+        value: "45"      # lên gói RAM cao hơn -> tăng ~250 để đọc file lớn

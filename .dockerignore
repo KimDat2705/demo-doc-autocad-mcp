@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+_uploads/
+_renders/
+.env
+.git/
+spikes/out_*.png
+spikes/spike_bridge_out.txt

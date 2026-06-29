@@ -1,0 +1,10 @@
+# File tạm / đầu ra — KHÔNG cần lên repo
+__pycache__/
+*.pyc
+_uploads/
+_renders/
+spikes/out_*.png
+spikes/spike_bridge_out.txt
+.env
+
+# LƯU Ý: vendor/ODAFileConverter.deb PHẢI commit lên repo (Render build Docker cần) -> dùng repo PRIVATE.
