@@ -233,10 +233,19 @@ class Drawing:
         toks = [w for w in kw.split() if w]
         if not toks: return []
         codes = [w for w in toks if any(c.isdigit() for c in w)]
+
+        def _tok_in(tok, lab):
+            # Token dạng MÃ (có chữ số: c-4, d1, lc1) PHẢI khớp theo RANH GIỚI TỪ -> tránh
+            # 'c-4' khớp nhầm 'c-40' (trong ghi chú cọc) hay 'đc-4a'. Token chữ thường (cửa, dầm)
+            # vẫn substring để khớp font/ghép từ.
+            if any(c.isdigit() for c in tok):
+                return re.search(r"(?<![a-z0-9])%s(?![a-z0-9])" % re.escape(tok), lab) is not None
+            return tok in lab
+
         out = []
         for e in idx:
             lab = e["label_norm"]
-            full = all(tok in lab for tok in toks)
+            full = all(_tok_in(t, lab) for t in toks)
             code = any(re.search(r"(?<![a-z0-9])%s(?![a-z0-9])" % re.escape(c), lab) for c in codes) if codes else False
             if full or code: out.append(dict(e, _score=2 if full else 1))
         out.sort(key=lambda x: -x["_score"])

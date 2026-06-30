@@ -31,8 +31,12 @@ def _load_env():
 
 _load_env()
 API_KEY = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY") or ""
-MODEL = os.environ.get("GEMINI_MODEL", "gemini-3.1-pro-preview")
-MAX_TURNS = 8
+# Mặc định Flash 3.5: mạnh + QUOTA FREE CAO -> đối tác hỏi nhiều không bị 429 "AI tạm lỗi".
+# (Pro preview quota quá thấp ~25 req/cửa-sổ là cạn.) Đổi model qua env GEMINI_MODEL nếu cần.
+MODEL = os.environ.get("GEMINI_MODEL", "gemini-3.5-flash")
+# 14 (cũ 8): câu nhiều phần ("công trình gì, mấy tầng, mấy phòng") cần nhiều lượt gọi tool;
+# Flash gọi tool kém gọn hơn Pro -> 8 lượt dễ hết -> AI bỏ cuộc dù data có sẵn. Nới rộng.
+MAX_TURNS = int(os.environ.get("GEMINI_MAX_TURNS", "14"))
 
 try:
     from google import genai
@@ -48,8 +52,11 @@ USE_AI = (os.environ.get("USE_AI", "1") != "0") and _GENAI_OK and bool(API_KEY)
 # BRIDGE: 1 phiên MCP bền trên vòng asyncio nền
 # ----------------------------------------------------------------------------
 class MCPBridge:
-    def __init__(self, server_args, cwd=None):
-        self.sp = StdioServerParameters(command=sys.executable, args=server_args, cwd=cwd or BASE)
+    def __init__(self, server_args, cwd=None, env=None):
+        # Truyền env đầy đủ cho MCP server con (kế thừa os.environ + override) — để biến như
+        # READFILE_MAX_MB/ODA_EXE/GEMINI tới được tiến trình con (mặc định mcp chỉ truyền 1 tập tối thiểu).
+        self.sp = StdioServerParameters(command=sys.executable, args=server_args, cwd=cwd or BASE,
+                                        env={**os.environ, **(env or {})})
         self.loop = asyncio.new_event_loop()
         self._ready = threading.Event()
         self._err = None
@@ -141,7 +148,14 @@ SYSTEM_PROMPT = (
     "6. Với nội dung cụ thể, KÈM handle (vd [2A3F]) từ công cụ. KHÔNG bịa handle.\n"
     "7. Đường kính thép (Ø/D/phi) đã được công cụ tự quy 1 dạng. Mác bê tông ghi nhiều kiểu — nếu 1 từ khoá "
     "ra 0 kết quả, thử biến thể ('mác'/'B20'/'250#'/'M200') trước khi kết luận không có. Trích NGUYÊN VĂN chuỗi file ghi.\n"
-    "8. Bạn KHÔNG đọc được toạ độ tuyệt đối, khoảng cách, cao độ. Câu loại đó -> 'chưa hỗ trợ tra cứu theo vị trí'.\n"
+    "8. Bạn KHÔNG đọc được toạ độ tuyệt đối, khoảng cách, cao độ, hay KÍCH THƯỚC TỔNG THỂ công trình. "
+    "Câu hỏi 'CÔNG TRÌNH DÀI/RỘNG/CAO bao nhiêu mét', 'DIỆN TÍCH công trình', 'CAO ĐỘ tầng X', 'khoảng cách giữa 2 trục' "
+    "-> phải TỪ CHỐI DỨT KHOÁT: 'Bản vẽ chưa hỗ trợ tra cứu kích thước/chiều dài/cao độ THỰC TẾ của công trình.' "
+    "⛔ TUYỆT ĐỐI KHÔNG lấy giá trị DIMENSION lớn nhất (vd 58800mm) làm 'chiều dài công trình', và KHÔNG lấy con số cao độ "
+    "(+3.600...) làm cao độ tầng — đó là số kỹ thuật rời rạc, KHÔNG phải đại lượng tổng thể.\n"
+    "8b. THÉP: 'tổng thép' -> nêu RIÊNG thép tròn (thong_ke_thep) và thép hình (thong_ke_thep_hinh). "
+    "⛔ TUYỆT ĐỐI KHÔNG cộng thép tròn + thép hình thành MỘT con số tổng (vd 564.8+3545.9). Mỗi bảng là một loại riêng; "
+    "có thể còn thép ghi trong ghi chú text (xà gồ...) chưa vào bảng — nếu hỏi tổng, nói rõ gồm những phần nào, đừng tự gộp.\n"
     "9. Trả lời tiếng Việt, ngắn gọn, đúng vai kỹ sư."
 )
 
