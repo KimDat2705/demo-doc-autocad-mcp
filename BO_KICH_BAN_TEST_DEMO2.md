@@ -112,3 +112,72 @@ Bạn lo đúng: demo 1 test xong hết nhưng đối tác hỏi câu lạ vẫn
 4. Đánh dấu **mã cấu kiện KHÔNG tồn tại** → có thể khoanh nhầm text gần giống.
 
 → Nếu đối tác hỏi trúng mấy điểm này, **báo mình câu cụ thể**, mình vá tiếp — đây là cách chắc nhất (vá theo câu thật của đối tác, không đoán trước hết được).
+
+---
+---
+
+# PHẦN 2 — BỘ TEST FILE KẾT CẤU ("2. KetCau MN GiaLoc.dwg")
+
+> Tải file kết cấu lên demo 2 rồi hỏi. Đây là file **thép 67 tấn, cột/dầm/đài/cọc** — kiểm đa dạng domain khác kiến trúc.
+
+## K-A — Tổng quát
+| # | Câu hỏi | Đáp án chuẩn |
+|---|---|---|
+| KA1 | Có bao nhiêu layer? | **126 layer** |
+| KA2 | File có bao nhiêu đối tượng? | **21.077 đối tượng** |
+| KA3 | Có bao nhiêu đường kích thước? | **3305** |
+
+## K-B — Thép (trọng tâm file kết cấu)
+| # | Câu hỏi | Đáp án chuẩn |
+|---|---|---|
+| KB1 | **Tổng khối lượng thép của công trình?** | Thép tròn **67.370,7 kg** (≈67,4 tấn) + thép hình ~389 kg (nêu riêng, KHÔNG gộp) |
+| KB2 | Thép Ø10 bao nhiêu thanh, bao nhiêu kg? | **4817 thanh, 25.752,6 kg** |
+| KB3 | Đường kính thép nào NẶNG nhất (nhiều kg nhất)? | **Ø10** (25.752,6 kg) — KHÔNG phải Ø22 (bẫy: Ø22 nặng/thanh nhưng tổng Ø10 lớn nhất) |
+| KB4 | Đường kính thép nào có NHIỀU THANH nhất? | **Ø6** (18.072 thanh, nhưng chỉ 3531,6 kg) |
+| KB5 | Thép Ø18 bao nhiêu kg? | **13.379,9 kg** (997 thanh) |
+
+## K-C — Số lượng cấu kiện
+| # | Câu hỏi | Đáp án chuẩn |
+|---|---|---|
+| KC1 | Tổng số cọc là bao nhiêu? | **131 cọc** (bản vẽ ghi "TỔNG SỐ CỌC: 131 CỌC, trong đó 3 cọc thí nghiệm") |
+| KC2 | Đài cọc ĐC-3 có bao nhiêu? | **25** (ghi "ĐC-3 (SL-25)") |
+| KC3 | Cột C-1 có số lượng bao nhiêu? | **27** (ghi "C-1 (SL: 27)") — đây là số đài/cọc dưới cột C1 |
+| KC4 | Đài ĐC-1, ĐC-2 mỗi loại bao nhiêu? | ĐC-1=19, ĐC-2=10 |
+
+## K-D — Tiết diện / vật liệu (chi tiết)
+| # | Câu hỏi | Đáp án chuẩn |
+|---|---|---|
+| KD1 | Cột C1 có tiết diện bao nhiêu? | **220×220 mm** |
+| KD2 | Cột C4 tiết diện bao nhiêu? | ⚠️ Có **2 tiết diện: 220×500 và 220×400** (demo nên nêu cả hai) |
+| KD3 | Mác bê tông cột là bao nhiêu? | **B20 (mác 250#)**, đá 1×2, đổ tại chỗ |
+| KD4 | Thép Ø≥10 dùng loại gì, Ø<10 dùng loại gì? | Ø≥10: **CB300-V** (Rs=260MPa); Ø<10: **CB240-T** (Rs=210MPa) |
+
+## K-E — Bẫy chống bịa (file kết cấu)
+| # | Câu hỏi | Đáp án chuẩn |
+|---|---|---|
+| KE1 | Cao độ tầng 2 / tầng mái bao nhiêu? | **PHẢI TỪ CHỐI** (không lấy +3.600/+7.200/+10.800 làm cao độ tầng) |
+| KE2 | Cột C1 cách cột C2 bao xa? | **PHẢI TỪ CHỐI** (không đọc khoảng cách 2 điểm) |
+| KE3 | Đánh dấu cột C1 trên bản vẽ | Ra ảnh khoanh đỏ vị trí C1 (⚠️ có thể khoanh cả nhãn thép gần giống — điểm yếu đã biết) |
+
+---
+
+# PHẦN 3 — CÂU HỎI "KIỂU ĐỐI TÁC" / NGOÀI KỊCH BẢN (săn lỗi ẩn)
+
+> Các cách hỏi **lạ, tự nhiên, đánh đố** — giống đối tác hỏi thật, để lộ lỗi ẩn (như bạn lo).
+
+| # | Câu hỏi (kiểu tự nhiên) | Đáp án chuẩn / hành vi đúng |
+|---|---|---|
+| X1 | "cửa d1 mấy bộ vậy" (viết thường, cụt) | 24 bộ (phải hiểu dù viết tắt) |
+| X2 | "cho anh xin số lượng cửa các loại" | Liệt kê D1=24, S1=16, SW=16, DW=8, D2=8, CM1=1 |
+| X3 | "bản vẽ này của công trình gì" | Nhà lớp học 2 tầng 8 phòng |
+| X4 | "có cửa nào bằng gỗ không" | Không có (cửa nhôm PMA XF55) — không bịa |
+| X5 | "tính giúp anh khối lượng bê tông" | Chưa hỗ trợ tính (giai đoạn 2) — nói thẳng, không bịa |
+| X6 | "thép phi 16 nằm ở đâu, bao nhiêu" | Ø16: (kiến trúc 68.5kg/22 thanh) — trả số + có thể highlight |
+| X7 | "file này có mấy bản vẽ" | ~73 nhãn tiêu đề (nêu rõ có thể ≠ số tờ in) |
+| X8 | "đọc giúp anh ghi chú chung" | Trích các dòng ghi chú (mác BT, thép, vật liệu...) |
+| X9 | "windows S1 how many?" (tiếng Anh) | Cửa/cửa sổ S1 = 16 bộ (hiểu tiếng Anh) |
+| X10 | "cửa D1 với cửa D2 cái nào nhiều hơn" | D1 (24) nhiều hơn D2 (8) — 16 bộ |
+| X11 | "tổng cộng bao nhiêu m2 sàn" | Chưa hỗ trợ tính diện tích sàn (giai đoạn 2) — không bịa |
+| X12 | "có bao nhiêu phòng vệ sinh / wc" | Tra text WC nếu có; không có thì nói không tìm thấy |
+
+**Nếu bất kỳ câu nào demo trả SAI hoặc bịa → chụp lại gửi mình → vá ngay.**
