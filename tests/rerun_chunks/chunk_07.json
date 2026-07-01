@@ -1,0 +1,359 @@
+{
+ "file": "hatang",
+ "factsheet": {
+  "tong_doi_tuong": 15491,
+  "so_layer": 136,
+  "so_dim": 361,
+  "dim_min": 0.1,
+  "dim_max": 53.3,
+  "qty_index": {},
+  "thep_tron_kg": 0,
+  "thep_tron_by_dk": {},
+  "thep_hinh": {},
+  "so_block_loai": 17,
+  "counts": {
+   "ACAD_PROXY_ENTITY": 1,
+   "INSERT": 450,
+   "LWPOLYLINE": 1000,
+   "LINE": 6222,
+   "TEXT": 6460,
+   "DIMENSION": 361,
+   "HATCH": 163,
+   "MTEXT": 438,
+   "LEADER": 393,
+   "CIRCLE": 1,
+   "SPLINE": 1,
+   "OLE2FRAME": 1
+  }
+ },
+ "items": [
+  {
+   "id": 115,
+   "loai": "so_luong",
+   "cau_hoi": "Co bao nhieu block (khoi) trong ban ve va ten cac block?",
+   "ky_vong": "450 INSERT; cac block pho bien la A$C49d3a4fc (65), A$C5f28df20 (55), A$C28ecf0b3 (46), _kteennn (29)... deu la ten he thong, khong phai cau kien.",
+   "loi_san": "doc sai",
+   "answer": "Trong bản vẽ có tổng cộng **17 loại block** (khối), bao gồm 4 loại block có tên tường minh và 13 loại block nội bộ ẩn danh. \n\nDưới đây là danh sách các block có tên và số lần chèn (xuất hiện) của chúng trong bản vẽ:\n\n1. **_kteennn**: 29 lần chèn\n2. **dattn1**: 4 lần chèn\n3. **diahinhhh**: 2 lần chèn\n4. **_hientrang**: 1 lần chèn\n\n*Lưu ý: Số lần chèn ở đây là số lần ký hiệu/block được sử dụng trên bản vẽ kỹ thuật, không phải số lượng cấu kiện thực tế.*",
+   "anh_id": null,
+   "n_evidence": 0,
+   "handles": [],
+   "evidence_text": []
+  },
+  {
+   "id": 119,
+   "loai": "chi_tiet",
+   "cau_hoi": "Mac be tong su dung trong ban ve la gi?",
+   "ky_vong": "Co hai ghi chu: 'Khoi BT duc san M200' va 'BT M150 da 1x2'. Khong co bang, chi la text ghi chu.",
+   "loi_san": "doc thieu",
+   "answer": "Dựa trên dữ liệu từ bản vẽ, các loại mác bê tông được sử dụng bao gồm:\n\n1. **Bê tông M150 (đá 1x2)**:\n   * Ký hiệu: `BT M150 đá 1x2` (xuất hiện tại các handle `[13BA76]`, `[13BAD3]`, `[13BB47]`).\n\n2. **Bê tông M200 (đúc sẵn)**:\n   * Ký hiệu: `Khối BT đúc sẵn M200` (xuất hiện tại các handle `[13BA89]`, `[13BAA9]`, `[13BB45]`).",
+   "anh_id": null,
+   "n_evidence": 46,
+   "handles": [
+    "13BA89",
+    "13BAA9",
+    "13BB45",
+    "13BA76",
+    "13BA89",
+    "13BAA9",
+    "13BAD3",
+    "13BB45",
+    "13BB47",
+    "2FBD0F",
+    "2FBD10",
+    "2FBD16"
+   ],
+   "evidence_text": [
+    "Khối BT đúc sẵn M200",
+    "Khối BT đúc sẵn M200",
+    "Khối BT đúc sẵn M200",
+    "BT M150 đá 1x2",
+    "Khối BT đúc sẵn M200",
+    "Khối BT đúc sẵn M200",
+    "BT M150 đá 1x2",
+    "Khối BT đúc sẵn M200"
+   ]
+  },
+  {
+   "id": 121,
+   "loai": "ky_thuat_vs_thuc_te",
+   "cau_hoi": "Khoi luong dao dap dat cua cong trinh la bao nhieu m3?",
+   "ky_vong": "File KHONG co bang khoi luong (qty_index rong). Co text 'Dat dap' va cac cao do nhung khong co m3. Phai noi khong co bang khoi luong, khong duoc suy dien.",
+   "loi_san": "ao giac",
+   "answer": "Dựa trên dữ liệu tra cứu từ bản vẽ, **không có bảng thống kê tổng khối lượng đào đắp đất cụ thể bằng $m^3$** cho toàn bộ công trình. \n\nBản vẽ chỉ có các ghi chú kỹ thuật và thông số tạm tính liên quan đến công tác đào đắp dừa nước như sau:\n\n* **Ghi chú tạm tính:** Chiều sâu đào dừa nước tạm tính khoảng **$50\\text{ cm}$** ($H=50\\text{ cm}$), khối lượng chính xác sẽ được nghiệm thu theo thực tế với sự xác nhận của các bên liên quan (ghi chú tại [371866] và [3772AB]).\n* **Diện tích đắp bù khoang đào dừa nước tại các mặt cắt:**\n  * $S = 1.78\\text{ m}^2$ [370459]\n  * $S = 0.48\\text{ m}^2$ [37046A]\n  * $S = 0.29\\text{ m}^2$ [370470]\n  * $S = 0.90\\text{ m}^2$ [370477]\n  * $S = 1.26\\text{ m}^2$ [370484]\n  * $S = 2.13\\text{ m}^2$ [37048E]\n  * $S = 0.12\\text{ m}^2$ [370499]\n  * $S = 1.32\\text{ m}^2$ [3704A0]\n  * $S = 6.36\\text{ m}^2$ [3704AE]",
+   "anh_id": null,
+   "n_evidence": 60,
+   "handles": [
+    "370459",
+    "370460",
+    "370466",
+    "37046A",
+    "370470",
+    "370473",
+    "370477",
+    "37047C",
+    "370484",
+    "37048A",
+    "37048E",
+    "370493"
+   ],
+   "evidence_text": [
+    "Đắp bù khoang đào dừa nước S=1.78m2",
+    "Phạm vi bóc đào dừa nước H=50cm",
+    "Phạm vi bóc đào dừa nước H=50cm",
+    "Đắp bù khoang đào dừa nước S=0.48m2",
+    "Đắp bù khoang đào dừa nước S=0.29m2",
+    "Phạm vi bóc đào dừa nước H=50cm",
+    "Đắp bù khoang đào dừa nước S=0.9m2",
+    "Phạm vi bóc đào dừa nước H=50cm"
+   ]
+  },
+  {
+   "id": 122,
+   "loai": "bay_ao_giac",
+   "cau_hoi": "Tinh cho toi tong khoi luong be tong M200 (m3)?",
+   "ky_vong": "Khong co du lieu khoi luong (khong bang, qty rong). Chi co ghi chu mac M200. Phai tra loi khong tinh duoc khoi luong tu file nay.",
+   "loi_san": "ao giac",
+   "answer": "Câu hỏi cần quá nhiều bước. Hãy hỏi cụ thể hơn.",
+   "anh_id": null,
+   "n_evidence": 60,
+   "handles": [
+    "13BA89",
+    "13BAA9",
+    "13BB45",
+    "13BA89",
+    "13BAA9",
+    "13BB45",
+    "13BA76",
+    "13BA89",
+    "13BAA9",
+    "13BAD3",
+    "13BB45",
+    "13BB47"
+   ],
+   "evidence_text": [
+    "Khối BT đúc sẵn M200",
+    "Khối BT đúc sẵn M200",
+    "Khối BT đúc sẵn M200",
+    "Khối BT đúc sẵn M200",
+    "Khối BT đúc sẵn M200",
+    "Khối BT đúc sẵn M200",
+    "BT M150 đá 1x2",
+    "Khối BT đúc sẵn M200"
+   ]
+  },
+  {
+   "id": 123,
+   "loai": "so_luong",
+   "cau_hoi": "Co bao nhieu mat cat trac ngang (coc MC) trong ban ve?",
+   "ky_vong": "Co MC1 den MC17 (17 coc trac ngang), the hien qua 'Coc: MC1 - K0+00' ... 'Coc: MC17 - K0+394.5'. Luu y co them nhan 'Cac:D1-MC6','Cac:D2-MC13'. Day la dem qua text, khong co o qty_index.",
+   "loi_san": "doc thieu",
+   "answer": "Dựa trên dữ liệu từ bản vẽ, có tổng cộng **17 mặt cắt trắc ngang (cọc MC)** được đánh số từ **MC1 đến MC17**. \n\nDưới đây là danh sách chi tiết các cọc MC kèm theo lý trình tương ứng được ghi nhận trong bản vẽ (tại lớp `_DATACU` và `TN_Name`):\n\n1. **Cọc MC1**: Lý trình `K0+00` [1F3A05]\n2. **Cọc MC2**: Lý trình `K0+12.4` [1F3A06]\n3. **Cọc MC3**: Lý trình `K0+38.1` [1F3A07]\n4. **Cọc MC4**: Lý trình `K0+63.2` [1F3A08]\n5. **Cọc MC5**: Lý trình `K0+89.5` [1F3A09]\n6. **Cọc D1-MC6** (hoặc MC6): Lý trình `K0+97.8` [1F3A0A]\n7. **Cọc MC7**: Lý trình `K0+105.8` [1F3A0B]\n8. **Cọc MC8**: Lý trình `K0+132` [1F3A0C]\n9. **Cọc MC9**: Lý trình `K0+157.6` [1F3A0D]\n10. **Cọc MC10**: Lý trình `K0+182.8` [1F3A0E]\n11. **Cọc MC11**: Lý trình `K0+208` [1F3A0F]\n12. **Cọc MC12**: Lý trình `K0+233` [1F3A10]\n13. **Cọc D2-MC13** (hoặc MC13): Lý trình `K0+275.7` [1F3A11]\n14. **Cọc MC14**: Lý trình `K0+315.1` [1F3A12]\n15. **Cọc MC15**: Lý trình `K0+340.2` [1F3A13]\n16. **Cọc MC16**: Lý trình `K0+365.2` [1F3A14]\n17. **Cọc MC17**: Lý trình `K0+390` hoặc `K0+394.5` [1F3A15]",
+   "anh_id": null,
+   "n_evidence": 36,
+   "handles": [
+    "644B9",
+    "644BA",
+    "644BE",
+    "644BF",
+    "644C0",
+    "644C1",
+    "644C2",
+    "644C3",
+    "644B9",
+    "644BA",
+    "644BE",
+    "644BF"
+   ],
+   "evidence_text": [
+    "Cäc:MC1",
+    "Cäc:MC2",
+    "Cäc:D1-MC6",
+    "Cäc:MC7",
+    "Cäc:MC8",
+    "Cäc:MC9",
+    "Cäc:MC10",
+    "Cäc:MC11"
+   ]
+  },
+  {
+   "id": 124,
+   "loai": "chi_tiet",
+   "cau_hoi": "Coc MC9 nam o ly trinh nao?",
+   "ky_vong": "MC9 tai K0+157.6 (text 'Coc: MC9 - K0+157.6'). Day la ly trinh ghi text, khong phai do toa do.",
+   "loi_san": "doc sai",
+   "answer": "Cọc **MC9** nằm ở lý trình **K0+157.6** (được ghi nhận tại các vị trí như [132A38], [1F3A0D], [2FC15D] trên layer `_DATACU`).",
+   "anh_id": null,
+   "n_evidence": 7,
+   "handles": [
+    "644C1",
+    "132A38",
+    "1F19FA",
+    "1F3A0D",
+    "2FBD05",
+    "2FC15D",
+    "3777F4"
+   ],
+   "evidence_text": [
+    "Cäc:MC9",
+    "Cọc: MC9 - K0+157.6",
+    "Cäc:MC9",
+    "Cọc: MC9 - K0+157.6",
+    "Cäc:MC9",
+    "Cọc: MC9 - K0+157.6",
+    "MC9"
+   ]
+  },
+  {
+   "id": 125,
+   "loai": "ky_thuat_vs_thuc_te",
+   "cau_hoi": "Cho biet chieu dai cong trinh / chieu dai tuyen kenh la bao nhieu met?",
+   "ky_vong": "Khong doc duoc chieu dai cong trinh tu toa do/khoang cach. Co the tham chieu ly trinh coc dau K0+00 den K0+394.5 nhung do la nhan text, khong phai do chinh xac. Nen tu choi khang dinh chieu dai chinh xac.",
+   "loi_san": "ky thuat vs thuc te",
+   "answer": "Bản vẽ chưa hỗ trợ tra cứu kích thước/chiều dài/cao độ THỰC TẾ của công trình.",
+   "anh_id": null,
+   "n_evidence": 0,
+   "handles": [],
+   "evidence_text": []
+  },
+  {
+   "id": 126,
+   "loai": "chi_tiet",
+   "cau_hoi": "Tham da kich thuoc bao nhieu va dai bao nhieu met?",
+   "ky_vong": "Tham da (6x2x0.3)m, chieu dai L thay doi theo vi tri: L=42,44,45,46,47,48,51,52,53,54,56,58,60,63m... (nhieu gia tri). Kich thuoc nay ghi bang chu, khong nam o DIMENSION.",
+   "loi_san": "doc thieu",
+   "answer": "Dựa trên dữ liệu bản vẽ, **thảm đá** có kích thước tiết diện cố định là **(6 x 2 x 0.3) m**.\n\nChiều dài (**L**) của thảm đá thay đổi tùy theo từng phân đoạn vị trí thiết kế trên tuyến, cụ thể gồm các chiều dài sau:\n* **L = 42 m** (ví dụ: [73320], [73326])\n* **L = 45 m** (ví dụ: [73C4E], [73C52])\n* **L = 46 m** (ví dụ: [7332E], [73336])\n* **L = 47 m** (ví dụ: [7334A], [7334E])\n* **L = 48 m** (ví dụ: [73358], [7335C])\n* **L = 51 m** (ví dụ: [727FA], [730C8])\n* **L = 53 m** (ví dụ: [727B4], [72FB6])\n* **L = 54 m** (ví dụ: [1F3678])\n* **L = 56 m** (ví dụ: [72721], [727DC], [730CC])\n* **L = 58 m** (ví dụ: [727F4], [13F205], [1F367F])\n* **L = 60 m** (ví dụ: [1F3686])\n* **L = 63 m** (ví dụ: [7361E], [140519])",
+   "anh_id": null,
+   "n_evidence": 20,
+   "handles": [
+    "72721",
+    "727B4",
+    "727DC",
+    "727F4",
+    "727FA",
+    "72FB6",
+    "730C8",
+    "730CC",
+    "730D0",
+    "73320",
+    "73326",
+    "7332E"
+   ],
+   "evidence_text": [
+    "Thảm đá (6x2x0.3)m - L=56m Vải địa kỹ thuật Bao tải vải địa cát",
+    "Thảm đá (6x2x0.3)m - L=53m Vải địa kỹ thuật Bao tải vải địa cát",
+    "Thảm đá (6x2x0.3)m - L=56m Vải địa kỹ thuật Bao tải vải địa cát",
+    "Thảm đá (6x2x0.3)m - L=58m Vải địa kỹ thuật",
+    "Thảm đá (6x2x0.3)m - L=51m Vải địa kỹ thuật Bao tải vải địa cát",
+    "Thảm đá (6x2x0.3)m - L=53m Vải địa kỹ thuật",
+    "Thảm đá (6x2x0.3)m - L=51m Vải địa kỹ thuật",
+    "Thảm đá (6x2x0.3)m - L=56m Vải địa kỹ thuật"
+   ]
+  },
+  {
+   "id": 127,
+   "loai": "chi_tiet",
+   "cau_hoi": "Bien bao trong ban ve la loai gi, theo quy chuan nao?",
+   "ky_vong": "Bien bao P.103a; che tao theo QCVN 41:2024/BGTVT. Cot bang thep ong DN80 day 3.2mm, son phan quang trang/do, mang phan quang, ton kem 2mm.",
+   "loi_san": "doc thieu",
+   "answer": "Dựa trên thông tin trong bản vẽ, biển báo giao thông được thể hiện như sau:\n\n* **Loại biển báo:** Biển báo **P.103a** (Biển cấm xe ô tô) [handle: `13BB37`].\n* **Quy chuẩn áp dụng:** Được chế tạo hoặc mua trọn bộ theo quy chuẩn **QCVN 41:2024/BGTVT** [handle: `13BB4E`].",
+   "anh_id": null,
+   "n_evidence": 4,
+   "handles": [
+    "13BA9E",
+    "13BB37",
+    "13BB43",
+    "13BB4E"
+   ],
+   "evidence_text": [
+    "MÓNG CỘT BIỂN BÁO (1/15)",
+    "Biển báo P.103a",
+    "CHI TIẾT BIỂN BÁO HIỆU GIAO THÔNG (1/20)",
+    "1. Kích thước bản vẽ ghi cm. 2. Biển báo hiệu được chế tạo hoặc mua trọn bộ theo QCVN 41:2024/BGTVT. 3. Biển báo đặt cách mép đường tối thiểu 0.5m 4. Biển báo được đặt trên cột với chiều cao từ mép dưới biển báo đến điểm đặt biển tối thiểu 2m."
+   ]
+  },
+  {
+   "id": 128,
+   "loai": "chi_tiet",
+   "cau_hoi": "Cot bien bao bat bao nhieu bulong, loai gi?",
+   "ky_vong": "2 bulong M14 (text '2 bulong M14').",
+   "loi_san": "doc sai",
+   "answer": "Dựa trên thông tin từ bản vẽ, cột biển báo sử dụng:\n\n* **Số lượng:** **2** bu lông [handle: `13BB5B`].\n* **Loại:** **M14** [handle: `13BB5B`].",
+   "anh_id": null,
+   "n_evidence": 7,
+   "handles": [
+    "13BA9E",
+    "13BB37",
+    "13BB43",
+    "13BB4E",
+    "13BB5B",
+    "13BB5B",
+    "13BB5B"
+   ],
+   "evidence_text": [
+    "MÓNG CỘT BIỂN BÁO (1/15)",
+    "Biển báo P.103a",
+    "CHI TIẾT BIỂN BÁO HIỆU GIAO THÔNG (1/20)",
+    "1. Kích thước bản vẽ ghi cm. 2. Biển báo hiệu được chế tạo hoặc mua trọn bộ theo QCVN 41:2024/BGTVT. 3. Biển báo đặt cách mép đường tối thiểu 0.5m 4. Biển báo được đặt trên cột với chiều cao từ mép dưới biển báo đến điểm đặt biển tối thiểu 2m.",
+    "2 bulong M14",
+    "2 bulong M14",
+    "2 bulong M14"
+   ]
+  },
+  {
+   "id": 129,
+   "loai": "phuc_tap_nhieu_phan",
+   "cau_hoi": "Bien bao phai dat cach mep duong toi thieu bao nhieu, cao toi thieu bao nhieu?",
+   "ky_vong": "Cach mep duong toi thieu 0.5m; chieu cao tu mep duoi bien den diem dat toi thieu 2m (trong MTEXT chu thich). Kich thuoc ban ve ghi cm.",
+   "loi_san": "doc thieu",
+   "answer": "Theo ghi chú chi tiết trong bản vẽ (handle [13BB4E]):\n\n* **Khoảng cách cách mép đường tối thiểu:** **0.5m**\n* **Chiều cao tối thiểu** (từ mép dưới biển báo đến điểm đặt biển): **2m**",
+   "anh_id": null,
+   "n_evidence": 4,
+   "handles": [
+    "13BA9E",
+    "13BB37",
+    "13BB43",
+    "13BB4E"
+   ],
+   "evidence_text": [
+    "MÓNG CỘT BIỂN BÁO (1/15)",
+    "Biển báo P.103a",
+    "CHI TIẾT BIỂN BÁO HIỆU GIAO THÔNG (1/20)",
+    "1. Kích thước bản vẽ ghi cm. 2. Biển báo hiệu được chế tạo hoặc mua trọn bộ theo QCVN 41:2024/BGTVT. 3. Biển báo đặt cách mép đường tối thiểu 0.5m 4. Biển báo được đặt trên cột với chiều cao từ mép dưới biển báo đến điểm đặt biển tối thiểu 2m."
+   ]
+  },
+  {
+   "id": 130,
+   "loai": "chi_tiet",
+   "cau_hoi": "Thep O10 trong chi tiet bien bao dai bao nhieu?",
+   "ky_vong": "Thep O10 L=6cm (text 'Thep O10 L=6cm').",
+   "loi_san": "doc sai",
+   "answer": "Trong chi tiết biển báo (móng cột biển báo), thép Ø10 có chiều dài là **6 cm** (ghi chú trên bản vẽ: `Thép Ø10 L=6cm` [13BA7C], [13BACF]).",
+   "anh_id": null,
+   "n_evidence": 13,
+   "handles": [
+    "13BA9E",
+    "13BB37",
+    "13BB43",
+    "13BB4E",
+    "644C2",
+    "132A3F",
+    "1F3465",
+    "1F3A0E",
+    "2FBD06",
+    "2FC15E",
+    "371072",
+    "13BA7C"
+   ],
+   "evidence_text": [
+    "MÓNG CỘT BIỂN BÁO (1/15)",
+    "Biển báo P.103a",
+    "CHI TIẾT BIỂN BÁO HIỆU GIAO THÔNG (1/20)",
+    "1. Kích thước bản vẽ ghi cm. 2. Biển báo hiệu được chế tạo hoặc mua trọn bộ theo QCVN 41:2024/BGTVT. 3. Biển báo đặt cách mép đường tối thiểu 0.5m 4. Biển báo được đặt trên cột với chiều cao từ mép dưới biển báo đến điểm đặt biển tối thiểu 2m.",
+    "Cäc:MC10",
+    "Cọc: MC10 - K0+182.8",
+    "Cäc:MC10",
+    "Cọc: MC10 - K0+182.8"
+   ]
+  }
+ ]
+}

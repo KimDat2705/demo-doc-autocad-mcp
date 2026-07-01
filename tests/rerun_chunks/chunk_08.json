@@ -1,0 +1,188 @@
+{
+ "file": "hatang",
+ "factsheet": {
+  "tong_doi_tuong": 15491,
+  "so_layer": 136,
+  "so_dim": 361,
+  "dim_min": 0.1,
+  "dim_max": 53.3,
+  "qty_index": {},
+  "thep_tron_kg": 0,
+  "thep_tron_by_dk": {},
+  "thep_hinh": {},
+  "so_block_loai": 17,
+  "counts": {
+   "ACAD_PROXY_ENTITY": 1,
+   "INSERT": 450,
+   "LWPOLYLINE": 1000,
+   "LINE": 6222,
+   "TEXT": 6460,
+   "DIMENSION": 361,
+   "HATCH": 163,
+   "MTEXT": 438,
+   "LEADER": 393,
+   "CIRCLE": 1,
+   "SPLINE": 1,
+   "OLE2FRAME": 1
+  }
+ },
+ "items": [
+  {
+   "id": 131,
+   "loai": "phuc_tap_nhieu_phan",
+   "cau_hoi": "So coc D1 va tong so coc MC la bao nhieu?",
+   "ky_vong": "Co nhan 'Cac:D1-MC6' (D1 gan MC6) va 'Cac:D2-MC13' (D2 gan MC13); tong MC tu MC1-MC17 la 17. Khong co bang dem D1 rieng — chi 1 lan xuat hien D1. Phai phan biet so lan xuat hien text vs so cau kien thuc.",
+   "loi_san": "doc thieu",
+   "answer": "Dựa trên dữ liệu tìm kiếm từ bản vẽ, đây là bản vẽ hạ tầng giao thông/thủy lợi (kênh dẫn) có các cọc mốc trắc dọc/trắc ngang được ký hiệu như sau:\n\n* **Số cọc D1 (Cọc đổi hướng D1):** Có **1 cọc** duy nhất, ký hiệu trùng với cọc MC6 là **`Cäc:D1-MC6`** (xuất hiện tại các vị trí trắc ngang/trắc dọc [644BE], [1F3461], [2FBD02]).\n* **Tổng số cọc MC (Cọc mặt cắt):** Có **17 cọc** (được đánh số liên tục từ MC1 đến MC17), cụ thể:\n  * Các cọc thông thường: MC1, MC2, MC3, MC4, MC5, MC7, MC8, MC9, MC10, MC11, MC12, MC14, MC15, MC16, MC17.\n  * Các cọc đổi hướng trùng với cọc mặt cắt: **D1-MC6** (cọc MC6 trùng D1) và **D2-MC13** (cọc MC13 trùng D2).",
+   "anh_id": null,
+   "n_evidence": 60,
+   "handles": [
+    "644B9",
+    "644BA",
+    "644BE",
+    "644BF",
+    "644C0",
+    "644C1",
+    "644C2",
+    "644C3",
+    "644C4",
+    "73E38",
+    "108386",
+    "132A07"
+   ],
+   "evidence_text": [
+    "Cäc:MC1",
+    "Cäc:MC2",
+    "Cäc:D1-MC6",
+    "Cäc:MC7",
+    "Cäc:MC8",
+    "Cäc:MC9",
+    "Cäc:MC10",
+    "Cäc:MC11"
+   ]
+  },
+  {
+   "id": 132,
+   "loai": "highlight",
+   "cau_hoi": "Danh dau (khoanh do) cot bien bao tren anh giup toi.",
+   "ky_vong": "Tool danh_dau_cau_kien co the tim text lien quan 'MONG COT BIEN BAO' / 'CHI TIET BIEN BAO' va tra anh_id khoanh vung. Neu khong xac dinh duoc doi tuong 'cot' cu the thi noi ro.",
+   "loi_san": "lac de",
+   "answer": "Rất tiếc, hiện tại công cụ đánh dấu trực quan trên ảnh (`danh_dau_cau_kien`) đang gặp lỗi hệ thống và không thể xuất ảnh khoanh đỏ trực tiếp cho bạn được. \n\nTuy nhiên, qua tra cứu dữ liệu bản vẽ, tôi tìm thấy các vị trí và thông tin liên quan đến **cột biển báo** như sau:\n\n1. **Móng cột biển báo (tỷ lệ 1/15)**: Nằm ở layer `1`, mã định danh handle: `[13BA9E]`.\n2. **Biển báo P.103a**: Nằm ở layer `4_Text`, mã định danh handle: `[13BB37]`.\n3. **Chi tiết biển báo hiệu giao thông (tỷ lệ 1/20)**: Nằm ở layer `1`, mã định danh handle: `[13BB43]`.\n4. **Ghi chú kỹ thuật về biển báo**: Nằm ở layer `2`, mã định danh handle: `[13BB4E]`, với nội dung:\n   * Kích thước bản vẽ ghi bằng cm.\n   * Biển báo hiệu được chế tạo hoặc mua trọn bộ theo QCVN 41:2024/BGTVT.\n   * Biển báo đặt cách mép đường tối thiểu 0.5m.\n   * Biển báo được đặt trên cột với chiều cao từ mép dưới biển báo đến điểm đặt biển tối thiểu 2m.\n\nBạn có thể sử dụng các mã handle trên (ví dụ: `13BA9E`, `13BB37`) để định vị nhanh khu vực này trên phần mềm AutoCAD của mình.",
+   "anh_id": null,
+   "n_evidence": 4,
+   "handles": [
+    "13BA9E",
+    "13BB37",
+    "13BB43",
+    "13BB4E"
+   ],
+   "evidence_text": [
+    "MÓNG CỘT BIỂN BÁO (1/15)",
+    "Biển báo P.103a",
+    "CHI TIẾT BIỂN BÁO HIỆU GIAO THÔNG (1/20)",
+    "1. Kích thước bản vẽ ghi cm. 2. Biển báo hiệu được chế tạo hoặc mua trọn bộ theo QCVN 41:2024/BGTVT. 3. Biển báo đặt cách mép đường tối thiểu 0.5m 4. Biển báo được đặt trên cột với chiều cao từ mép dưới biển báo đến điểm đặt biển tối thiểu 2m."
+   ]
+  },
+  {
+   "id": 133,
+   "loai": "bay_ao_giac",
+   "cau_hoi": "Danh dau cot C1 tren ban ve.",
+   "ky_vong": "Khong co cau kien ten 'C1' trong file (khong co text 'C1'). Phai tra loi khong tim thay cot C1, khong khoanh bua.",
+   "loi_san": "ao giac",
+   "answer": "Rất tiếc, hiện tại hệ thống không thể truy xuất dữ liệu hoặc không tìm thấy thông tin về \"cột C1\" trên bản vẽ này để thực hiện đánh dấu.",
+   "anh_id": null,
+   "n_evidence": 0,
+   "handles": [],
+   "evidence_text": []
+  },
+  {
+   "id": 134,
+   "loai": "so_luong",
+   "cau_hoi": "Co bao nhieu kich thuoc (dimension) va kich thuoc lon nhat la bao nhieu?",
+   "ky_vong": "361 dimension; gia tri tu 0.1 den 53.3 (so_dim=361, dim_min=0.1, dim_max=53.3).",
+   "loi_san": "doc sai",
+   "answer": "Dựa trên dữ liệu kỹ thuật từ bản vẽ:\n\n* **Số lượng đường kích thước (DIMENSION):** Có **361** đường kích thước.\n* **Kích thước lớn nhất ghi nhận được:** **53.3 mm** (kích thước nhỏ nhất là 0.1 mm).\n\n*Lưu ý: Đây là các thông số kỹ thuật của các đường kích thước (DIMENSION) được vẽ trong file CAD, giá trị lớn nhất này không đại diện cho kích thước thực tế tổng thể của công trình.*",
+   "anh_id": null,
+   "n_evidence": 0,
+   "handles": [],
+   "evidence_text": []
+  },
+  {
+   "id": 135,
+   "loai": "chi_tiet",
+   "cau_hoi": "Cao do thap nhat (sau nhat) trong cac mat cat la bao nhieu?",
+   "ky_vong": "Cao do am sau nhat trong text khoang -14.26 (co '-14.26','-14.18','-14.10'...). Day la so do dac ghi text, khong phai do bang tool toa do.",
+   "loi_san": "doc sai",
+   "answer": "Bản vẽ chưa hỗ trợ tra cứu kích thước, chiều dài hoặc cao độ thực tế của công trình cũng như các mặt cắt.",
+   "anh_id": null,
+   "n_evidence": 0,
+   "handles": [],
+   "evidence_text": []
+  },
+  {
+   "id": 136,
+   "loai": "chi_tiet",
+   "cau_hoi": "He so mai taluy (m) trong thiet ke la bao nhieu?",
+   "ky_vong": "Co 'm = 2.0' va 'm = 3.0' (va nhan 'MSS= -14'). Hai gia tri he so mai.",
+   "loi_san": "doc thieu",
+   "answer": "Dựa trên dữ liệu tìm kiếm từ bản vẽ, hệ số mái taluy ($m$) trong thiết kế có hai giá trị phổ biến tùy thuộc vào từng vị trí/mặt cắt:\n\n* **$m = 2.0$**: Xuất hiện tại nhiều vị trí thiết kế (ví dụ: handle `[730F3]`, `[730F4]`, `[730F5]`, `[730F6]`, `[730F8]`, `[73312]`,...).\n* **$m = 3.0$**: Xuất hiện tại một số vị trí thiết kế khác (ví dụ: handle `[13DE79]`, `[13F21D]`, `[13F21E]`, `[14041A]`,...).",
+   "anh_id": null,
+   "n_evidence": 31,
+   "handles": [
+    "2FBD27",
+    "2FBD2C",
+    "2FBD2E",
+    "2FC3F7",
+    "2FC3FF",
+    "2FC407",
+    "2FC40D",
+    "2FC412",
+    "37753F",
+    "377540",
+    "377541",
+    "72721"
+   ],
+   "evidence_text": [
+    "mái kè bt",
+    "mái kè xây đá",
+    "mái tôn",
+    "Trải mái 3 kết hợp tự nhiên",
+    "Trải mái 3 kết hợp tự nhiên",
+    "Trải mái 3 kết hợp tự nhiên",
+    "Trải mái 3 kết hợp tự nhiên",
+    "Trải mái 3 kết hợp tự nhiên"
+   ]
+  },
+  {
+   "id": 137,
+   "loai": "bay_ao_giac",
+   "cau_hoi": "Co bao nhieu cua di (door) D1 trong ban ve?",
+   "ky_vong": "Day la file ha tang khao sat dia hinh + bien bao giao thong, KHONG co cua/bang cua. Co layer DOOR/A-DOOR nhung khong co text/bang cua D1. Phai tra loi khong co du lieu cua, khong bia.",
+   "loi_san": "lac de",
+   "answer": "Không có thông tin về cửa đi (door) D1 trong bản vẽ này. \n\nBản vẽ hiện tại là bản vẽ **HẠ TẦNG rachmop** (chủ yếu thể hiện các hạng mục hạ tầng, kênh dẫn, cọc, v.v.), không chứa các cấu kiện kiến trúc như cửa đi D1.",
+   "anh_id": null,
+   "n_evidence": 9,
+   "handles": [
+    "644BE",
+    "13BA7C",
+    "13BACF",
+    "1F3461",
+    "2FBD02",
+    "371866",
+    "3772AB",
+    "371866",
+    "3772AB"
+   ],
+   "evidence_text": [
+    "Cäc:D1-MC6",
+    "Thép Ø10 L=6cm",
+    "Thép Ø10 L=6cm",
+    "Cäc:D1-MC6",
+    "Cäc:D1-MC6",
+    "- Kích thước trong bản vẽ là cm. Cao độ là m. - Tạm tính chiều sâu đào dừa nước khoảng 50cm, khối lượng chính xác sẽ được nghiệm thu theo thực tế với sự xác nhận của các bên liên quan. - Bản vẽ này xem cùng bản vẽ \"Mặt bằng hiện trạng kênh dẫn hạ lưu\".",
+    "- Kích thước trong bản vẽ là cm. Cao độ là m. - Tạm tính chiều sâu đào dừa nước khoảng 50cm, khối lượng chính xác sẽ được nghiệm thu theo thực tế với sự xác nhận của các bên liên quan. - Bản vẽ này xem cùng bản vẽ \"Mặt bằng hiện trạng kênh dẫn hạ lưu\".",
+    "- Kích thước trong bản vẽ là cm. Cao độ là m. - Tạm tính chiều sâu đào dừa nước khoảng 50cm, khối lượng chính xác sẽ được nghiệm thu theo thực tế với sự xác nhận của các bên liên quan. - Bản vẽ này xem cùng bản vẽ \"Mặt bằng hiện trạng kênh dẫn hạ lưu\"."
+   ]
+  }
+ ]
+}

@@ -1,0 +1,290 @@
+{
+ "file": "kientruc",
+ "factsheet": {
+  "tong_doi_tuong": 8024,
+  "so_layer": 141,
+  "so_dim": 2355,
+  "dim_min": 15.0,
+  "dim_max": 58800.0,
+  "qty_index": {
+   "chi tiết bàn rửa": 8,
+   "Hộp-25x25x1.5": 1,
+   "chi tiết wc điển hình": 8,
+   "cöa d1": 24,
+   "cöa s1": 16,
+   "cöa sw": 16,
+   "cöa dw": 8,
+   "cöa d2": 8,
+   "chi tiÕt inox cöa sæ s1": 16,
+   "cöa cm1": 1,
+   "chi tiÕt lc1": 5,
+   "chi tiÕt lc2": 4,
+   "chi tiÕt lc3": 1,
+   "chi tiÕt lc4": 8,
+   "vách kính vk1": 4,
+   "chi tiÕt lc5": 1,
+   "chi tiÕt lc6": 2,
+   "chi tiÕt lc7": 6,
+   "Hộp-40x20x1.5": 6,
+   "chi tiÕt lc8": 1,
+   "Hộp-60x30x1.5": 1,
+   "Gia do bac thang L50x5": 1,
+   "mc dÇm mãng DM1 (sl: 02, L=6.8m)": 2,
+   "mc dÇm mãng DM2 (sl: 03, L=3.00M)": 3,
+   "mc dÇm d1 (sl: 01, L=3.00M)": 1,
+   "MB-1": 3,
+   "DAM DM1": 2,
+   "DAM DM2": 3,
+   "DAM D1": 1,
+   "mc giằng tường gt-1 (sl: 01, L=18.7m)": 1,
+   "GIANG GT-1": 1
+  },
+  "thep_tron_kg": 564.8,
+  "thep_tron_by_dk": {
+   "Ø22": {
+    "so_thanh": 20,
+    "kg": 298.4
+   },
+   "Ø8": {
+    "so_thanh": 178,
+    "kg": 96.4
+   },
+   "Ø16": {
+    "so_thanh": 22,
+    "kg": 68.5
+   },
+   "Ø12": {
+    "so_thanh": 54,
+    "kg": 66.8
+   },
+   "Ø6": {
+    "so_thanh": 116,
+    "kg": 11.1
+   },
+   "Ø10": {
+    "so_thanh": 2,
+    "kg": 23.6
+   }
+  },
+  "thep_hinh": {
+   "Hộp-50x25x2": {
+    "so": 16,
+    "kg": 116.8
+   },
+   "Hộp-25x25x1.5": {
+    "so": 55,
+    "kg": 761.4
+   },
+   "Hộp-60x60x2": {
+    "so": 28,
+    "kg": 318.1
+   },
+   "Hộp-40x20x1.5": {
+    "so": 27,
+    "kg": 167.2
+   },
+   "Hộp-50x25x1.5": {
+    "so": 1,
+    "kg": 3.7
+   },
+   "BM - 60x60x3": {
+    "so": 2,
+    "kg": 0.3
+   },
+   "BM - 100x100x3": {
+    "so": 2,
+    "kg": 0.9
+   },
+   "Hộp-60x30x1.5": {
+    "so": 1,
+    "kg": 14.2
+   },
+   "Cot Thang CT1 250x186x6x6": {
+    "so": 1,
+    "kg": 113.5
+   },
+   "Cot Thang CT2 H250x186x6x6": {
+    "so": 1,
+    "kg": 109.8
+   },
+   "Con thang U200x76x5.2x9": {
+    "so": 1,
+    "kg": 471.0
+   },
+   "U100x46x4.5": {
+    "so": 1,
+    "kg": 32.2
+   },
+   "Pile 8": {
+    "so": 1,
+    "kg": 129.9
+   },
+   "Gia do bac thang L50x5": {
+    "so": 1,
+    "kg": 370.9
+   },
+   "Dam chieu nghi H250x186x6x6": {
+    "so": 1,
+    "kg": 107.8
+   },
+   "Pile 12": {
+    "so": 1,
+    "kg": 22.1
+   },
+   "Bac thang ton nham day 5mm": {
+    "so": 1,
+    "kg": 395.0
+   },
+   "Ban ton nham chieu nghi day 5mm": {
+    "so": 2,
+    "kg": 155.6
+   },
+   "Lan can cau thang thep D42": {
+    "so": 1,
+    "kg": 76.9
+   },
+   "Song lan can thep D27": {
+    "so": 1,
+    "kg": 178.2
+   }
+  },
+  "so_block_loai": 40,
+  "counts": {
+   "INSERT": 1438,
+   "TEXT": 1000,
+   "DIMENSION": 2355,
+   "LWPOLYLINE": 1723,
+   "LINE": 618,
+   "HATCH": 288,
+   "MLINE": 307,
+   "CIRCLE": 30,
+   "ARC": 43,
+   "MTEXT": 25,
+   "LEADER": 169,
+   "ARC_DIMENSION": 20,
+   "OLE2FRAME": 2,
+   "WIPEOUT": 2,
+   "SPLINE": 4
+  }
+ },
+ "items": [
+  {
+   "id": 192,
+   "loai": "font_loi",
+   "cau_hoi": "Chữ 'phòng học' xuất hiện ở đâu trên bản vẽ, đánh dấu giúp tôi.",
+   "ky_vong": "Ban ve ghi loi font 'phßng häc'. danh_dau_cau_kien voi 'phong hoc' phai fold font de tim ra va tra anh_id khoanh do (hoac neu khong fold duoc thi it nhat khong bia). Tra so vi tri + anh_id.",
+   "loi_san": "doc thieu (font loi)",
+   "answer": "Tôi đã tìm thấy **8 vị trí** xuất hiện chữ \"phòng học\" trên bản vẽ (nằm ở layer `T TEXT`) và đã tiến hành khoanh đỏ đánh dấu chúng. \n\nDưới đây là ảnh bản vẽ đã được đánh dấu vị trí (khoanh đỏ cụm tiêu biểu):\n\n![Bản vẽ đánh dấu phòng học](hl_541b04cddc.png)\n\nMột số nội dung ghi chú liên quan đến \"phòng học\" tìm thấy tại handle `[55CDE]`:\n* Nền hoàn thiện phòng học cao hơn nền hành lang 10mm.\n* Nền hoàn thiện nhà vệ sinh thấp hơn nền phòng học 20mm.\n* Trong phòng học ốp gạch chân tường ceramic kích thước 120x600mm cùng màu với màu sàn.",
+   "anh_id": "hl_541b04cddc.png",
+   "n_evidence": 1,
+   "handles": [
+    "55CDE"
+   ],
+   "evidence_text": [
+    "ghi chú: - nền hoàn thiện phòng học cao hơn nền hành lang 10mm. - nền hoàn thiện nhà vệ sinh thấp hơn nền phòng học 20mm. đánh dốc về ga thu nước. - trong phòng học ốp gạch chân tường ceramic kt 120x600mm cùng màu với màu sàn. - diện tích lát gạch kt 600x600mm:591m2. - diện tích ốp gạch chân tường:36m2. - diện tích lát gạch chống trơn 300x300mm: 69m2."
+   ]
+  },
+  {
+   "id": 193,
+   "loai": "doc_thieu",
+   "cau_hoi": "Tổng khối lượng inox lan can cầu thang là bao nhiêu kg?",
+   "ky_vong": "Mot phan inox nam trong bang thep hinh (thong_ke_thep_hinh), mot phan ghi trong text ghi chu cau thang ('tay vin inox d60: 80,52 kg', 'tay do inox 38 cai = 3,18 kg'...). Phai canh bao co the doc thieu phan ghi trong ghi chu, khong khang dinh mot con so duy nhat la tong day du.",
+   "loi_san": "doc thieu",
+   "answer": "Dựa trên ghi chú chi tiết trong bản vẽ (tại handle `[60E44]`), khối lượng inox lan can (inox 304) được tính toán chi tiết **trên 1 cầu thang** như sau:\n\n* **Tay vịn inox d60 dày 2mm:** 27,8m = **80,52 kg**\n* **Tay vịn inox d40 dày 2mm:** 20m = **37,84 kg**\n* **Tay đỡ inox 20x20x1.5mm:** 38 cái = **3,18 kg**\n* **Inox hộp 30x30x2mm:** 27,8m = **49,30 kg**\n* **Inox hộp 25x25x1.5mm:** 148,3m = **165,82 kg**\n\n**Tổng khối lượng inox lan can cho 1 cầu thang:** **336,66 kg**",
+   "anh_id": null,
+   "n_evidence": 34,
+   "handles": [
+    "5BD9E",
+    "5BDA0",
+    "5BDAF",
+    "5BDB5",
+    "5BDD4",
+    "5BDE3",
+    "5BE47",
+    "5BE4C",
+    "60E44",
+    "636CE",
+    "636D2",
+    "636D3"
+   ],
+   "evidence_text": [
+    "Inox èng hép 50x25x2",
+    "VÝt në inox D.10",
+    "Inox èng hép 25x25x1.5",
+    "Inox èng hép 25x25x1.5",
+    "Khung đỡ mặt đá INOX",
+    "BẢNG THỐNG KÊ KHỐI LƯỢNG INOX ( INOX 304)",
+    "Inox èng hép 50x25x2",
+    "Inox èng hép 25x25x1.5"
+   ]
+  },
+  {
+   "id": 195,
+   "loai": "phuc_tap_nhieu_phan",
+   "cau_hoi": "Dầm D2-2 dài bao nhiêu và bao nhiêu cấu kiện?",
+   "ky_vong": "File ketcau: 'D2-2 (SL= 02, L= 59.02m)' chia 2 doan -> tra_cuu_so_luong ra SL=2; chieu dai L=59.02m la do bang ghi (chieu dai TRIEN KHAI thep ghi trong nhan, KHONG phai do tool do khoang cach). Phan biet so luong (2) va trich L tu nhan, khong tu do.",
+   "loi_san": "doc thieu/ky thuat vs thuc te",
+   "answer": "Bản vẽ hiện tại là bản vẽ **KIẾN TRÚC MN Gia Lộc**, do đó không chứa thông tin thiết kế chi tiết của cấu kiện kết cấu như dầm **D2-2** (chiều dài và số lượng cấu kiện). \n\nThông tin này thường nằm trong bộ bản vẽ **KẾT CẤU** của công trình.",
+   "anh_id": null,
+   "n_evidence": 15,
+   "handles": [
+    "66470",
+    "664AD",
+    "664E1",
+    "664F9",
+    "6652B",
+    "66543",
+    "66555",
+    "6656D",
+    "67EAF",
+    "67F30",
+    "862CB",
+    "980F0"
+   ],
+   "evidence_text": [
+    "d2",
+    "d2",
+    "d2",
+    "d2",
+    "d2",
+    "d2",
+    "d2",
+    "d2"
+   ]
+  },
+  {
+   "id": 198,
+   "loai": "phuc_tap_nhieu_phan",
+   "cau_hoi": "so cot tang 1 la bao nhieu, va chung cao bao nhieu met",
+   "ky_vong": "Phan so cot: neu co SL/bang thi tra (ketcau co 'CO COT (SL: 3)' va C-1 SL27), neu khong ghi thi bao khong co; KHONG dem so lan xuat hien. Phan chieu cao cot 'cao bao nhieu met' -> TU CHOI vi khong doc duoc cao do/khoang cach.",
+   "loi_san": "lac de/ky thuat vs thuc te",
+   "answer": "Dựa trên dữ liệu từ bản vẽ kiến trúc:\n\n1. **Số lượng cột tầng 1:** Bản vẽ không ghi sẵn bảng thống kê số lượng cột (do đây là bản vẽ kiến trúc, không phải bản vẽ kết cấu).\n2. **Chiều cao cột:** Bản vẽ chưa hỗ trợ tra cứu kích thước, chiều dài hoặc cao độ thực tế của cấu kiện công trình. \n\nVì vậy, không có thông tin cụ thể về số lượng và chiều cao của cột tầng 1 trong tài liệu này.",
+   "anh_id": null,
+   "n_evidence": 60,
+   "handles": [
+    "4C29B",
+    "4C2A1",
+    "50205",
+    "5020B",
+    "5F55B",
+    "67CDD",
+    "67CE7",
+    "67D16",
+    "67E13",
+    "67EAD",
+    "69B5F",
+    "6A3DD"
+   ],
+   "evidence_text": [
+    "ghi chú: góc cột, tường lồi ra khi trát tường vuốt bo góc cao đến trần.",
+    "chi tiết trát vuốt cột",
+    "ghi chú: góc cột, tường lồi ra khi trát tường vuốt bo góc cao đến trần.",
+    "chi tiết trát vuốt cột",
+    "ghi chú: cốt cao độ trần tính từ mặt sàn hoàn thiện",
+    "cốt sàn ht",
+    "cốt sàn ht",
+    "cốt sàn ht"
+   ]
+  }
+ ]
+}

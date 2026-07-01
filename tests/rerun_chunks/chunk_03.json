@@ -1,0 +1,520 @@
+{
+ "file": "kientruc",
+ "factsheet": {
+  "tong_doi_tuong": 8024,
+  "so_layer": 141,
+  "so_dim": 2355,
+  "dim_min": 15.0,
+  "dim_max": 58800.0,
+  "qty_index": {
+   "chi tiết bàn rửa": 8,
+   "Hộp-25x25x1.5": 1,
+   "chi tiết wc điển hình": 8,
+   "cöa d1": 24,
+   "cöa s1": 16,
+   "cöa sw": 16,
+   "cöa dw": 8,
+   "cöa d2": 8,
+   "chi tiÕt inox cöa sæ s1": 16,
+   "cöa cm1": 1,
+   "chi tiÕt lc1": 5,
+   "chi tiÕt lc2": 4,
+   "chi tiÕt lc3": 1,
+   "chi tiÕt lc4": 8,
+   "vách kính vk1": 4,
+   "chi tiÕt lc5": 1,
+   "chi tiÕt lc6": 2,
+   "chi tiÕt lc7": 6,
+   "Hộp-40x20x1.5": 6,
+   "chi tiÕt lc8": 1,
+   "Hộp-60x30x1.5": 1,
+   "Gia do bac thang L50x5": 1,
+   "mc dÇm mãng DM1 (sl: 02, L=6.8m)": 2,
+   "mc dÇm mãng DM2 (sl: 03, L=3.00M)": 3,
+   "mc dÇm d1 (sl: 01, L=3.00M)": 1,
+   "MB-1": 3,
+   "DAM DM1": 2,
+   "DAM DM2": 3,
+   "DAM D1": 1,
+   "mc giằng tường gt-1 (sl: 01, L=18.7m)": 1,
+   "GIANG GT-1": 1
+  },
+  "thep_tron_kg": 564.8,
+  "thep_tron_by_dk": {
+   "Ø22": {
+    "so_thanh": 20,
+    "kg": 298.4
+   },
+   "Ø8": {
+    "so_thanh": 178,
+    "kg": 96.4
+   },
+   "Ø16": {
+    "so_thanh": 22,
+    "kg": 68.5
+   },
+   "Ø12": {
+    "so_thanh": 54,
+    "kg": 66.8
+   },
+   "Ø6": {
+    "so_thanh": 116,
+    "kg": 11.1
+   },
+   "Ø10": {
+    "so_thanh": 2,
+    "kg": 23.6
+   }
+  },
+  "thep_hinh": {
+   "Hộp-50x25x2": {
+    "so": 16,
+    "kg": 116.8
+   },
+   "Hộp-25x25x1.5": {
+    "so": 55,
+    "kg": 761.4
+   },
+   "Hộp-60x60x2": {
+    "so": 28,
+    "kg": 318.1
+   },
+   "Hộp-40x20x1.5": {
+    "so": 27,
+    "kg": 167.2
+   },
+   "Hộp-50x25x1.5": {
+    "so": 1,
+    "kg": 3.7
+   },
+   "BM - 60x60x3": {
+    "so": 2,
+    "kg": 0.3
+   },
+   "BM - 100x100x3": {
+    "so": 2,
+    "kg": 0.9
+   },
+   "Hộp-60x30x1.5": {
+    "so": 1,
+    "kg": 14.2
+   },
+   "Cot Thang CT1 250x186x6x6": {
+    "so": 1,
+    "kg": 113.5
+   },
+   "Cot Thang CT2 H250x186x6x6": {
+    "so": 1,
+    "kg": 109.8
+   },
+   "Con thang U200x76x5.2x9": {
+    "so": 1,
+    "kg": 471.0
+   },
+   "U100x46x4.5": {
+    "so": 1,
+    "kg": 32.2
+   },
+   "Pile 8": {
+    "so": 1,
+    "kg": 129.9
+   },
+   "Gia do bac thang L50x5": {
+    "so": 1,
+    "kg": 370.9
+   },
+   "Dam chieu nghi H250x186x6x6": {
+    "so": 1,
+    "kg": 107.8
+   },
+   "Pile 12": {
+    "so": 1,
+    "kg": 22.1
+   },
+   "Bac thang ton nham day 5mm": {
+    "so": 1,
+    "kg": 395.0
+   },
+   "Ban ton nham chieu nghi day 5mm": {
+    "so": 2,
+    "kg": 155.6
+   },
+   "Lan can cau thang thep D42": {
+    "so": 1,
+    "kg": 76.9
+   },
+   "Song lan can thep D27": {
+    "so": 1,
+    "kg": 178.2
+   }
+  },
+  "so_block_loai": 40,
+  "counts": {
+   "INSERT": 1438,
+   "TEXT": 1000,
+   "DIMENSION": 2355,
+   "LWPOLYLINE": 1723,
+   "LINE": 618,
+   "HATCH": 288,
+   "MLINE": 307,
+   "CIRCLE": 30,
+   "ARC": 43,
+   "MTEXT": 25,
+   "LEADER": 169,
+   "ARC_DIMENSION": 20,
+   "OLE2FRAME": 2,
+   "WIPEOUT": 2,
+   "SPLINE": 4
+  }
+ },
+ "items": [
+  {
+   "id": 170,
+   "loai": "phuc_tap_nhieu_phan",
+   "cau_hoi": "co bao nhieu cua va liet ke tat ca loai cua roi cho biet loai nao nhieu nhat va danh dau cua D1 tren ban ve giup toi",
+   "ky_vong": "Da buoc: dung liet_ke_so_luong (liet ke loai cua + SL), xac dinh loai nhieu nhat (kientruc: cua d1=24 nhieu nhat), va goi danh_dau_cau_kien cho 'cua D1' tra anh_id khoanh do. Khong bia, phan biet so that vs so lan xuat hien.",
+   "loi_san": "lac de/doc thieu",
+   "answer": "Dựa trên dữ liệu từ bản vẽ, tôi xin gửi tới anh thông tin thống kê các loại cửa và việc đánh dấu cửa D1 như sau:\n\n### 1. Thống kê các loại cửa và số lượng\nTổng số lượng cửa thực tế được ghi nhận trên bản vẽ là **73 bộ**, chi tiết các loại cửa bao gồm:\n*   **Cửa D1** (`cöa d1`): **24 bộ** \\[Handle: `67CE0`]\n*   **Cửa S1** (`cöa s1`): **16 bộ** \\[Handle: `67D0D`]\n*   **Cửa SW** (`cöa sw`): **16 bộ** \\[Handle: `67D11`]\n*   **Cửa DW** (`cöa dw`): **8 bộ** \\[Handle: `67EAA`]\n*   **Cửa D2** (`cöa d2`): **8 bộ** \\[Handle: `67EB0`]\n*   **Cửa CM1** (`cöa cm1`): **1 bộ** \\[Handle: `686FA`]\n\n*(Lưu ý: Bản vẽ còn có mục \"chi tiết inox cửa sổ s1\" với số lượng 16 bộ \\[Handle: `67FFD`], đây là chi tiết phụ kiện nên không cộng gộp vào tổng số bộ cửa chính).*\n\n### 2. Loại cửa có số lượng nhiều nhất\n*   **Cửa D1** là loại cửa có số lượng nhiều nhất trong công trình với **24 bộ**.\n\n### 3. Đánh dấu vị trí cửa D1 trên bản vẽ\nHệ thống đã tìm thấy **38 vị trí** xuất hiện nhãn \"D1\" trên bản vẽ. Cụm tập trung đông nhất gồm **24 vị trí** đã được khoanh đỏ trực quan để anh tiện theo dõi:\n\n{\"anh_id\": \"hl_a4b4247ca3.png\"}",
+   "anh_id": "hl_a4b4247ca3.png",
+   "n_evidence": 33,
+   "handles": [
+    "67CE0",
+    "67D0D",
+    "67D11",
+    "67EAA",
+    "67EB0",
+    "67FFD",
+    "686FA",
+    "67CE0",
+    "67D0D",
+    "67D11",
+    "67EAA",
+    "67EB0"
+   ],
+   "evidence_text": [
+    "cöa d1 → 24",
+    "cöa s1 → 16",
+    "cöa sw → 16",
+    "cöa dw → 8",
+    "cöa d2 → 8",
+    "chi tiÕt inox cöa sæ s1 → 16",
+    "cöa cm1 → 1",
+    "cöa d1 → 24"
+   ]
+  },
+  {
+   "id": 171,
+   "loai": "highlight",
+   "cau_hoi": "danh dau cua D1 tren ban ve",
+   "ky_vong": "Dung danh_dau_cau_kien voi tu_khoa 'cua D1' (giu nguyen cum, khong rut con 'D1' keo bat nham dam D1) -> tra anh_id, noi so vi tri da khoanh do. Nhac day la so lan nhan xuat hien, khong phai so luong that.",
+   "loi_san": "lac de",
+   "answer": "Tôi đã đánh dấu **2 vị trí** có nhãn \"cửa D1\" trên bản vẽ. Bạn có thể xem vị trí khoanh đỏ trong ảnh dưới đây:\n\n* **Ảnh bản vẽ đã đánh dấu:** `hl_54864ad49a.png`\n\n*(Lưu ý: Số vị trí đánh dấu trên ảnh là số lần nhãn xuất hiện, không đại diện cho số lượng cấu kiện thực tế được thi công).*",
+   "anh_id": "hl_54864ad49a.png",
+   "n_evidence": 2,
+   "handles": [
+    "67CDF",
+    "711B7"
+   ],
+   "evidence_text": [
+    "cöa d1",
+    "ghi chú cửa d1 -^Icửa nhôm hệ pma xf55 ( ghi xám). khung bao kt 54,8x66mm dày 2mm; cánh cửa kt 54,8x87mm độ dày 2mm. gioăng epdm phụ kiện đồng bộ. -^Ikính dán an toàn 6,38mm. -^Iphụ kiện cửa : 01 bộ khóa đa điểm; 06 bộ bản lề 3d; 01 bộ chốt cánh phụ trên dưới."
+   ]
+  },
+  {
+   "id": 173,
+   "loai": "edge_robustness",
+   "cau_hoi": "How many windows are there in this drawing?",
+   "ky_vong": "Hieu tieng Anh, map 'windows'=cua so (s1/sw). Dung tra_cuu_so_luong -> file kientruc cua s1=16, sw=16. Tra loi (uu tien tieng Viet theo system prompt) dung so that hoac bao khong ghi san neu file khong co.",
+   "loi_san": "lac de/doc sai",
+   "answer": "Based on the drawing data, there are **32 windows** in total, categorized into two types:\n\n1. **Cửa sổ S1 (Window S1)**: **16 sets** (bộ) \n   * *Handle:* `[67D0D]`\n   * *Specification:* Aluminum frame PMA XF55 (gray), 6.38mm safety glass, 1 handle, and 4 3D hinges `[67E07]`.\n2. **Cửa sổ SW (Window SW)**: **16 sets** (bộ)\n   * *Handle:* `[67D11]`\n   * *Specification:* Aluminum frame PMA XF55 (gray), 6.38mm safety glass, multi-point lock handle, 2 friction hinges (bản lề chữ A), and 2 wind braces `[67E04]`.\n\n*(Note: There is also an inox safety grill detail for window S1 with 16 sets `[67FFD]`)*.",
+   "anh_id": null,
+   "n_evidence": 60,
+   "handles": [
+    "67CE0",
+    "67D0D",
+    "67D11",
+    "67EAA",
+    "67EB0",
+    "67FFD",
+    "686FA",
+    "441BB",
+    "449C3",
+    "44A53",
+    "44A60",
+    "44A67"
+   ],
+   "evidence_text": [
+    "cöa d1 → 24",
+    "cöa s1 → 16",
+    "cöa sw → 16",
+    "cöa dw → 8",
+    "cöa d2 → 8",
+    "chi tiÕt inox cöa sæ s1 → 16",
+    "cöa cm1 → 1",
+    "sơn màu hồng - diện tích 117m2"
+   ]
+  },
+  {
+   "id": 174,
+   "loai": "edge_robustness",
+   "cau_hoi": "co bao nhieu cua so trong ban ve (khong dau)",
+   "ky_vong": "Hieu tieng Viet khong dau 'cua so'. Dung tra_cuu_so_luong -> cua so s1=16, sw=16 (kientruc). Khong bia.",
+   "loi_san": "doc sai",
+   "answer": "Dựa trên số lượng thực tế được ghi nhận trong bản vẽ, có tổng cộng **32 bộ cửa sổ**, bao gồm các loại sau:\n\n* **Cửa sổ S1** (`cöa s1`): **16 bộ** (mã đối tượng: `[67D0D]`)\n* **Cửa sổ SW** (`cöa sw`): **16 bộ** (mã đối tượng: `[67D11]`)\n\nNgoài ra, bản vẽ còn ghi nhận chi tiết inox cho cửa sổ S1 (`chi tiÕt inox cöa sæ s1`) với số lượng là **16 bộ** (`[67FFD]`).",
+   "anh_id": null,
+   "n_evidence": 22,
+   "handles": [
+    "5BD83",
+    "5BDD5",
+    "5F155",
+    "67CE0",
+    "67D0D",
+    "67D11",
+    "67EAA",
+    "67EB0",
+    "67FFD",
+    "686FA",
+    "69B5C",
+    "6A3CB"
+   ],
+   "evidence_text": [
+    "chi tiết bàn rửa → 8",
+    "Hộp-25x25x1.5 → 6",
+    "chi tiết wc điển hình → 8",
+    "cöa d1 → 24",
+    "cöa s1 → 16",
+    "cöa sw → 16",
+    "cöa dw → 8",
+    "cöa d2 → 8"
+   ]
+  },
+  {
+   "id": 176,
+   "loai": "highlight",
+   "cau_hoi": "Liệt kê các sheet (bản vẽ con) trong file.",
+   "ky_vong": "Dung liet_ke_sheet -> liet ke nhan tieu de gach chan. Noi ro day la nhan tieu de phat hien theo chu gach chan, co the khac so to in, da bo trung.",
+   "loi_san": "doc sai",
+   "answer": "Dưới đây là danh sách các sheet (bản vẽ con/chi tiết) được tìm thấy trong file bản vẽ:\n\n### Mặt bằng & Tổng mặt bằng\n* **Tổng mặt bằng xây dựng theo quy hoạch** [6F756]\n* **Tổng mặt bằng hiện trạng** [6D865]\n* **Tổng mặt bằng xây dựng** [9DBB3]\n* **Mặt bằng tầng 1** [520A]\n* **Mặt bằng tầng 2** [40AC1]\n* **Mặt bằng tầng 3** [6282C]\n* **Mặt bằng tường thu hồi** [40AC2]\n* **Mặt bằng mái** [414BD]\n* **Mặt bằng xà gồ mái** [414BA]\n* **Mặt bằng lát sàn tầng 1** [54151]\n* **Mặt bằng lát sàn tầng 2** [58338]\n* **Mặt bằng trần** [5F557]\n* **Mặt bằng nền** [5F21F]\n* **Mặt bằng kết cấu móng** [A5145]\n* **Mặt bằng giằng tường** [A5300]\n* **Mặt bằng thoát nước mái sảnh** [64D9E]\n\n### Mặt đứng & Mặt cắt\n* **Mặt đứng trục 1-15** [414BE]\n* **Mặt đứng trục 15-1** [414BF]\n* **Mặt đứng trục a-e** [414C0]\n* **Mặt đứng trục e-a** [414C1]\n* **Mặt đứng** [6582E]\n* **Mặt cắt 1-1** [414C2]\n* **Mặt cắt 2-2** [414C3]\n* **Mặt cắt 3-3** [4851A]\n\n### Định vị Cửa & Lan can\n* **Mặt bằng định vị cửa - lan can tầng 1** [662C0]\n* **Mặt bằng định vị cửa - lan can tầng 2** [665AC]\n* **Mặt bằng định vị cửa - lan can mái** [66B8A]\n\n### Chi tiết Cấu kiện & Cửa\n* **Cửa D1** [67CDF], **Cửa D2** [67EAF], **Cửa DW** [67E15], **Cửa S1** [67D0C], **Cửa SW** [67D10], **Cửa CM1** [686F9]\n* **Vách kính VK1** [6BBDE]\n* **Chi tiết inox cửa sổ S1** [67FF9]\n* **Chi tiết lan can** [6420D]\n* **Chi tiết LC1** [69B5B], **LC2** [6A3CA], **LC3** [6B31E], **LC4** [6BAE7], **LC5** [6BCE8], **LC6** [6BE69], **LC7** [6BFD3], **LC8** [949B8]\n* **Chi tiết WC điển hình** [5F154]\n* **Chi tiết bàn rửa** [5BD82]\n* **Chi tiết vách ngăn** [5F56A]\n\n### Chi tiết Thang & Bậc\n* **Chi tiết thang bộ điển hình** [60CEE]\n* **Mặt bằng thang ngoài nhà** [8622E]\n* **Mặt đứng thang ngoài nhà** [862D6]\n* **Chi tiết cầu thang ngoài nhà** [8625C]\n* **Mặt cắt A-A** [86246], **Mặt cắt B-B** [97ECC]\n* **Chi tiết chân cột** [86244], **Chi tiết chân cốn thang** [8624A]\n* **Liên kết cốn thang với cột thang** [86232]\n* **Liên kết cốn thang vào dầm chiếu nghỉ** [86230]\n* **Chi tiết bậc tôn nhám** [8622F], **Bậc nhám dày 5mm** [8624B]\n* **Chi tiết mặt bậc** [53F04], **Chi tiết mòi bậc** [9E768], **Chi tiết bậc** [97E39]\n\n### Các chi tiết kiến trúc khác\n* **Chi tiết trát vuốt cột** [4C2A1]\n* **Chi tiết mặt đứng** [4B074]\n* **Chi tiết tường thu hồi** [937D5]\n* **Chi tiết rãnh thu nước hành lang** [64993]\n* **Chi tiết chữ trang trí** [65770]\n* **Chi tiết CT1** [53200], **CT2** [53204], **CT3** [53C7D], **CT4** [64A14]\n* **Mặt bằng / Mặt bằng khung đỡ mặt đá** [5BE24] / [5BE3B]",
+   "anh_id": null,
+   "n_evidence": 20,
+   "handles": [
+    "414BA",
+    "414BD",
+    "40AC2",
+    "520A",
+    "40AC1",
+    "4C2A1",
+    "4851A",
+    "414BE",
+    "414C3",
+    "414C2",
+    "414BF",
+    "414C1"
+   ],
+   "evidence_text": [
+    "mặt bằng xà gồ mái",
+    "mặt bằng mái",
+    "mặt bằng TƯỜNG THU HỒI",
+    "mặt bằng TẦNG 1",
+    "mặt bằng TẦNG 2",
+    "chi tiết trát vuốt cột",
+    "mặt cắt 3-3",
+    "mặt đứng trục 1-15"
+   ]
+  },
+  {
+   "id": 177,
+   "loai": "chi_tiet",
+   "cau_hoi": "Bản vẽ có mác bê tông gì?",
+   "ky_vong": "Dung tim_kiem voi cac bien the ('mac', 'B20', 'M200', '250#'). File kientruc co 'mác 250', 'mác 150', 'mác 75', 'cấp độ bền b20 (mác 250)'. Trich nguyen van. Khong bia mac khong co.",
+   "loi_san": "doc thieu/ao giac",
+   "answer": "Dựa trên dữ liệu từ bản vẽ, các loại mác bê tông được sử dụng bao gồm:\n\n* **Mác 150:**\n  * Bê tông lót móng mác 150 đá 2x4 [handle: `A523F`]\n  * Bê tông lót đá 2x4 mác 150 [handle: `53F40`]\n  * Bê tông đá 2x4 mác 150 dày 100mm [handle: `540AE`]\n\n* **Mác 200:**\n  * Bê tông đá 2x4 mác 200 dày 100mm [handle: `449AA`]\n\n* **Mác 250 (Cấp độ bền B20):**\n  * Bê tông móng, giằng tường móng cấp độ bền B20 (mác 250), đá 1x2 [handle: `A5240`]\n  * Bê tông cốt thép (BTCT) mác 250 dày 120mm [handle: `449C0`] hoặc BTCT mác 250 [handle: `44AEA`]\n\n*(Ngoài ra, bản vẽ còn sử dụng vữa xi măng mác 75 cho công tác láng nền và trát trần [handle: `449A8`, `449C4`]).*",
+   "anh_id": null,
+   "n_evidence": 29,
+   "handles": [
+    "449AA",
+    "44B0A",
+    "44EFB",
+    "4D908",
+    "53F40",
+    "540AE",
+    "60075",
+    "A523F",
+    "A5240",
+    "449A8",
+    "449AA",
+    "449BE"
+   ],
+   "evidence_text": [
+    "-bê tông đá 2x4 mác 200 dày 100mm",
+    "-bê tông đá 2x4 mác 200 dày 100mm",
+    "-bê tông đá 2x4 mác 200 dày 100mm",
+    "-bê tông đá 2x4 mác 200 dày 100mm",
+    "-bê tông lót đá 2x4 mác 150",
+    "-bê tông đá 2x4 mác 150 dày 100mm",
+    "-bê tông đá 2x4 mác 150 dày 100mm",
+    "- bê tông lót móng mác 150 đá 2x4"
+   ]
+  },
+  {
+   "id": 178,
+   "loai": "ky_thuat_vs_thuc_te",
+   "cau_hoi": "Giá trị kích thước lớn nhất trong bản vẽ là bao nhiêu, đó có phải kích thước tổng công trình không?",
+   "ky_vong": "Dung thong_tin_kich_thuoc -> max mm (kientruc 58800, ketcau 62900) NHUNG phai noi RO day chi la duong kich thuoc dai nhat, KHONG chac la kich thuoc tong cong trinh.",
+   "loi_san": "doc sai (ky thuat vs thuc te)",
+   "answer": "Giá trị kích thước (DIMENSION) lớn nhất ghi nhận trong bản vẽ là **58,800 mm** (xuất hiện 24 lần).\n\n**Đó không phải là kích thước tổng thể của công trình.** Đây chỉ là một giá trị đo kích thước kỹ thuật rời rạc được thể hiện trên bản vẽ. Bản vẽ chưa hỗ trợ tra cứu kích thước, chiều dài, hay cao độ THỰC TẾ tổng thể của toàn bộ công trình.",
+   "anh_id": null,
+   "n_evidence": 0,
+   "handles": [],
+   "evidence_text": []
+  },
+  {
+   "id": 181,
+   "loai": "phuc_tap_nhieu_phan",
+   "cau_hoi": "Công trình này là gì, gồm mấy tầng, mấy phòng học?",
+   "ky_vong": "Dung tim_kiem -> file kientruc co 'nhà lớp học 2 tầng 8 phòng', 'NHÀ LỚP HỌC 3 TẦNG (GĐ1: 2 TẦNG 8 PHÒNG) XÂY MỚI'. Trich nguyen van tu text, khong bia so phong neu khong ghi.",
+   "loi_san": "doc thieu/ao giac",
+   "answer": "Dựa trên dữ liệu từ bản vẽ, thông tin về công trình như sau:\n\n1. **Tên/Loại công trình:** \n   * **Nhà lớp học 3 tầng (Giai đoạn 1: 2 tầng 8 phòng) xây mới** (theo ghi chú tại vị trí `[A125F]`). \n   * Đây là công trình nhà lớp học thuộc trường mầm non (theo tên hồ sơ thiết kế *KIẾN TRÚC MN Gia Lộc*).\n\n2. **Số tầng:** \n   * Quy hoạch/thiết kế tổng thể là **3 tầng** (bản vẽ có đầy đủ mặt bằng Tầng 1 `[520A]`, Tầng 2 `[40AC1]` và Tầng 3 `[6282C]`).\n   * Giai đoạn 1 thực hiện xây dựng trước **2 tầng** (theo ghi chú `[A125F]`).\n\n3. **Số phòng học:** \n   * Giai đoạn 1 gồm **8 phòng học** (được ghi chú rõ là *\"nhà lớp học 2 tầng 8 phòng\"* tại `[6D79B]` và *\"số lượng 08 phòng\"* tại `[5F155]`).",
+   "anh_id": null,
+   "n_evidence": 60,
+   "handles": [
+    "414BA",
+    "414BD",
+    "40AC2",
+    "520A",
+    "40AC1",
+    "4C2A1",
+    "4851A",
+    "414BE",
+    "414C3",
+    "414C2",
+    "414BF",
+    "414C1"
+   ],
+   "evidence_text": [
+    "mặt bằng xà gồ mái",
+    "mặt bằng mái",
+    "mặt bằng TƯỜNG THU HỒI",
+    "mặt bằng TẦNG 1",
+    "mặt bằng TẦNG 2",
+    "chi tiết trát vuốt cột",
+    "mặt cắt 3-3",
+    "mặt đứng trục 1-15"
+   ]
+  },
+  {
+   "id": 187,
+   "loai": "phuc_tap_nhieu_phan",
+   "cau_hoi": "Móng M1 dùng thép đường kính bao nhiêu và đai thế nào?",
+   "ky_vong": "Dung tim_kiem -> file kientruc co mat cat mong: '6Ø16', 'Ø12', 'a150', 'Ø6' gan mong. Trich nguyen van cac chuoi thep. Khong bia, khong khang dinh chinh xac thep cua RIENG M1 neu khong ro lien ket.",
+   "loi_san": "doc thieu/ao giac",
+   "answer": "Câu hỏi cần quá nhiều bước. Hãy hỏi cụ thể hơn.",
+   "anh_id": null,
+   "n_evidence": 60,
+   "handles": [
+    "66B8F",
+    "686F9",
+    "9D0C0",
+    "9DA5D",
+    "9DBB6",
+    "9E8C8",
+    "A5132",
+    "A5133",
+    "A523C",
+    "A526C",
+    "56072",
+    "A512F"
+   ],
+   "evidence_text": [
+    "cm1",
+    "cöa cm1",
+    "M1",
+    "M1",
+    "M1",
+    "M1",
+    "dm1(22x50)",
+    "dm1(22x50)"
+   ]
+  },
+  {
+   "id": 188,
+   "loai": "thep",
+   "cau_hoi": "Trong file hạ tầng (rãnh, biển báo giao thông) có bao nhiêu kg thép?",
+   "ky_vong": "File ha tang co thep_tong_kg=0, khong co bang thong ke thep -> thong_ke_thep tra co_bang_thong_ke=False -> phai noi KHONG co bang thep doc duoc. Khong bia kg.",
+   "loi_san": "ao giac/doc thieu",
+   "answer": "Trong bản vẽ hiện tại (**KIẾN TRÚC MN Gia Lộc**), **không có thông tin** về file hạ tầng, rãnh thoát nước ngoài nhà hay biển báo giao thông, do đó không có khối lượng thép cho các hạng mục này. \n\n* Bản vẽ chỉ có chi tiết kiến trúc của trường mầm non, bao gồm hạng mục **\"CHI TIẾT RÃNH THU NƯỚC HÀNH LANG\"** (tại vị trí [64993]) nhưng đây là chi tiết cấu tạo kiến trúc và không đi kèm bảng thống kê khối lượng cốt thép.\n* Các bảng thống kê thép hiện có trong file chỉ phục vụ cho phần kiến trúc/kết cấu phụ trợ của tòa nhà (như thép hình thang ngoài nhà, lan can, xà gồ mái, inox...).",
+   "anh_id": null,
+   "n_evidence": 60,
+   "handles": [
+    "64476",
+    "64993",
+    "6D81E",
+    "70BD5",
+    "9DB6C",
+    "9E6A5",
+    "6D79B",
+    "6D86B",
+    "82943",
+    "9DB60",
+    "A1257",
+    "A125B"
+   ],
+   "evidence_text": [
+    "rãnh thu nước hành lang",
+    "CHI TIẾT RÃNH THU NƯỚC HÀNH LANG",
+    "BẢNG KÊ TỌA ÐỘ GÓC RANH",
+    "xẻ rãnh chống trượt",
+    "BẢNG KÊ TỌA ÐỘ GÓC RANH",
+    "xẻ rãnh chống trượt",
+    "nhà lớp học 2 tầng 8 phòng",
+    "nhà lớp học 2 tầng 8 phòng"
+   ]
+  },
+  {
+   "id": 189,
+   "loai": "ky_thuat_vs_thuc_te",
+   "cau_hoi": "Có bao nhiêu biển báo giao thông trong bản vẽ hạ tầng?",
+   "ky_vong": "File ha tang khong co qty_index ghi SL bien bao -> tra_cuu_so_luong bao khong ghi san. Co the dung tim_kiem 'bien bao' ra sheet 'CHI TIET BIEN BAO HIEU GIAO THONG' nhung khong duoc lay so lan xuat hien lam so luong that.",
+   "loi_san": "doc sai (ky thuat vs thuc te)",
+   "answer": "Dựa trên kết quả tra cứu dữ liệu từ bản vẽ \"KIẾN TRÚC MN Gia Lộc\", **không có thông tin hay ghi chú nào về biển báo giao thông** trong bản vẽ này. \n\nBản vẽ hiện tại chủ yếu tập trung vào phần kiến trúc của công trình trường mầm non (bao gồm các mặt bằng tầng, mặt đứng, mặt cắt, chi tiết cửa, lan can, thang và tổng mặt bằng xây dựng/hiện trạng), không bao gồm hạng mục thiết kế hạ tầng giao thông hay biển báo giao thông.",
+   "anh_id": null,
+   "n_evidence": 60,
+   "handles": [
+    "414BA",
+    "414BD",
+    "40AC2",
+    "520A",
+    "40AC1",
+    "4C2A1",
+    "4851A",
+    "414BE",
+    "414C3",
+    "414C2",
+    "414BF",
+    "414C1"
+   ],
+   "evidence_text": [
+    "mặt bằng xà gồ mái",
+    "mặt bằng mái",
+    "mặt bằng TƯỜNG THU HỒI",
+    "mặt bằng TẦNG 1",
+    "mặt bằng TẦNG 2",
+    "chi tiết trát vuốt cột",
+    "mặt cắt 3-3",
+    "mặt đứng trục 1-15"
+   ]
+  },
+  {
+   "id": 190,
+   "loai": "phuc_tap_nhieu_phan",
+   "cau_hoi": "Liệt kê toàn bộ block và cho biết block nào là cấu kiện chịu lực chính.",
+   "ky_vong": "Dung liet_ke_block -> liet ke block + so lan chen, nhung phai noi block la so lan chen ky hieu KHONG phai cau kien, va KHONG the suy ra 'cau kien chiu luc chinh' tu ten block (vd 'truc', 'KCS_SNODE' la ky hieu). Khong bia.",
+   "loi_san": "lac de/doc sai",
+   "answer": "Dưới đây là danh sách các block có tên phổ biến được sử dụng trong bản vẽ (tổng cộng có 104 loại block, trong đó có 65 loại có tên rõ ràng):\n\n### Danh sách các block phổ biến và số lần chèn (đây là số lần ký hiệu xuất hiện trên bản vẽ, không phải số lượng cấu kiện thực tế):\n* **Ký hiệu cao độ (`CAO§O`):** 178 lần\n* **Ký hiệu trục (`truc`):** 153 lần\n* **Nhãn tên (`NAMETAG`):** 113 lần\n* **Gioăng (`GIOĂNG 1TAOTHEM`):** 66 lần\n* **Đơn vị/Ký hiệu (`STK_UNIT`):** 50 lần\n* **Bậc thang (`bacthang`):** 37 lần\n* **Khung tên (`khungten30-10`):** 34 lần\n* **Giằng (`GIĂNG12`):** 28 lần\n* **Tường (`tuong1`):** 26 lần\n* **Khung A3 dài (`khung a3 dai`):** 13 lần\n* **Độ dốc (`do doc`):** 12 lần\n* **Mặt bằng tầng 1 (`mb tang 1`):** 11 lần\n* **Nội thất (`noi that11`):** 11 lần\n* **Mặt bằng cửa (`mb cua`):** 9 lần\n* **Cửa D2 (`cua d2`):** 8 lần\n* **Thang bộ (`thang bo`):** 7 lần\n* **Mặt bằng tầng 2 (`mb tang 211`):** 7 lần\n* Các block kỹ thuật khác như: `C3295TAOTHEM` (28 lần), `C3303TAOTHEM` (22 lần), `C3328TAOTHEM` (12 lần), `ecu+dem m20` (8 lần), `ren m20` (8 lần)...\n\n### Về cấu kiện chịu lực chính:\nĐây là bản vẽ **Kiến trúc** (KIẾN TRÚC MN Gia Lộc), do đó các block chủ yếu phục vụ cho việc thể hiện ký hiệu kiến trúc, hoàn thiện và phân vị không gian (như trục, cao độ, cửa, bậc thang, nội thất). \n\n* Trong danh sách block **không có block nào đại diện cho cấu kiện chịu lực chính** (như cột, dầm, móng). \n* Các cấu kiện chịu lực chính (nếu có thể hiện trên bản vẽ kiến trúc này như cột, tường chịu lực) thường được vẽ bằng các nét vẽ rời (Line, Polyline, Hatch) chứ không được định nghĩa dưới dạng block chịu lực riêng biệt.",
+   "anh_id": null,
+   "n_evidence": 0,
+   "handles": [],
+   "evidence_text": []
+  }
+ ]
+}

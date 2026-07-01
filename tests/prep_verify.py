@@ -4,15 +4,15 @@ import os, sys, io, json, glob
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 HERE = os.path.dirname(os.path.abspath(__file__))
 RDIR = os.path.normpath(os.path.join(HERE, "..", "_renders"))
-CH = os.path.join(HERE, "verify_chunks")
+# argv[1] = ten file jsonl ket qua (mac dinh snapshot); argv[2] = thu muc chunk
+SRC_NAME = sys.argv[1] if len(sys.argv) > 1 else "battery_results_flash_snapshot.jsonl"
+CH = os.path.join(HERE, sys.argv[2] if len(sys.argv) > 2 else "verify_chunks")
 os.makedirs(CH, exist_ok=True)
 for f in glob.glob(os.path.join(CH, "*.json")): os.remove(f)
 
-SRC = os.path.join(HERE, "battery_results_flash_snapshot.jsonl")
-if not os.path.isfile(SRC):
-    SRC = os.path.join(HERE, "battery_results.jsonl")
+SRC = os.path.join(HERE, SRC_NAME)
 R = [json.loads(l) for l in open(SRC, encoding="utf-8")]
-R = [r for r in R if "[[LỖI]]" not in r["answer"]]   # bỏ câu lỗi 503/504 (không có gì để chấm)
+R = [r for r in R if "[[LỖI" not in r["answer"]]   # bỏ câu lỗi 503/504 (không có gì để chấm)
 
 # --- factsheet tu profile ---
 def factsheet(key):

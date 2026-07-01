@@ -31,9 +31,11 @@ def _load_env():
 
 _load_env()
 API_KEY = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY") or ""
-# Mặc định Flash 3.5: mạnh + QUOTA FREE CAO -> đối tác hỏi nhiều không bị 429 "AI tạm lỗi".
-# (Pro preview quota quá thấp ~25 req/cửa-sổ là cạn.) Đổi model qua env GEMINI_MODEL nếu cần.
-MODEL = os.environ.get("GEMINI_MODEL", "gemini-3.5-flash")
+# Mặc định gemini-2.5-flash: ỔN ĐỊNH + NHANH (2-8s) + quota free cao + chất lượng đủ tốt
+# (giữ trap-refusal + answer multi-part). Đã thử 3.5-flash nhưng bản mới hay 503 "high demand"
+# (timeout) -> không ổn cho đối tác. Pro preview thì quota ~25 req là cạn (429).
+# -> 2.5-flash là cân bằng tốt nhất cho DEMO. Đổi qua env GEMINI_MODEL khi cần (vd 3.5-flash lúc hết tải).
+MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
 # 14 (cũ 8): câu nhiều phần ("công trình gì, mấy tầng, mấy phòng") cần nhiều lượt gọi tool;
 # Flash gọi tool kém gọn hơn Pro -> 8 lượt dễ hết -> AI bỏ cuộc dù data có sẵn. Nới rộng.
 MAX_TURNS = int(os.environ.get("GEMINI_MAX_TURNS", "14"))
@@ -271,5 +273,23 @@ def tra_loi_ai(bridge, q, file_summary=""):
                     "evidence": _flat_ev(evidence), "anh_id": anh_id, "ai": True}
         return {"answer": text, "evidence": _flat_ev(evidence), "anh_id": anh_id, "ai": True}
 
-    return {"answer": "Câu hỏi cần quá nhiều bước. Hãy hỏi cụ thể hơn.",
+    # Hết lượt tool mà chưa chốt (Flash hay LẶP gọi tool) -> ÉP trả lời NGAY từ dữ liệu ĐÃ thu,
+    # KHÔNG gọi thêm tool, KHÔNG bỏ cuộc -> tránh "đọc thiếu" khi data thực ra đã có trong evidence.
+    contents.append(types.Content(role="user", parts=[types.Part(text=(
+        "Đã đủ dữ liệu từ các công cụ ở trên. HÃY TRẢ LỜI NGAY dựa trên kết quả công cụ đã thu được, "
+        "KHÔNG gọi thêm công cụ nữa. Nếu một phần thật sự thiếu thì nói rõ phần đó, nhưng vẫn trả lời "
+        "những gì đã có. TUYỆT ĐỐI KHÔNG nói 'câu hỏi cần quá nhiều bước'."))]))
+    cfg_final = types.GenerateContentConfig(
+        system_instruction=SYSTEM_PROMPT + ("\n\nBản vẽ đang nạp: " + file_summary if file_summary else ""),
+        temperature=0, max_output_tokens=8192)   # KHÔNG truyền tools -> model buộc tự trả lời từ dữ liệu đã có
+    try:
+        resp = client.models.generate_content(model=MODEL, contents=contents, config=cfg_final)
+        cand = (resp.candidates or [None])[0]
+        parts = (cand.content.parts or []) if (cand and cand.content) else []
+        text = "".join(getattr(p, "text", "") or "" for p in parts if not getattr(p, "thought", False)).strip()
+        if text:
+            return {"answer": text, "evidence": _flat_ev(evidence), "anh_id": anh_id, "ai": True}
+    except Exception:
+        pass
+    return {"answer": "Câu hỏi cần tra cứu phức tạp. Hãy thử hỏi cụ thể từng phần (ví dụ hỏi riêng số lượng, riêng kích thước).",
             "evidence": _flat_ev(evidence), "anh_id": anh_id, "ai": True}
