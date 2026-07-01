@@ -103,6 +103,77 @@ def _looks_like_title(n):
     return any(w not in _UNIT_WORDS for w in re.findall(r"[a-z]{2,}", n))
 
 
+# ============================================================================
+# GIAI ĐOẠN 2 — CẤU HÌNH ENGINE TÍNH TOÁN (takeoff)
+# ============================================================================
+_TIETDIEN_RE = re.compile(r"(\d{2,4})\s*[x×*]\s*(\d{2,4})")  # '220x220', '(220 x 500)'
+
+
+def _tok_bound(tok, lab):
+    """Token có chữ số -> khớp RANH GIỚI TỪ, BỎ gạch ngang giữa chữ-số (C1 == C-1, ĐC3 == đc-3);
+    vẫn chặn C-4 khớp nhầm C-40 (ranh giới). Token chữ -> substring (khớp font/ghép từ)."""
+    if any(c.isdigit() for c in tok):
+        t2 = tok.replace("-", "")
+        l2 = re.sub(r"(?<=[a-zđ])-(?=\d)", "", lab)
+        return re.search(r"(?<![a-z0-9])%s(?![a-z0-9])" % re.escape(t2), l2) is not None
+    return tok in lab
+
+
+def _nd(val):
+    """Input do ĐỐI TÁC cấp (không đọc từ file) — luôn ghi rõ nguồn."""
+    try: g = float(val)
+    except Exception: g = val
+    return {"gia_tri": g, "nguon": "nguoi_dung_cung_cap", "handle": None, "chua_chac": False,
+            "do_tin_cay": "do_nguoi_dung", "giai_thich": "do đối tác cấp (không đọc từ file)"}
+
+
+# Mỗi công thức: ten hiển thị, cách tính, đơn vị KQ, danh sách input (ten|đơn vị|resolver method|khoá inputs_bo_sung),
+# và hàm compute nhận dict {ten_input: giá_trị_số}. CODE tính, không để LLM tính.
+_FORMULAS = {
+    "dien_tich_cua": {
+        "ten": "Diện tích cửa", "don_vi": "m²",
+        "cach_tinh": "rộng × cao × số_lượng ÷ 1.000.000",
+        "inputs": [("rong", "mm", "_rs_rong", "rong"), ("cao", "mm", "_rs_cao", "cao"),
+                   ("so_luong", "bộ", "_rs_so_luong", "so_luong")],
+        "compute": lambda v: round(v["rong"] * v["cao"] * v["so_luong"] / 1e6, 2),
+    },
+    "the_tich_be_tong_cot": {
+        "ten": "Thể tích bê tông cột", "don_vi": "m³",
+        "cach_tinh": "canh_a × canh_b × chiều_cao × số_lượng ÷ 1.000.000.000",
+        "inputs": [("canh_a", "mm", "_rs_canh_a", "canh_a"), ("canh_b", "mm", "_rs_canh_b", "canh_b"),
+                   ("chieu_cao", "mm", "_rs_chieu_cao_cot", "chieu_cao"), ("so_luong", "cái", "_rs_so_luong", "so_luong")],
+        "compute": lambda v: round(v["canh_a"] * v["canh_b"] * v["chieu_cao"] * v["so_luong"] / 1e9, 3),
+    },
+    "dien_tich_van_khuon_cot": {
+        "ten": "Diện tích ván khuôn cột", "don_vi": "m²",
+        "cach_tinh": "2 × (canh_a + canh_b) × chiều_cao × số_lượng ÷ 1.000.000",
+        "inputs": [("canh_a", "mm", "_rs_canh_a", "canh_a"), ("canh_b", "mm", "_rs_canh_b", "canh_b"),
+                   ("chieu_cao", "mm", "_rs_chieu_cao_cot", "chieu_cao"), ("so_luong", "cái", "_rs_so_luong", "so_luong")],
+        "compute": lambda v: round(2 * (v["canh_a"] + v["canh_b"]) * v["chieu_cao"] * v["so_luong"] / 1e6, 2),
+    },
+}
+
+# Ánh xạ ngôn ngữ tự nhiên -> khoá công thức (LLM có thể truyền tên tự do).
+_TEN_MAP = [
+    (("dien tich", "van khuon", "cot"), "dien_tich_van_khuon_cot"),
+    (("van khuon", "cot"), "dien_tich_van_khuon_cot"),
+    (("the tich", "cot"), "the_tich_be_tong_cot"),
+    (("be tong", "cot"), "the_tich_be_tong_cot"),
+    (("dien tich", "cua"), "dien_tich_cua"),
+    (("cua",), "dien_tich_cua"),
+]
+
+
+def _chuan_hoa_ten_dai_luong(ten):
+    """Map tên tự do -> khoá công thức. Trả None nếu không nhận ra."""
+    t = (ten or "").strip()
+    if t in _FORMULAS: return t
+    tn = unaccent(t)
+    for kws, key in _TEN_MAP:
+        if all(k in tn for k in kws): return key
+    return None
+
+
 class Drawing:
     """Một bản vẽ đã nạp: GIỮ doc (render) + dữ liệu trích xuất (tra cứu). Chống bịa: số do CODE."""
 
@@ -152,7 +223,27 @@ class Drawing:
             elif t == "DIMENSION":
                 try:
                     v = round(float(e.get_measurement()), 1)
-                    dims.append(v); dim_items.append({"handle": e.dxf.handle, "value": v})
+                    dims.append(v)
+                    # GĐ2: thêm TOẠ ĐỘ (để gắn dim vào cấu kiện) + HƯỚNG (ngang=rộng / dọc=cao).
+                    dx = dy = 0.0; co_td = False
+                    for attr in ("text_midpoint", "defpoint", "defpoint2", "defpoint3"):
+                        if e.dxf.hasattr(attr):
+                            try:
+                                p = e.dxf.get(attr); dx, dy = float(p[0]), float(p[1]); co_td = True; break
+                            except Exception: pass
+                    huong = "?"
+                    try:
+                        a = float(e.dxf.get("angle", 0.0)) % 180
+                        if a < 15 or a > 165: huong = "ngang"
+                        elif 75 < a < 105: huong = "doc"
+                    except Exception: pass
+                    if huong == "?" and e.dxf.hasattr("defpoint2") and e.dxf.hasattr("defpoint3"):
+                        try:
+                            p2 = e.dxf.defpoint2; p3 = e.dxf.defpoint3
+                            huong = "ngang" if abs(float(p2[0]) - float(p3[0])) >= abs(float(p2[1]) - float(p3[1])) else "doc"
+                        except Exception: pass
+                    dim_items.append({"handle": e.dxf.handle, "value": v, "x": dx, "y": dy,
+                                      "layer": e.dxf.get("layer"), "huong": huong, "khong_toa_do": not co_td})
                 except Exception: pass
 
         self.texts = texts
@@ -233,20 +324,11 @@ class Drawing:
         toks = [w for w in kw.split() if w]
         if not toks: return []
         codes = [w for w in toks if any(c.isdigit() for c in w)]
-
-        def _tok_in(tok, lab):
-            # Token dạng MÃ (có chữ số: c-4, d1, lc1) PHẢI khớp theo RANH GIỚI TỪ -> tránh
-            # 'c-4' khớp nhầm 'c-40' (trong ghi chú cọc) hay 'đc-4a'. Token chữ thường (cửa, dầm)
-            # vẫn substring để khớp font/ghép từ.
-            if any(c.isdigit() for c in tok):
-                return re.search(r"(?<![a-z0-9])%s(?![a-z0-9])" % re.escape(tok), lab) is not None
-            return tok in lab
-
         out = []
         for e in idx:
             lab = e["label_norm"]
-            full = all(_tok_in(t, lab) for t in toks)
-            code = any(re.search(r"(?<![a-z0-9])%s(?![a-z0-9])" % re.escape(c), lab) for c in codes) if codes else False
+            full = all(_tok_bound(t, lab) for t in toks)          # ranh giới + bỏ gạch ngang (C1==C-1)
+            code = any(_tok_bound(c, lab) for c in codes) if codes else False
             if full or code: out.append(dict(e, _score=2 if full else 1))
         out.sort(key=lambda x: -x["_score"])
         seen, res = set(), []
@@ -414,6 +496,144 @@ class Drawing:
                 "tong_doi_tuong": self.total, "so_doan_chu": len(self.texts),
                 "so_kich_thuoc": len(self.dims), "so_nhan_tieu_de": len(self.sheets),
                 "thep_tong_kg": self.thep.get("tong_kg", 0), "counts": self.counts}
+
+    # ============================================================
+    # GIAI ĐOẠN 2 — ENGINE TÍNH TOÁN (takeoff). CODE lấy input + CODE tính, LLM chỉ điều phối.
+    # ============================================================
+    def _gan_dim_cau_kien(self, ma_cau_kien, R=8000.0):
+        """Gắn ĐƯỜNG KÍCH THƯỚC vào cấu kiện theo VỊ TRÍ: tìm neo (nhãn mã có x,y), lấy dim NGANG (rộng)
+        + dim DỌC (cao) gần nhất trong bán kính R. Trả kèm ĐỘ TIN CẬY (heuristic -> luôn 'chưa chắc')."""
+        kw = _norm_label(ma_cau_kien or "").strip()
+        toks = [w for w in kw.split() if w]
+        if not toks: return {"tim_thay_neo": False}
+        anchors = [(q.get("x", 0.0), q.get("y", 0.0), q.get("label") or q["label_norm"])
+                   for q in self.qty_index if all(_tok_bound(t, q["label_norm"]) for t in toks)]
+        if not anchors:
+            for tx in self.texts:
+                lab = _norm_label(tx["vn"])
+                if all(_tok_bound(t, lab) for t in toks) and (tx.get("x") or tx.get("y")):
+                    anchors.append((tx["x"], tx["y"], tx["vn"]))
+        if not anchors: return {"tim_thay_neo": False}
+        ax, ay, neo = anchors[0]
+        best = {"ngang": None, "doc": None}
+        for di in self.dim_items:
+            if di.get("khong_toa_do"): continue
+            h = di.get("huong")
+            if h not in ("ngang", "doc"): continue
+            dist = ((di["x"] - ax) ** 2 + (di["y"] - ay) ** 2) ** 0.5
+            if dist > R: continue
+            if best[h] is None or dist < best[h][0]: best[h] = (dist, di)
+
+        def _mk(pair):
+            if not pair: return None
+            dist, di = pair
+            ratio = dist / max(di["value"], 1.0)
+            tc = "cao" if ratio < 1.2 else ("trung_binh" if ratio < 3 else "thap")
+            return {"gia_tri": di["value"], "handle": di["handle"], "khoang_cach": round(dist), "do_tin_cay": tc}
+        return {"tim_thay_neo": True, "neo": neo, "rong": _mk(best["ngang"]), "cao": _mk(best["doc"])}
+
+    def _doc_tiet_dien(self, ma_cau_kien):
+        """Đọc tiết diện 'AxB' từ chuỗi chứa mã cấu kiện (vd 'C1 (220x220)'). Trả (a,b,handle) hoặc None."""
+        toks = [w for w in _norm_label(ma_cau_kien or "").split() if w]
+        codes = [w for w in toks if any(c.isdigit() for c in w)]
+        for tx in self.texts:
+            lab = _norm_label(tx["vn"])
+            if codes and not all(_tok_bound(c, lab) for c in codes): continue
+            m = _TIETDIEN_RE.search(tx["vn"])
+            if m:
+                a, b = int(m.group(1)), int(m.group(2))
+                if 50 <= a <= 5000 and 50 <= b <= 5000:
+                    return {"a": a, "b": b, "handle": tx["handle"], "text": tx["vn"].strip()}
+        return None
+
+    # ---- Resolver: lấy 1 input. Trả dict provenance (gia_tri/nguon/handle/do_tin_cay/chua_chac/giai_thich) hoặc None ----
+    def _rs_so_luong(self, ma, bs):
+        if "so_luong" in bs: return _nd(bs["so_luong"])
+        r = self.tra_so_luong(ma)
+        if r:
+            return {"gia_tri": float(r[0]["so_luong"]), "nguon": "doc_verbatim",
+                    "handle": r[0].get("qty_handle") or r[0]["handle"], "chua_chac": False, "do_tin_cay": "cao",
+                    "giai_thich": "nhãn số lượng '%s'" % r[0]["label"][:40]}
+        return None
+
+    def _rs_rong(self, ma, bs):
+        if "rong" in bs: return _nd(bs["rong"])
+        g = self._gan_dim_cau_kien(ma)
+        if g.get("rong"):
+            r = g["rong"]
+            return {"gia_tri": r["gia_tri"], "nguon": "gan_vi_tri", "handle": r["handle"], "chua_chac": True,
+                    "do_tin_cay": r["do_tin_cay"], "giai_thich": "đường kích thước NGANG gần cấu kiện (cách %d)" % r["khoang_cach"]}
+        return None
+
+    def _rs_cao(self, ma, bs):
+        if "cao" in bs: return _nd(bs["cao"])
+        g = self._gan_dim_cau_kien(ma)
+        if g.get("cao"):
+            c = g["cao"]
+            return {"gia_tri": c["gia_tri"], "nguon": "gan_vi_tri", "handle": c["handle"], "chua_chac": True,
+                    "do_tin_cay": c["do_tin_cay"], "giai_thich": "đường kích thước DỌC gần cấu kiện (cách %d)" % c["khoang_cach"]}
+        return None
+
+    def _rs_canh_a(self, ma, bs):
+        if "canh_a" in bs: return _nd(bs["canh_a"])
+        td = self._doc_tiet_dien(ma)
+        if td: return {"gia_tri": float(td["a"]), "nguon": "doc_verbatim", "handle": td["handle"],
+                       "chua_chac": False, "do_tin_cay": "cao", "giai_thich": "tiết diện '%s'" % td["text"][:30]}
+        return None
+
+    def _rs_canh_b(self, ma, bs):
+        if "canh_b" in bs: return _nd(bs["canh_b"])
+        td = self._doc_tiet_dien(ma)
+        if td: return {"gia_tri": float(td["b"]), "nguon": "doc_verbatim", "handle": td["handle"],
+                       "chua_chac": False, "do_tin_cay": "cao", "giai_thich": "tiết diện '%s'" % td["text"][:30]}
+        return None
+
+    def _rs_chieu_cao_cot(self, ma, bs):
+        if "chieu_cao" in bs: return _nd(bs["chieu_cao"])
+        return None  # chiều cao cột KHÔNG đọc tự động được -> để đối tác nhập (đúng spec: thiếu thì báo)
+
+    def tinh_dai_luong(self, ten_dai_luong, ma_cau_kien="", inputs_bo_sung="", **_):
+        """TÍNH đại lượng từ số liệu CÓ SẴN. Đủ input -> tính + sơ đồ; thiếu -> inputs_da_co + inputs_thieu."""
+        key = _chuan_hoa_ten_dai_luong(ten_dai_luong)
+        if not key:
+            return {"co_ket_qua": False, "loi": "Chưa hỗ trợ tính '%s'." % ten_dai_luong,
+                    "cac_dai_luong_ho_tro": [f["ten"] for f in _FORMULAS.values()]}
+        F = _FORMULAS[key]
+        bs = {}
+        if inputs_bo_sung:
+            try:
+                import json as _json
+                bs = _json.loads(inputs_bo_sung) if isinstance(inputs_bo_sung, str) else dict(inputs_bo_sung)
+            except Exception: bs = {}
+        da_co, thieu, vals = [], [], {}
+        for ten, dv, rs_name, _bs_key in F["inputs"]:
+            res = getattr(self, rs_name)(ma_cau_kien, bs)
+            if res is None:
+                thieu.append({"ten": ten, "don_vi": dv,
+                              "cach_cung_cap": "đối tác nhập qua chat, vd '%s %s = ...'" % (ten.replace("_", " "), ma_cau_kien or "")})
+            else:
+                vals[ten] = res["gia_tri"]
+                da_co.append({"ten": ten, "gia_tri": res["gia_tri"], "don_vi": dv, "nguon": res["nguon"],
+                              "handle": res.get("handle"), "do_tin_cay": res.get("do_tin_cay"),
+                              "chua_chac": res.get("chua_chac", False), "giai_thich": res.get("giai_thich", "")})
+        ten_dl = ("%s %s" % (F["ten"], ma_cau_kien)).strip()
+        if thieu:
+            return {"dai_luong": ten_dl, "co_ket_qua": False, "can_bo_sung": True, "cach_tinh": F["cach_tinh"],
+                    "inputs_da_co": da_co, "inputs_thieu": thieu,
+                    "ghi_chu": "ĐÃ CÓ %d/%d số liệu. CÒN THIẾU: %s. Hãy nêu rõ cho đối tác biết đã có gì / thiếu gì, "
+                               "mời đối tác cấp phần thiếu (nhập qua chat) rồi gọi lại để tính. TUYỆT ĐỐI KHÔNG tự bịa số thiếu."
+                               % (len(da_co), len(F["inputs"]), ", ".join(t["ten"] for t in thieu))}
+        kq = F["compute"](vals)
+        chua_chac = any(x["chua_chac"] for x in da_co)
+        so_do = ["%s = %s %s (%s%s)" % (x["ten"], (round(x["gia_tri"], 2)), x["don_vi"], x["nguon"],
+                                        ", CHƯA CHẮC" if x["chua_chac"] else "") for x in da_co]
+        so_do.append("→ %s = %s %s  [%s]" % (F["ten"], kq, F["don_vi"], F["cach_tinh"]))
+        gc = ("Đây là SỐ DO HỆ THỐNG TÍNH (không phải số ghi sẵn trong file). "
+              + ("Có input lấy theo GÁN VỊ TRÍ (đường kích thước gần cấu kiện) → CHƯA CHẮC đúng 100%; đối tác nên xác nhận."
+                 if chua_chac else "Mọi input đọc trực tiếp từ file (đáng tin)."))
+        return {"dai_luong": ten_dl, "co_ket_qua": True, "ket_qua": kq, "don_vi": F["don_vi"], "can_bo_sung": False,
+                "cach_tinh": F["cach_tinh"], "inputs_da_co": da_co, "inputs_thieu": [],
+                "so_do_he_thong_tinh": so_do, "ghi_chu": gc}
 
     # ============================================================
     # RENDER + HIGHLIGHT (mới — điểm khác biệt cốt lõi của demo 2)

@@ -126,5 +126,17 @@ def danh_dau_cau_kien(tu_khoa: str = "", layer: str = "") -> dict:
     return _need() or DRAWING.highlight(tu_khoa=tu_khoa, layer=layer)
 
 
+@mcp.tool()
+def tinh_dai_luong(ten_dai_luong: str, ma_cau_kien: str = "", inputs_bo_sung: str = "") -> dict:
+    """⭐ GIAI ĐOẠN 2 — TÍNH một đại lượng (takeoff) từ số liệu CÓ SẴN trong file:
+    diện tích cửa, thể tích bê tông cột, ván khuôn cột... DÙNG khi người dùng hỏi TÍNH
+    ('tổng diện tích cửa D1', 'thể tích bê tông cột C1', 'ván khuôn cột C1').
+    - ten_dai_luong: 'diện tích cửa' | 'thể tích bê tông cột' | 'ván khuôn cột' (hoặc mô tả tự do).
+    - ma_cau_kien: mã cấu kiện, vd 'D1', 'C1', 'cửa D1'.
+    - inputs_bo_sung: JSON số liệu ĐỐI TÁC cấp khi tool báo thiếu, vd '{"chieu_cao":3600}' (đơn vị mm). Trống nếu chưa có.
+    Trả: ĐỦ input -> ket_qua + so_do_he_thong_tinh; THIẾU -> inputs_da_co + inputs_thieu + can_bo_sung=true (KHÔNG bịa số thiếu)."""
+    return _need() or DRAWING.tinh_dai_luong(ten_dai_luong, ma_cau_kien, inputs_bo_sung)
+
+
 if __name__ == "__main__":
     mcp.run()
