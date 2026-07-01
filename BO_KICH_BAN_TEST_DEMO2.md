@@ -181,3 +181,36 @@ Bạn lo đúng: demo 1 test xong hết nhưng đối tác hỏi câu lạ vẫn
 | X12 | "có bao nhiêu phòng vệ sinh / wc" | Tra text WC nếu có; không có thì nói không tìm thấy |
 
 **Nếu bất kỳ câu nào demo trả SAI hoặc bịa → chụp lại gửi mình → vá ngay.**
+
+---
+---
+
+# PHẦN 4 — GIAI ĐOẠN 2: TÍNH TOÁN (TAKEOFF) — đã kiểm live, khớp 100%
+
+> Đây là tính năng MỚI: hỏi TÍNH một đại lượng. **Đủ số liệu → tính luôn (kèm sơ đồ + nguồn); thiếu → hiện có/thiếu → bạn nhắn số thiếu → tính tiếp.** Mọi số kèm nguồn + cờ "chưa chắc" (nếu lấy theo vị trí).
+
+## 4A — Diện tích cửa (file KIẾN TRÚC) — đối tác muốn nhất
+| Câu hỏi | Đáp án chuẩn (đã kiểm) |
+|---|---|
+| **Tổng diện tích cửa đi D1?** | **84,24 m²** (1300×2700×24) — kèm "kích thước lấy theo vị trí, chưa chắc 100%" |
+| Diện tích cửa S1? | **34,56 m²** (1200×1800×16) |
+| Diện tích cửa CM1? | **0,64 m²** (800×800×1) |
+
+## 4B — Thể tích bê tông (file KẾT CẤU) — có màn "nhập bù"
+| Câu hỏi | Đáp án chuẩn |
+|---|---|
+| Thể tích bê tông cột C1? | Báo **đã có** cạnh 220×220 + SL 27, **thiếu chiều cao** → mời cấp |
+| *(nhắn tiếp)* "chiều cao cột là 3.6m" | **4,704 m³** (nhớ đang tính C1) |
+| Thể tích bê tông cột C4, chiều cao 3.6m | **9,504 m³** + cảnh báo "C4 có 2 tiết diện (220×500 và 220×400)" |
+| Thể tích bê tông dầm DR-3? | Đã có 220×300 + SL, **thiếu chiều dài** (KHÔNG lấy "L=9.82m" — đó là chiều dài THÉP, không phải nhịp) |
+| *(nhắn tiếp)* "dầm dài 4m" | **0,264 m³** |
+| Diện tích ván khuôn cột C1 với chiều cao 3.6m | **85,54 m²** |
+
+## 4C — Bẫy takeoff (test không bịa)
+| Câu hỏi | Hành vi đúng |
+|---|---|
+| Tính diện tích cửa gỗ lim GL9? (không có) | Hỏi thông số / báo chưa có — **KHÔNG bịa số** |
+| Tính khối lượng bê tông toàn công trình | Cần bóc từng cấu kiện — không có 1 số tổng bịa |
+| Công trình dài bao nhiêu? | Vẫn TỪ CHỐI (kích thước tổng thể ≠ takeoff cấu kiện) |
+
+**Đại lượng đã hỗ trợ tính:** diện tích cửa · thể tích BT cột/dầm/sàn/móng · ván khuôn cột/dầm. Các đại lượng khác (đào đắp, xây/trát...) hoặc thiếu số liệu trong file → hệ sẽ báo cần bạn cấp thêm.
