@@ -231,15 +231,22 @@ def _get_client():
     return _client
 
 
-def tra_loi_ai(bridge, q, file_summary=""):
-    """Vòng hỏi-đáp: Gemini gọi MCP tool qua bridge. Trả {answer, evidence, anh_id, ai}."""
+def tra_loi_ai(bridge, q, file_summary="", history=None):
+    """Vòng hỏi-đáp: Gemini gọi MCP tool qua bridge. Trả {answer, evidence, anh_id, ai}.
+    history = danh sách [{role:'user'|'model', text}] các lượt TRƯỚC (để nhớ ngữ cảnh, vd đang tính cột nào
+    rồi đối tác nhắn số thiếu ở lượt sau). CHỈ gồm câu hỏi + câu trả lời cuối, không gồm bước gọi tool."""
     tools = gemini_tools(bridge.tools)
     cfg = types.GenerateContentConfig(
         system_instruction=SYSTEM_PROMPT + ("\n\nBản vẽ đang nạp: " + file_summary if file_summary else ""),
         tools=tools, temperature=0, max_output_tokens=8192,
         automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True))
     client = _get_client()
-    contents = [types.Content(role="user", parts=[types.Part(text=q)])]
+    contents = []
+    for h in (history or []):
+        r = "model" if h.get("role") == "model" else "user"
+        t = (h.get("text") or "").strip()
+        if t: contents.append(types.Content(role=r, parts=[types.Part(text=t)]))
+    contents.append(types.Content(role="user", parts=[types.Part(text=q)]))
     evidence, anh_id = [], None
     da_goi, da_nhac = False, False
 

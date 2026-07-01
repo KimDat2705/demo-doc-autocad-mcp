@@ -24,6 +24,8 @@ app.config["MAX_CONTENT_LENGTH"] = MAX_UPLOAD_MB * 1024 * 1024
 
 BRIDGE = None          # phiên MCP bền (lười khởi tạo)
 SUMMARY = ""           # tóm tắt bản vẽ đang nạp (đưa vào system prompt)
+CHAT_HISTORY = []      # lịch sử hội thoại [{role,text}] — để nhớ ngữ cảnh (đối tác nhập bù số thiếu ở lượt sau)
+MAX_HISTORY_TURNS = int(os.environ.get("MAX_HISTORY_TURNS", "6"))  # số lượt (mỗi lượt = 1 hỏi + 1 đáp) giữ lại
 
 
 def get_bridge():
@@ -63,6 +65,7 @@ def upload():
             return jsonify({"error": res["loi"]}), 500
         SUMMARY = "%s (AutoCAD %s), %s đối tượng, %s layer." % (
             res.get("name"), res.get("dxfversion"), res.get("tong_doi_tuong"), res.get("so_layer"))
+        CHAT_HISTORY.clear()   # nạp bản vẽ mới -> quên hội thoại cũ
         return jsonify(res)
     except Exception as e:
         print("[upload] %s: %s" % (type(e).__name__, e), file=sys.stderr, flush=True)
@@ -77,7 +80,12 @@ def ask():
     if not mcp_bridge.USE_AI:
         return jsonify({"answer": "Chưa cấu hình GEMINI_API_KEY trên máy chủ.", "evidence": [], "ai": True})
     try:
-        return jsonify(mcp_bridge.tra_loi_ai(get_bridge(), q, SUMMARY))
+        r = mcp_bridge.tra_loi_ai(get_bridge(), q, SUMMARY, history=CHAT_HISTORY)
+        # Ghi lại lượt này vào lịch sử (chỉ hỏi + đáp cuối) + cắt giữ N lượt gần nhất.
+        CHAT_HISTORY.append({"role": "user", "text": q})
+        CHAT_HISTORY.append({"role": "model", "text": r.get("answer", "")})
+        del CHAT_HISTORY[:-2 * MAX_HISTORY_TURNS]
+        return jsonify(r)
     except Exception as e:
         print("[ask] %s: %s" % (type(e).__name__, e), file=sys.stderr, flush=True)
         return jsonify({"answer": "⚠ Lỗi khi hỏi AI: %s" % e, "evidence": [], "ai": True})
