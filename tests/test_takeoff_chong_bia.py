@@ -85,6 +85,15 @@ def main():
     PASS, FAIL = PASS + int(bool(ok)), FAIL + int(not ok)
     print("  [%s] xuat_excel KC: file_id=%s" % ("OK" if ok else "FAIL", xl.get("file_id")))
 
+    print("[E] GÁN-DIM ỔN ĐỊNH (TODO #3) — biến thể chuỗi mã CÙNG cho 1 kết quả")
+    variants = ["D1", "cửa D1", "cửa đi D1", "cua di d1"]
+    kq = [kt.tinh_dai_luong("diện tích cửa", v, "") for v in variants]
+    vals = {round(r["ket_qua"], 2) for r in kq if r.get("co_ket_qua")}
+    stable = len(vals) == 1 and all(r.get("co_ket_qua") for r in kq)
+    PASS, FAIL = PASS + int(stable), FAIL + int(not stable)
+    print("  [%s] diện tích cửa D1 (4 biến thể) -> %s m² (mong 1 giá trị duy nhất)"
+          % ("OK" if stable else "FAIL", sorted(vals)))
+
     print("\n%d PASS / %d FAIL" % (PASS, FAIL))
     return 1 if FAIL else 0
 

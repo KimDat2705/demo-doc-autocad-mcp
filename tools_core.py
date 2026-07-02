@@ -114,6 +114,10 @@ _DOOR_SIZE_INLINE_RE = re.compile(r"(?<![\d.])(\d{2,5})\s*[x×*]\s*(\d{2,5})(?![
 _DOOR_CODE_RE = re.compile(r"^\s*\(?\s*((?:sk|sw|vk|w|d|s)-?\d+[a-z]?)\s*\)?\s*$", re.IGNORECASE)
 _DOOR_CODE_INLINE_RE = re.compile(r"(?<![a-z0-9])((?:sk|sw|vk|w|d|s)-?\d+[a-z]?)(?![a-z0-9])")
 _DOOR_SIZE_MIN, _DOOR_SIZE_MAX, _DOOR_PAIR_R = 300, 9000, 1100
+# Kích thước 1 Ô CỬA/CỬA SỔ/VÁCH hợp lý (mm) — dùng lọc dim khi gán-dim: loại dim chi tiết nhỏ (50mm)
+# và dim công trình lớn (trục/nhịp 10m+). Rộng rãi để không loại nhầm vách kính lớn; không có dim hợp lý
+# -> trả None (báo thiếu, KHÔNG bịa số phi lý).
+_OPENING_DIM_LO, _OPENING_DIM_HI = 400, 6000
 
 
 def _plausible_door_size(w, h):
@@ -688,29 +692,62 @@ class Drawing:
     # ============================================================
     # GIAI ĐOẠN 2 — ENGINE TÍNH TOÁN (takeoff). CODE lấy input + CODE tính, LLM chỉ điều phối.
     # ============================================================
-    def _gan_dim_cau_kien(self, ma_cau_kien, R=8000.0):
-        """Gắn ĐƯỜNG KÍCH THƯỚC vào cấu kiện theo VỊ TRÍ: tìm neo (nhãn mã có x,y), lấy dim NGANG (rộng)
-        + dim DỌC (cao) gần nhất trong bán kính R. Trả kèm ĐỘ TIN CẬY (heuristic -> luôn 'chưa chắc')."""
-        kw = _norm_label(ma_cau_kien or "").strip()
-        toks = [w for w in kw.split() if w]
-        if not toks: return {"tim_thay_neo": False}
-        anchors = [(q.get("x", 0.0), q.get("y", 0.0), q.get("label") or q["label_norm"])
-                   for q in self.qty_index if all(_tok_bound(t, q["label_norm"]) for t in toks)]
-        if not anchors:
+    def _neo_score(self, c, word_toks):
+        """Điểm NEO: +3 nếu khớp cả từ mô tả (vd 'cửa'), +2 nếu là nhãn CỬA (gán-dim chỉ dùng cho cửa)
+        -> ưu tiên neo đúng, tránh TRỤC LƯỚI 'D1' / GHI CHÚ. Điểm cao = neo đáng tin hơn."""
+        s = 0
+        if word_toks and all(_tok_bound(w, c["lab"]) for w in word_toks): s += 3
+        if "cua" in c["lab"]: s += 2
+        return s
+
+    def _neo_ung_vien(self, match_toks):
+        """Ứng viên NEO: qty_index khớp ALL match_toks (ưu tiên), không có -> quét texts. match_toks là
+        token MÃ (có chữ số) -> ỔN ĐỊNH, không lệ thuộc từ mô tả thừa ('đi'/'cửa')."""
+        cands = [{"x": q.get("x", 0.0), "y": q.get("y", 0.0), "lab": q["label_norm"], "neo": q.get("label") or q["label_norm"]}
+                 for q in self.qty_index if all(_tok_bound(t, q["label_norm"]) for t in match_toks)]
+        if not cands:
             for tx in self.texts:
                 lab = _norm_label(tx["vn"])
-                if all(_tok_bound(t, lab) for t in toks) and (tx.get("x") or tx.get("y")):
-                    anchors.append((tx["x"], tx["y"], tx["vn"]))
-        if not anchors: return {"tim_thay_neo": False}
-        ax, ay, neo = anchors[0]
-        best = {"ngang": None, "doc": None}
-        for di in self.dim_items:
-            if di.get("khong_toa_do"): continue
-            h = di.get("huong")
-            if h not in ("ngang", "doc"): continue
-            dist = ((di["x"] - ax) ** 2 + (di["y"] - ay) ** 2) ** 0.5
-            if dist > R: continue
-            if best[h] is None or dist < best[h][0]: best[h] = (dist, di)
+                if all(_tok_bound(t, lab) for t in match_toks) and (tx.get("x") or tx.get("y")):
+                    cands.append({"x": tx["x"], "y": tx["y"], "lab": lab, "neo": tx["vn"]})
+        return cands
+
+    def _gan_dim_cau_kien(self, ma_cau_kien, R=8000.0):
+        """Gắn ĐƯỜNG KÍCH THƯỚC vào CỬA theo VỊ TRÍ: chọn NEO ổn định (theo mã, ưu tiên nhãn cửa), lấy dim
+        NGANG (rộng) + DỌC (cao) gần nhất, GIÁ TRỊ HỢP LÝ cho ô cửa, trong bán kính R. Heuristic -> 'chưa chắc'.
+        Không có dim hợp lý -> None (báo thiếu, KHÔNG lấy dim trục/chi tiết phi lý)."""
+        toks = [w for w in _norm_label(ma_cau_kien or "").split() if w]
+        if not toks: return {"tim_thay_neo": False}
+        code_toks = [t for t in toks if any(c.isdigit() for c in t)]
+        word_toks = [t for t in toks if not any(c.isdigit() for c in t)]
+        cands = self._neo_ung_vien(code_toks or toks)        # có mã -> khớp theo MÃ (bền với từ thừa)
+        if not cands: return {"tim_thay_neo": False}
+
+        def _pair_at(ax, ay):
+            best = {"ngang": None, "doc": None}
+            for di in self.dim_items:
+                if di.get("khong_toa_do"): continue
+                h = di.get("huong")
+                if h not in ("ngang", "doc"): continue
+                if not (_OPENING_DIM_LO <= di["value"] <= _OPENING_DIM_HI): continue   # loại dim phi lý
+                dist = ((di["x"] - ax) ** 2 + (di["y"] - ay) ** 2) ** 0.5
+                if dist > R: continue
+                if best[h] is None or dist < best[h][0]: best[h] = (dist, di)
+            return best
+
+        def _quality(b):                                     # đủ cả 2 dim > tổng khoảng cách nhỏ
+            found = (1 if b["ngang"] else 0) + (1 if b["doc"] else 0)
+            dsum = (b["ngang"][0] if b["ngang"] else R) + (b["doc"][0] if b["doc"] else R)
+            return (found, -dsum)
+
+        # trong các neo ĐIỂM CAO NHẤT, chọn neo có CẶP DIM tốt nhất (xử lý cửa vẽ cạnh nhau)
+        top_score = max(self._neo_score(c, word_toks) for c in cands)
+        top = [c for c in cands if self._neo_score(c, word_toks) == top_score]
+        chosen, chosen_b = None, None
+        for c in top:
+            b = _pair_at(c["x"], c["y"])
+            if chosen is None or _quality(b) > _quality(chosen_b):
+                chosen, chosen_b = c, b
 
         def _mk(pair):
             if not pair: return None
@@ -718,7 +755,7 @@ class Drawing:
             ratio = dist / max(di["value"], 1.0)
             tc = "cao" if ratio < 1.2 else ("trung_binh" if ratio < 3 else "thap")
             return {"gia_tri": di["value"], "handle": di["handle"], "khoang_cach": round(dist), "do_tin_cay": tc}
-        return {"tim_thay_neo": True, "neo": neo, "rong": _mk(best["ngang"]), "cao": _mk(best["doc"])}
+        return {"tim_thay_neo": True, "neo": chosen["neo"], "rong": _mk(chosen_b["ngang"]), "cao": _mk(chosen_b["doc"])}
 
     def _doc_tiet_dien(self, ma_cau_kien):
         """Đọc tiết diện 'AxB' từ chuỗi chứa mã cấu kiện (vd 'C1 (220x220)'). Phát hiện ĐA tiết diện

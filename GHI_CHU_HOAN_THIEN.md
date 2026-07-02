@@ -54,11 +54,17 @@ ODA File Converter chuyển .dwg→.dxf. **KHÔNG cần AutoCAD → deploy cloud
   + `can_bo_sung` + `gia_dinh`. KC: 118 hàng, cột TẠM TÍNH khớp trị trực tiếp (C1=4.704, C4=9.504).
   (d) **xuat_excel** — ghi `.xlsx` (openpyxl) ra `_renders/`, trả `file_id`; host route `/file/<id>` + link tải ở frontend (song song `anh_id`).
   MCP tools + SYSTEM_PROMPT (luật 11,12) + `requirements.txt (openpyxl)` cập nhật. Test `test_takeoff_chong_bia.py` **23/23** (thêm smoke D).
+- ✅ **TODO #3 — Tinh chỉnh GÁN-DIM (chỉ dùng cho cửa):** e2e phát hiện "cửa đi D1" ra 25.92 (neo nhầm vào ghi chú),
+  nha 9T còn neo vào TRỤC LƯỚI (rộng 5450) / cao 50 phi lý. Viết lại `_gan_dim_cau_kien` + `_neo_ung_vien`/`_neo_score`:
+  (1) **neo theo token MÃ** (bỏ từ mô tả thừa 'đi'/'cửa' → ỔN ĐỊNH: mọi biến thể cùng mã → cùng kết quả);
+  (2) **chấm điểm neo** ưu tiên nhãn khớp từ mô tả + có "cửa" → tránh trục lưới/ghi chú;
+  (3) **lọc dim hợp lý** cho ô cửa `_OPENING_DIM_LO/HI=[400,6000]mm` → loại dim 50/5450 (không có dim hợp lý → None = báo thiếu, không bịa);
+  (4) chọn neo có CẶP DIM tốt nhất (xử lý cửa vẽ cạnh nhau). Test đa-domain (MN + nha 9T): MN D1 4 biến thể → 1300×2700 duy nhất;
+  nha 9T D1 → 1500×1450 (hết loạn). Test `test_takeoff_chong_bia.py` nay **24/24** (thêm nhóm E bất biến). Vẫn gắn cờ "chưa chắc".
 
 ## Việc CÒN LẠI (TODO — ưu tiên trên xuống)
 1. **Thêm đại lượng takeoff:** xây tường, trát, đào/đắp đất (nhóm 🔴 — chủ yếu đối tác nhập số; xem plan GĐ2).
-2. **Tinh chỉnh gán dim↔cấu kiện:** ngưỡng bán kính thích nghi hơn; chọn đúng khi cửa vẽ cạnh nhau.
-3. **Nhóm 🟢 đọc-verbatim** (thảm đá hạ tầng "(6x2x0.3)m L=56m") — parser riêng nếu cần.
+2. **Nhóm 🟢 đọc-verbatim** (thảm đá hạ tầng "(6x2x0.3)m L=56m") — parser riêng nếu cần.
 4. (Theo dõi) model: 2.5-flash ổn; 3.5-flash mạnh hơn nhưng hay 503; Pro chất lượng cao nhất nhưng quota thấp (cần billing).
 
 ## Chạy/test local (Windows)
@@ -66,7 +72,7 @@ ODA File Converter chuyển .dwg→.dxf. **KHÔNG cần AutoCAD → deploy cloud
 # .env có GEMINI_API_KEY (hoặc dùng ../demo_doc_autocad/.env). File lớn: đặt READFILE_MAX_MB=300.
 python app.py                       # http://localhost:5050
 python tests/test_qa_data.py        # regression đọc 129/129
-python tests/test_takeoff_chong_bia.py  # KHOÁ chống bịa + smoke parity (tất định, miễn phí) — 23/23
+python tests/test_takeoff_chong_bia.py  # KHOÁ chống bịa + parity + gán-dim ổn định (tất định, miễn phí) — 24/24
 python tests/kichban_gd2.py         # test takeoff end-to-end (đối chiếu engine, tốn API)
 ```
 
