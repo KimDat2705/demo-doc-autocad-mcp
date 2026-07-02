@@ -5,3 +5,4 @@ google-genai==2.10.0
 mcp==1.27.0
 matplotlib==3.10.9
 pillow==12.2.0
+openpyxl==3.1.5

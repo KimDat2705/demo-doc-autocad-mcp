@@ -152,9 +152,10 @@ SYSTEM_PROMPT = (
     "ra 0 kết quả, thử biến thể ('mác'/'B20'/'250#'/'M200') trước khi kết luận không có. Trích NGUYÊN VĂN chuỗi file ghi.\n"
     "8. Phân biệt 2 việc: (A) SUY DIỄN kích thước tổng thể từ hình học/toạ độ = KHÔNG làm được -> TỪ CHỐI; "
     "(B) ĐỌC một giá trị GHI SẴN trên bản vẽ = ĐƯỢC PHÉP (đó là đọc dữ liệu, không phải suy diễn).\n"
-    "  • TỪ CHỐI (A): 'CÔNG TRÌNH DÀI/RỘNG/CAO/DIỆN TÍCH bao nhiêu m', 'CAO ĐỘ tầng X', 'khoảng cách giữa 2 trục/2 cột' "
-    "-> nói 'chưa hỗ trợ suy ra kích thước/cao độ tổng thể từ hình học'. ⛔ KHÔNG lấy DIMENSION lớn nhất (vd 58800mm) làm "
-    "'chiều dài công trình', KHÔNG lấy cao độ (+3.600) làm cao độ tầng.\n"
+    "  • TỪ CHỐI (A): 'CÔNG TRÌNH DÀI/RỘNG/DIỆN TÍCH bao nhiêu m', 'khoảng cách giữa 2 trục/2 cột' "
+    "-> nói 'chưa hỗ trợ suy ra kích thước tổng thể từ hình học'. ⛔ KHÔNG lấy DIMENSION lớn nhất (vd 58800mm) làm 'chiều dài công trình'.\n"
+    "  • CAO ĐỘ / CHIỀU CAO TẦNG / CÔNG TRÌNH MẤY TẦNG -> GỌI thong_tin_tang (đọc MỐC cao độ ghi sẵn; chiều cao tầng = "
+    "HIỆU cao độ liền kề; số tầng ƯỚC TÍNH). Đây là ĐỌC + tính hiệu, ĐƯỢC PHÉP (khác suy hình học). Nói rõ số tầng là 'ước tính'.\n"
     "  • ĐƯỢC PHÉP (B) — hãy GỌI TOOL tìm_kiếm/thong_tin_kich_thuoc rồi trích: giá trị GHI SẴN trong ghi chú "
     "(diện tích lát gạch '591m2', độ dốc mái 'i=32%', bề dày lớp '100mm', đường kính ống 'DN80'), số lượng/giá trị/min-max "
     "của các ĐƯỜNG KÍCH THƯỚC (kèm caveat 'là giá trị trên đường kích thước, không phải kích thước tổng công trình'). "
@@ -167,10 +168,21 @@ SYSTEM_PROMPT = (
     "của luật 8 — 'diện tích/thể tích của MỘT CẤU KIỆN cụ thể' thì TÍNH được (khác 'diện tích/chiều dài TỔNG công trình' vẫn từ chối).\n"
     "  • Tool trả `co_ket_qua=true` -> trình bày KẾT QUẢ + `so_do_he_thong_tinh` (công thức + từng input + nguồn). Nếu có input "
     "`chua_chac` (GÁN VỊ TRÍ) -> nói rõ 'số này hệ thống TÍNH, phần kích thước lấy theo vị trí nên CHƯA CHẮC 100%, đối tác nên xác nhận'.\n"
+    "  • Tool trả `khong_tim_thay=true` -> cấu kiện KHÔNG có trong bản vẽ. Nói THẲNG 'Không tìm thấy cấu kiện <mã> "
+    "trong bản vẽ', mời đối tác kiểm tra lại mã (hoặc xem các mã có sẵn). ⛔ TUYỆT ĐỐI KHÔNG hỏi kích thước/số lượng "
+    "để tính — không có trong file thì KHÔNG tính, KHÔNG mời nhập số.\n"
+    "  • Tool trả `sai_loai=true` -> mã CÓ trong bản vẽ nhưng là LOẠI KHÁC (`loai_thuc_te`), không khớp đại lượng hỏi "
+    "(vd hỏi thể tích MÓNG cho một cái DẦM). Nói rõ 'bản vẽ ghi <mã> là <loại thực tế>, không phải <loại hỏi>', gợi ý "
+    "đối tác có thể nhầm loại. ⛔ KHÔNG tính, KHÔNG hỏi thông số.\n"
     "  • Tool trả `can_bo_sung=true` (THIẾU số liệu) -> NÊU RÕ: đã có gì (`inputs_da_co` + giá trị), CÒN THIẾU gì (`inputs_thieu`), "
     "MỜI đối tác cấp số thiếu (nhập qua chat, đơn vị mm). TUYỆT ĐỐI KHÔNG bịa số thiếu.\n"
     "  • Đối tác cấp số thiếu (vd 'chiều cao cột C1 = 3.6m') -> GỌI LẠI `tinh_dai_luong` với `inputs_bo_sung` JSON quy về mm "
     "(vd '{\"chieu_cao\":3600}').\n"
+    "11. TỔNG HỢP: 'tổng hợp/thống kê toàn bộ khối lượng', 'bảng dự toán sơ bộ' -> GỌI tong_hop_khoi_luong. "
+    "Trình bày theo cột NGUỒN (đọc sẵn / hệ thống tính / tạm tính), NÊU RÕ 'can_bo_sung' + 'gia_dinh'. "
+    "Nói rõ đây là SƠ BỘ (chỉ gồm cấu kiện đọc được), KHÔNG phải dự toán chốt.\n"
+    "12. XUẤT EXCEL: 'xuất Excel', 'tải file dự toán', 'export bảng khối lượng' -> GỌI xuat_excel_du_toan. "
+    "Sau khi tool trả file_id, báo ngắn 'đã xuất Excel, bấm nút tải' (host tự hiện link tải) — KHÔNG dán đường dẫn file.\n"
     "9. Trả lời tiếng Việt, ngắn gọn, đúng vai kỹ sư."
 )
 
@@ -247,7 +259,7 @@ def tra_loi_ai(bridge, q, file_summary="", history=None):
         t = (h.get("text") or "").strip()
         if t: contents.append(types.Content(role=r, parts=[types.Part(text=t)]))
     contents.append(types.Content(role="user", parts=[types.Part(text=q)]))
-    evidence, anh_id = [], None
+    evidence, anh_id, file_id = [], None, None
     da_goi, da_nhac = False, False
 
     for _ in range(MAX_TURNS):
@@ -256,7 +268,7 @@ def tra_loi_ai(bridge, q, file_summary="", history=None):
         if not cand or not cand.content:
             return {"answer": _msg_finish(getattr(cand, "finish_reason", None)) or
                     "AI tạm không trả về nội dung, vui lòng thử lại.",
-                    "evidence": _flat_ev(evidence), "anh_id": anh_id, "ai": True}
+                    "evidence": _flat_ev(evidence), "anh_id": anh_id, "file_id": file_id, "ai": True}
         parts = cand.content.parts or []
         fcalls = [p.function_call for p in parts if getattr(p, "function_call", None)]
         if fcalls:
@@ -271,6 +283,8 @@ def tra_loi_ai(bridge, q, file_summary="", history=None):
                     result = {"loi": "Lỗi khi chạy công cụ: %s" % e}
                 if isinstance(result, dict) and result.get("anh_id"):
                     anh_id = result["anh_id"]
+                if isinstance(result, dict) and result.get("file_id"):
+                    file_id = result["file_id"]
                 grp = fc.name + (": " + str(args.get("tu_khoa") or args.get("layer") or args.get("loc") or "")
                                  if any(k in args for k in ("tu_khoa", "layer", "loc")) else "")
                 evidence.extend(_evidence_from(result, grp.strip(": ")))
@@ -280,7 +294,7 @@ def tra_loi_ai(bridge, q, file_summary="", history=None):
         text = "".join(getattr(p, "text", "") or "" for p in parts if not getattr(p, "thought", False)).strip()
         special = _msg_finish(getattr(cand, "finish_reason", None))
         if special and not text:
-            return {"answer": special, "evidence": _flat_ev(evidence), "anh_id": anh_id, "ai": True}
+            return {"answer": special, "evidence": _flat_ev(evidence), "anh_id": anh_id, "file_id": file_id, "ai": True}
         if (not da_goi) and (not da_nhac) and any(c.isdigit() for c in text):
             da_nhac = True
             contents.append(cand.content)
@@ -290,8 +304,8 @@ def tra_loi_ai(bridge, q, file_summary="", history=None):
             continue
         if not text:
             return {"answer": "AI không đưa ra nội dung, vui lòng thử lại.",
-                    "evidence": _flat_ev(evidence), "anh_id": anh_id, "ai": True}
-        return {"answer": text, "evidence": _flat_ev(evidence), "anh_id": anh_id, "ai": True}
+                    "evidence": _flat_ev(evidence), "anh_id": anh_id, "file_id": file_id, "ai": True}
+        return {"answer": text, "evidence": _flat_ev(evidence), "anh_id": anh_id, "file_id": file_id, "ai": True}
 
     # Hết lượt tool mà chưa chốt (Flash hay LẶP gọi tool) -> ÉP trả lời NGAY từ dữ liệu ĐÃ thu,
     # KHÔNG gọi thêm tool, KHÔNG bỏ cuộc -> tránh "đọc thiếu" khi data thực ra đã có trong evidence.
@@ -308,8 +322,8 @@ def tra_loi_ai(bridge, q, file_summary="", history=None):
         parts = (cand.content.parts or []) if (cand and cand.content) else []
         text = "".join(getattr(p, "text", "") or "" for p in parts if not getattr(p, "thought", False)).strip()
         if text:
-            return {"answer": text, "evidence": _flat_ev(evidence), "anh_id": anh_id, "ai": True}
+            return {"answer": text, "evidence": _flat_ev(evidence), "anh_id": anh_id, "file_id": file_id, "ai": True}
     except Exception:
         pass
     return {"answer": "Câu hỏi cần tra cứu phức tạp. Hãy thử hỏi cụ thể từng phần (ví dụ hỏi riêng số lượng, riêng kích thước).",
-            "evidence": _flat_ev(evidence), "anh_id": anh_id, "ai": True}
+            "evidence": _flat_ev(evidence), "anh_id": anh_id, "file_id": file_id, "ai": True}

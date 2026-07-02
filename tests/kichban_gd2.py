@@ -49,6 +49,8 @@ def eng_truth(dwg, call):
     ten, ma, bs = call
     r = dwg.tinh_dai_luong(ten, ma, bs)
     if r.get("co_ket_qua"): return "ĐỦ → %s %s" % (r["ket_qua"], r["don_vi"])
+    if r.get("khong_tim_thay"): return "KHÔNG TÌM THẤY ('%s' không có trong bản vẽ)" % ma
+    if r.get("sai_loai"): return "SAI LOẠI ('%s' là %s)" % (ma, "/".join(r.get("loai_thuc_te", [])))
     if r.get("can_bo_sung"): return "THIẾU: %s (đã có: %s)" % (
         ",".join(t["ten"] for t in r["inputs_thieu"]), ",".join("%s=%s" % (x["ten"], x["gia_tri"]) for x in r["inputs_da_co"]))
     return "KHÔNG: " + (r.get("loi") or r.get("ghi_chu", ""))[:60]

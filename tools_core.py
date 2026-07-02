@@ -108,6 +108,135 @@ def _looks_like_title(n):
 # ============================================================================
 _TIETDIEN_RE = re.compile(r"(\d{2,4})\s*[x×*]\s*(\d{2,4})")  # '220x220', '(220 x 500)'
 
+# ---- BẢNG THỐNG KÊ CỬA: ghép MÃ CỬA <-> KÍCH THƯỚC R×C (port từ demo 1 _build_size_index) ----
+_DOOR_SIZE_RE = re.compile(r"^\s*\(?\s*(\d{2,5})\s*[x×*]\s*(\d{2,5})\s*\)?\s*(?:mm)?\s*$", re.IGNORECASE)
+_DOOR_SIZE_INLINE_RE = re.compile(r"(?<![\d.])(\d{2,5})\s*[x×*]\s*(\d{2,5})(?![\d.])", re.IGNORECASE)
+_DOOR_CODE_RE = re.compile(r"^\s*\(?\s*((?:sk|sw|vk|w|d|s)-?\d+[a-z]?)\s*\)?\s*$", re.IGNORECASE)
+_DOOR_CODE_INLINE_RE = re.compile(r"(?<![a-z0-9])((?:sk|sw|vk|w|d|s)-?\d+[a-z]?)(?![a-z0-9])")
+_DOOR_SIZE_MIN, _DOOR_SIZE_MAX, _DOOR_PAIR_R = 300, 9000, 1100
+
+
+def _plausible_door_size(w, h):
+    """Loại gạch (600x600 max<1200), thép hộp (50x100). Cửa/cửa sổ thực: cạnh lớn ≥1200mm."""
+    return _DOOR_SIZE_MIN <= w <= _DOOR_SIZE_MAX and _DOOR_SIZE_MIN <= h <= _DOOR_SIZE_MAX and max(w, h) >= 1200
+
+
+def _build_door_size_index(texts):
+    """Ghép MÃ CỬA <-> R×C từ bảng thống kê / ghi chú: mutual nearest neighbor + cổng tin cậy.
+    confident=True CHỈ khi size NHẤT QUÁN (frac≥0.8) + ô gần (≤1000u) -> chống ghép lẫn. Port từ demo 1."""
+    codes, sizes, inline = [], [], []
+    for t in texts:
+        s = (t.get("vn") or "").strip()
+        x, y = t.get("x", 0.0), t.get("y", 0.0)
+        mc = _DOOR_CODE_RE.match(s)
+        if mc:
+            codes.append({"code": mc.group(1).lower().replace(" ", ""), "x": x, "y": y, "handle": t["handle"]}); continue
+        ms = _DOOR_SIZE_RE.match(s)
+        if ms:
+            w, h = int(ms.group(1)), int(ms.group(2))
+            if _plausible_door_size(w, h): sizes.append({"w": w, "h": h, "x": x, "y": y, "handle": t["handle"]})
+            continue
+        sin = _DOOR_SIZE_INLINE_RE.findall(s)      # inline: đoạn chứa CẢ mã lẫn R×C, chỉ ghép khi DUY NHẤT 1+1
+        if len(sin) == 1:
+            cin = set(_DOOR_CODE_INLINE_RE.findall(_norm_label(s)))
+            if len(cin) == 1:
+                w, h = int(sin[0][0]), int(sin[0][1])
+                if _plausible_door_size(w, h): inline.append({"code": next(iter(cin)), "w": w, "h": h, "handle": t["handle"]})
+
+    def _near(item, pool):
+        best, bd = None, 1e18
+        for p in pool:
+            d = ((item["x"] - p["x"]) ** 2 + (item["y"] - p["y"]) ** 2) ** 0.5
+            if d < bd: bd, best = d, p
+        return best, bd
+
+    for sz in sizes: sz["_nc"], _ = _near(sz, codes)
+    cand = {}
+    for c in codes:
+        sz, d = _near(c, sizes)
+        if not sz or d > _DOOR_PAIR_R: continue
+        if sz["_nc"] and sz["_nc"]["code"] == c["code"]:          # MUTUAL nearest -> cùng một mã cửa
+            cand.setdefault(c["code"], []).append((sz["w"], sz["h"], d, sz["handle"]))
+    for e in inline:                                              # inline = bằng chứng mạnh (dist=0)
+        cand.setdefault(e["code"], []).append((e["w"], e["h"], 0.0, e["handle"]))
+    out = []
+    for code, lst in cand.items():
+        whs = [(w, h) for w, h, _, _ in lst]
+        cnt = Counter(whs); n = max(cnt.values())
+        (w, h) = min(k for k, v in cnt.items() if v == n)         # tie-break tất định theo giá trị
+        frac = n / len(whs)
+        near = min(d for ww, hh, d, _ in lst if (ww, hh) == (w, h))
+        handle = next(hd for ww, hh, d, hd in lst if (ww, hh) == (w, h))
+        out.append({"code": code, "w": w, "h": h, "area_m2": round(w * h / 1e6, 2), "n": len(whs),
+                    "frac": round(frac, 2), "near": round(near), "handle": handle,
+                    "confident": frac >= 0.8 and near <= 1000})
+    out.sort(key=lambda e: e["code"])
+    return out
+
+
+# ---- CAO ĐỘ -> CHIỀU CAO TẦNG điển hình (port từ demo 1 _build_levels) ----
+_ELEV_RE = re.compile(r"^[+\-±]\s*\d{1,2}[.,]\d{2,3}$")                             # marker riêng: '+3.600', '±0.000'
+_ELEV_IN_RE = re.compile(r"(?:([+±])|(?<![\w.])(-))\s*(\d{1,2}[.,]\d{3})(?![\d])")  # trong đoạn dài hơn
+_FLOOR_H_LO, _FLOOR_H_HI = 2.5, 5.0   # chiều cao 1 TẦNG hợp lý (loại chiếu nghỉ/tầng lửng ~1.8, móng ~0.6)
+
+
+def _parse_elev(sign, num):
+    try: v = float(num.replace(",", "."))
+    except Exception: return None
+    return -v if sign == "-" else v
+
+
+def _build_levels(texts):
+    """Đọc CAO ĐỘ -> CHIỀU CAO TẦNG điển hình (mode hiệu cao độ trong [2.5,5]m, bền vững dù thiếu vài mức).
+    Trả {levels,min,max,typical_floor_h,n_tang_est} hoặc {} nếu không có cao độ. Port từ demo 1."""
+    vals = []
+    for t in texts:
+        s = (t.get("vn") or "").strip(); ss = s.replace(" ", "")
+        if _ELEV_RE.match(ss):
+            v = _parse_elev("-" if ss[0] == "-" else "+", ss.lstrip("+-±"))
+            if v is not None: vals.append(round(v, 3))
+        else:
+            for m in _ELEV_IN_RE.finditer(s):
+                v = _parse_elev("-" if m.group(2) else "+", m.group(3))
+                if v is not None: vals.append(round(v, 3))
+    if not vals: return {}
+    cnt = Counter(vals)
+    clusters = []                                            # gộp cao độ gần nhau (3.55/3.59/3.60 -> 1 mức)
+    for v in sorted(cnt):
+        if clusters and v - clusters[-1][-1] <= 0.15: clusters[-1].append(v)
+        else: clusters.append([v])
+    levels = sorted(max(cl, key=lambda x: cnt[x]) for cl in clusters if sum(cnt[x] for x in cl) >= 4)
+    if len(levels) < 2: return {}
+    gaps = [round(levels[i + 1] - levels[i], 3) for i in range(len(levels) - 1)]
+    floor_gaps = [g for g in gaps if _FLOOR_H_LO <= g <= _FLOOR_H_HI]
+    typical = Counter(floor_gaps).most_common(1)[0][0] if floor_gaps else None
+    mx = max(levels)
+    n_est = int(round(mx / typical)) if (typical and mx > 0) else None
+    return {"levels": levels, "min": min(levels), "max": mx, "typical_floor_h": typical, "n_tang_est": n_est}
+
+
+# ---- m³ GHI SẴN trên bản vẽ (port từ demo 1 _stated_volumes) ----
+_M3_RE = re.compile(r"([\d][\d.,]*)\s*m\s*3\b|([\d][\d.,]*)\s*m³", re.IGNORECASE)
+_M3_MIN = 5   # ngưỡng m³ tối thiểu (nhận cả khối lượng nhỏ 5-9 m³)
+_M3_EXCLUDE_RE = re.compile(r"nuoc|vua|xi mang|ti le|dinh muc|keo|son|phu gia")  # ghi chú tỉ lệ/định mức -> loại
+
+
+def _build_stated_volumes(texts):
+    """m³ GHI SẴN trên bản vẽ (vd 'KHỐI LƯỢNG ĐÀO MÓNG: 860 M3') -> số ĐỌC sẵn, có handle. Port từ demo 1."""
+    out, seen = [], set()
+    for t in texts:
+        vn = (t.get("vn") or "").strip()
+        m = _M3_RE.search(vn)
+        if not m: continue
+        val = _to_num(m.group(1) or m.group(2))
+        if not val or val < _M3_MIN: continue
+        if _M3_EXCLUDE_RE.search(unaccent(vn)): continue
+        key = (vn, round(val, 2))
+        if key in seen: continue
+        seen.add(key)
+        out.append({"text": vn, "m3": val, "handle": t["handle"]})
+    return out
+
 
 def _tok_bound(tok, lab):
     """Token có chữ số -> khớp RANH GIỚI TỪ, BỎ gạch ngang giữa chữ-số (C1 == C-1, ĐC3 == đc-3);
@@ -191,6 +320,19 @@ _TEN_MAP = [
     (("mong",), "the_tich_be_tong_mong"),
     (("cua",), "dien_tich_cua"),
 ]
+
+# Loại cấu kiện KỲ VỌNG của mỗi công thức (để bắt 'sai loại': hỏi thể tích MÓNG cho một cái DẦM...).
+# dien_tich_cua KHÔNG đưa vào -> cửa miễn kiểm loại (nhận diện cửa theo đường khác).
+_FORMULA_LOAI = {
+    "the_tich_be_tong_cot": "cot", "dien_tich_van_khuon_cot": "cot",
+    "the_tich_be_tong_dam": "dam", "dien_tich_van_khuon_dam": "dam",
+    "the_tich_be_tong_san": "san", "the_tich_be_tong_mong": "mong",
+}
+# Từ khoá LOẠI (không dấu) đứng NGAY TRƯỚC mã trong nhãn -> loại (vd 'DẦM DM-1'). Data-driven: dựa
+# nhãn bản vẽ GHI RÕ, KHÔNG đoán theo prefix mã (tránh overfit quy ước tên).
+_LOAI_KW = [("mong", "mong"), ("dam", "dam"), ("cot", "cot"), ("san", "san"),
+            ("dai", "mong"), ("giang", "giang")]
+_LOAI_VN = {"cot": "cột", "dam": "dầm", "san": "sàn", "mong": "móng", "giang": "giằng"}
 
 
 def _chuan_hoa_ten_dai_luong(ten):
@@ -295,6 +437,9 @@ class Drawing:
         self.sheets = sheets
         self.sheets_sorted = sorted(sheets, key=lambda s: -s.get("y", 0.0))
         self.qty_index = self._build_qty_index(texts)
+        self.door_size_index = _build_door_size_index(texts)   # GĐ2: R×C cửa từ bảng thống kê (confident)
+        self.levels = _build_levels(texts)                     # GĐ2c: cao độ -> chiều cao tầng điển hình
+        self.stated_vol = _build_stated_volumes(texts)         # GĐ2d: m³ ghi sẵn trên bản vẽ
 
     # ---------------- qty index (port) ----------------
     def _find_title_for_qty(self, info, i):
@@ -520,6 +665,20 @@ class Drawing:
                 "ghi_chu": "Đường kích thước (DIMENSION). gia_tri_pho_bien_mm = giá trị xuất hiện NHIỀU NHẤT "
                            "(thường là bước cột/nhịp). Giá trị lớn nhất KHÔNG chắc là kích thước tổng công trình."}
 
+    def thong_tin_tang(self, **_):
+        """GĐ2c: BÁO cao độ + chiều cao tầng điển hình + số tầng ƯỚC TÍNH. KHÔNG tự bơm vào tính toán (an toàn)."""
+        lv = getattr(self, "levels", None) or {}
+        if not lv.get("levels"):
+            return {"co_cao_do": False,
+                    "ghi_chu": "Bản vẽ không có mốc cao độ (±0.000, +3.600...) đọc được → chưa suy được chiều cao tầng."}
+        return {"co_cao_do": True, "so_moc_cao_do": len(lv["levels"]),
+                "cao_do_thap_nhat_m": lv["min"], "cao_do_cao_nhat_m": lv["max"],
+                "chieu_cao_tang_dien_hinh_m": lv["typical_floor_h"], "so_tang_uoc_tinh": lv["n_tang_est"],
+                "cac_cao_do_m": lv["levels"],
+                "ghi_chu": "Cao độ là số ĐỌC trên bản vẽ. Chiều cao tầng = HIỆU cao độ liền kề (hệ thống tính). "
+                           "Số tầng là ƯỚC TÍNH (cao độ cao nhất ÷ chiều cao tầng); tầng lửng/chiếu nghỉ có thể khác. "
+                           "Muốn TÍNH thể tích cột theo chiều cao tầng, đối tác xác nhận rồi nhập (vd 'cột C1 cao 3.6m')."}
+
     def tom_tat(self):
         return {"name": self.name, "dxfversion": self.dxfversion, "so_layer": len(self.layers),
                 "tong_doi_tuong": self.total, "so_doan_chu": len(self.texts),
@@ -591,8 +750,21 @@ class Drawing:
                     "giai_thich": "nhãn số lượng '%s'" % r[0]["label"][:40]}
         return None
 
+    def _door_size(self, ma):
+        """Tra R×C của mã cửa từ door_size_index (bảng thống kê) — chỉ trả entry CONFIDENT."""
+        idx = getattr(self, "door_size_index", None) or []
+        codes = [w for w in _norm_label(ma or "").split() if any(c.isdigit() for c in w)]
+        if not codes: return None
+        for e in idx:
+            if e.get("confident") and any(_tok_bound(c, e["code"]) for c in codes):
+                return e
+        return None
+
     def _rs_rong(self, ma, bs, ten=None):
         if ten and ten in bs: return _nd(bs[ten])
+        d = self._door_size(ma)     # ƯU TIÊN: bảng thống kê cửa (đọc verbatim, ĐÁNG TIN) trước gán-dim
+        if d: return {"gia_tri": float(d["w"]), "nguon": "bang_thong_ke", "handle": d["handle"], "chua_chac": False,
+                      "do_tin_cay": "cao", "giai_thich": "R×C bảng thống kê cửa '%dx%d'" % (d["w"], d["h"])}
         g = self._gan_dim_cau_kien(ma); r = g.get("rong")
         if r: return {"gia_tri": r["gia_tri"], "nguon": "gan_vi_tri", "handle": r["handle"], "chua_chac": True,
                       "do_tin_cay": r["do_tin_cay"], "giai_thich": "đường kích thước NGANG gần cấu kiện (cách %d)" % r["khoang_cach"]}
@@ -600,6 +772,9 @@ class Drawing:
 
     def _rs_cao(self, ma, bs, ten=None):
         if ten and ten in bs: return _nd(bs[ten])
+        d = self._door_size(ma)     # ƯU TIÊN: bảng thống kê cửa trước gán-dim
+        if d: return {"gia_tri": float(d["h"]), "nguon": "bang_thong_ke", "handle": d["handle"], "chua_chac": False,
+                      "do_tin_cay": "cao", "giai_thich": "R×C bảng thống kê cửa '%dx%d'" % (d["w"], d["h"])}
         g = self._gan_dim_cau_kien(ma); c = g.get("cao")
         if c: return {"gia_tri": c["gia_tri"], "nguon": "gan_vi_tri", "handle": c["handle"], "chua_chac": True,
                       "do_tin_cay": c["do_tin_cay"], "giai_thich": "đường kích thước DỌC gần cấu kiện (cách %d)" % c["khoang_cach"]}
@@ -660,13 +835,73 @@ class Drawing:
                         "chua_chac": False, "do_tin_cay": "cao", "giai_thich": "diện tích ghi '%s'" % tx["vn"][:40]}
         return None
 
+    def _cau_kien_hien_dien(self, ma_cau_kien):
+        """Kiểm tra TẤT ĐỊNH: mã cấu kiện có XUẤT HIỆN trong bản vẽ không (dựa token MÃ có chữ số).
+        Trả (ton_tai, kiem_tra_duoc). kiem_tra_duoc=False khi mã KHÔNG có token chữ số -> không đủ
+        căn cứ khẳng định vắng mặt -> KHÔNG chặn (tránh false-negative). Dùng chung _norm_label +
+        _tok_bound với mọi resolver, nên resolver đọc được thì hàm này CHẮC CHẮN thấy (không mâu thuẫn)."""
+        toks = [w for w in _norm_label(ma_cau_kien or "").split() if w]
+        codes = [w for w in toks if any(c.isdigit() for c in w)]
+        if not codes:
+            return True, False
+        for tx in self.texts:
+            lab = _norm_label(tx["vn"])
+            if all(_tok_bound(c, lab) for c in codes):
+                return True, True
+        return False, True
+
+    def _loai_tu_ban_ve(self, ma_cau_kien):
+        """Suy LOẠI cấu kiện theo NHÃN bản vẽ: tìm text có 'TỪ-LOẠI <mã>' liền nhau (vd 'DẦM DM-1' -> {dam}).
+        Data-driven (dựa nhãn GHI RÕ, KHÔNG đoán theo prefix mã -> tránh overfit). Trả set loại; RỖNG nếu
+        bản vẽ không ghi loại liền mã -> KHÔNG kết luận (không chặn). Chỉ để bắt hỏi SAI LOẠI cấu kiện."""
+        _sd = lambda s: re.sub(r"(?<=[a-zđ])-(?=\d)", "", s)   # 'dm-1' -> 'dm1' (giống _tok_bound)
+        codes = [_sd(w) for w in _norm_label(ma_cau_kien or "").split() if any(c.isdigit() for c in w)]
+        if not codes:
+            return set()
+        loai = set()
+        for tx in self.texts:
+            nv = _sd(_norm_label(tx["vn"]))
+            for kw, typ in _LOAI_KW:
+                if typ in loai:
+                    continue
+                if any(re.search(r"\b%s\b[\s:().]{0,3}%s\b" % (kw, re.escape(c)), nv) for c in codes):
+                    loai.add(typ)
+        return loai
+
     def tinh_dai_luong(self, ten_dai_luong, ma_cau_kien="", inputs_bo_sung="", **_):
-        """TÍNH đại lượng từ số liệu CÓ SẴN. Đủ input -> tính + sơ đồ; thiếu -> inputs_da_co + inputs_thieu."""
+        """TÍNH đại lượng từ số liệu CÓ SẴN. Đủ input -> tính + sơ đồ; thiếu -> inputs_da_co + inputs_thieu.
+        Cấu kiện KHÔNG có trong bản vẽ -> khong_tim_thay (không mời nhập số cho thứ không tồn tại)."""
         key = _chuan_hoa_ten_dai_luong(ten_dai_luong)
         if not key:
             return {"co_ket_qua": False, "loi": "Chưa hỗ trợ tính '%s'." % ten_dai_luong,
                     "cac_dai_luong_ho_tro": [f["ten"] for f in _FORMULAS.values()]}
         F = _FORMULAS[key]
+        # CHỐNG BỊA (siết): người dùng nêu MÃ cụ thể mà mã đó KHÔNG có trong bản vẽ -> KHÔNG tìm thấy,
+        # BẤT KỂ có inputs_bo_sung hay không (tuyệt đối không tính cho cấu kiện không tồn tại — vd 'SAN1'
+        # với dien_tich/chieu_day do đối tác cấp vẫn ra số ảo). Chỉ cho tính thủ công thuần khi ma_cau_kien
+        # để trống (kiem_tra_duoc=False -> người dùng chủ ý nhập tay, không gắn với cấu kiện cụ thể nào).
+        ton_tai, kiem_tra_duoc = self._cau_kien_hien_dien(ma_cau_kien)
+        if kiem_tra_duoc and not ton_tai:
+            return {"dai_luong": ("%s %s" % (F["ten"], ma_cau_kien)).strip(), "co_ket_qua": False,
+                    "khong_tim_thay": True, "can_bo_sung": False, "ma_cau_kien": ma_cau_kien,
+                    "ghi_chu": "KHÔNG tìm thấy cấu kiện '%s' trong bản vẽ (mã không xuất hiện ở bất kỳ đoạn chữ nào). "
+                               "Hãy nói thẳng với đối tác: cấu kiện này KHÔNG có trong file — TUYỆT ĐỐI KHÔNG hỏi "
+                               "kích thước/số lượng để tính (KỂ CẢ khi đối tác đã cấp số). Đề nghị kiểm tra lại mã, "
+                               "hoặc xem các mã có sẵn (liet_ke_so_luong / tra_cuu_so_luong)." % (ma_cau_kien or "?")}
+        # CHỐNG SAI LOẠI: mã tồn tại nhưng bản vẽ ghi rõ nó là LOẠI KHÁC (vd hỏi thể tích MÓNG cho 'DM-1'
+        # mà bản vẽ ghi 'DẦM DM-1') -> từ chối, không lấy tiết diện dầm tính móng. Chỉ chặn khi có BẰNG CHỨNG
+        # loại xung đột (loai_thuc khác rỗng và không chứa loại kỳ vọng); bản vẽ không ghi loại -> vẫn tính.
+        loai_ky_vong = _FORMULA_LOAI.get(key)
+        if loai_ky_vong and ma_cau_kien:
+            loai_thuc = self._loai_tu_ban_ve(ma_cau_kien)
+            if loai_thuc and loai_ky_vong not in loai_thuc:
+                return {"dai_luong": ("%s %s" % (F["ten"], ma_cau_kien)).strip(), "co_ket_qua": False,
+                        "sai_loai": True, "can_bo_sung": False, "ma_cau_kien": ma_cau_kien,
+                        "loai_thuc_te": sorted(_LOAI_VN.get(x, x) for x in loai_thuc),
+                        "ghi_chu": "Bản vẽ ghi '%s' là loại %s, KHÔNG phải %s. KHÔNG tính '%s' cho mã này (tránh lấy "
+                                   "kích thước loại khác). Hãy báo đối tác có thể đã nhầm loại cấu kiện, đề nghị hỏi đúng loại."
+                                   % (ma_cau_kien, "/".join(sorted(_LOAI_VN.get(x, x) for x in loai_thuc)),
+                                      _LOAI_VN.get(loai_ky_vong, loai_ky_vong), F["ten"])}
         bs = {}
         if inputs_bo_sung:
             try:
@@ -686,6 +921,7 @@ class Drawing:
                               "chua_chac": res.get("chua_chac", False), "giai_thich": res.get("giai_thich", "")})
         ten_dl = ("%s %s" % (F["ten"], ma_cau_kien)).strip()
         if thieu:
+            # Cấu kiện tồn tại (đã qua cửa kiểm tra ở đầu hàm) nhưng THIẾU số liệu -> mời đối tác cấp.
             return {"dai_luong": ten_dl, "co_ket_qua": False, "can_bo_sung": True, "cach_tinh": F["cach_tinh"],
                     "inputs_da_co": da_co, "inputs_thieu": thieu,
                     "ghi_chu": "ĐÃ CÓ %d/%d số liệu. CÒN THIẾU: %s. Hãy nêu rõ cho đối tác biết đã có gì / thiếu gì, "
@@ -702,6 +938,119 @@ class Drawing:
         return {"dai_luong": ten_dl, "co_ket_qua": True, "ket_qua": kq, "don_vi": F["don_vi"], "can_bo_sung": False,
                 "cach_tinh": F["cach_tinh"], "inputs_da_co": da_co, "inputs_thieu": [],
                 "so_do_he_thong_tinh": so_do, "ghi_chu": gc}
+
+    # ---- GĐ2d: BẢNG TỔNG HỢP khối lượng sơ bộ (gộp mọi số ĐỌC/TÍNH được, minh bạch NGUỒN) ----
+    def _door_qty_for(self, code):
+        """SL của MÃ CỬA (ưu tiên mục có 'cửa/vách/kính'; mơ hồ -> None)."""
+        q = self.tra_so_luong(code)
+        if not q: return None
+        cua = [r for r in q if re.search(r"\bcua\b|vach|kinh", r["label_norm"])]
+        if cua: return cua[0]["so_luong"]
+        return q[0]["so_luong"] if len(q) == 1 else None
+
+    def _struct_qty(self, code):
+        """SL cấu kiện KẾT CẤU theo mã (loại mục cửa/vách để không lấy nhầm)."""
+        q = self.tra_so_luong(code)
+        if not q: return None
+        nd = [r for r in q if not re.search(r"\bcua\b|vach|kinh", r["label_norm"])]
+        pick = nd or q
+        return pick[0]["so_luong"] if pick else None
+
+    def _enum_structural_sections(self):
+        """Liệt kê cấu kiện KẾT CẤU có tiết diện (mã lấy từ qty_index): [{code,a,b,handle,loai}]. Bỏ cửa."""
+        out, seen = [], set()
+        for e in (self.qty_index or []):
+            for c in [w for w in e["label_norm"].split() if any(ch.isdigit() for ch in w)]:
+                if c in seen: continue
+                if self._door_size(c): continue          # cửa (bảng R×C) -> xử lý riêng
+                td = self._doc_tiet_dien(c)
+                if not td: continue
+                seen.add(c)
+                lo = self._loai_tu_ban_ve(c)
+                typ = "cot" if "cot" in lo else ("dam" if "dam" in lo else None)
+                out.append({"code": c, "a": td["a"], "b": td["b"], "handle": td["handle"], "loai": typ})
+        return out
+
+    def tong_hop_khoi_luong(self, **_):
+        """GĐ2d: gộp SL + diện tích cửa + thể tích cột/dầm + thép + m³ ghi sẵn + tầng thành 1 BẢNG,
+        mỗi hàng ghi NGUỒN (đọc sẵn / hệ thống tính / tạm tính) + liệt kê 'cần bổ sung' + 'giả định'. Chống bịa."""
+        rows, can_bs, gia_dinh = [], [], []
+        seen = set()
+        for e in (self.qty_index or []):                 # 1) SỐ LƯỢNG (đọc sẵn nhãn SL)
+            k = (e["label_norm"], e["so_luong"])
+            if k in seen: continue
+            seen.add(k)
+            rows.append({"hang_muc": e["label"].strip()[:44], "loai": "Số lượng", "gia_tri": e["so_luong"],
+                         "don_vi": "bộ/cái", "nguon": "đọc sẵn (nhãn SL)", "handle": e.get("qty_handle", e["handle"])})
+        for d in [x for x in (self.door_size_index or []) if x["confident"]]:   # 2) DIỆN TÍCH CỬA (R×C bảng)
+            sl = self._door_qty_for(d["code"])
+            rows.append({"hang_muc": "Cửa %s (%d×%d)" % (d["code"].upper(), d["w"], d["h"]), "loai": "Diện tích",
+                         "gia_tri": round(d["area_m2"] * sl, 2) if sl else d["area_m2"], "don_vi": "m²",
+                         "nguon": "hệ thống tính R×C×SL" if sl else "hệ thống tính R×C/cửa (thiếu SL)", "handle": d["handle"]})
+            if not sl: can_bs.append("Cửa %s: thiếu SỐ LƯỢNG -> chỉ tính được diện tích/1 cửa." % d["code"].upper())
+        typ = (getattr(self, "levels", None) or {}).get("typical_floor_h")     # 3) THỂ TÍCH BT cột/dầm
+        for s in self._enum_structural_sections():
+            sl = self._struct_qty(s["code"]); td = "%d×%d mm" % (s["a"], s["b"])
+            # cột = loại xác định 'cot' HOẶC (chưa xác định loại VÀ mã dạng c<digit>, vd c1/c-1) -> chỉ để RA số
+            # TẠM TÍNH (có gắn cờ giả định); KHÔNG override nếu bản vẽ đã ghi rõ loại khác (dam...).
+            is_cot = (s["loai"] == "cot") or (s["loai"] is None and re.match(r"c-?\d", s["code"]) is not None)
+            if is_cot and typ and sl:
+                v = round(s["a"] / 1000.0 * s["b"] / 1000.0 * typ * sl, 3)
+                rows.append({"hang_muc": "Cột %s (%s)" % (s["code"].upper(), td), "loai": "Thể tích BT", "gia_tri": v,
+                             "don_vi": "m³", "nguon": "TẠM TÍNH (tiết diện×%.2fm/tầng×SL=%d)" % (typ, sl), "handle": s["handle"]})
+                gia_dinh.append("Cột %s: giả định cao = 1 tầng (%.2fm) — xác nhận nếu khác." % (s["code"].upper(), typ))
+            else:
+                rows.append({"hang_muc": "%s (%s)" % (s["code"].upper(), td), "loai": "Tiết diện", "gia_tri": td,
+                             "don_vi": "", "nguon": "đọc sẵn" + ("" if sl is None else ", SL=%d" % sl), "handle": s["handle"]})
+                need = ("chiều dài" if not is_cot else ("số lượng" if typ else "chiều cao tầng"))
+                can_bs.append("Thể tích %s: cần %s để tính." % (s["code"].upper(), need))
+        if self.thep.get("co_bang"):                     # 4) THÉP
+            rows.append({"hang_muc": "Cốt thép tròn (tổng)", "loai": "Khối lượng", "gia_tri": self.thep["tong_kg"],
+                         "don_vi": "kg", "nguon": "đọc bảng thống kê thép", "handle": ""})
+        if self.thep_hinh.get("co_bang"):
+            rows.append({"hang_muc": "Thép hình/inox (tổng)", "loai": "Khối lượng", "gia_tri": self.thep_hinh["tong_kg"],
+                         "don_vi": "kg", "nguon": "đọc bảng thống kê", "handle": ""})
+        for sv in (getattr(self, "stated_vol", None) or []):   # 5) m³ GHI SẴN
+            rows.append({"hang_muc": sv["text"][:44], "loai": "Khối lượng (ghi sẵn)", "gia_tri": sv["m3"],
+                         "don_vi": "m³", "nguon": "đọc sẵn trên bản vẽ", "handle": sv["handle"]})
+        lv = getattr(self, "levels", None) or {}          # 6) TẦNG
+        if lv.get("typical_floor_h"):
+            rows.append({"hang_muc": "Chiều cao tầng điển hình (số tầng ước tính: %s)" % lv.get("n_tang_est"),
+                         "loai": "Cao độ/tầng", "gia_tri": lv["typical_floor_h"], "don_vi": "m",
+                         "nguon": "hệ thống tính (hiệu cao độ)", "handle": ""})
+        return {"co_du_lieu": bool(rows), "so_hang": len(rows), "bang": rows,
+                "can_bo_sung": can_bs, "gia_dinh": gia_dinh,
+                "ghi_chu": "BẢNG TỔNG HỢP SƠ BỘ. Cột 'nguon' cho biết số ĐỌC SẴN / HỆ THỐNG TÍNH / TẠM TÍNH (giả định). "
+                           "'can_bo_sung' = mục còn thiếu số liệu để tính; 'gia_dinh' = giả định đã dùng. KHÔNG coi là dự "
+                           "toán chốt — chỉ gồm cấu kiện có nhãn đọc được. Xuất Excel để rà soát/hoàn thiện."}
+
+    def xuat_excel(self, **_):
+        """GĐ2d: ghi BẢNG TỔNG HỢP ra file .xlsx trong _renders/, trả file_id (host cho tải qua /file/<id>).
+        Song song cách trả anh_id của ảnh PNG — hợp kiến trúc MCP (trả path, host phục vụ file)."""
+        try:
+            from openpyxl import Workbook
+            from openpyxl.styles import Font, PatternFill
+        except Exception:
+            return {"loi": "Máy chủ chưa cài openpyxl để xuất Excel (thêm 'openpyxl' vào requirements)."}
+        th = self.tong_hop_khoi_luong()
+        wb = Workbook(); ws = wb.active; ws.title = "Tong hop khoi luong"
+        ws.append(["STT", "Hạng mục", "Loại", "Giá trị", "Đơn vị", "Nguồn", "Handle"])
+        for c in ws[1]:
+            c.font = Font(bold=True, color="FFFFFF"); c.fill = PatternFill("solid", fgColor="2F5496")
+        for i, r in enumerate(th["bang"], 1):
+            ws.append([i, r["hang_muc"], r["loai"], r["gia_tri"], r["don_vi"], r["nguon"], r.get("handle", "")])
+        ws.append([]); ws.append(["CẦN BỔ SUNG (còn thiếu số liệu để tính):"])
+        for x in th["can_bo_sung"]: ws.append(["", x])
+        ws.append([]); ws.append(["GIẢ ĐỊNH ĐÃ DÙNG:"])
+        for x in th["gia_dinh"]: ws.append(["", x])
+        ws.append([]); ws.append(["Ghi chú:", th["ghi_chu"]])
+        for col, w in zip("ABCDEFG", [5, 42, 18, 12, 8, 34, 10]):
+            ws.column_dimensions[col].width = w
+        fid = "th_%s.xlsx" % uuid.uuid4().hex[:10]
+        wb.save(os.path.join(RENDER_DIR, fid))
+        return {"file_id": fid, "ten_file": "tong_hop_khoi_luong.xlsx", "so_hang": th["so_hang"],
+                "ghi_chu": "Đã xuất bảng tổng hợp ra Excel (%d hàng). Host cho đối tác TẢI qua file_id. "
+                           "Số liệu & nguồn như tong_hop_khoi_luong (bảng SƠ BỘ, không phải dự toán chốt)." % th["so_hang"]}
 
     # ============================================================
     # RENDER + HIGHLIGHT (mới — điểm khác biệt cốt lõi của demo 2)

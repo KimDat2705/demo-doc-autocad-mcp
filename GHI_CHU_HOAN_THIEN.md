@@ -1,6 +1,6 @@
 # 📌 TRẠNG THÁI DEMO 2 & VIỆC TIẾP THEO — ĐỌC FILE NÀY TRƯỚC (bàn giao phiên mới)
 
-> Cập nhật 2026-06-30. Đây là "điểm bắt đầu" cho phiên chat mới: tóm tắt demo 2 đang ở đâu + việc còn lại.
+> Cập nhật 2026-07-01. Đây là "điểm bắt đầu" cho phiên chat mới: tóm tắt demo 2 đang ở đâu + việc còn lại.
 
 ## Demo 2 là gì (1 phút)
 Web app đọc + tính toán bản vẽ AutoCAD **qua MCP (Model Context Protocol)**. LLM = **Google Gemini** (`gemini-2.5-flash`,
@@ -26,19 +26,48 @@ ODA File Converter chuyển .dwg→.dxf. **KHÔNG cần AutoCAD → deploy cloud
 4. `BO_KICH_BAN_TEST_DEMO2.md` — bộ câu test kèm đáp án (4 phần).
 5. `BAO_CAO_QA_DEMO2.md` — báo cáo QA (lỗi đã tìm/vá, đánh đổi model).
 
+## Vừa xong (2026-07-01)
+- ✅ **TODO #1 — Cấu kiện KHÔNG tồn tại:** `tinh_dai_luong` giờ kiểm tra TẤT ĐỊNH mã cấu kiện có xuất hiện trong
+  bản vẽ không (helper `_cau_kien_hien_dien`, dựa token mã có chữ số + `_tok_bound`). Vắng mặt hoàn toàn → trả
+  `khong_tim_thay=true` (đối tác chưa cấp số) thay vì mời nhập thông số. SYSTEM_PROMPT luật 10 + docstring tool cập nhật.
+  Test tất định 14/14 PASS trên 3 domain (KT/KC MN Gia Lộc + Bảng TK cửa): cấu kiện thật KHÔNG báo nhầm, giả bắt đúng.
+  End-to-end 3/3 PASS (GL9→không tìm thấy; D1→84.24m²; C1→hỏi chiều cao).
+- 📋 **Rà soát parity demo 1 ↔ demo 2:** phát hiện 2 điểm LỆCH — (1) demo 1 CHƯA có xử lý "cấu kiện không tồn tại", còn
+  trả NHẦM ("cột GL9"→9 cấu kiện, `tinh_duoc=True`); (2) diện tích cửa D1 demo 2 tính được (gán dim) còn demo 1 chưa.
+  Đã soạn spec bàn giao ở **`../BAN_GIAO_PARITY_DEMO1.md`** (thư mục gốc) cho phiên demo 1 tự vá — demo 2 KHÔNG sửa demo 1.
+
+## Vừa xong (2026-07-02) — bàn giao NGƯỢC từ demo 1 (`../BAN_GIAO_PARITY_DEMO2.md`)
+- ✅ **VÁ LỖ HỔNG CHỐNG BỊA:** trước đây `_cau_kien_hien_dien` chỉ chạy khi `thieu AND not bs` → cấp `inputs_bo_sung`
+  cho mã KHÔNG tồn tại vẫn tính ra số ảo (vd sàn SAN1 + {dien_tich,chieu_day} → 5.0 m³). ĐÃ SIẾT: kiểm tra tồn tại
+  chuyển lên ĐẦU `tinh_dai_luong`, chặn **bất kể có inputs_bo_sung** (chỉ cho tính khi mã để trống = nhập tay thuần).
+  Test hồi quy cố định `tests/test_takeoff_chong_bia.py` (A: existence đa-domain; B: lỗ hổng + regression).
+- ✅ **VÁ SAI LOẠI (DM-1):** `("thể tích móng","DM-1")` trước ra 0.36 m³ (lấy tiết diện DẦM tính MÓNG). Nay chặn bằng
+  `_loai_tu_ban_ve` — suy loại theo NHÃN bản vẽ ghi rõ ('DẦM DM-1' → {dam}), data-driven KHÔNG đoán prefix (tránh overfit);
+  công thức có loại kỳ vọng (`_FORMULA_LOAI`) mà loại thực khác → trả `sai_loai=true`. Chỉ chặn khi có BẰNG CHỨNG xung đột
+  (bản vẽ không ghi loại liền mã → vẫn tính, không phá C1/C4/DR-3).
+- ✅ **4 TÍNH NĂNG PARITY (bàn giao ngược) — ĐÃ THÊM đủ:**
+  (a) **size_index** (`_build_door_size_index`) — R×C cửa từ bảng thống kê → diện tích cửa *confident*; resolver `_rs_rong/_rs_cao`
+  ưu tiên bảng, không có → rơi về gán-dim (chua_chac). Fixture bảng cửa: 7 cửa/404.09 m² (khớp demo 1 ~404.11).
+  (b) **thong_tin_tang** (`_build_levels`) — cao độ → chiều cao tầng điển hình + số tầng ƯỚC TÍNH (KT 3.6m/3 tầng, KC 3.6m/2 tầng).
+  Report-only, KHÔNG tự bơm vào resolver chiều cao (an toàn, đúng khuyến nghị handoff).
+  (c) **tong_hop_khoi_luong** — bảng tổng hợp (SL + diện tích cửa + thể tích cột/dầm + thép + m³ ghi sẵn + tầng) + cột NGUỒN
+  + `can_bo_sung` + `gia_dinh`. KC: 118 hàng, cột TẠM TÍNH khớp trị trực tiếp (C1=4.704, C4=9.504).
+  (d) **xuat_excel** — ghi `.xlsx` (openpyxl) ra `_renders/`, trả `file_id`; host route `/file/<id>` + link tải ở frontend (song song `anh_id`).
+  MCP tools + SYSTEM_PROMPT (luật 11,12) + `requirements.txt (openpyxl)` cập nhật. Test `test_takeoff_chong_bia.py` **23/23** (thêm smoke D).
+
 ## Việc CÒN LẠI (TODO — ưu tiên trên xuống)
-1. **Cấu kiện KHÔNG tồn tại** (vd "cửa gỗ lim GL9") → nên nói "không tìm thấy trong bản vẽ" thay vì hỏi thông số.
-2. **Thêm đại lượng takeoff:** xây tường, trát, đào/đắp đất (nhóm 🔴 — chủ yếu đối tác nhập số; xem plan GĐ2).
-3. **Tinh chỉnh gán dim↔cấu kiện:** ngưỡng bán kính thích nghi hơn; chọn đúng khi cửa vẽ cạnh nhau.
-4. **Nhóm 🟢 đọc-verbatim** (thảm đá hạ tầng "(6x2x0.3)m L=56m") — parser riêng nếu cần.
-5. (Theo dõi) model: 2.5-flash ổn; 3.5-flash mạnh hơn nhưng hay 503; Pro chất lượng cao nhất nhưng quota thấp (cần billing).
+1. **Thêm đại lượng takeoff:** xây tường, trát, đào/đắp đất (nhóm 🔴 — chủ yếu đối tác nhập số; xem plan GĐ2).
+2. **Tinh chỉnh gán dim↔cấu kiện:** ngưỡng bán kính thích nghi hơn; chọn đúng khi cửa vẽ cạnh nhau.
+3. **Nhóm 🟢 đọc-verbatim** (thảm đá hạ tầng "(6x2x0.3)m L=56m") — parser riêng nếu cần.
+4. (Theo dõi) model: 2.5-flash ổn; 3.5-flash mạnh hơn nhưng hay 503; Pro chất lượng cao nhất nhưng quota thấp (cần billing).
 
 ## Chạy/test local (Windows)
 ```
 # .env có GEMINI_API_KEY (hoặc dùng ../demo_doc_autocad/.env). File lớn: đặt READFILE_MAX_MB=300.
 python app.py                       # http://localhost:5050
 python tests/test_qa_data.py        # regression đọc 129/129
-python tests/kichban_gd2.py         # test takeoff (đối chiếu engine)
+python tests/test_takeoff_chong_bia.py  # KHOÁ chống bịa + smoke parity (tất định, miễn phí) — 23/23
+python tests/kichban_gd2.py         # test takeoff end-to-end (đối chiếu engine, tốn API)
 ```
 
 ## Chống bịa (nguyên tắc BẤT DI BẤT DỊCH — mọi tính năng mới phải giữ)

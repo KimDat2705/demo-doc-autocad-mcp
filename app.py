@@ -99,6 +99,15 @@ def image(anh_id):
     return send_file(p, mimetype="image/png")
 
 
+@app.route("/file/<file_id>")
+def download_file(file_id):
+    p = os.path.join(RENDER_DIR, os.path.basename(file_id))
+    if not os.path.isfile(p):
+        return jsonify({"error": "Không có file."}), 404
+    return send_file(p, as_attachment=True, download_name="tong_hop_khoi_luong.xlsx",
+                     mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+
 PAGE = r"""<!doctype html><html lang="vi"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Demo 2 — Đọc & Trực quan hoá bản vẽ qua MCP</title>
@@ -172,9 +181,10 @@ function evHtml(ev){if(!ev||!ev.length)return '';
   return '<div class="ev">'+order.map(k=>{let head=(multi&&k)?`<div class="evh">▸ ${esc(k)}</div>`:'';
     return head+g[k].map(x=>`<div><span class="h">[${esc(x.handle)}]</span> <span class="lay">${esc(x.layer)}</span> — ${esc(x.text)}</div>`).join('')}).join('')+'</div>'}
 function shot(id){return id?`<div class="shot"><img src="/image/${id}?t=${Date.now()}" onclick="window.open(this.src)"></div><div class="cap">🔴 Ảnh bản vẽ — khoanh đỏ vị trí cấu kiện (bấm để phóng to)</div>`:''}
-function bot(t,ev,anh,tag){let e=evHtml(ev),im=shot(anh);
+function fileLink(fid){return fid?`<div class="cap"><a href="/file/${fid}" download style="color:#9ad9b4;font-weight:600">📥 Tải bảng tổng hợp (Excel .xlsx)</a></div>`:''}
+function bot(t,ev,anh,tag,fid){let e=evHtml(ev),im=shot(anh),fl=fileLink(fid);
   let tg=tag?'<div class="tag">🤖 Gemini · qua MCP · số liệu &amp; handle do công cụ tính</div>':'';
-  $('chat').innerHTML+=`<div class="msg ai"><div class="bub">${tg}${esc(t)}${im}${e}</div></div>`;$('chat').scrollTop=1e9;return $('chat').lastElementChild}
+  $('chat').innerHTML+=`<div class="msg ai"><div class="bub">${tg}${esc(t)}${im}${fl}${e}</div></div>`;$('chat').scrollTop=1e9;return $('chat').lastElementChild}
 function showSum(d){let s=$('sum');if(d.error){s.style.display='block';s.textContent='⚠ '+d.error;return}
   let c=Object.entries(d.counts||{}).sort((a,b)=>b[1]-a[1]).slice(0,8).map(x=>x[0]+': '+x[1]).join('   ·   ');
   s.style.display='block';
@@ -192,7 +202,7 @@ function q(t){$('inp').value=t;send()}
 async function send(){let t=$('inp').value.trim();if(!t)return;me(t);$('inp').value='';
   let ph=bot('🤖 AI đang đọc & tra cứu qua MCP… 0s');let bub=ph.querySelector('.bub');
   ready(false);let sec=0,tm=setInterval(()=>{sec++;bub.textContent='🤖 AI đang đọc & tra cứu qua MCP… '+sec+'s'},1000);
-  try{let r=await jpost('/ask',{q:t});clearInterval(tm);ph.remove();bot(r.answer,r.evidence,r.anh_id,true)}
+  try{let r=await jpost('/ask',{q:t});clearInterval(tm);ph.remove();bot(r.answer,r.evidence,r.anh_id,true,r.file_id)}
   catch(e){clearInterval(tm);ph.remove();bot('⚠ Lỗi kết nối máy chủ.')}
   ready(true);$('inp').focus()}
 async function init(){try{let c=await jget('/config');if(!c.use_ai){bot('⚠ Máy chủ chưa cấu hình GEMINI_API_KEY.')}}catch(e){}}

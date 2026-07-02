@@ -209,7 +209,7 @@ Bạn lo đúng: demo 1 test xong hết nhưng đối tác hỏi câu lạ vẫn
 ## 4C — Bẫy takeoff (test không bịa)
 | Câu hỏi | Hành vi đúng |
 |---|---|
-| Tính diện tích cửa gỗ lim GL9? (không có) | Hỏi thông số / báo chưa có — **KHÔNG bịa số** |
+| Tính diện tích cửa gỗ lim GL9? (không có) | Báo **KHÔNG TÌM THẤY** cấu kiện GL9 trong bản vẽ — **KHÔNG hỏi thông số, KHÔNG bịa số** |
 | Tính khối lượng bê tông toàn công trình | Cần bóc từng cấu kiện — không có 1 số tổng bịa |
 | Công trình dài bao nhiêu? | Vẫn TỪ CHỐI (kích thước tổng thể ≠ takeoff cấu kiện) |
 

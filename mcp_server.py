@@ -119,6 +119,28 @@ def thong_tin_kich_thuoc() -> dict:
 
 
 @mcp.tool()
+def thong_tin_tang() -> dict:
+    """Cao độ + CHIỀU CAO TẦNG điển hình + SỐ TẦNG ước tính (đọc mốc cao độ ±0.000/+3.600...).
+    DÙNG cho 'chiều cao tầng', 'cao độ các tầng', 'công trình mấy tầng'. Số tầng là ƯỚC TÍNH."""
+    return _need() or DRAWING.thong_tin_tang()
+
+
+@mcp.tool()
+def tong_hop_khoi_luong() -> dict:
+    """⭐ GĐ2d — BẢNG TỔNG HỢP khối lượng SƠ BỘ: gộp số lượng + diện tích cửa + thể tích cột/dầm + thép +
+    m³ ghi sẵn + tầng vào 1 bảng, mỗi hàng ghi NGUỒN. DÙNG cho 'tổng hợp khối lượng', 'bảng dự toán sơ bộ',
+    'thống kê toàn bộ'. Kèm 'can_bo_sung' (còn thiếu) + 'gia_dinh' (giả định). KHÔNG phải dự toán chốt."""
+    return _need() or DRAWING.tong_hop_khoi_luong()
+
+
+@mcp.tool()
+def xuat_excel_du_toan() -> dict:
+    """⭐ GĐ2d — XUẤT bảng tổng hợp khối lượng ra file EXCEL (.xlsx) để tải về. DÙNG khi người dùng muốn
+    'xuất Excel', 'tải file dự toán', 'export bảng khối lượng'. Trả file_id (host cho tải qua /file/<file_id>)."""
+    return _need() or DRAWING.xuat_excel()
+
+
+@mcp.tool()
 def danh_dau_cau_kien(tu_khoa: str = "", layer: str = "") -> dict:
     """⭐ TRỰC QUAN HOÁ: KHOANH ĐỎ vị trí các cấu kiện khớp từ khoá NGAY TRÊN ẢNH bản vẽ và trả 'anh_id'.
     DÙNG khi người dùng muốn 'chỉ ra', 'đánh dấu', 'cho xem ở đâu', 'highlight' cấu kiện X trên bản vẽ.
@@ -134,7 +156,9 @@ def tinh_dai_luong(ten_dai_luong: str, ma_cau_kien: str = "", inputs_bo_sung: st
     - ten_dai_luong: 'diện tích cửa' | 'thể tích bê tông cột' | 'ván khuôn cột' (hoặc mô tả tự do).
     - ma_cau_kien: mã cấu kiện, vd 'D1', 'C1', 'cửa D1'.
     - inputs_bo_sung: JSON số liệu ĐỐI TÁC cấp khi tool báo thiếu, vd '{"chieu_cao":3600}' (đơn vị mm). Trống nếu chưa có.
-    Trả: ĐỦ input -> ket_qua + so_do_he_thong_tinh; THIẾU -> inputs_da_co + inputs_thieu + can_bo_sung=true (KHÔNG bịa số thiếu)."""
+    Trả: ĐỦ input -> ket_qua + so_do_he_thong_tinh; THIẾU -> inputs_da_co + inputs_thieu + can_bo_sung=true (KHÔNG bịa số thiếu);
+    CẤU KIỆN KHÔNG CÓ trong bản vẽ -> khong_tim_thay=true (báo không tìm thấy, KHÔNG hỏi thông số);
+    HỎI SAI LOẠI (vd tính MÓNG cho một cái DẦM) -> sai_loai=true + loai_thuc_te (báo nhầm loại, KHÔNG tính)."""
     return _need() or DRAWING.tinh_dai_luong(ten_dai_luong, ma_cau_kien, inputs_bo_sung)
 
 
