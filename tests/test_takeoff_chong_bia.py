@@ -116,6 +116,23 @@ def main():
     PASS, FAIL = PASS + int(mm_ok), FAIL + int(not mm_ok)
     print("  [%s] bóc tách 'gạch': không kích thước vật liệu nhỏ nào bị gắn nhầm đơn vị 'm'" % ("OK" if mm_ok else "FAIL"))
 
+    print("[H] SAU AUDIT — vá 5 bug (crash phi số / số âm / do_tin_cay / thép float / gioi_han âm)")
+    r1 = kc.tinh_dai_luong("khối lượng đào đất", "", '{"chieu_dai":"abc","chieu_rong":2000,"chieu_sau":1500}')
+    r2 = kc.tinh_dai_luong("thể tích bê tông cột", "C1", '{"chieu_cao":-3600}')
+    for tag, r in [("phi số", r1), ("số âm", r2)]:
+        ok = not r.get("co_ket_qua")
+        PASS, FAIL = PASS + int(ok), FAIL + int(not ok)
+        print("  [%s] input %s -> KHÔNG ra kết quả (co_ket_qua=%s)" % ("OK" if ok else "FAIL", tag, r.get("co_ket_qua")))
+    tc = (kt._gan_dim_cau_kien("D2").get("cao") or {}).get("do_tin_cay")
+    ok = tc != "cao"; PASS, FAIL = PASS + int(ok), FAIL + int(not ok)
+    print("  [%s] gán-dim do_tin_cay='%s' (chưa-chắc KHÔNG gắn 'cao')" % ("OK" if ok else "FAIL", tc))
+    ok = kc.thong_ke_thep(duong_kinh=16.0).get("co_trong_bang") is True
+    PASS, FAIL = PASS + int(ok), FAIL + int(not ok)
+    print("  [%s] thong_ke_thep(16.0 float) tìm được Ø16" % ("OK" if ok else "FAIL"))
+    ok = kt.tim_kiem(tu_khoa="dam", gioi_han=-5).get("hien_thi") == 0
+    PASS, FAIL = PASS + int(ok), FAIL + int(not ok)
+    print("  [%s] gioi_han âm -> 0 (không cắt cụt bằng slice âm)" % ("OK" if ok else "FAIL"))
+
     print("\n%d PASS / %d FAIL" % (PASS, FAIL))
     return 1 if FAIL else 0
 

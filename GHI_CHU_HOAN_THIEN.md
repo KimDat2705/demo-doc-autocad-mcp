@@ -70,6 +70,12 @@ ODA File Converter chuyển .dwg→.dxf. **KHÔNG cần AutoCAD → deploy cloud
   quét cả file lấy "dày" bừa → thêm `if not codes: return None` (vá cả xây tường + sàn); (ii) phân loại đơn vị đuôi bất đối xứng
   ("65 mm" có dấu cách nhầm) → chuẩn hoá `unaccent`+strip đồng nhất, loại chữ số/²³. + vá 3 lỗi vừa (m2 liền, loại "N viên/m2"
   = mật độ, bề dày thập phân). MCP tools + SYSTEM_PROMPT (luật 10,13). Test **33/33** (nhóm F+G). → **HẾT TODO takeoff/parser.**
+- ✅ **AUDIT đối kháng 2 demo (workflow) — vá 5 bug demo 2:** (1) CRASH khi `inputs_bo_sung` phi số ('abc'); (2) input
+  ÂM/0 vẫn ra `co_ket_qua` (thể tích -4.704). → thêm cửa "SỐ DƯƠNG hợp lệ" trước `compute` (phi số/≤0 → báo không hợp lệ,
+  không tính). (3) gán-dim gắn `do_tin_cay='cao'` cho số chưa-chắc → cap 'trung_binh'. (4) `thong_ke_thep(16.0)` float key
+  'Ø16.0' → chuẩn hoá bỏ '.0'. (5) `gioi_han` âm cắt cụt slice → kẹp ≥0. Test **38/38** (nhóm H). Cross-consistency: 5 hạng
+  mục lõi KHỚP+ĐÚNG cả 2 demo. **Demo 1 có 1 bug (không tự sửa, đã flag):** `_sect_to_m` ngưỡng cm/mm=150 → tiết diện
+  &lt;150mm (vd 140×140) đọc thành 1.4m (sai 100×) → cần đưa vào bàn giao demo 1.
 
 ## Việc CÒN LẠI (TODO)
 - (Theo dõi) model: 2.5-flash ổn; 3.5-flash mạnh hơn nhưng hay 503; Pro chất lượng cao nhất nhưng quota thấp (cần billing).

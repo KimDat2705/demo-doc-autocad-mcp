@@ -565,7 +565,7 @@ class Drawing:
         if not tk and not ly:
             return {"loi": "Cần ít nhất một từ khoá hoặc tên layer để tìm.", "so_ket_qua": 0, "ket_qua": []}
         hits = self.search_texts(tk, layer=ly or None)
-        cap = min(int(gioi_han or 40), 200)
+        cap = max(0, min(int(gioi_han or 40), 200))   # gioi_han âm -> 0 (không cắt cụt bằng slice âm)
         ket = [{"handle": h["handle"], "layer": h.get("layer") or "", "text": h["vn"]} for h in hits[:cap]]
         return {"tu_khoa": tk or None, "layer": ly or None, "so_ket_qua": len(hits),
                 "hien_thi": len(ket), "ket_qua": ket,
@@ -628,6 +628,8 @@ class Drawing:
         dk = (str(duong_kinh) if duong_kinh is not None else "").strip()
         for ch in ("Ø", "ø", "φ", "phi", "D", "d"): dk = dk.replace(ch, "")
         dk = dk.strip()
+        _n = _to_num(dk)
+        if _n is not None and float(_n).is_integer(): dk = str(int(_n))   # '16.0'/16.0 -> '16' (khớp key 'Ø16')
         if dk:
             key = "Ø%s" % dk; row = by.get(key)
             if not row:
@@ -661,7 +663,7 @@ class Drawing:
         ly = (layer or "").strip()
         if not ly: return {"loi": "Thiếu tên layer cần liệt kê.", "so_doan_chu": 0, "ket_qua": []}
         hits = self.search_texts("", layer=ly)
-        cap = min(int(gioi_han or 60), 200)
+        cap = max(0, min(int(gioi_han or 60), 200))
         ket = [{"handle": h["handle"], "layer": h.get("layer") or "", "text": h["vn"]} for h in hits[:cap]]
         return {"layer": ly, "so_doan_chu": len(hits), "hien_thi": len(ket), "ket_qua": ket}
 
@@ -731,7 +733,7 @@ class Drawing:
         tk = (tu_khoa or "").strip()
         if not tk:
             return {"loi": "Cần từ khoá (vd 'thảm đá', 'gạch', 'đá granit') để bóc tách kích thước.", "so_ket_qua": 0}
-        cap = min(int(gioi_han or 30), 100)
+        cap = max(0, min(int(gioi_han or 30), 100))
         out = []
         for h in self.search_texts(tk):
             vn = h["vn"]; nv = _norm(vn); da = {}
@@ -833,7 +835,7 @@ class Drawing:
             if not pair: return None
             dist, di = pair
             ratio = dist / max(di["value"], 1.0)
-            tc = "cao" if ratio < 1.2 else ("trung_binh" if ratio < 3 else "thap")
+            tc = "trung_binh" if ratio < 3 else "thap"    # gán-dim luôn 'chưa chắc' -> KHÔNG gắn nhãn 'cao' (mâu thuẫn)
             return {"gia_tri": di["value"], "handle": di["handle"], "khoang_cach": round(dist), "do_tin_cay": tc}
         return {"tim_thay_neo": True, "neo": chosen["neo"], "rong": _mk(chosen_b["ngang"]), "cao": _mk(chosen_b["doc"])}
 
@@ -1052,6 +1054,17 @@ class Drawing:
                     "ghi_chu": "ĐÃ CÓ %d/%d số liệu. CÒN THIẾU: %s. Hãy nêu rõ cho đối tác biết đã có gì / thiếu gì, "
                                "mời đối tác cấp phần thiếu (nhập qua chat) rồi gọi lại để tính. TUYỆT ĐỐI KHÔNG tự bịa số thiếu."
                                % (len(da_co), len(F["inputs"]), ", ".join(t["ten"] for t in thieu))}
+        # CHỐNG CRASH + SỐ VÔ LÝ: đối tác có thể nhập 'abc' / số âm / 0 qua chat. Mọi input phải là SỐ DƯƠNG hợp lệ;
+        # nếu không -> KHÔNG tính (báo số liệu không hợp lệ, mời nhập lại) — tránh TypeError và đại lượng ÂM.
+        xau = [x["ten"] for x in da_co
+               if not (isinstance(x["gia_tri"], (int, float)) and not isinstance(x["gia_tri"], bool)
+                       and x["gia_tri"] == x["gia_tri"] and x["gia_tri"] > 0)]
+        if xau:
+            return {"dai_luong": ten_dl, "co_ket_qua": False, "can_bo_sung": True, "so_lieu_khong_hop_le": xau,
+                    "cach_tinh": F["cach_tinh"], "inputs_da_co": [x for x in da_co if x["ten"] not in xau],
+                    "inputs_thieu": [{"ten": t, "don_vi": "mm", "cach_cung_cap": "nhập lại SỐ DƯƠNG (mm), vd '%s = 3600'" % t} for t in xau],
+                    "ghi_chu": "Số liệu KHÔNG HỢP LỆ (phải là SỐ DƯƠNG > 0, đơn vị mm): %s. Đề nghị đối tác nhập lại đúng số."
+                               % ", ".join(xau)}
         kq = F["compute"](vals)
         chua_chac = any(x["chua_chac"] for x in da_co)
         so_do = ["%s = %s %s (%s%s)" % (x["ten"], (round(x["gia_tri"], 2)), x["don_vi"], x["nguon"],
