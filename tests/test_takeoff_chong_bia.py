@@ -94,6 +94,28 @@ def main():
     print("  [%s] diện tích cửa D1 (4 biến thể) -> %s m² (mong 1 giá trị duy nhất)"
           % ("OK" if stable else "FAIL", sorted(vals)))
 
+    print("[F] ĐẠI LƯỢNG MỚI (xây/trát/đào-đắp) + BÓC TÁCH")
+    ck(kc, "khối lượng xây tường", "", '{"chieu_dai":5000,"chieu_cao":3000,"be_day":220}', "tinh", "xây đủ số")
+    ck(kc, "diện tích trát", "", '{"chieu_dai":5000,"chieu_cao":3000,"so_mat":2}', "tinh", "trát đủ số")
+    ck(kc, "khối lượng đào đất", "", '{"chieu_dai":10000,"chieu_rong":8000,"chieu_sau":2000}', "tinh", "đào đủ số")
+    ck(kc, "khối lượng đào đất", "", "", "thieu", "đào chưa có số -> hỏi (không bịa)")
+    ck(kc, "khối lượng đắp đất", "", '{"chieu_dai":10000,"chieu_rong":8000,"chieu_cao":500}', "tinh", "đắp đủ số")
+    bt = kt.boc_tach_kich_thuoc("granit")
+    ok = bt.get("so_ket_qua", 0) > 0 and any("dien_tich_m2" in e["da_tach"] for e in bt["ket_qua"])
+    PASS, FAIL = PASS + int(bool(ok)), FAIL + int(not ok)
+    print("  [%s] bóc tách 'granit' KT: %d ghi chú, có diện tích m²" % ("OK" if ok else "FAIL", bt.get("so_ket_qua", 0)))
+
+    print("[G] SAU KIỂM CHỨNG ĐỐI KHÁNG — vá lỗ hổng (chống bịa bề dày + đơn vị bóc tách)")
+    # Fix A: xây tường thiếu bề dày -> HỎI (không quét file lấy 'dày' bừa)
+    ck(kc, "khối lượng xây tường", "", '{"chieu_dai":5000,"chieu_cao":3000}', "thieu", "thiếu bề dày -> hỏi, KHÔNG bịa")
+    ck(kc, "thể tích bê tông sàn", "", '{"dien_tich":50}', "thieu", "sàn thiếu bề dày -> hỏi, KHÔNG bịa")
+    # Fix B: kích thước VẬT LIỆU nhỏ (mọi cạnh < 1000mm) KHÔNG được gắn nhầm đơn vị 'm'
+    mm_ok = all(not (d["don_vi"] == "m" and all((x or 0) < 1000 for x in (d["a"], d["b"], d["c"])))
+                for e in kt.boc_tach_kich_thuoc("gạch").get("ket_qua", [])
+                for d in e["da_tach"].get("kich_thuoc_3d", []))
+    PASS, FAIL = PASS + int(mm_ok), FAIL + int(not mm_ok)
+    print("  [%s] bóc tách 'gạch': không kích thước vật liệu nhỏ nào bị gắn nhầm đơn vị 'm'" % ("OK" if mm_ok else "FAIL"))
+
     print("\n%d PASS / %d FAIL" % (PASS, FAIL))
     return 1 if FAIL else 0
 

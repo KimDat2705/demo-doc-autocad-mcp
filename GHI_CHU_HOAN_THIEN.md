@@ -61,18 +61,26 @@ ODA File Converter chuyển .dwg→.dxf. **KHÔNG cần AutoCAD → deploy cloud
   (3) **lọc dim hợp lý** cho ô cửa `_OPENING_DIM_LO/HI=[400,6000]mm` → loại dim 50/5450 (không có dim hợp lý → None = báo thiếu, không bịa);
   (4) chọn neo có CẶP DIM tốt nhất (xử lý cửa vẽ cạnh nhau). Test đa-domain (MN + nha 9T): MN D1 4 biến thể → 1300×2700 duy nhất;
   nha 9T D1 → 1500×1450 (hết loạn). Test `test_takeoff_chong_bia.py` nay **24/24** (thêm nhóm E bất biến). Vẫn gắn cờ "chưa chắc".
+- ✅ **Mở rộng takeoff + BÓC TÁCH (user duyệt) — dựng sẵn công thức, luôn theo luồng đọc/nhập-đủ-mới-tính, KHÔNG bịa:**
+  (A) **4 đại lượng mới** trong `_FORMULAS`: xây tường (dài×cao×dày), trát (dài×cao×số_mặt), đào đất, đắp đất (dài×rộng×sâu).
+  Input qua resolver `_rs_bs_only` (chỉ đối tác cấp) — bản vẽ ít ghi sẵn nên thiếu → hỏi (đúng quy trình). "đào móng"≠"bê tông móng".
+  (B) **`boc_tach_kich_thuoc(tu_khoa)`** — TRÍCH số đo từ ghi chú tự do (3D, L=, m², m³, bề dày, SL) + NGUYÊN VĂN + handle,
+  phân biệt đơn vị mm/m; **KHÔNG tự tính** (nhiều "AxBxC" là kích thước VẬT LIỆU) → chống bịa.
+  **Kiểm chứng đối kháng (workflow 3 giám định):** công thức SẠCH; bắt + VÁ 2 lỗ hổng HIGH: (i) `_rs_chieu_day` khi mã rỗng
+  quét cả file lấy "dày" bừa → thêm `if not codes: return None` (vá cả xây tường + sàn); (ii) phân loại đơn vị đuôi bất đối xứng
+  ("65 mm" có dấu cách nhầm) → chuẩn hoá `unaccent`+strip đồng nhất, loại chữ số/²³. + vá 3 lỗi vừa (m2 liền, loại "N viên/m2"
+  = mật độ, bề dày thập phân). MCP tools + SYSTEM_PROMPT (luật 10,13). Test **33/33** (nhóm F+G). → **HẾT TODO takeoff/parser.**
 
-## Việc CÒN LẠI (TODO — ưu tiên trên xuống)
-1. **Thêm đại lượng takeoff:** xây tường, trát, đào/đắp đất (nhóm 🔴 — chủ yếu đối tác nhập số; xem plan GĐ2).
-2. **Nhóm 🟢 đọc-verbatim** (thảm đá hạ tầng "(6x2x0.3)m L=56m") — parser riêng nếu cần.
-4. (Theo dõi) model: 2.5-flash ổn; 3.5-flash mạnh hơn nhưng hay 503; Pro chất lượng cao nhất nhưng quota thấp (cần billing).
+## Việc CÒN LẠI (TODO)
+- (Theo dõi) model: 2.5-flash ổn; 3.5-flash mạnh hơn nhưng hay 503; Pro chất lượng cao nhất nhưng quota thấp (cần billing).
+- (Tuỳ chọn) endpoint `/version` trả git SHA để verify đúng commit đã deploy qua HTTP.
 
 ## Chạy/test local (Windows)
 ```
 # .env có GEMINI_API_KEY (hoặc dùng ../demo_doc_autocad/.env). File lớn: đặt READFILE_MAX_MB=300.
 python app.py                       # http://localhost:5050
 python tests/test_qa_data.py        # regression đọc 129/129
-python tests/test_takeoff_chong_bia.py  # KHOÁ chống bịa + parity + gán-dim ổn định (tất định, miễn phí) — 24/24
+python tests/test_takeoff_chong_bia.py  # KHOÁ chống bịa + parity + gán-dim + takeoff mở rộng + bóc tách (miễn phí) — 33/33
 python tests/kichban_gd2.py         # test takeoff end-to-end (đối chiếu engine, tốn API)
 ```
 

@@ -224,6 +224,14 @@ _M3_RE = re.compile(r"([\d][\d.,]*)\s*m\s*3\b|([\d][\d.,]*)\s*m³", re.IGNORECAS
 _M3_MIN = 5   # ngưỡng m³ tối thiểu (nhận cả khối lượng nhỏ 5-9 m³)
 _M3_EXCLUDE_RE = re.compile(r"nuoc|vua|xi mang|ti le|dinh muc|keo|son|phu gia")  # ghi chú tỉ lệ/định mức -> loại
 
+# --- Bóc tách kích thước tự do trong GHI CHÚ (Task B) — TRÍCH số, KHÔNG tự tính ---
+_BT_3D = re.compile(r"(\d+(?:[.,]\d+)?)\s*[x×*]\s*(\d+(?:[.,]\d+)?)\s*[x×*]\s*(\d+(?:[.,]\d+)?)")
+_BT_L = re.compile(r"\bl\s*=\s*(\d+(?:[.,]\d+)?)\s*(mm|cm|m)?", re.I)
+_BT_M2 = re.compile(r"(\d+(?:[.,]\d+)?)\s{0,2}m2\b|(\d+(?:[.,]\d+)?)\s{0,2}m²", re.I)  # 'm2' liền, tránh 'm 2 tầng'
+_BT_DAY = re.compile(r"\bday\s*[:=]?\s*(\d{2,4}(?:[.,]\d+)?)\b")          # dùng trên chuỗi _norm (không dấu)
+# số lượng: 'SL: N' hoặc 'N viên/bộ/...'; (?!\s*/) loại '25 viên/m2' (MẬT ĐỘ, không phải tổng số)
+_BT_SL = re.compile(r"(?:sl|so luong)\s*[:=]?\s*(\d+)|\b(\d+)\s*(?:vien|bo|cai|thanh|tam|cay)\b(?!\s*/)")
+
 
 def _build_stated_volumes(texts):
     """m³ GHI SẴN trên bản vẽ (vd 'KHỐI LƯỢNG ĐÀO MÓNG: 860 M3') -> số ĐỌC sẵn, có handle. Port từ demo 1."""
@@ -312,10 +320,43 @@ _FORMULAS = {
                    ("chieu_cao", "mm", "_rs_chieu_cao_cot", "chieu_cao"), ("so_luong", "cái", "_rs_so_luong", "so_luong")],
         "compute": lambda v: round(v["canh_a"] * v["canh_b"] * v["chieu_cao"] * v["so_luong"] / 1e9, 3),
     },
+    # --- Nhóm 🔴 (đối tác chủ yếu nhập số; bản vẽ ít ghi mã+kích thước sẵn) — dựng SẴN công thức ---
+    "xay_tuong": {
+        "ten": "Khối lượng xây tường", "don_vi": "m³",
+        "cach_tinh": "dài × cao × bề_dày ÷ 1.000.000.000 (mm; CHƯA trừ lỗ cửa/cửa sổ)",
+        "inputs": [("chieu_dai", "mm", "_rs_bs_only", "chieu_dai"), ("chieu_cao", "mm", "_rs_bs_only", "chieu_cao"),
+                   ("be_day", "mm", "_rs_chieu_day", "be_day")],
+        "compute": lambda v: round(v["chieu_dai"] * v["chieu_cao"] * v["be_day"] / 1e9, 3),
+    },
+    "dien_tich_trat": {
+        "ten": "Diện tích trát", "don_vi": "m²",
+        "cach_tinh": "dài × cao × số_mặt ÷ 1.000.000 (mm; CHƯA trừ lỗ)",
+        "inputs": [("chieu_dai", "mm", "_rs_bs_only", "chieu_dai"), ("chieu_cao", "mm", "_rs_bs_only", "chieu_cao"),
+                   ("so_mat", "mặt", "_rs_bs_only", "so_mat")],
+        "compute": lambda v: round(v["chieu_dai"] * v["chieu_cao"] * v["so_mat"] / 1e6, 2),
+    },
+    "khoi_luong_dao_dat": {
+        "ten": "Khối lượng đào đất", "don_vi": "m³",
+        "cach_tinh": "dài × rộng × sâu ÷ 1.000.000.000 (mm; hố chữ nhật, CHƯA tính hệ số taluy/mở rộng)",
+        "inputs": [("chieu_dai", "mm", "_rs_bs_only", "chieu_dai"), ("chieu_rong", "mm", "_rs_bs_only", "chieu_rong"),
+                   ("chieu_sau", "mm", "_rs_bs_only", "chieu_sau")],
+        "compute": lambda v: round(v["chieu_dai"] * v["chieu_rong"] * v["chieu_sau"] / 1e9, 3),
+    },
+    "khoi_luong_dap_dat": {
+        "ten": "Khối lượng đắp đất", "don_vi": "m³",
+        "cach_tinh": "dài × rộng × chiều_cao_đắp ÷ 1.000.000.000 (mm; khối chữ nhật)",
+        "inputs": [("chieu_dai", "mm", "_rs_bs_only", "chieu_dai"), ("chieu_rong", "mm", "_rs_bs_only", "chieu_rong"),
+                   ("chieu_cao", "mm", "_rs_bs_only", "chieu_cao")],
+        "compute": lambda v: round(v["chieu_dai"] * v["chieu_rong"] * v["chieu_cao"] / 1e9, 3),
+    },
 }
 
 # Ánh xạ ngôn ngữ tự nhiên -> khoá công thức (LLM có thể truyền tên tự do).
 _TEN_MAP = [
+    (("dao",), "khoi_luong_dao_dat"),        # 'đào đất', 'đào móng' (đào -> đất, đứng trước 'mong')
+    (("dap",), "khoi_luong_dap_dat"),        # 'đắp đất', 'san lấp'
+    (("xay",), "xay_tuong"),                 # 'khối lượng xây', 'xây tường'
+    (("trat",), "dien_tich_trat"),           # 'diện tích trát', 'trát tường'
     (("van khuon", "cot"), "dien_tich_van_khuon_cot"),
     (("van khuon", "dam"), "dien_tich_van_khuon_dam"),
     (("cot",), "the_tich_be_tong_cot"),      # 'thể tích/bê tông cột'
@@ -683,6 +724,45 @@ class Drawing:
                            "Số tầng là ƯỚC TÍNH (cao độ cao nhất ÷ chiều cao tầng); tầng lửng/chiếu nghỉ có thể khác. "
                            "Muốn TÍNH thể tích cột theo chiều cao tầng, đối tác xác nhận rồi nhập (vd 'cột C1 cao 3.6m')."}
 
+    def boc_tach_kich_thuoc(self, tu_khoa=None, gioi_han=30, **_):
+        """BÓC TÁCH số đo từ GHI CHÚ tự do (vd 'thảm đá (6x2x0.3)m L=56m', 'gạch 190x190x65mm'):
+        trả NGUYÊN VĂN + số đã tách (3D, L, m², m³, bề dày, số lượng) + handle. KHÔNG tự tính khối lượng
+        (nhiều 'AxBxC' là kích thước VẬT LIỆU) — chống bịa. Muốn tính thì đối tác xác nhận rồi gọi tinh_dai_luong."""
+        tk = (tu_khoa or "").strip()
+        if not tk:
+            return {"loi": "Cần từ khoá (vd 'thảm đá', 'gạch', 'đá granit') để bóc tách kích thước.", "so_ket_qua": 0}
+        cap = min(int(gioi_han or 30), 100)
+        out = []
+        for h in self.search_texts(tk):
+            vn = h["vn"]; nv = _norm(vn); da = {}
+            d3 = []
+            for m in _BT_3D.finditer(vn):
+                # chuẩn hoá đuôi ĐỒNG NHẤT: bỏ dấu + strip ')' & khoảng trắng, rồi phân loại; loại chữ số/²³
+                # khỏi nhánh 'm' (m2/m3 KHÔNG phải đơn vị dài; 'mầu' KHÔNG phải mét). Chống nhầm vật liệu -> mét.
+                t = unaccent(re.sub(r"^\)?\s*", "", vn[m.end():m.end() + 4]))
+                dv = ("mm" if t.startswith("mm") else "cm" if t.startswith("cm")
+                      else "m" if re.match(r"m(?![a-z0-9²³])", t) else "?")
+                d3.append({"a": _to_num(m.group(1)), "b": _to_num(m.group(2)), "c": _to_num(m.group(3)), "don_vi": dv})
+            if d3: da["kich_thuoc_3d"] = d3
+            mL = _BT_L.search(vn)
+            if mL: da["chieu_dai"] = {"gia_tri": _to_num(mL.group(1)), "don_vi": (mL.group(2) or "?").lower()}
+            mA = _BT_M2.search(vn)
+            if mA: da["dien_tich_m2"] = _to_num(mA.group(1) or mA.group(2))
+            mV = _M3_RE.search(vn)
+            if mV: da["the_tich_m3"] = _to_num(mV.group(1) or mV.group(2))
+            mD = _BT_DAY.search(nv)
+            if mD: da["be_day_mm"] = _to_num(mD.group(1))
+            mS = _BT_SL.search(nv)
+            if mS: da["so_luong"] = int(mS.group(1) or mS.group(2))
+            if da:
+                out.append({"handle": h["handle"], "layer": h.get("layer") or "", "text": vn.strip(), "da_tach": da})
+            if len(out) >= cap: break
+        return {"tu_khoa": tk, "so_ket_qua": len(out), "ket_qua": out,
+                "ghi_chu": "Đã BÓC TÁCH số đo từ ghi chú (kèm NGUYÊN VĂN + handle). ⚠ 'don_vi' là PHỎNG ĐOÁN theo đơn vị "
+                           "ghi liền số (mm/cm/m/?) — cần đối tác XÁC NHẬN, KHÔNG coi là căn cứ 'vật liệu hay cấu kiện'. "
+                           "Nhiều chuỗi 'AxBxC' (nhất là mm) là KÍCH THƯỚC VẬT LIỆU (gạch/thép/tấm), KHÔNG phải khối lượng. "
+                           "Hệ KHÔNG tự tính (chống bịa). Muốn tính: đối tác xác nhận số rồi gọi tinh_dai_luong. m²/m³ là số ĐỌC thật."}
+
     def tom_tat(self):
         return {"name": self.name, "dxfversion": self.dxfversion, "so_layer": len(self.layers),
                 "tong_doi_tuong": self.total, "so_doan_chu": len(self.texts),
@@ -845,10 +925,18 @@ class Drawing:
         if ten and ten in bs: return _nd(bs[ten])
         return None
 
+    def _rs_bs_only(self, ma, bs, ten=None):
+        # Input CHỈ do ĐỐI TÁC cấp — không đọc tự động từ file (vd dài/cao/rộng/sâu tường, hố đào, số mặt trát).
+        # Bản vẽ hiếm ghi mã+kích thước sẵn cho các đại lượng này -> luôn chờ đối tác nhập (chống bịa).
+        if ten and ten in bs: return _nd(bs[ten])
+        return None
+
     def _rs_chieu_day(self, ma, bs, ten=None):
         if ten and ten in bs: return _nd(bs[ten])
-        rex = re.compile(r"\b(?:day|d)\s*[=:]?\s*(\d{2,4})\s*(?:mm)?")
         codes = [w for w in _norm_label(ma or "").split() if any(c.isdigit() for c in w)]
+        if not codes:
+            return None            # KHÔNG có mã cụ thể -> KHÔNG quét cả file lấy 'dày' bất kỳ (chống bịa) -> đối tác nhập
+        rex = re.compile(r"\b(?:day|d)\s*[=:]?\s*(\d{2,4})\s*(?:mm)?")
         for tx in self.texts:
             nv = _norm_label(tx["vn"])
             if codes and not all(_tok_bound(c, nv) for c in codes): continue

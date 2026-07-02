@@ -119,6 +119,14 @@ def thong_tin_kich_thuoc() -> dict:
 
 
 @mcp.tool()
+def boc_tach_kich_thuoc(tu_khoa: str = "", gioi_han: int = 30) -> dict:
+    """BÓC TÁCH số đo từ GHI CHÚ tự do theo từ khoá (vd 'thảm đá', 'gạch', 'đá granit'): trả NGUYÊN VĂN +
+    số đã tách (kích thước 3D, L=, m², m³, bề dày, số lượng) + handle. DÙNG khi cần đọc/trích số liệu trong
+    các ghi chú gộp kích thước. KHÔNG tự tính khối lượng (nhiều 'AxBxC' là kích thước vật liệu) — chống bịa."""
+    return _need() or DRAWING.boc_tach_kich_thuoc(tu_khoa=tu_khoa, gioi_han=gioi_han)
+
+
+@mcp.tool()
 def thong_tin_tang() -> dict:
     """Cao độ + CHIỀU CAO TẦNG điển hình + SỐ TẦNG ước tính (đọc mốc cao độ ±0.000/+3.600...).
     DÙNG cho 'chiều cao tầng', 'cao độ các tầng', 'công trình mấy tầng'. Số tầng là ƯỚC TÍNH."""
