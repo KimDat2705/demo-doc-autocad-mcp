@@ -50,6 +50,20 @@ def config():
     return jsonify({"use_ai": mcp_bridge.USE_AI, "model": mcp_bridge.MODEL if mcp_bridge.USE_AI else None})
 
 
+@app.route("/version")
+def version():
+    """Verify qua HTTP: commit đã deploy (Render đặt RENDER_GIT_COMMIT) + cờ code cm/mm mới có mặt.
+    Không cần nạp bản vẽ, không tốn API. sect_cm_max=130 & has_section_index=true -> bản parity cm/mm đã lên."""
+    info = {"commit": os.environ.get("RENDER_GIT_COMMIT", "unknown")}
+    try:
+        import tools_core
+        info["sect_cm_max"] = getattr(tools_core, "_SECT_CM_MAX", None)
+        info["has_section_index"] = hasattr(tools_core, "_build_section_index")
+    except Exception as e:
+        info["tools_core_error"] = "%s: %s" % (type(e).__name__, e)
+    return jsonify(info)
+
+
 @app.route("/upload", methods=["POST"])
 def upload():
     global SUMMARY
