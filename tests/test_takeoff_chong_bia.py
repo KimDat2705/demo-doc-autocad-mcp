@@ -133,6 +133,45 @@ def main():
     PASS, FAIL = PASS + int(ok), FAIL + int(not ok)
     print("  [%s] gioi_han âm -> 0 (không cắt cụt bằng slice âm)" % ("OK" if ok else "FAIL"))
 
+    print("[I] ĐƠN VỊ cm/mm + ĐỌC BẢNG CỘT 9T (parity demo 1: data-driven + ngưỡng 130 + ghép tọa độ)")
+    import tools_core as _TC
+    # I.1 SUY ĐOÁN đơn vị TẤT ĐỊNH (thuần, không cần file): cm nếu max<130, else mm; đơn vị GHI RÕ -> tin.
+    for (a, b, st), exp in [((80, 80, ""), "cm"), ((220, 220, ""), "mm"), ((140, 140, ""), "mm"),
+                            ((50, 110, ""), "cm"), ((160, 160, "cm"), "cm"), ((300, 600, ""), "mm")]:
+        u = _TC._sect_to_mm(a, b, st)[2]; ok = (u == exp)
+        PASS, FAIL = PASS + int(ok), FAIL + int(not ok)
+        print("  [%s] _sect_to_mm(%d,%d,%r) đơn vị=%s (mong %s)" % ("OK" if ok else "FAIL", a, b, st, u, exp))
+    # I.2 Nhà 9T (quy ước cm): trước đây MÙ (báo thiếu). Nay đọc được cột + tính ĐÚNG (không lệch 100×).
+    P9 = os.path.join(BASE, "BV+DT nha 9 tang", "2. Ket Cau_NHA 9T.dxf")
+    if os.path.isfile(P9):
+        n9 = Drawing(P9)
+        ccm = [e for e in n9.section_index if e["code"].startswith("c-") and e["don_vi"] == "cm"]
+        ok = len(ccm) >= 3; PASS, FAIL = PASS + int(ok), FAIL + int(not ok)
+        print("  [%s] 9T: đọc %d cột đơn vị CM (mong ≥3; trước fix = 0, mù hoàn toàn)" % ("OK" if ok else "FAIL", len(ccm)))
+        c3 = next((e for e in n9.section_index if e["code"] == "c-3"), None)
+        ok = bool(c3) and c3["a"] == 800 and c3["b"] == 800 and c3["don_vi"] == "cm"
+        PASS, FAIL = PASS + int(ok), FAIL + int(not ok)
+        print("  [%s] 9T C-3 = 80×80 cm -> 800×800 mm-tương-đương (không đọc thành 80mm)" % ("OK" if ok else "FAIL"))
+        r = n9.tinh_dai_luong("thể tích bê tông cột", "C-3", '{"chieu_cao":3600}')
+        okv = r.get("co_ket_qua") and abs(r["ket_qua"] - 23.04) < 0.01   # KHỚP demo 1 (cross-consistency)
+        PASS, FAIL = PASS + int(bool(okv)), FAIL + int(not okv)
+        print("  [%s] 9T C-3 thể tích (cao 3.6m) = %s m³ (mong 23.04 = KHỚP demo 1, KHÔNG 0.023 lệch 100×)"
+              % ("OK" if okv else "FAIL", r.get("ket_qua")))
+        okf = r.get("co_ket_qua") and "SUY ĐOÁN" in r.get("ghi_chu", "")
+        PASS, FAIL = PASS + int(bool(okf)), FAIL + int(not okf)
+        print("  [%s] 9T C-3: có CẢNH BÁO đơn vị suy đoán cm/mm (chống bịa: chưa chắc phải lộ)" % ("OK" if okf else "FAIL"))
+    else:
+        print("  [..] BỎ QUA I.2 — không thấy file 9T (%s)" % P9)
+    # I.3 Gia Lộc (quy ước mm): KHÔNG regression — vẫn đọc mm, KHÔNG cảnh báo nhiễu, thể tích C1 giữ nguyên.
+    c1 = kc._doc_tiet_dien("C1")
+    ok = c1 and c1["a"] == 220 and c1["don_vi"] == "mm" and not c1.get("suy_doan_don_vi")
+    PASS, FAIL = PASS + int(bool(ok)), FAIL + int(not ok)
+    print("  [%s] Gia Lộc C1 = 220×220 mm, KHÔNG cảnh báo suy đoán (file mm sạch)" % ("OK" if ok else "FAIL"))
+    r = kc.tinh_dai_luong("thể tích bê tông cột", "C1", '{"chieu_cao":3600}')
+    ok = r.get("co_ket_qua") and abs(r["ket_qua"] - 4.704) < 0.01
+    PASS, FAIL = PASS + int(bool(ok)), FAIL + int(not ok)
+    print("  [%s] Gia Lộc C1 thể tích = %s m³ (mong 4.704 — không đổi sau fix)" % ("OK" if ok else "FAIL", r.get("ket_qua")))
+
     print("\n%d PASS / %d FAIL" % (PASS, FAIL))
     return 1 if FAIL else 0
 

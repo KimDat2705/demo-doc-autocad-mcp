@@ -1,23 +1,29 @@
 # 📌 TRẠNG THÁI DEMO 2 & VIỆC TIẾP THEO — ĐỌC FILE NÀY TRƯỚC (bàn giao phiên mới)
 
-> Cập nhật 2026-07-01. Đây là "điểm bắt đầu" cho phiên chat mới: tóm tắt demo 2 đang ở đâu + việc còn lại.
+> Cập nhật 2026-07-03. Đây là "điểm bắt đầu" cho phiên chat mới: tóm tắt demo 2 đang ở đâu + việc còn lại.
+> **TRẠNG THÁI 1 DÒNG:** demo 2 (MCP) đã HOÀN THIỆN lõi + takeoff mở rộng + bóc tách + trực quan hoá, **20 MCP tool**,
+> deploy live, test tất định **50/50** (thêm nhóm [I] cm/mm + 9T). Đã đạt PARITY 2 chiều với demo 1 — **kể cả đọc bảng cột
+> nhà 9T quy ước cm** (C-3 = 23.04 m³ khớp demo 1). Đã audit + vá 5 bug. So sánh 2 hướng: **khuyến nghị MCP**.
 
 ## Demo 2 là gì (1 phút)
 Web app đọc + tính toán bản vẽ AutoCAD **qua MCP (Model Context Protocol)**. LLM = **Google Gemini** (`gemini-2.5-flash`,
 đổi qua env `GEMINI_MODEL`). Kiến trúc: `app.py` (Flask host, giữ lịch sử hội thoại) → `mcp_bridge.py` (cầu nối Gemini↔MCP,
-system prompt chống bịa) → `mcp_server.py` (MCP server chuẩn, 16 tool) → `tools_core.py` (lõi đọc ezdxf + engine tính toán).
+system prompt chống bịa) → `mcp_server.py` (MCP server chuẩn, **20 tool**) → `tools_core.py` (lõi đọc ezdxf + engine tính toán).
 ODA File Converter chuyển .dwg→.dxf. **KHÔNG cần AutoCAD → deploy cloud được.**
 - **Live:** https://doc-autocad-mcp-demo.onrender.com  · **Repo:** github.com/KimDat2705/demo-doc-autocad-mcp (private)
-- **KHÁC demo 1** (`../demo_doc_autocad/`, phiên khác đang làm giai đoạn 2 riêng — ĐỪNG đụng demo 1).
+- **KHÁC demo 1** (`../demo_doc_autocad/`, hướng gọi tool TRỰC TIẾP — nay đã hoàn thiện + parity; **ĐỪNG đụng code demo 1**, chỉ soạn bàn giao).
 
-## Đã xong (Giai đoạn 1 + 2)
-- **GĐ1 — ĐỌC:** 15 tool đọc số có sẵn (số lượng cửa/cấu kiện qua nhãn SL=/số lượng:N bộ; thép qua bảng thống kê;
-  kích thước; mác BT/độ dốc/diện tích ghi sẵn; layer/block/sheet) + `danh_dau_cau_kien` (highlight ảnh). Chống bịa: số do CODE, kèm handle.
-- **GĐ2 — TÍNH (takeoff):** tool `tinh_dai_luong` + 7 công thức (diện tích cửa; thể tích BT cột/dầm/sàn/móng; ván khuôn cột/dầm).
-  Đủ input→tính + "sơ đồ hệ thống tính"; thiếu→hiện có/thiếu→đối tác nhắn số thiếu→tính tiếp (hội thoại có trí nhớ).
-  Gắn dim↔cấu kiện theo vị trí (dim có toạ độ + hướng). 3 tầng tin cậy: đọc-verbatim / gán-vị-trí(chưa chắc) / đối-tác-nhập.
-- **Đã test:** đọc 129/129 (đối chiếu ezdxf 3 file); takeoff khớp engine 100%; battery AI 198 câu. **2 lời chê đối tác đều giải quyết:**
-  đếm cửa D1=24 ✅, diện tích cửa D1=84.24m² ✅.
+## Đã xong (cập nhật 2026-07-02)
+- **GĐ1 — ĐỌC:** ~15 tool đọc số có sẵn (SL cửa/cấu kiện; thép bảng thống kê; kích thước; mác BT/độ dốc/diện tích ghi sẵn;
+  layer/block/sheet) + `danh_dau_cau_kien` (KHOANH ĐỎ ảnh — điểm riêng demo 2). Chống bịa: số do CODE, kèm handle.
+- **GĐ2 — TÍNH (takeoff):** `tinh_dai_luong` + **11 công thức** (diện tích cửa; BT cột/dầm/sàn/móng; ván khuôn cột/dầm; **xây tường/trát/đào đất/đắp đất**).
+  Đủ input→tính + sơ đồ; thiếu→báo thiếu→đối tác nhập→tính tiếp. Gán-dim ĐÃ tinh chỉnh (neo theo mã, ổn định + lọc dim hợp lý).
+  Chống bịa nhiều lớp: không tồn tại→`khong_tim_thay`; sai loại→`sai_loai`; input phi số/âm→báo không hợp lệ (không crash/không số âm).
+- **Thêm (parity + mở rộng):** `size_index` (R×C bảng cửa→confident), `thong_tin_tang` (cao độ→tầng), `tong_hop_khoi_luong` (bảng tổng hợp),
+  `xuat_excel_du_toan` (.xlsx), `boc_tach_kich_thuoc` (trích số đo ghi chú, không tự tính vật liệu).
+- **Đã test:** đọc 129/129; takeoff khớp engine; **`tests/test_takeoff_chong_bia.py` 38/38** (chống bịa + parity + gán-dim + audit).
+- **Parity 2 chiều với demo 1:** đạt (cross-consistency 5 hạng mục lõi KHỚP tuyệt đối). Xem `../BAN_GIAO_PARITY_DEMO*.md`.
+- **So sánh 2 hướng:** đã làm (hội đồng 3 chuyên gia) → **khuyến nghị hướng MCP** (71.7 vs 54.0); user CHƯA chốt quyết định cuối.
 
 ## Tài liệu nên đọc (theo thứ tự)
 1. `GHI_CHU_HOAN_THIEN.md` (file này) — trạng thái + TODO.
@@ -74,8 +80,24 @@ ODA File Converter chuyển .dwg→.dxf. **KHÔNG cần AutoCAD → deploy cloud
   ÂM/0 vẫn ra `co_ket_qua` (thể tích -4.704). → thêm cửa "SỐ DƯƠNG hợp lệ" trước `compute` (phi số/≤0 → báo không hợp lệ,
   không tính). (3) gán-dim gắn `do_tin_cay='cao'` cho số chưa-chắc → cap 'trung_binh'. (4) `thong_ke_thep(16.0)` float key
   'Ø16.0' → chuẩn hoá bỏ '.0'. (5) `gioi_han` âm cắt cụt slice → kẹp ≥0. Test **38/38** (nhóm H). Cross-consistency: 5 hạng
-  mục lõi KHỚP+ĐÚNG cả 2 demo. **Demo 1 có 1 bug (không tự sửa, đã flag):** `_sect_to_m` ngưỡng cm/mm=150 → tiết diện
-  &lt;150mm (vd 140×140) đọc thành 1.4m (sai 100×) → cần đưa vào bàn giao demo 1.
+  mục lõi KHỚP+ĐÚNG cả 2 demo. (Bug `_sect_to_m` ngưỡng 150 của demo 1 đã flag → **demo 1 tự vá xong 2026-07-03**,
+  xem `../BAN_GIAO_PARITY_DEMO2_CM_MM.md`.)
+
+## Vừa xong (2026-07-03) — VÁ PARITY cm/mm + ĐỌC BẢNG CỘT 9T (user duyệt "full parity")
+- **Bối cảnh:** nhận bàn giao ngược demo 1 (`../BAN_GIAO_PARITY_DEMO2_CM_MM.md`) cảnh báo "mặc định mm" đọc sai 9T (cm) 100×.
+  Probe file THẬT → nỗi lo KHÔNG xảy ra: demo 2 (cũ) *không đọc được* tiết diện kết cấu 9T nào (cổng `50≤a` thiên mm loại
+  dầm cm nhỏ + tiết diện cột ở BẢNG, mã và `(80X80)` ở text riêng) → trả `can_bo_sung` (AN TOÀN, không bịa) — nhưng LỆCH
+  COVERAGE với demo 1 (đọc + tính được). User chốt **full parity**.
+- ✅ **Port cơ chế demo 1 vào `tools_core.py`:** `_sect_to_mm` (đọc đơn vị ghi rõ mm/cm + **ngưỡng 130** + cờ mơ hồ
+  `suy_doan_don_vi`; cm→×10 ra mm-tương-đương để công thức ÷1e6/1e9 tính đúng), `_unit_ambiguous_sect`, **`_build_section_index`**
+  (ghép mã↔tiết diện theo TỌA ĐỘ mutual-NN + inline, bán kính 1500 → đọc được bảng cột 9T), `_is_structcode` (loại vật
+  liệu/rác vd `hop-50x100x2`). Cổng cũ `50≤a` thiên mm → thay `_plausible_section_mm` (unit-aware). `_doc_tiet_dien` ưu tiên
+  section_index (fallback cùng-text). Surface `suy_doan_don_vi` khắp `_td_prov`/`tinh_dai_luong`/`tong_hop_khoi_luong`.
+- ✅ **Phát hiện dữ liệu thật:** tiết diện cột 9T dùng **chữ X HOA** `(80X80)` → regex cũ `[x×*]` (x thường) không bắt →
+  đổi `[xX×*]`. Đã flag cho demo 1 tự kiểm ở `../BAN_GIAO_DEMO1_9T_XHOA_PARITY.md`.
+- ✅ **Kết quả (probe + test tất định):** 9T đọc **9 cột** (C-1..C-9) quy ước cm; **C-3 = 80×80cm → 23.04 m³ KHỚP demo 1**
+  (cross-consistency). Gia Lộc KHÔNG đổi: C1 = 220×220mm → 4.704 m³, không cảnh báo nhiễu (file mm sạch). `mcp_bridge.py`
+  SYSTEM_PROMPT thêm luật cảnh báo đơn vị suy đoán. Test `test_takeoff_chong_bia.py` thêm nhóm **[I]** → **50/50 PASS**; QA đọc **129/129** giữ nguyên.
 
 ## Việc CÒN LẠI (TODO)
 - (Theo dõi) model: 2.5-flash ổn; 3.5-flash mạnh hơn nhưng hay 503; Pro chất lượng cao nhất nhưng quota thấp (cần billing).

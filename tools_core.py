@@ -106,7 +106,21 @@ def _looks_like_title(n):
 # ============================================================================
 # GIAI ĐOẠN 2 — CẤU HÌNH ENGINE TÍNH TOÁN (takeoff)
 # ============================================================================
-_TIETDIEN_RE = re.compile(r"(\d{2,4})\s*[x×*]\s*(\d{2,4})")  # '220x220', '(220 x 500)'
+_TIETDIEN_RE = re.compile(r"(\d{2,4})\s*[xX×*]\s*(\d{2,4})")  # '220x220', '(220 x 500)', '80X80' (X hoa)
+
+# ---- ĐƠN VỊ tiết diện cm/mm (port demo 1: DATA-DRIVEN + ngưỡng 130 + cờ mơ hồ; KHÔNG 'mặc định mm') ----
+# Bản vẽ VN thật tồn tại CẢ HAI quy ước và 0 file ghi rõ đơn vị: file cm cạnh ≤110 (nhà 9T: 22x40..80x80 cm),
+# file mm cạnh ≥220 (Gia Lộc/fixture: 220x400 mm) -> KHOẢNG TRỐNG [111,219]; 130 nằm giữa + trên cạnh-cm lớn
+# nhất quan sát (110) + dưới ngưỡng cần (140 phải ra mm). 'Mặc định mm' sẽ đọc sai 12 cột 9T (cm) thành 1/100.
+_SECT_CM_MAX = 130
+_SECT_PAIR_R = 1500   # bán kính ghép MÃ↔TIẾT DIỆN theo tọa độ (bảng cột: mã và 'AxB' ở text riêng)
+# Tiết diện 'AxB' đứng riêng (kèm đơn vị mm/cm nếu có) + inline '(AxB)mm'. Cho X hoa/thường; đơn vị chỉ bắt khi
+# TÁCH BIỆT (ranh giới từ) -> không grab 'mm' từ '(300x600)mm2' (bịa đơn vị từ token dài).
+_SECT_STD_RE = re.compile(r"^\s*\(?\s*(\d{2,4})\s*[xX×*]\s*(\d{2,4})\s*\)?\s*([mMcC][mM])?\s*$")
+_SECT_INLINE_RE = re.compile(r"\(\s*(\d{2,4})\s*[xX×*]\s*(\d{2,4})\s*\)\s*(?:([mMcC][mM])(?![A-Za-z0-9]))?")
+# Mã cấu kiện KẾT CẤU (cột/dầm/đài/giằng): c/d/dm/dc/g/gm/m + '-' hoặc '.' + số + đuôi chữ (c-1, dm-1, d2.01a, gm.03b).
+_STRUCTCODE_RE = re.compile(r"^\s*\(?\s*((?:dc|dm|gm|mc|d2|c|d|g|m)[-.]?\d+[a-z]?)\s*\)?\s*$", re.IGNORECASE)
+_STRUCTCODE_INLINE_RE = re.compile(r"(?<![a-z0-9])((?:dc|dm|gm|mc|d2|c|d|g|m)[-.]?\d+[a-z]?)(?![a-z0-9])", re.IGNORECASE)
 
 # ---- BẢNG THỐNG KÊ CỬA: ghép MÃ CỬA <-> KÍCH THƯỚC R×C (port từ demo 1 _build_size_index) ----
 _DOOR_SIZE_RE = re.compile(r"^\s*\(?\s*(\d{2,5})\s*[x×*]\s*(\d{2,5})\s*\)?\s*(?:mm)?\s*$", re.IGNORECASE)
@@ -174,6 +188,100 @@ def _build_door_size_index(texts):
         out.append({"code": code, "w": w, "h": h, "area_m2": round(w * h / 1e6, 2), "n": len(whs),
                     "frac": round(frac, 2), "near": round(near), "handle": handle,
                     "confident": frac >= 0.8 and near <= 1000})
+    out.sort(key=lambda e: e["code"])
+    return out
+
+
+# ---- TIẾT DIỆN kết cấu: đơn vị cm/mm + ghép mã↔tiết diện theo tọa độ (port demo 1 _build_section_index) ----
+def _is_structcode(code):
+    """Mã có phải cấu kiện KẾT CẤU (cột/dầm/đài/giằng)? Loại token rác/vật liệu (vd 'hop-50x100x2', '(sl=2;')."""
+    return bool(_STRUCTCODE_RE.match((code or "").strip()))
+
+
+def _unit_ambiguous_sect(a, b):
+    """Đơn vị THẬT SỰ nhập nhằng <=> CẢ HAI diễn giải cm & mm đều là tiết diện KHẢ DĨ (port demo 1 _unit_ambiguous):
+    cm-interp khả dĩ khi cạnh lớn ≤2.0m; mm-interp khả dĩ khi cạnh nhỏ ≥40mm & cạnh lớn ≤2.0m. Bắt lệch 10-100×."""
+    lo, hi = min(a, b), max(a, b)
+    return hi <= 200 and (lo >= 40 and hi <= 2000)
+
+
+def _sect_to_mm(a, b, stated=None):
+    """Chuẩn hoá tiết diện (a,b) về mm-TƯƠNG ĐƯƠNG (cm ->×10). Trả (a_mm, b_mm, don_vi, suy_doan).
+    - Đơn vị GHI RÕ (mm/cm) -> tin bản vẽ, suy_doan=False. - Không ghi -> suy đoán ngưỡng 130 (cm nếu max<130)."""
+    su = (stated or "").strip().lower()
+    if su in ("mm", "cm"):
+        unit, sd = su, False
+    else:
+        unit, sd = ("cm" if max(a, b) < _SECT_CM_MAX else "mm"), _unit_ambiguous_sect(a, b)
+    f = 10.0 if unit == "cm" else 1.0
+    return int(round(a * f)), int(round(b * f)), unit, sd
+
+
+def _plausible_section_mm(a_mm, b_mm):
+    """Cổng hợp lý trên mm-TƯƠNG ĐƯƠNG (unit-aware; thay cổng '50<=a' cũ thiên mm loại nhầm cột cm nhỏ): 50..5000mm."""
+    lo, hi = min(a_mm, b_mm), max(a_mm, b_mm)
+    return 50 <= lo and hi <= 5000
+
+
+def _build_section_index(texts):
+    """Ghép MÃ kết cấu <-> TIẾT DIỆN 'AxB' qua TỌA ĐỘ (mutual nearest neighbor) + inline 'CODE (AxB)'.
+    Đọc được bảng cột (mã và tiết diện ở text RIÊNG, vd nhà 9T 'c-3' ... '(80X80)') mà cách 'cùng-text' bỏ sót.
+    Đơn vị: đọc GHI RÕ (mm/cm) nếu có, else SUY ĐOÁN ngưỡng 130. Mỗi entry: a,b = mm-TƯƠNG ĐƯƠNG (cm đã ×10)
+    + a_raw/b_raw + don_vi + suy_doan_don_vi + confident + đa-tiết-diện. Port demo 1."""
+    codes, secs, inline = [], [], []
+    for t in texts:
+        s = (t.get("vn") or "").strip()
+        x, y = t.get("x", 0.0), t.get("y", 0.0)
+        mc = _STRUCTCODE_RE.match(s)
+        if mc:
+            codes.append({"code": mc.group(1).lower().replace(" ", ""), "x": x, "y": y, "handle": t["handle"]}); continue
+        ms = _SECT_STD_RE.match(s)
+        if ms:
+            a, b, u = int(ms.group(1)), int(ms.group(2)), (ms.group(3) or "").lower()
+            amm, bmm, unit, sd = _sect_to_mm(a, b, u)
+            if _plausible_section_mm(amm, bmm):
+                secs.append({"a": amm, "b": bmm, "ar": a, "br": b, "u": unit, "sd": sd, "x": x, "y": y, "handle": t["handle"]})
+            continue
+        si = _SECT_INLINE_RE.findall(s)                      # inline: đoạn chứa CẢ mã lẫn tiết diện (ghép khi DUY NHẤT 1+1)
+        if len(si) == 1:
+            ci = set(_STRUCTCODE_INLINE_RE.findall(_norm_label(s)))
+            if len(ci) == 1:
+                a, b, u = int(si[0][0]), int(si[0][1]), (si[0][2] or "").lower()
+                amm, bmm, unit, sd = _sect_to_mm(a, b, u)
+                if _plausible_section_mm(amm, bmm):
+                    inline.append({"code": next(iter(ci)), "a": amm, "b": bmm, "ar": a, "br": b, "u": unit, "sd": sd, "handle": t["handle"]})
+
+    def _near(item, pool):
+        best, bd = None, 1e18
+        for p in pool:
+            dd = ((item["x"] - p["x"]) ** 2 + (item["y"] - p["y"]) ** 2) ** 0.5
+            if dd < bd: bd, best = dd, p
+        return best, bd
+
+    for sec in secs: sec["_nc"], _ = _near(sec, codes)
+    cand = {}
+    for c in codes:
+        sec, dd = _near(c, secs)
+        if not sec or dd > _SECT_PAIR_R: continue
+        if sec["_nc"] and sec["_nc"]["code"] == c["code"]:          # MUTUAL nearest -> cùng một mã kết cấu
+            cand.setdefault(c["code"], []).append((sec["a"], sec["b"], dd, sec["handle"], sec["u"], sec["sd"], sec["ar"], sec["br"]))
+    for e in inline:                                                # inline = bằng chứng mạnh (dist=0)
+        cand.setdefault(e["code"], []).append((e["a"], e["b"], 0.0, e["handle"], e["u"], e["sd"], e["ar"], e["br"]))
+
+    out = []
+    for code, lst in cand.items():
+        abs_ = [(a, b) for a, b, *_ in lst]
+        cnt = Counter(abs_); n = max(cnt.values())
+        (a, b) = min(k for k, v in cnt.items() if v == n)          # tie-break tất định theo giá trị
+        frac = n / len(abs_)
+        near = min(d for aa, bb, d, *_ in lst if (aa, bb) == (a, b))
+        pick = next(tp for tp in lst if (tp[0], tp[1]) == (a, b))
+        _, _, _, handle, unit, sd, ar, br = pick
+        distinct = sorted(set((tp[6], tp[7]) for tp in lst))       # (a_raw,b_raw) distinct -> cảnh báo đa tiết diện
+        out.append({"code": code, "a": a, "b": b, "a_raw": ar, "b_raw": br, "don_vi": unit,
+                    "suy_doan_don_vi": bool(sd), "n": len(abs_), "frac": round(frac, 2), "near": round(near),
+                    "handle": handle, "nhieu_tiet_dien": len(set(abs_)) > 1, "so_tiet_dien": len(set(abs_)),
+                    "cac_tiet_dien": distinct, "confident": frac >= 0.8 and near <= 1200})
     out.sort(key=lambda e: e["code"])
     return out
 
@@ -483,6 +591,7 @@ class Drawing:
         self.sheets_sorted = sorted(sheets, key=lambda s: -s.get("y", 0.0))
         self.qty_index = self._build_qty_index(texts)
         self.door_size_index = _build_door_size_index(texts)   # GĐ2: R×C cửa từ bảng thống kê (confident)
+        self.section_index = _build_section_index(texts)       # tiết diện kết cấu: ghép mã↔AxB theo tọa độ + đơn vị cm/mm
         self.levels = _build_levels(texts)                     # GĐ2c: cao độ -> chiều cao tầng điển hình
         self.stated_vol = _build_stated_volumes(texts)         # GĐ2d: m³ ghi sẵn trên bản vẽ
 
@@ -840,24 +949,33 @@ class Drawing:
         return {"tim_thay_neo": True, "neo": chosen["neo"], "rong": _mk(chosen_b["ngang"]), "cao": _mk(chosen_b["doc"])}
 
     def _doc_tiet_dien(self, ma_cau_kien):
-        """Đọc tiết diện 'AxB' từ chuỗi chứa mã cấu kiện (vd 'C1 (220x220)'). Phát hiện ĐA tiết diện
-        (vd C4 có 220x500 VÀ 220x400) -> cờ nhieu_tiet_dien để engine cảnh báo. Trả dict hoặc None."""
-        toks = [w for w in _norm_label(ma_cau_kien or "").split() if w]
-        codes = [w for w in toks if any(c.isdigit() for c in w)]
-        found = []
+        """Đọc tiết diện của mã cấu kiện. ƯU TIÊN section_index (ghép tọa độ + inline, có đơn vị cm/mm ghi rõ/suy đoán);
+        fallback quét CÙNG-TEXT (cũng suy đoán đơn vị + cổng unit-aware). a,b = mm-TƯƠNG ĐƯƠNG (cm đã ×10, để công
+        thức ÷1e6/1e9 tính đúng) + a_raw/b_raw + don_vi + suy_doan_don_vi + nhieu_tiet_dien. None nếu không đọc được."""
+        codes = [w for w in _norm_label(ma_cau_kien or "").split() if any(c.isdigit() for c in w)]
+        if not codes: return None
+        for e in (getattr(self, "section_index", None) or []):     # 1) section_index (đọc được cả bảng cột 9T)
+            if any(_tok_bound(c, e["code"]) for c in codes):
+                return {"a": e["a"], "b": e["b"], "a_raw": e["a_raw"], "b_raw": e["b_raw"], "don_vi": e["don_vi"],
+                        "suy_doan_don_vi": e["suy_doan_don_vi"], "handle": e["handle"],
+                        "text": "%s (%dx%d %s)" % (e["code"].upper(), e["a_raw"], e["b_raw"], e["don_vi"]),
+                        "nhieu_tiet_dien": e["nhieu_tiet_dien"], "so_tiet_dien": e["so_tiet_dien"],
+                        "cac_tiet_dien": e["cac_tiet_dien"]}
+        found = []                                                 # 2) fallback cùng-text (mã+AxB chung 1 đoạn chữ)
         for tx in self.texts:
             lab = _norm_label(tx["vn"])
-            if codes and not all(_tok_bound(c, lab) for c in codes): continue
-            m = _TIETDIEN_RE.search(tx["vn"])
-            if m:
-                a, b = int(m.group(1)), int(m.group(2))
-                if 50 <= a <= 5000 and 50 <= b <= 5000:
-                    found.append((a, b, tx["handle"], tx["vn"].strip()))
+            if not all(_tok_bound(c, lab) for c in codes): continue
+            mi = _SECT_INLINE_RE.search(tx["vn"]); m = mi or _TIETDIEN_RE.search(tx["vn"])
+            if not m: continue
+            a, b = int(m.group(1)), int(m.group(2))
+            amm, bmm, unit, sd = _sect_to_mm(a, b, (mi.group(3) or "").lower() if mi else "")
+            if _plausible_section_mm(amm, bmm):
+                found.append((amm, bmm, a, b, unit, sd, tx["handle"], tx["vn"].strip()))
         if not found: return None
-        distinct = sorted(set((a, b) for a, b, _, _ in found))
-        a, b, h, txt = found[0]
-        return {"a": a, "b": b, "handle": h, "text": txt,
-                "nhieu_tiet_dien": len(distinct) > 1, "so_tiet_dien": len(distinct), "cac_tiet_dien": distinct}
+        distinct = sorted(set((f[2], f[3]) for f in found))
+        amm, bmm, ar, br, unit, sd, h, txt = found[0]
+        return {"a": amm, "b": bmm, "a_raw": ar, "b_raw": br, "don_vi": unit, "suy_doan_don_vi": sd, "handle": h,
+                "text": txt, "nhieu_tiet_dien": len(distinct) > 1, "so_tiet_dien": len(distinct), "cac_tiet_dien": distinct}
 
     # ---- Resolver: (ma, bs, ten) -> dict provenance hoặc None. Ưu tiên số ĐỐI TÁC cấp (bs[ten]). ----
     def _rs_so_luong(self, ma, bs, ten=None):
@@ -900,12 +1018,15 @@ class Drawing:
         return None
 
     def _td_prov(self, td, k):
+        sd = bool(td.get("suy_doan_don_vi")); nhieu = bool(td.get("nhieu_tiet_dien"))
         gc = "tiết diện '%s'" % td["text"][:30]
-        if td.get("nhieu_tiet_dien"):
+        if sd:
+            gc += " (⚠ đơn vị %s là SUY ĐOÁN cm/mm — bản vẽ không ghi rõ, sai quy ước sẽ lệch 100×)" % td.get("don_vi", "?")
+        if nhieu:
             gc += " (⚠ có %d tiết diện %s — đang dùng cái đầu, đối tác xác nhận)" % (td["so_tiet_dien"], td["cac_tiet_dien"])
         return {"gia_tri": float(td[k]), "nguon": "doc_verbatim", "handle": td["handle"],
-                "chua_chac": bool(td.get("nhieu_tiet_dien")),
-                "do_tin_cay": "trung_binh" if td.get("nhieu_tiet_dien") else "cao", "giai_thich": gc}
+                "chua_chac": nhieu or sd, "suy_doan_don_vi": sd,
+                "do_tin_cay": "trung_binh" if (nhieu or sd) else "cao", "giai_thich": gc}
 
     def _rs_canh_a(self, ma, bs, ten=None):
         if ten and ten in bs: return _nd(bs[ten])
@@ -1045,7 +1166,8 @@ class Drawing:
                 vals[ten] = res["gia_tri"]
                 da_co.append({"ten": ten, "gia_tri": res["gia_tri"], "don_vi": dv, "nguon": res["nguon"],
                               "handle": res.get("handle"), "do_tin_cay": res.get("do_tin_cay"),
-                              "chua_chac": res.get("chua_chac", False), "giai_thich": res.get("giai_thich", "")})
+                              "chua_chac": res.get("chua_chac", False), "suy_doan_don_vi": res.get("suy_doan_don_vi", False),
+                              "giai_thich": res.get("giai_thich", "")})
         ten_dl = ("%s %s" % (F["ten"], ma_cau_kien)).strip()
         if thieu:
             # Cấu kiện tồn tại (đã qua cửa kiểm tra ở đầu hàm) nhưng THIẾU số liệu -> mời đối tác cấp.
@@ -1067,12 +1189,15 @@ class Drawing:
                                % ", ".join(xau)}
         kq = F["compute"](vals)
         chua_chac = any(x["chua_chac"] for x in da_co)
+        suy_dv = any(x.get("suy_doan_don_vi") for x in da_co)
         so_do = ["%s = %s %s (%s%s)" % (x["ten"], (round(x["gia_tri"], 2)), x["don_vi"], x["nguon"],
                                         ", CHƯA CHẮC" if x["chua_chac"] else "") for x in da_co]
         so_do.append("→ %s = %s %s  [%s]" % (F["ten"], kq, F["don_vi"], F["cach_tinh"]))
         gc = ("Đây là SỐ DO HỆ THỐNG TÍNH (không phải số ghi sẵn trong file). "
               + ("Có input lấy theo GÁN VỊ TRÍ (đường kích thước gần cấu kiện) → CHƯA CHẮC đúng 100%; đối tác nên xác nhận."
-                 if chua_chac else "Mọi input đọc trực tiếp từ file (đáng tin)."))
+                 if chua_chac else "Mọi input đọc trực tiếp từ file (đáng tin).")
+              + (" ⚠ ĐƠN VỊ tiết diện (cm/mm) là SUY ĐOÁN theo kích thước (bản vẽ không ghi rõ) — nếu sai quy ước, "
+                 "kết quả lệch 100×; đề nghị đối tác xác nhận đơn vị." if suy_dv else ""))
         return {"dai_luong": ten_dl, "co_ket_qua": True, "ket_qua": kq, "don_vi": F["don_vi"], "can_bo_sung": False,
                 "cach_tinh": F["cach_tinh"], "inputs_da_co": da_co, "inputs_thieu": [],
                 "so_do_he_thong_tinh": so_do, "ghi_chu": gc}
@@ -1095,18 +1220,22 @@ class Drawing:
         return pick[0]["so_luong"] if pick else None
 
     def _enum_structural_sections(self):
-        """Liệt kê cấu kiện KẾT CẤU có tiết diện (mã lấy từ qty_index): [{code,a,b,handle,loai}]. Bỏ cửa."""
+        """Liệt kê cấu kiện KẾT CẤU có tiết diện (mã lấy từ qty_index). a,b = mm-TƯƠNG ĐƯƠNG (cm đã ×10);
+        kèm a_raw/b_raw/don_vi/suy_doan_don_vi để hiển thị. Bỏ cửa + token rác/vật liệu (chỉ mã kết cấu thật)."""
         out, seen = [], set()
         for e in (self.qty_index or []):
             for c in [w for w in e["label_norm"].split() if any(ch.isdigit() for ch in w)]:
                 if c in seen: continue
+                if not _is_structcode(c): continue       # loại token rác/vật liệu (vd 'hop-50x100x2', '(sl=2;')
                 if self._door_size(c): continue          # cửa (bảng R×C) -> xử lý riêng
                 td = self._doc_tiet_dien(c)
                 if not td: continue
                 seen.add(c)
                 lo = self._loai_tu_ban_ve(c)
                 typ = "cot" if "cot" in lo else ("dam" if "dam" in lo else None)
-                out.append({"code": c, "a": td["a"], "b": td["b"], "handle": td["handle"], "loai": typ})
+                out.append({"code": c, "a": td["a"], "b": td["b"], "a_raw": td.get("a_raw", td["a"]),
+                            "b_raw": td.get("b_raw", td["b"]), "don_vi": td.get("don_vi", "mm"),
+                            "suy_doan_don_vi": bool(td.get("suy_doan_don_vi")), "handle": td["handle"], "loai": typ})
         return out
 
     def tong_hop_khoi_luong(self, **_):
@@ -1128,7 +1257,8 @@ class Drawing:
             if not sl: can_bs.append("Cửa %s: thiếu SỐ LƯỢNG -> chỉ tính được diện tích/1 cửa." % d["code"].upper())
         typ = (getattr(self, "levels", None) or {}).get("typical_floor_h")     # 3) THỂ TÍCH BT cột/dầm
         for s in self._enum_structural_sections():
-            sl = self._struct_qty(s["code"]); td = "%d×%d mm" % (s["a"], s["b"])
+            sl = self._struct_qty(s["code"])
+            td = "%d×%d %s%s" % (s["a_raw"], s["b_raw"], s["don_vi"], " (đv suy đoán)" if s.get("suy_doan_don_vi") else "")
             # cột = loại xác định 'cot' HOẶC (chưa xác định loại VÀ mã dạng c<digit>, vd c1/c-1) -> chỉ để RA số
             # TẠM TÍNH (có gắn cờ giả định); KHÔNG override nếu bản vẽ đã ghi rõ loại khác (dam...).
             is_cot = (s["loai"] == "cot") or (s["loai"] is None and re.match(r"c-?\d", s["code"]) is not None)
@@ -1137,6 +1267,9 @@ class Drawing:
                 rows.append({"hang_muc": "Cột %s (%s)" % (s["code"].upper(), td), "loai": "Thể tích BT", "gia_tri": v,
                              "don_vi": "m³", "nguon": "TẠM TÍNH (tiết diện×%.2fm/tầng×SL=%d)" % (typ, sl), "handle": s["handle"]})
                 gia_dinh.append("Cột %s: giả định cao = 1 tầng (%.2fm) — xác nhận nếu khác." % (s["code"].upper(), typ))
+                if s.get("suy_doan_don_vi"):
+                    gia_dinh.append("Cột %s: đơn vị tiết diện '%s' là SUY ĐOÁN (bản vẽ không ghi mm/cm) — sai quy ước lệch 100×, cần xác nhận."
+                                    % (s["code"].upper(), s["don_vi"]))
             else:
                 rows.append({"hang_muc": "%s (%s)" % (s["code"].upper(), td), "loai": "Tiết diện", "gia_tri": td,
                              "don_vi": "", "nguon": "đọc sẵn" + ("" if sl is None else ", SL=%d" % sl), "handle": s["handle"]})
