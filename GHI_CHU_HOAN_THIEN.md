@@ -101,7 +101,8 @@ ODA File Converter chuyển .dwg→.dxf. **KHÔNG cần AutoCAD → deploy cloud
 
 ## Việc CÒN LẠI (TODO)
 - (Theo dõi) model: 2.5-flash ổn; 3.5-flash mạnh hơn nhưng hay 503; Pro chất lượng cao nhất nhưng quota thấp (cần billing).
-- (Tuỳ chọn) endpoint `/version` trả git SHA để verify đúng commit đã deploy qua HTTP.
+- ✅ **XONG (2026-07-03):** endpoint `/version` (trả `RENDER_GIT_COMMIT` + `sect_cm_max`/`has_section_index`). Đã dùng để
+  verify bản parity cm/mm LIVE: `commit=e870074`, `sect_cm_max=130`, `has_section_index=true` (khớp commit đã push).
 
 ## Chạy/test local (Windows)
 ```
