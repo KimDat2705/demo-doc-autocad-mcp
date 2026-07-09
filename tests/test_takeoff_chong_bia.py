@@ -172,6 +172,43 @@ def main():
     PASS, FAIL = PASS + int(bool(ok)), FAIL + int(not ok)
     print("  [%s] Gia Lộc C1 thể tích = %s m³ (mong 4.704 — không đổi sau fix)" % ("OK" if ok else "FAIL", r.get("ket_qua")))
 
+    print("[J] KHỐI LƯỢNG INOX/THÉP HÌNH = SL(đọc) × kg/bộ(đối tác cấp) — vá theo feedback đối tác")
+    import tools_core as _TCj
+    # J.1 ĐỊNH TUYẾN tên: 'kg inox cửa S1' phải ra công thức inox (KHÔNG nhầm 'diện tích cửa' dù có chữ 'cửa')
+    for q, exp in [("khối lượng inox", "khoi_luong_thep_hinh"), ("tổng số kg inox trên cửa S1", "khoi_luong_thep_hinh"),
+                   ("khối lượng thép hình", "khoi_luong_thep_hinh"), ("diện tích cửa S1", "dien_tich_cua")]:
+        got = _TCj._chuan_hoa_ten_dai_luong(q); ok = (got == exp)
+        PASS, FAIL = PASS + int(ok), FAIL + int(not ok)
+        print("  [%s] map %r -> %s (mong %s)" % ("OK" if ok else "FAIL", q[:26], got, exp))
+    # J.2 KT Gia Lộc: S1 = 16 bộ (ĐỌC) × 8.62 kg/bộ (đối tác cấp) = 137.92 kg — đúng câu hỏi đối tác
+    r = kt.tinh_dai_luong("khối lượng inox", "S1", '{"kg_moi_bo":8.62}')
+    ok = r.get("co_ket_qua") and abs(r["ket_qua"] - 137.92) < 0.01
+    PASS, FAIL = PASS + int(bool(ok)), FAIL + int(not ok)
+    print("  [%s] inox S1 = 16×8.62 = %s kg (mong 137.92)" % ("OK" if ok else "FAIL", r.get("ket_qua")))
+    ok = r.get("co_ket_qua") and any(x["ten"] == "so_luong" and x["nguon"] == "doc_verbatim" for x in r.get("inputs_da_co", []))
+    PASS, FAIL = PASS + int(bool(ok)), FAIL + int(not ok)
+    print("  [%s] số bộ (16) ĐỌC tự động từ bản vẽ, kg/bộ do đối tác cấp" % ("OK" if ok else "FAIL"))
+    # J.3–J.5 CHỐNG BỊA: thiếu kg/bộ -> hỏi (KHÔNG bịa từ ghi chú); mã giả -> không tìm thấy; kg âm -> không hợp lệ
+    ck(kt, "khối lượng inox", "S1", "", "thieu", "thiếu kg/bộ -> HỎI, không tự lấy '8.62' từ ghi chú (chống bịa liên kết)")
+    ck(kt, "khối lượng inox", "ZZ9", '{"kg_moi_bo":8.62}', "vang", "mã inox giả + số bù -> vẫn không tìm thấy")
+    r = kt.tinh_dai_luong("khối lượng inox", "S1", '{"kg_moi_bo":-5}')
+    ok = not r.get("co_ket_qua")
+    PASS, FAIL = PASS + int(ok), FAIL + int(not ok)
+    print("  [%s] inox kg/bộ ÂM -> KHÔNG ra kết quả (không bịa số âm)" % ("OK" if ok else "FAIL"))
+
+    print("[K] HARDENING chống bịa (kiểm chứng ĐỐI KHÁNG workflow) — inf / tràn số / bool KHÔNG được lọt")
+    for tag, bs in [("kg/bộ = inf (1e400)", '{"kg_moi_bo":1e400}'), ("tràn số hữu hạn 1e308", '{"kg_moi_bo":1e308}'),
+                    ("kg/bộ = true (bool phi số)", '{"kg_moi_bo":true}'),
+                    ("so_luong ghi đè = 'inf'", '{"so_luong":"inf","kg_moi_bo":8.62}'), ("kg/bộ = 'nan'", '{"kg_moi_bo":"nan"}')]:
+        r = kt.tinh_dai_luong("khối lượng inox", "S1", bs)
+        ok = (not r.get("co_ket_qua")) and r.get("ket_qua") is None
+        PASS, FAIL = PASS + int(ok), FAIL + int(not ok)
+        print("  [%s] %-30s -> CHẶN (co_ket_qua=%s, ket_qua=%r)" % ("OK" if ok else "FAIL", tag, r.get("co_ket_qua"), r.get("ket_qua")))
+    r = kt.tinh_dai_luong("khối lượng inox", "S1", '{"kg_moi_bo":8.62}')   # hardening KHÔNG chặn nhầm số hợp lệ
+    ok = r.get("co_ket_qua") and abs(r["ket_qua"] - 137.92) < 0.01
+    PASS, FAIL = PASS + int(bool(ok)), FAIL + int(not ok)
+    print("  [%s] số HỢP LỆ 8.62 vẫn tính đúng 137.92 sau hardening" % ("OK" if ok else "FAIL"))
+
     print("\n%d PASS / %d FAIL" % (PASS, FAIL))
     return 1 if FAIL else 0
 

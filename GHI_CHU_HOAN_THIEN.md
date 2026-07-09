@@ -1,9 +1,9 @@
 # 📌 TRẠNG THÁI DEMO 2 & VIỆC TIẾP THEO — ĐỌC FILE NÀY TRƯỚC (bàn giao phiên mới)
 
-> Cập nhật 2026-07-03. Đây là "điểm bắt đầu" cho phiên chat mới: tóm tắt demo 2 đang ở đâu + việc còn lại.
-> **TRẠNG THÁI 1 DÒNG:** demo 2 (MCP) đã HOÀN THIỆN lõi + takeoff mở rộng + bóc tách + trực quan hoá, **20 MCP tool**,
-> deploy live, test tất định **50/50** (thêm nhóm [I] cm/mm + 9T). Đã đạt PARITY 2 chiều với demo 1 — **kể cả đọc bảng cột
-> nhà 9T quy ước cm** (C-3 = 23.04 m³ khớp demo 1). Đã audit + vá 5 bug. So sánh 2 hướng: **khuyến nghị MCP**.
+> Cập nhật 2026-07-09. Đây là "điểm bắt đầu" cho phiên chat mới: tóm tắt demo 2 đang ở đâu + việc còn lại.
+> **TRẠNG THÁI 1 DÒNG:** demo 2 (MCP) đã HOÀN THIỆN lõi + takeoff mở rộng + bóc tách + trực quan hoá, deploy live,
+> test tất định **65/65** (thêm [I] cm/mm+9T, [J] inox=SL×kg/bộ, [K] hardening inf/tràn/bool). Đọc đúng bảng cột nhà 9T
+> (cm). **QUYẾT ĐỊNH: chốt demo 2 là sản phẩm chính — demo 1 (`../demo_doc_autocad/`) DỪNG phát triển, không dùng nữa.**
 
 ## Demo 2 là gì (1 phút)
 Web app đọc + tính toán bản vẽ AutoCAD **qua MCP (Model Context Protocol)**. LLM = **Google Gemini** (`gemini-2.5-flash`,
@@ -98,6 +98,25 @@ ODA File Converter chuyển .dwg→.dxf. **KHÔNG cần AutoCAD → deploy cloud
 - ✅ **Kết quả (probe + test tất định):** 9T đọc **9 cột** (C-1..C-9) quy ước cm; **C-3 = 80×80cm → 23.04 m³ KHỚP demo 1**
   (cross-consistency). Gia Lộc KHÔNG đổi: C1 = 220×220mm → 4.704 m³, không cảnh báo nhiễu (file mm sạch). `mcp_bridge.py`
   SYSTEM_PROMPT thêm luật cảnh báo đơn vị suy đoán. Test `test_takeoff_chong_bia.py` thêm nhóm **[I]** → **50/50 PASS**; QA đọc **129/129** giữ nguyên.
+
+## Vừa xong (2026-07-09) — CHỐT demo 2 + tính năng INOX (feedback đối tác) + hardening đối kháng
+- **QUYẾT ĐỊNH CHIẾN LƯỢC:** đối tác test 2 demo → ưng demo 2 (nhanh + đọc kích thước từ bảng + khoanh đỏ ảnh). Rà soát:
+  khác biệt tốc độ là do **MODEL** (demo 1 `gemini-3.1-pro-preview` chậm vs demo 2 `2.5-flash`), không phải kiến trúc; các
+  "thất bại" demo 2 (inox, diện tích sàn) là **giới hạn CHUNG / chống-bịa cố ý**, không phải điểm yếu riêng. → **Chốt demo 2
+  là sản phẩm chính, DỪNG demo 1.** Nguyên tắc "2 demo cân bằng" NGHỈ.
+- ✅ **Tính năng MỚI — khối lượng thép hình/INOX = SL(đọc) × kg/bộ(đối tác cấp)** (`khoi_luong_thep_hinh` trong `_FORMULAS`;
+  ánh xạ "inox"/"thép hình" ĐẦU `_TEN_MAP`, TRƯỚC "cua" để 'kg inox cửa S1' không nhầm diện tích cửa). Giải đúng nỗi bực
+  đối tác: bản vẽ chỉ có GHI CHÚ "khung inox (1 bộ): 8.62 kg" (không bảng tách theo cửa) → nay `inox S1 = 16×8.62 = 137.92 kg`.
+  Chống bịa: kg/bộ CHỈ đối tác cấp (KHÔNG tự lấy số từ ghi chú gán mã — chống bịa liên kết); SL đọc tự động (đối tác override).
+  SYSTEM_PROMPT rule **8c**. MCP KHÔNG cần tool mới (dùng `tinh_dai_luong` sẵn có).
+- ✅ **Kiểm chứng ĐỐI KHÁNG (workflow 4 giám định) → bắt + vá lỗ hổng chống-bịa CHUNG cho engine:** (1) `kg/bộ=inf`/`1e400`/
+  `"inf"` lọt cổng `x==x and x>0` (inf qua cả hai) → ra `Infinity kg`; (2) input hữu hạn `1e308` × 16 **tràn số** thành inf
+  (code chỉ validate INPUT, không validate KẾT QUẢ); (3) `kg/bộ=true` → `_nd` chạy `float(True)=1.0` TRƯỚC validate nên chốt
+  `not isinstance(bool)` thành code chết → ra 16 kg từ giá trị không cấp. **VÁ:** `import math`; `_nd` từ chối bool+inf+nan;
+  cổng dùng `math.isfinite`; **thêm kiểm KẾT QUẢ hữu hạn** sau compute. Áp cho MỌI công thức.
+- ✅ **Test:** thêm nhóm [J] (inox) + [K] (hardening) → `test_takeoff_chong_bia.py` **65/65 PASS**; QA đọc **129/129**.
+- 📋 **Còn nợ (LOW, từ đối kháng — đưa vào roadmap):** mã TOÀN CHỮ ("GHOSTINOX") + đủ số bù → không bị `_cau_kien_hien_dien`
+  chặn (chỉ verify mã có token chữ số); "thể tích inox" định tuyến sang công thức KHỐI LƯỢNG (đổi m³→kg, chỉ đổi nhãn không cảnh báo).
 
 ## Việc CÒN LẠI (TODO)
 - (Theo dõi) model: 2.5-flash ổn; 3.5-flash mạnh hơn nhưng hay 503; Pro chất lượng cao nhất nhưng quota thấp (cần billing).

@@ -10,7 +10,7 @@ qty_index, bảng thép...) NHƯNG:
 
 Module này KHÔNG phụ thuộc Flask/MCP -> dùng được cho cả MCP server lẫn host.
 """
-import os, re, time, uuid, logging, unicodedata
+import os, re, time, uuid, logging, unicodedata, math
 from collections import Counter
 
 import matplotlib
@@ -369,9 +369,14 @@ def _tok_bound(tok, lab):
 
 
 def _nd(val):
-    """Input do ĐỐI TÁC cấp (không đọc từ file) — luôn ghi rõ nguồn."""
-    try: g = float(val)
-    except Exception: g = val
+    """Input do ĐỐI TÁC cấp (không đọc từ file) — luôn ghi rõ nguồn. bool/inf/nan -> GIỮ NGUYÊN giá trị thô
+    (không ép float) để cổng kiểm 'số dương hợp lệ' ở tinh_dai_luong bắt là PHI SỐ (chống bịa: true->1.0, 1e400->inf)."""
+    try:
+        if isinstance(val, bool): raise ValueError        # True/False KHÔNG phải số kg/SL đối tác cấp
+        g = float(val)
+        if not math.isfinite(g): raise ValueError         # inf/nan -> phi số hợp lệ
+    except Exception:
+        g = val
     return {"gia_tri": g, "nguon": "nguoi_dung_cung_cap", "handle": None, "chua_chac": False,
             "do_tin_cay": "do_nguoi_dung", "giai_thich": "do đối tác cấp (không đọc từ file)"}
 
@@ -457,10 +462,22 @@ _FORMULAS = {
                    ("chieu_cao", "mm", "_rs_bs_only", "chieu_cao")],
         "compute": lambda v: round(v["chieu_dai"] * v["chieu_rong"] * v["chieu_cao"] / 1e9, 3),
     },
+    # Khối lượng thép hình/INOX theo CẤU KIỆN: SL đọc từ bản vẽ × kg/bộ đối tác cấp. Dùng khi bản vẽ chỉ có
+    # GHI CHÚ 'X kg/1 bộ' (không có bảng tách theo cửa) — vd 'inox cửa S1 = 16 bộ × 8.62 kg'. Chống bịa: KHÔNG
+    # tự lấy kg từ ghi chú gán cho mã (tránh liên kết sai) -> đối tác cấp/ xác nhận kg/bộ; SL vắng -> hỏi.
+    "khoi_luong_thep_hinh": {
+        "ten": "Khối lượng thép hình/inox", "don_vi": "kg",
+        "cach_tinh": "số_bộ × kg_mỗi_bộ (kg 1 bộ do ĐỐI TÁC cấp; số bộ ĐỌC từ nhãn số lượng trên bản vẽ)",
+        "inputs": [("so_luong", "bộ", "_rs_so_luong", "so_luong"),
+                   ("kg_moi_bo", "kg", "_rs_bs_only", "kg_moi_bo")],
+        "compute": lambda v: round(v["so_luong"] * v["kg_moi_bo"], 2),
+    },
 }
 
 # Ánh xạ ngôn ngữ tự nhiên -> khoá công thức (LLM có thể truyền tên tự do).
 _TEN_MAP = [
+    (("inox",), "khoi_luong_thep_hinh"),     # 'kg inox cửa S1' — CHECK inox TRƯỚC 'cua' (query có cả hai từ)
+    (("thep hinh",), "khoi_luong_thep_hinh"),  # 'khối lượng thép hình'
     (("dao",), "khoi_luong_dao_dat"),        # 'đào đất', 'đào móng' (đào -> đất, đứng trước 'mong')
     (("dap",), "khoi_luong_dap_dat"),        # 'đắp đất', 'san lấp'
     (("xay",), "xay_tuong"),                 # 'khối lượng xây', 'xây tường'
@@ -1180,7 +1197,7 @@ class Drawing:
         # nếu không -> KHÔNG tính (báo số liệu không hợp lệ, mời nhập lại) — tránh TypeError và đại lượng ÂM.
         xau = [x["ten"] for x in da_co
                if not (isinstance(x["gia_tri"], (int, float)) and not isinstance(x["gia_tri"], bool)
-                       and x["gia_tri"] == x["gia_tri"] and x["gia_tri"] > 0)]
+                       and math.isfinite(x["gia_tri"]) and x["gia_tri"] > 0)]
         if xau:
             return {"dai_luong": ten_dl, "co_ket_qua": False, "can_bo_sung": True, "so_lieu_khong_hop_le": xau,
                     "cach_tinh": F["cach_tinh"], "inputs_da_co": [x for x in da_co if x["ten"] not in xau],
@@ -1188,6 +1205,13 @@ class Drawing:
                     "ghi_chu": "Số liệu KHÔNG HỢP LỆ (phải là SỐ DƯƠNG > 0, đơn vị mm): %s. Đề nghị đối tác nhập lại đúng số."
                                % ", ".join(xau)}
         kq = F["compute"](vals)
+        # CHỐNG BỊA (kết quả): input hữu hạn vẫn có thể TRÀN SỐ khi nhân (vd 16 × 1e308 = inf). Không bao giờ
+        # trả 'kết quả' vô cực/NaN -> báo không hợp lệ (đối kháng: 4 giám định độc lập bắt lỗ hổng này).
+        if not (isinstance(kq, (int, float)) and not isinstance(kq, bool) and math.isfinite(kq)):
+            return {"dai_luong": ten_dl, "co_ket_qua": False, "can_bo_sung": True, "so_lieu_khong_hop_le": ["ket_qua"],
+                    "cach_tinh": F["cach_tinh"], "inputs_da_co": da_co, "inputs_thieu": [],
+                    "ghi_chu": "Kết quả tính ra KHÔNG hợp lệ (vô cực/tràn số) — số liệu đầu vào quá lớn/bất thường. "
+                               "Đề nghị đối tác kiểm lại các số đã nhập (KHÔNG trả số vô nghĩa)."}
         chua_chac = any(x["chua_chac"] for x in da_co)
         suy_dv = any(x.get("suy_doan_don_vi") for x in da_co)
         so_do = ["%s = %s %s (%s%s)" % (x["ten"], (round(x["gia_tri"], 2)), x["don_vi"], x["nguon"],
