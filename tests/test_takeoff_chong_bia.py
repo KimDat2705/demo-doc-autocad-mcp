@@ -209,6 +209,20 @@ def main():
     PASS, FAIL = PASS + int(bool(ok)), FAIL + int(not ok)
     print("  [%s] số HỢP LỆ 8.62 vẫn tính đúng 137.92 sau hardening" % ("OK" if ok else "FAIL"))
 
+    print("[L] CHỐNG BỊA (roadmap đối kháng) — mã toàn chữ giả / sàn tự-vơ diện tích / lệch đại lượng")
+    # L.1 mã TOÀN CHỮ giả -> không tìm thấy cho MỌI công thức (không chỉ inox); mã THẬT không bị chặn nhầm
+    ck(kt, "khối lượng inox", "GHOSTINOX", '{"so_luong":10,"kg_moi_bo":8.62}', "vang", "mã toàn chữ giả -> vang (không bịa kg)")
+    ck(kc, "thể tích bê tông cột", "INOXGHOST", '{"canh_a":220,"canh_b":220,"chieu_cao":3600,"so_luong":1}', "vang", "mã toàn chữ giả -> vang (không bịa m³)")
+    ck(kt, "khối lượng inox", "S1", '{"kg_moi_bo":8.62}', "tinh", "mã THẬT S1 KHÔNG bị chặn nhầm")
+    # L.2 'thể tích bê tông sàn' mã TRỐNG KHÔNG tự quét cả file vơ 'diện tích Xm2' bất kỳ
+    ck(kc, "thể tích bê tông sàn", "", '{"chieu_day":150}', "thieu", "sàn mã trống -> THIẾU (không tự vơ diện tích sàn)")
+    ck(kc, "thể tích bê tông sàn", "", '{"dien_tich":50,"chieu_day":100}', "tinh", "sàn NHẬP TAY đủ số -> vẫn tính")
+    # L.3 'thể tích inox' tính kg NHƯNG phải LỘ cảnh báo lệch đại lượng (m³ vs kg)
+    r = kt.tinh_dai_luong("thể tích inox", "S1", '{"kg_moi_bo":8.62}')
+    ok = r.get("co_ket_qua") and "⚠" in r.get("ghi_chu", "") and "KHỐI LƯỢNG" in r.get("ghi_chu", "")
+    PASS, FAIL = PASS + int(bool(ok)), FAIL + int(not ok)
+    print("  [%s] 'thể tích inox' -> tính kg + CẢNH BÁO lệch đại lượng (chưa chắc phải lộ)" % ("OK" if ok else "FAIL"))
+
     print("\n%d PASS / %d FAIL" % (PASS, FAIL))
     return 1 if FAIL else 0
 

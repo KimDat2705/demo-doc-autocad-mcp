@@ -2,8 +2,8 @@
 
 > Cập nhật 2026-07-09. Đây là "điểm bắt đầu" cho phiên chat mới: tóm tắt demo 2 đang ở đâu + việc còn lại.
 > **TRẠNG THÁI 1 DÒNG:** demo 2 (MCP) đã HOÀN THIỆN lõi + takeoff mở rộng + bóc tách + trực quan hoá, deploy live,
-> test tất định **65/65** (thêm [I] cm/mm+9T, [J] inox=SL×kg/bộ, [K] hardening inf/tràn/bool). Đọc đúng bảng cột nhà 9T
-> (cm). **QUYẾT ĐỊNH: chốt demo 2 là sản phẩm chính — demo 1 (`../demo_doc_autocad/`) DỪNG phát triển, không dùng nữa.**
+> test tất định **71/71** ([I] cm/mm+9T, [J] inox=SL×kg/bộ, [K] hardening inf/tràn/bool, [L] vá 3 lỗ bịa từ đối kháng).
+> **QUYẾT ĐỊNH: chốt demo 2 là sản phẩm chính — demo 1 (`../demo_doc_autocad/`) DỪNG phát triển.** Roadmap: xem `ROADMAP_DEMO2.md`.
 
 ## Demo 2 là gì (1 phút)
 Web app đọc + tính toán bản vẽ AutoCAD **qua MCP (Model Context Protocol)**. LLM = **Google Gemini** (`gemini-2.5-flash`,
@@ -115,8 +115,10 @@ ODA File Converter chuyển .dwg→.dxf. **KHÔNG cần AutoCAD → deploy cloud
   `not isinstance(bool)` thành code chết → ra 16 kg từ giá trị không cấp. **VÁ:** `import math`; `_nd` từ chối bool+inf+nan;
   cổng dùng `math.isfinite`; **thêm kiểm KẾT QUẢ hữu hạn** sau compute. Áp cho MỌI công thức.
 - ✅ **Test:** thêm nhóm [J] (inox) + [K] (hardening) → `test_takeoff_chong_bia.py` **65/65 PASS**; QA đọc **129/129**.
-- 📋 **Còn nợ (LOW, từ đối kháng — đưa vào roadmap):** mã TOÀN CHỮ ("GHOSTINOX") + đủ số bù → không bị `_cau_kien_hien_dien`
-  chặn (chỉ verify mã có token chữ số); "thể tích inox" định tuyến sang công thức KHỐI LƯỢNG (đổi m³→kg, chỉ đổi nhãn không cảnh báo).
+- ✅ **VÁ 3 lỗ BỊA SỐ (workflow roadmap chạy code xác nhận) — nhóm test [L]:** (1) mã TOÀN CHỮ ("GHOSTINOX") lọt
+  `_cau_kien_hien_dien` → bịa số cho MỌI công thức (nay verify token CHỮ, chặn khi không token nào xuất hiện); (2) "thể tích
+  bê tông sàn" mã TRỐNG → `_rs_dien_tich_ghi_san` tự quét cả file vơ "diện tích Xm2" → bịa thể tích sàn (nay bắt buộc có mã,
+  đồng bộ `_rs_chieu_day`); (3) "thể tích inox" ép sang công thức KHỐI LƯỢNG → thêm CẢNH BÁO lệch đại lượng (m³ vs kg).
 
 ## Việc CÒN LẠI (TODO)
 - (Theo dõi) model: 2.5-flash ổn; 3.5-flash mạnh hơn nhưng hay 503; Pro chất lượng cao nhất nhưng quota thấp (cần billing).

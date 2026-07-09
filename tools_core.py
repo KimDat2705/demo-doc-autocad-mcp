@@ -1089,11 +1089,14 @@ class Drawing:
 
     def _rs_dien_tich_ghi_san(self, ma, bs, ten=None):
         if ten and ten in bs: return _nd(bs[ten])
-        rex = re.compile(r"(\d+(?:[.,]\d+)?)\s*m2")
         toks = [w for w in _norm_label(ma or "").split() if w]
+        if not toks:
+            return None            # KHÔNG có mã cụ thể -> KHÔNG quét cả file vơ 'diện tích Xm2' bất kỳ (chống bịa
+                                   # diện tích sàn từ số vô chủ) -> đối tác nhập dien_tich qua chat. Đồng bộ _rs_chieu_day.
+        rex = re.compile(r"(\d+(?:[.,]\d+)?)\s*m2")
         for tx in self.texts:
             nv = _norm_label(tx["vn"])
-            if toks and not all(_tok_bound(t, nv) for t in toks): continue
+            if not all(_tok_bound(t, nv) for t in toks): continue
             m = rex.search(nv)
             if m and "dien tich" in nv:
                 return {"gia_tri": float(m.group(1).replace(",", ".")), "nguon": "doc_verbatim", "handle": tx["handle"],
@@ -1108,6 +1111,12 @@ class Drawing:
         toks = [w for w in _norm_label(ma_cau_kien or "").split() if w]
         codes = [w for w in toks if any(c.isdigit() for c in w)]
         if not codes:
+            # Mã KHÔNG có token chữ số (vd 'GHOSTINOX') -> vẫn có thể là mã BỊA. Kiểm token CHỮ: nếu KHÔNG token
+            # nào (dù chữ) xuất hiện ở BẤT KỲ text nào -> khẳng định vắng mặt (chặn). Nếu có ≥1 token hiện diện
+            # (vd 'inox','cửa' — từ thật) -> không đủ căn cứ chặn (giữ nguyên hành vi cũ, tránh false-negative).
+            alpha = [w for w in toks if any(c.isalpha() for c in w)]
+            if alpha and not any(_tok_bound(w, _norm_label(tx["vn"])) for tx in self.texts for w in alpha):
+                return False, True
             return True, False
         for tx in self.texts:
             lab = _norm_label(tx["vn"])
@@ -1141,6 +1150,13 @@ class Drawing:
             return {"co_ket_qua": False, "loi": "Chưa hỗ trợ tính '%s'." % ten_dai_luong,
                     "cac_dai_luong_ho_tro": [f["ten"] for f in _FORMULAS.values()]}
         F = _FORMULAS[key]
+        # CẢNH BÁO LỆCH ĐẠI LƯỢNG: hỏi 'thể tích'/'diện tích' nhưng công thức khớp chỉ tính được KHỐI LƯỢNG (kg)
+        # — vd 'thể tích inox' -> khoi_luong_thep_hinh. KHÔNG đổi số, nhưng phải LỘ để đối tác không nhầm m³/m² với kg.
+        _tnq = unaccent(ten_dai_luong or "").lower()
+        canh_bao_dv = ""
+        if F["don_vi"] == "kg" and ("the tich" in _tnq or "dien tich" in _tnq):
+            canh_bao_dv = (" ⚠ Bạn hỏi '%s' nhưng '%s' chỉ tính được KHỐI LƯỢNG (kg), KHÔNG phải m³/m² — đã tính theo "
+                           "khối lượng; xác nhận nếu bạn cần đại lượng khác." % ((ten_dai_luong or "").strip(), F["ten"]))
         # CHỐNG BỊA (siết): người dùng nêu MÃ cụ thể mà mã đó KHÔNG có trong bản vẽ -> KHÔNG tìm thấy,
         # BẤT KỂ có inputs_bo_sung hay không (tuyệt đối không tính cho cấu kiện không tồn tại — vd 'SAN1'
         # với dien_tich/chieu_day do đối tác cấp vẫn ra số ảo). Chỉ cho tính thủ công thuần khi ma_cau_kien
@@ -1221,7 +1237,8 @@ class Drawing:
               + ("Có input lấy theo GÁN VỊ TRÍ (đường kích thước gần cấu kiện) → CHƯA CHẮC đúng 100%; đối tác nên xác nhận."
                  if chua_chac else "Mọi input đọc trực tiếp từ file (đáng tin).")
               + (" ⚠ ĐƠN VỊ tiết diện (cm/mm) là SUY ĐOÁN theo kích thước (bản vẽ không ghi rõ) — nếu sai quy ước, "
-                 "kết quả lệch 100×; đề nghị đối tác xác nhận đơn vị." if suy_dv else ""))
+                 "kết quả lệch 100×; đề nghị đối tác xác nhận đơn vị." if suy_dv else "")
+              + canh_bao_dv)
         return {"dai_luong": ten_dl, "co_ket_qua": True, "ket_qua": kq, "don_vi": F["don_vi"], "can_bo_sung": False,
                 "cach_tinh": F["cach_tinh"], "inputs_da_co": da_co, "inputs_thieu": [],
                 "so_do_he_thong_tinh": so_do, "ghi_chu": gc}
