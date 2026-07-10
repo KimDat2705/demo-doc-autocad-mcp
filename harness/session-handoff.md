@@ -11,8 +11,9 @@
 - **Vá 3 lỗ BỊA SỐ** (workflow roadmap chạy code phát hiện): mã toàn chữ "GHOSTINOX"; "thể tích sàn" mã trống tự vơ diện tích; "thể tích inox" lệch đại lượng. Commit `4c597f3`.
 - **Củng cố A + E:** tổng phụ theo (loại,đơn vị) trong tổng hợp+Excel; gợi ý m³ ghi sẵn (đào đất thiếu số → nêu "ĐÀO MÓNG 860 M3" [handle]). Commit `dd8d971`.
 - **Tài liệu chiến lược:** ROADMAP_DEMO2 (hoãn dự toán chi phí, `fe4972c`), KE_HOACH_TONG_QUAT_HOA (độ phủ vs độ an toàn, KPI 0% bịa, `dd8d971`), NGHIEN_CUU_AI_TU_HOC (tự học an toàn, `2f51a8b`).
-- **TÍCH HỢP HARNESS (phiên này, CHƯA commit lúc viết dòng này):** tạo `harness/` — project-overview, tech-stack, feature_list.json, AGENTS.md, rubric, quality-document, clean-state-checklist, benchmark_questions, scripts/check.sh. `check.sh` = **HARNESS GATE: PASS** (import + 20 tool + no-key + 76/76).
-- **Test:** `test_takeoff_chong_bia.py` **76/76** (nhóm A-M) + đọc **129/129**. Deploy live + `/version` verify mỗi commit.
+- **TÍCH HỢP HARNESS:** tạo `harness/` (12 file) — project-overview, tech-stack, feature_list.json (27 đầu mục), AGENTS.md, rubric, quality-document, clean-state-checklist, session-handoff, **claude-progress.md** (nhật ký phiên), README, benchmark_questions, scripts/check.sh. `check.sh` = **HARNESS GATE: PASS** (import + 20 tool + no-key + 76/76). Commit `de61ac5` (+ chốt sổ phiên cuối).
+- **Test (chốt sổ 2026-07-09):** `test_takeoff_chong_bia.py` **76/76** (nhóm A-M) + đọc **129/129** + `check.sh` PASS. Deploy live + `/version` verify mỗi commit. Working tree sạch.
+- **⚠ Lưu ý cấu trúc:** demo 2 KHÔNG có `specs/specs.json` (theo quy ước Harness đã ghi ở `AGENTS.md`) — `feature_list.json` thay cho specs/. Rà trạng thái tính năng ở `feature_list.json`, KHÔNG tìm specs/.
 
 ## Còn lại / Bước tiếp (xem `feature_list.json` + `ROADMAP_DEMO2.md`)
 - **Củng cố treo:** B (trừ lỗ cửa khi xây/trát), C (liệt kê diện tích ghi sẵn), D (ứng viên kg/bộ 1-click), F (ước cao cột theo cao độ), G (test đối kháng đa-domain).
