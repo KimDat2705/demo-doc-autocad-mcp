@@ -3,7 +3,8 @@
 > Cập nhật 2026-07-09. Đây là "điểm bắt đầu" cho phiên chat mới: tóm tắt demo 2 đang ở đâu + việc còn lại.
 > **TRẠNG THÁI 1 DÒNG:** demo 2 (MCP) đã HOÀN THIỆN lõi + takeoff mở rộng + bóc tách + trực quan hoá, deploy live,
 > test tất định **71/71** ([I] cm/mm+9T, [J] inox=SL×kg/bộ, [K] hardening inf/tràn/bool, [L] vá 3 lỗ bịa từ đối kháng).
-> **QUYẾT ĐỊNH: chốt demo 2 là sản phẩm chính — demo 1 (`../demo_doc_autocad/`) DỪNG phát triển.** Roadmap: xem `ROADMAP_DEMO2.md`.
+> **QUYẾT ĐỊNH: chốt demo 2 là sản phẩm chính — demo 1 (`../demo_doc_autocad/`) DỪNG phát triển.** Roadmap: `ROADMAP_DEMO2.md`.
+> **BỨC TRANH TỔNG QUÁT + kỷ luật chất lượng: `harness/`** (đọc `harness/project-overview.md` để nắm toàn cảnh + `harness/feature_list.json` cho đầu mục đã/chưa làm).
 
 ## Demo 2 là gì (1 phút)
 Web app đọc + tính toán bản vẽ AutoCAD **qua MCP (Model Context Protocol)**. LLM = **Google Gemini** (`gemini-2.5-flash`,

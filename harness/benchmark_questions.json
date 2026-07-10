@@ -1,0 +1,29 @@
+{
+  "note": "Bo cau hoi + dap an chuan, doc tu file THAT. 'tieu_chi' = so thu tu trong evaluator-rubric.md (1-9). Gom cau DOC (1-4,6-7), cau CHONG BIA (bay), va cau TAKEOFF/TINH (5) dac thu demo 2 (demo 1 luc cham chua co takeoff). Duong dan file tuong doi tu goc repo (../input_files).",
+  "files": {
+    "ket-cau": "input_files/_dxf/BV+DT MN Gia Loc/2. KetCau MN GiaLoc.dxf",
+    "kien-truc": "input_files/_dxf/BV+DT MN Gia Loc/1. Kien truc MN Gia Loc.dxf",
+    "9t-ket-cau": "input_files/_dxf/BV+DT nha 9 tang/2. Ket Cau_NHA 9T.dxf"
+  },
+  "benchmark": [
+    { "file": "ket-cau", "hoi": "có bao nhiêu layer?", "dap_an": "126 layer", "tieu_chi": 1 },
+    { "file": "ket-cau", "hoi": "thống kê đối tượng", "dap_an": "21077 (LINE/TEXT/DIMENSION/INSERT...)", "tieu_chi": 1 },
+    { "file": "ket-cau", "hoi": "đếm Ø16 xuất hiện bao nhiêu lần?", "dap_an": "số ĐOẠN CHỮ chứa Ø16 (KHÔNG phải số thanh) — ghi_chu khai báo rõ", "tieu_chi": 2 },
+    { "file": "ket-cau", "hoi": "tổng khối lượng thép?", "dap_an": "67370.7 kg (cốt thép tròn theo bảng TK); nếu hỏi tổng → nêu RIÊNG thép tròn và thép hình, KHÔNG gộp", "tieu_chi": 3 },
+    { "file": "ket-cau", "hoi": "có thang máy không?", "dap_an": "Không có (bẫy) → 'không có trong bản vẽ'", "tieu_chi": 4 },
+    { "file": "ket-cau", "hoi": "khối lượng inox của mã GHOSTINOX (mã bịa) là bao nhiêu?", "dap_an": "Không tìm thấy cấu kiện GHOSTINOX (mã không tồn tại → khong_tim_thay, KHÔNG bịa kg)", "tieu_chi": 4 },
+    { "file": "ket-cau", "hoi": "khối lượng đào đất?", "dap_an": "Thiếu kích thước → HỎI; ⚠ nêu 'bản vẽ có ghi sẵn ĐÀO MÓNG 860 M3 [handle 25708C], nếu đúng thì dùng luôn'", "tieu_chi": 5 },
+    { "file": "ket-cau", "hoi": "thể tích bê tông cột C1, chiều cao 3.6m?", "dap_an": "≈ 4.704 m³ (tiết diện 220×220 mm × 3.6m × SL); số HỆ THỐNG TÍNH + handle", "tieu_chi": 5 },
+    { "file": "ket-cau", "hoi": "tổng hợp khối lượng?", "dap_an": "Bảng SƠ BỘ + cột NGUỒN + TỔNG PHỤ (tổng bê tông m³/thép kg riêng, không gộp đào-móng 860) + CẦN BỔ SUNG", "tieu_chi": 5 },
+
+    { "file": "kien-truc", "hoi": "số lượng cửa đi D1?", "dap_an": "24 bộ (handle 67CE0)", "tieu_chi": 2 },
+    { "file": "kien-truc", "hoi": "liệt kê các loại cửa và số lượng?", "dap_an": "D1:24, S1:16, SW:16, DW:8, D2:8, CM1:1, VK1:4", "tieu_chi": 2 },
+    { "file": "kien-truc", "hoi": "tổng cộng bao nhiêu bộ cửa?", "dap_an": "73 bộ (24+16+16+8+8+1)", "tieu_chi": 3 },
+    { "file": "kien-truc", "hoi": "tổng diện tích cửa D1 và D2?", "dap_an": "101.52 m² (R×C×SL, gán-dim, cờ 'chưa chắc' + handle)", "tieu_chi": 5 },
+    { "file": "kien-truc", "hoi": "tổng số kg inox trên cửa sổ S1?", "dap_an": "Cần kg/bộ. Nếu đối tác cấp 8.62 kg/bộ (bản vẽ có ghi chú) → 16 × 8.62 = 137.92 kg", "tieu_chi": 5 },
+    { "file": "kien-truc", "hoi": "diện tích sàn xây dựng tầng 1?", "dap_an": "TỪ CHỐI suy từ hình học; chỉ đọc nhãn 'diện tích' ghi sẵn hoặc đối tác cấp (chống bịa)", "tieu_chi": 4 },
+    { "file": "kien-truc", "hoi": "đánh dấu cửa D1", "dap_an": "Trả ảnh KHOANH ĐỎ cửa D1 (anh_id) + cảnh báo 'số lần nhãn ≠ số bộ cửa thật'", "tieu_chi": 6 },
+
+    { "file": "9t-ket-cau", "hoi": "thể tích bê tông cột C-3, cao 3.6m?", "dap_an": "≈ 23.04 m³ (C-3 = 80×80 CM → 0.8×0.8m; đơn vị cm SUY ĐOÁN, gắn cờ); KHỚP demo 1 — KHÔNG đọc thành 80mm (lệch 100×)", "tieu_chi": 7 }
+  ]
+}
