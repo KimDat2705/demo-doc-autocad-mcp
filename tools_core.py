@@ -132,6 +132,7 @@ _DOOR_SIZE_MIN, _DOOR_SIZE_MAX, _DOOR_PAIR_R = 300, 9000, 1100
 # và dim công trình lớn (trục/nhịp 10m+). Rộng rãi để không loại nhầm vách kính lớn; không có dim hợp lý
 # -> trả None (báo thiếu, KHÔNG bịa số phi lý).
 _OPENING_DIM_LO, _OPENING_DIM_HI = 400, 6000
+_SL_LO_MAX = 100000   # trần SL lỗ 1 lần khai (chống số vô lý/tràn: không tường nào có >100k lỗ)
 
 
 def _plausible_door_size(w, h):
@@ -435,15 +436,15 @@ _FORMULAS = {
     },
     # --- Nhóm 🔴 (đối tác chủ yếu nhập số; bản vẽ ít ghi mã+kích thước sẵn) — dựng SẴN công thức ---
     "xay_tuong": {
-        "ten": "Khối lượng xây tường", "don_vi": "m³",
-        "cach_tinh": "dài × cao × bề_dày ÷ 1.000.000.000 (mm; CHƯA trừ lỗ cửa/cửa sổ)",
+        "ten": "Khối lượng xây tường", "don_vi": "m³", "tru_lo": True,
+        "cach_tinh": "dài × cao × bề_dày ÷ 1.000.000.000 (mm; TRỪ lỗ cửa/cửa sổ nếu đối tác khai 'lo_cua')",
         "inputs": [("chieu_dai", "mm", "_rs_bs_only", "chieu_dai"), ("chieu_cao", "mm", "_rs_bs_only", "chieu_cao"),
                    ("be_day", "mm", "_rs_chieu_day", "be_day")],
         "compute": lambda v: round(v["chieu_dai"] * v["chieu_cao"] * v["be_day"] / 1e9, 3),
     },
     "dien_tich_trat": {
-        "ten": "Diện tích trát", "don_vi": "m²",
-        "cach_tinh": "dài × cao × số_mặt ÷ 1.000.000 (mm; CHƯA trừ lỗ)",
+        "ten": "Diện tích trát", "don_vi": "m²", "tru_lo": True,
+        "cach_tinh": "dài × cao × số_mặt ÷ 1.000.000 (mm; TRỪ lỗ nếu đối tác khai 'lo_cua')",
         "inputs": [("chieu_dai", "mm", "_rs_bs_only", "chieu_dai"), ("chieu_cao", "mm", "_rs_bs_only", "chieu_cao"),
                    ("so_mat", "mặt", "_rs_bs_only", "so_mat")],
         "compute": lambda v: round(v["chieu_dai"] * v["chieu_cao"] * v["so_mat"] / 1e6, 2),
@@ -1014,6 +1015,100 @@ class Drawing:
                 return e
         return None
 
+    @staticmethod
+    def _sl_hop_le(v):
+        """SL lỗ HỢP LỆ = số NGUYÊN DƯƠNG hữu hạn, <= _SL_LO_MAX (từ chối bool/inf/nan/0/âm/thập-phân/vô-lý).
+        Chống bịa SL lỗ + chống tràn số/int khổng lồ lọt vào response."""
+        return (isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v)
+                and 0 < v <= _SL_LO_MAX and float(v).is_integer())
+
+    def _resolve_lo_cua(self, lo_cua_raw):
+        """Giải danh sách LỖ CỬA/CỬA SỔ đối tác khai (task B) — TẤT ĐỊNH, CHỐNG BỊA.
+        Mỗi lỗ đúng MỘT mode: theo MÃ ({ma, sl|so_luong}) -> tra kích thước từ door_size_index CONFIDENT
+        (verify được, có handle); HOẶC kích thước trực tiếp ({rong, cao, sl|so_luong} mm) -> đối tác cấp.
+        SL do ĐỐI TÁC khai (code KHÔNG tự đoán cửa nào thuộc tường nào). BẤT KỲ lỗ nào không giải được
+        -> TRẢ LỖI (không im lặng bỏ = tránh trừ sót -> vượt khối lượng; không bịa size = tránh trừ khống).
+        Trả: ('skip', None) | ('loi', dict_lỗi) | ('ok', {sum_area_mm2, so_lo, chi_tiet})."""
+        if not isinstance(lo_cua_raw, list):
+            return ("loi", {"lo_cua_khong_hop_le": True,
+                            "ghi_chu": "'lo_cua' phải là DANH SÁCH lỗ, vd [{\"ma\":\"D2\",\"sl\":1}] hoặc "
+                                       "[{\"rong\":900,\"cao\":2200,\"sl\":1}]. Không đoán — mời đối tác khai lại."})
+        sum_area = 0.0
+        so_lo = 0
+        chi_tiet = []
+        per_code = {}          # cộng dồn SL theo MÃ để so với trần _door_qty_for (chống lách bằng cách tách mã thành nhiều entry)
+        for i, item in enumerate(lo_cua_raw):
+            nhan = "lỗ #%d" % (i + 1)
+            if not isinstance(item, dict):
+                return ("loi", {"lo_cua_khong_hop_le": True,
+                                "ghi_chu": "%s không hợp lệ (mỗi lỗ phải là một đối tượng {ma/kích thước, sl})." % nhan})
+            ma = str(item.get("ma") or "").strip()
+            co_kt = ("rong" in item) or ("cao" in item)
+            if ma and co_kt:
+                return ("loi", {"lo_cua_khong_hop_le": True,
+                                "ghi_chu": "%s khai CẢ mã LẪN kích thước (rong/cao) — nhập nhằng. Chọn MỘT: theo mã "
+                                           "(code tra bảng) HOẶC kích thước trực tiếp (mm)." % nhan})
+            if not ma and not co_kt:
+                return ("loi", {"lo_cua_khong_hop_le": True,
+                                "ghi_chu": "%s thiếu CẢ mã LẪN kích thước — cần 'ma' (tra bảng) hoặc 'rong'+'cao' (mm)." % nhan})
+            if ("sl" in item) and ("so_luong" in item) and item["sl"] != item["so_luong"]:
+                return ("loi", {"lo_cua_khong_hop_le": True,
+                                "ghi_chu": "%s khai CẢ 'sl' (%r) LẪN 'so_luong' (%r) MÂU THUẪN — mỗi lỗ chỉ một số lượng. "
+                                           "Khai lại rõ một giá trị." % (nhan, item.get("sl"), item.get("so_luong"))})
+            sl_raw = item.get("sl", item.get("so_luong"))
+            sl_val = _nd(sl_raw)["gia_tri"] if sl_raw is not None else None
+            if not self._sl_hop_le(sl_val):
+                return ("loi", {"so_lieu_khong_hop_le": ["lo_cua[%d].sl" % i], "can_bo_sung": True,
+                                "ghi_chu": "%s có SỐ LƯỢNG không hợp lệ (%r) — SL lỗ phải là SỐ NGUYÊN DƯƠNG. "
+                                           "Không mặc định, không đoán — mời đối tác khai rõ 'sl'." % (nhan, sl_raw)})
+            sl = int(sl_val)
+            if ma:
+                ton_tai, kiem_tra_duoc = self._cau_kien_hien_dien(ma)
+                if kiem_tra_duoc and not ton_tai:               # mã LỖ GIẢ -> không trừ khống (đối xứng cấu kiện)
+                    return ("loi", {"khong_tim_thay": True, "lo_khong_tim_thay": [ma.upper()],
+                                    "ghi_chu": "%s: mã lỗ '%s' KHÔNG có trong bản vẽ — KHÔNG trừ khống. Kiểm lại mã, "
+                                               "hoặc khai kích thước lỗ trực tiếp (rong×cao mm)." % (nhan, ma.upper())})
+                d = self._door_size(ma)                          # CHỈ entry CONFIDENT; None -> KHÔNG bịa size
+                if not d:
+                    return ("loi", {"khong_tra_duoc_size": True, "lo_khong_tra_duoc": [ma.upper()], "can_bo_sung": True,
+                                    "ghi_chu": "%s: bản vẽ có nhắc '%s' nhưng KHÔNG có kích thước R×C ĐỦ TIN (bảng thống kê "
+                                               "confident) — KHÔNG đoán size. Mời đối tác khai rong×cao (mm) trực tiếp hoặc "
+                                               "xác nhận mã. (Bảng cửa có thể ở file khác — nạp file bảng thống kê cửa.)" % (nhan, ma.upper())})
+                w, h, handle, code = float(d["w"]), float(d["h"]), d["handle"], d["code"]
+                per_code[code] = per_code.get(code, 0) + sl        # cộng dồn theo MÃ (chống tách 1 mã thành nhiều entry để lách trần)
+                tong_sl = self._door_qty_for(code)                 # TRẦN verify-được: TỔNG khai > tổng SL bản vẽ = vô lý
+                if isinstance(tong_sl, (int, float)) and not isinstance(tong_sl, bool) and math.isfinite(tong_sl) and per_code[code] > tong_sl:
+                    return ("loi", {"lo_vuot_so_luong": True,
+                                    "ghi_chu": "%s: TỔNG khai %d lỗ '%s' (cộng mọi dòng cùng mã) nhưng bản vẽ chỉ có %d '%s' "
+                                               "(đọc từ nhãn SL) — mâu thuẫn. Kiểm lại số lượng lỗ." % (nhan, per_code[code], ma.upper(), int(tong_sl), ma.upper())})
+                nguon, confident = "bang_thong_ke", True
+                giai_thich = "R×C bảng thống kê cửa '%d×%d'" % (int(w), int(h))
+            else:
+                w = _nd(item.get("rong"))["gia_tri"]
+                h = _nd(item.get("cao"))["gia_tri"]
+                xau = [nm for nm, val in (("rong", w), ("cao", h))
+                       if not (isinstance(val, (int, float)) and not isinstance(val, bool) and math.isfinite(val) and val > 0)]
+                if xau:
+                    return ("loi", {"so_lieu_khong_hop_le": ["lo_cua[%d].%s" % (i, k) for k in xau], "can_bo_sung": True,
+                                    "ghi_chu": "%s có kích thước không hợp lệ (%s) — rong/cao phải là SỐ DƯƠNG (mm)." % (nhan, ", ".join(xau))})
+                if not _plausible_door_size(w, h):               # cổng đơn vị: bắt lẫn cm/mm (90×210 thay 900×2100)
+                    return ("loi", {"lo_don_vi_kha_nghi": True, "can_bo_sung": True,
+                                    "ghi_chu": "%s: kích thước %g×%g KHÔNG hợp lý cho một ô cửa/cửa sổ (mm) — cạnh lớn phải "
+                                               "≥1200mm và ≤9000mm. Kiểm ĐƠN VỊ (nhập mm, không phải cm)." % (nhan, w, h)})
+                handle, nguon, confident = None, "nguoi_dung_cung_cap", False
+                giai_thich = "kích thước đối tác cấp %g×%g mm (không đọc từ file)" % (w, h)
+            sum_area += w * h * sl
+            so_lo += sl
+            chi_tiet.append({"ma": ma.upper() or None, "rong": int(round(w)), "cao": int(round(h)), "sl": sl,
+                             "dien_tich_1_lo_m2": round(w * h / 1e6, 2), "nguon": nguon, "handle": handle,
+                             "confident": confident, "giai_thich": giai_thich})
+        if not chi_tiet:                                          # lo_cua = [] -> coi như không khai lỗ
+            return ("skip", None)
+        if not math.isfinite(sum_area):
+            return ("loi", {"so_lieu_khong_hop_le": ["lo_cua"], "can_bo_sung": True,
+                            "ghi_chu": "Tổng diện tích lỗ tràn số/không hữu hạn — kiểm lại kích thước, số lượng lỗ."})
+        return ("ok", {"sum_area_mm2": sum_area, "so_lo": so_lo, "chi_tiet": chi_tiet})
+
     def _rs_rong(self, ma, bs, ten=None):
         if ten and ten in bs: return _nd(bs[ten])
         d = self._door_size(ma)     # ƯU TIÊN: bảng thống kê cửa (đọc verbatim, ĐÁNG TIN) trước gán-dim
@@ -1189,6 +1284,13 @@ class Drawing:
                 import json as _json
                 bs = _json.loads(inputs_bo_sung) if isinstance(inputs_bo_sung, str) else dict(inputs_bo_sung)
             except Exception: bs = {}
+        # Task B — LỖ CỬA/CỬA SỔ: CHỈ 'xây tường' & 'diện tích trát' hỗ trợ 'lo_cua'. Truyền cho công thức khác
+        # (đào/bê tông...) -> LỘ rõ (không âm thầm bỏ qua để đối tác tưởng đã trừ). lo_cua rỗng/None -> bỏ qua.
+        if bs.get("lo_cua") and not F.get("tru_lo"):
+            return {"dai_luong": ("%s %s" % (F["ten"], ma_cau_kien)).strip(), "co_ket_qua": False, "can_bo_sung": False,
+                    "khong_ho_tro_tru_lo": True,
+                    "ghi_chu": "'%s' KHÔNG hỗ trợ trừ lỗ cửa/cửa sổ — chỉ 'khối lượng xây tường' và 'diện tích trát' "
+                               "nhận 'lo_cua'. Bỏ 'lo_cua' khỏi yêu cầu này." % F["ten"]}
         da_co, thieu, vals = [], [], {}
         for ten, dv, rs_name, _bs_key in F["inputs"]:
             res = getattr(self, rs_name)(ma_cau_kien, bs, ten)
@@ -1244,20 +1346,68 @@ class Drawing:
                     "cach_tinh": F["cach_tinh"], "inputs_da_co": da_co, "inputs_thieu": [],
                     "ghi_chu": "Kết quả tính ra KHÔNG hợp lệ (vô cực/tràn số) — số liệu đầu vào quá lớn/bất thường. "
                                "Đề nghị đối tác kiểm lại các số đã nhập (KHÔNG trả số vô nghĩa)."}
+        # Task B — TRỪ LỖ cửa/cửa sổ: kq ở trên là GROSS (số cũ). Chỉ khi đối tác khai 'lo_cua' cho xay_tuong/
+        # dien_tich_trat mới trừ; KHÔNG có lo_cua -> tru_extra=None -> giữ NGUYÊN kq cũ + KHÔNG thêm field (76 test không đổi).
+        tru_extra = None
+        if F.get("tru_lo") and bs.get("lo_cua"):
+            st_lo, data_lo = self._resolve_lo_cua(bs["lo_cua"])
+            if st_lo == "loi":
+                r = {"dai_luong": ten_dl, "co_ket_qua": False, "can_bo_sung": True, "don_vi": F["don_vi"],
+                     "cach_tinh": F["cach_tinh"], "gross_tham_khao": kq, "inputs_da_co": da_co, "inputs_thieu": []}
+                r.update(data_lo)     # gắn cờ lỗi CỤ THỂ (khong_tim_thay/khong_tra_duoc_size/lo_vuot_so_luong/... + ghi_chu)
+                return r
+            if st_lo == "ok":
+                if key == "xay_tuong":
+                    prec, mul = 3, vals["be_day"] / 1e9
+                    gross_raw = vals["chieu_dai"] * vals["chieu_cao"] * vals["be_day"] / 1e9
+                else:                 # dien_tich_trat: lỗ khoét trên MỖI mặt trát -> nhân CHUNG so_mat của tường
+                    prec, mul = 2, vals["so_mat"] / 1e6
+                    gross_raw = vals["chieu_dai"] * vals["chieu_cao"] * vals["so_mat"] / 1e6
+                ded_raw = data_lo["sum_area_mm2"] * mul
+                net_raw = gross_raw - ded_raw
+                net = round(net_raw, prec) if math.isfinite(net_raw) else net_raw
+                # LỘ khi lỗ ≥ tường: kiểm SAU làm tròn (net<=0) — chặn CẢ ca net_raw>0 nhưng làm tròn về 0.0
+                # (lỗ ≈ tường). TUYỆT ĐỐI không trả số 0/âm như 'kết quả hợp lệ'.
+                if not math.isfinite(net_raw) or net <= 0:
+                    return {"dai_luong": ten_dl, "co_ket_qua": False, "can_bo_sung": True, "don_vi": F["don_vi"],
+                            "cach_tinh": F["cach_tinh"], "lo_lon_hon_tuong": True, "gross": kq,
+                            "khau_tru_lo": round(ded_raw, prec), "so_lo": data_lo["so_lo"], "chi_tiet_lo": data_lo["chi_tiet"],
+                            "ghi_chu": "TỔNG lỗ khấu trừ (%s %s) ≥ gross (%s %s) sau làm tròn — lỗ ≥ (hoặc ≈) tường, KHÔNG "
+                                       "trả số 0/âm. Kiểm lại kích thước/số lượng lỗ hoặc kích thước tường."
+                                       % (round(ded_raw, prec), F["don_vi"], kq, F["don_vi"])}
+                tru_extra = {"gross": kq, "khau_tru_lo": round(ded_raw, prec),
+                             "so_lo": data_lo["so_lo"], "chi_tiet_lo": data_lo["chi_tiet"]}
+                kq = net   # ket_qua = NET (đã trừ lỗ)
         chua_chac = any(x["chua_chac"] for x in da_co)
         suy_dv = any(x.get("suy_doan_don_vi") for x in da_co)
         so_do = ["%s = %s %s (%s%s)" % (x["ten"], (round(x["gia_tri"], 2)), x["don_vi"], x["nguon"],
                                         ", CHƯA CHẮC" if x["chua_chac"] else "") for x in da_co]
-        so_do.append("→ %s = %s %s  [%s]" % (F["ten"], kq, F["don_vi"], F["cach_tinh"]))
+        if tru_extra:
+            so_do.append("gross (chưa trừ lỗ) = %s %s  [%s]" % (tru_extra["gross"], F["don_vi"], F["cach_tinh"]))
+            for c in tru_extra["chi_tiet_lo"]:
+                so_do.append("  − lỗ %s: %d×%d mm × %d (%s%s)" % (c["ma"] or "KT", c["rong"], c["cao"], c["sl"],
+                             c["nguon"], (", handle=%s" % c["handle"]) if c["handle"] else ""))
+            so_do.append("→ %s = gross − khấu trừ lỗ (%s %s) = %s %s"
+                         % (F["ten"], tru_extra["khau_tru_lo"], F["don_vi"], kq, F["don_vi"]))
+        else:
+            so_do.append("→ %s = %s %s  [%s]" % (F["ten"], kq, F["don_vi"], F["cach_tinh"]))
         gc = ("Đây là SỐ DO HỆ THỐNG TÍNH (không phải số ghi sẵn trong file). "
               + ("Có input lấy theo GÁN VỊ TRÍ (đường kích thước gần cấu kiện) → CHƯA CHẮC đúng 100%; đối tác nên xác nhận."
                  if chua_chac else "Mọi input đọc trực tiếp từ file (đáng tin).")
               + (" ⚠ ĐƠN VỊ tiết diện (cm/mm) là SUY ĐOÁN theo kích thước (bản vẽ không ghi rõ) — nếu sai quy ước, "
                  "kết quả lệch 100×; đề nghị đối tác xác nhận đơn vị." if suy_dv else "")
               + canh_bao_dv)
-        return {"dai_luong": ten_dl, "co_ket_qua": True, "ket_qua": kq, "don_vi": F["don_vi"], "can_bo_sung": False,
+        if tru_extra:
+            gc += (" ĐÃ TRỪ %d lỗ cửa/cửa sổ (khấu trừ %s %s; gross %s %s). SỐ LƯỢNG lỗ do ĐỐI TÁC khai, KÍCH THƯỚC lỗ "
+                   "do CODE (bảng thống kê)/đối tác cấp — hệ KHÔNG tự đoán cửa nào thuộc tường nào. Reveal/bệ cửa (mặt bên "
+                   "lỗ) CHƯA cộng." % (tru_extra["so_lo"], tru_extra["khau_tru_lo"], F["don_vi"], tru_extra["gross"], F["don_vi"]))
+        resp = {"dai_luong": ten_dl, "co_ket_qua": True, "ket_qua": kq, "don_vi": F["don_vi"], "can_bo_sung": False,
                 "cach_tinh": F["cach_tinh"], "inputs_da_co": da_co, "inputs_thieu": [],
                 "so_do_he_thong_tinh": so_do, "ghi_chu": gc}
+        if tru_extra:
+            resp["gross"] = tru_extra["gross"]; resp["khau_tru_lo"] = tru_extra["khau_tru_lo"]
+            resp["so_lo"] = tru_extra["so_lo"]; resp["chi_tiet_lo"] = tru_extra["chi_tiet_lo"]
+        return resp
 
     # ---- GĐ2d: BẢNG TỔNG HỢP khối lượng sơ bộ (gộp mọi số ĐỌC/TÍNH được, minh bạch NGUỒN) ----
     def _door_qty_for(self, code):

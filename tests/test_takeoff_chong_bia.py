@@ -245,6 +245,83 @@ def main():
     PASS, FAIL = PASS + int(ok), FAIL + int(not ok)
     print("  [%s] E: trát (không m³ liên quan) -> KHÔNG gợi ý nhiễu" % ("OK" if ok else "FAIL"))
 
+    print("[N] TRỪ LỖ CỬA/CỬA SỔ khi xây tường & trát (task B) — số do CODE, chống bịa")
+    def _emit(name, cond, extra=""):
+        global PASS, FAIL
+        okk = bool(cond); PASS += int(okk); FAIL += int(not okk)
+        print("  [%s] %s%s" % ("OK" if okk else "FAIL", name, (" " + extra) if extra else ""))
+    def _xay(dr, bs): return dr.tinh_dai_luong("khối lượng xây tường", "", bs)
+    def _trat(dr, bs): return dr.tinh_dai_luong("diện tích trát", "", bs)
+    # N.0 BACKWARD-COMPAT: không lo_cua / lo_cua rỗng -> số CŨ y hệt + KHÔNG thêm field mới
+    r = _xay(kc, '{"chieu_dai":5000,"chieu_cao":3000,"be_day":200}')
+    _emit("BC xây không lo_cua = 3.0 + KHÔNG field mới",
+          r.get("co_ket_qua") and abs(r["ket_qua"] - 3.0) < 1e-9 and not any(k in r for k in ("gross", "khau_tru_lo", "chi_tiet_lo", "so_lo")),
+          "-> %s" % r.get("ket_qua"))
+    r = _xay(kc, '{"chieu_dai":5000,"chieu_cao":3000,"be_day":200,"lo_cua":[]}')
+    _emit("BC lo_cua=[] = 3.0 + KHÔNG field mới", r.get("co_ket_qua") and abs(r["ket_qua"] - 3.0) < 1e-9 and "khau_tru_lo" not in r)
+    # N.1 TRỪ theo KÍCH THƯỚC TRỰC TIẾP (đối tác cấp; không cần bảng cửa)
+    r = _xay(kc, '{"chieu_dai":5000,"chieu_cao":3000,"be_day":200,"lo_cua":[{"rong":900,"cao":2200,"sl":1}]}')
+    _emit("xây − trực tiếp 900×2200 = 2.604 (gross 3.0, khấu trừ 0.396)",
+          r.get("co_ket_qua") and abs(r["ket_qua"] - 2.604) < 1e-6 and abs(r.get("gross", 0) - 3.0) < 1e-9 and abs(r.get("khau_tru_lo", 0) - 0.396) < 1e-6,
+          "-> %s" % r.get("ket_qua"))
+    r = _trat(kc, '{"chieu_dai":5000,"chieu_cao":3000,"so_mat":2,"lo_cua":[{"rong":900,"cao":2200,"sl":1}]}')
+    _emit("trát − trực tiếp (so_mat=2) = 26.04", r.get("co_ket_qua") and abs(r["ket_qua"] - 26.04) < 1e-6, "-> %s" % r.get("ket_qua"))
+    r = _trat(kc, '{"chieu_dai":5000,"chieu_cao":3000,"so_mat":1,"lo_cua":[{"rong":900,"cao":2200,"sl":1}]}')
+    _emit("trát so_mat=1 cùng lỗ = 13.02 (trừ theo SỐ MẶT)", r.get("co_ket_qua") and abs(r["ket_qua"] - 13.02) < 1e-6, "-> %s" % r.get("ket_qua"))
+    # N.2 TRỪ theo MÃ từ BẢNG THỐNG KÊ confident (fixture cua) + parity mã==trực tiếp
+    if cua:
+        r = _xay(cua, '{"chieu_dai":5000,"chieu_cao":3000,"be_day":200,"lo_cua":[{"ma":"d2","sl":1}]}')
+        c0 = (r.get("chi_tiet_lo") or [{}])[0]
+        _emit("xây − mã D2 (bảng) = 2.604 + confident + handle + nguồn bảng",
+              r.get("co_ket_qua") and abs(r["ket_qua"] - 2.604) < 1e-6 and c0.get("confident") and c0.get("handle") and c0.get("nguon") == "bang_thong_ke",
+              "-> %s" % r.get("ket_qua"))
+        r2 = _trat(cua, '{"chieu_dai":5000,"chieu_cao":3000,"so_mat":2,"lo_cua":[{"ma":"d2","so_luong":1}]}')
+        _emit("trát − mã D2 (nhận 'so_luong') = 26.04", r2.get("co_ket_qua") and abs(r2["ket_qua"] - 26.04) < 1e-6, "-> %s" % r2.get("ket_qua"))
+        rd = _xay(cua, '{"chieu_dai":5000,"chieu_cao":3000,"be_day":200,"lo_cua":[{"rong":900,"cao":2200,"sl":1}]}')
+        _emit("PARITY: mã D2 == kích thước trực tiếp 900×2200", r.get("co_ket_qua") and rd.get("co_ket_qua") and abs(r["ket_qua"] - rd["ket_qua"]) < 1e-9)
+        r = _xay(cua, '{"chieu_dai":5000,"chieu_cao":3000,"be_day":200,"lo_cua":[{"ma":"d99","sl":1}]}')
+        _emit("mã lỗ GIẢ D99 -> khong_tim_thay, KHÔNG ket_qua", (not r.get("co_ket_qua")) and r.get("khong_tim_thay") and r.get("ket_qua") is None)
+        r = _xay(cua, '{"chieu_dai":30000,"chieu_cao":3000,"be_day":200,"lo_cua":[{"ma":"d2","sl":19}]}')
+        _emit("over-count D2 sl=19 > 18 bản vẽ -> lo_vuot_so_luong", (not r.get("co_ket_qua")) and r.get("lo_vuot_so_luong"))
+    else:
+        print("  [..] BỎ QUA N.2 — không thấy fixture bảng cửa (%s)" % CUA)
+    # N.3 CHỐNG BỊA — các ca phải BLOCK (kích thước trực tiếp trên kc, không cần bảng)
+    r = _xay(kc, '{"chieu_dai":1000,"chieu_cao":2000,"be_day":100,"lo_cua":[{"rong":1300,"cao":2700,"sl":1}]}')
+    _emit("lỗ ≥ tường -> lo_lon_hon_tuong, KHÔNG số âm", (not r.get("co_ket_qua")) and r.get("lo_lon_hon_tuong") and r.get("ket_qua") is None)
+    for slbad in ["0", "-1", "1.5", "true"]:
+        r = _xay(kc, '{"chieu_dai":5000,"chieu_cao":3000,"be_day":200,"lo_cua":[{"rong":900,"cao":2200,"sl":%s}]}' % slbad)
+        _emit("sl=%s -> block (so_lieu_khong_hop_le)" % slbad, (not r.get("co_ket_qua")) and r.get("so_lieu_khong_hop_le"))
+    r = _xay(kc, '{"chieu_dai":5000,"chieu_cao":3000,"be_day":200,"lo_cua":[{"rong":90,"cao":210,"sl":1}]}')
+    _emit("lẫn ĐƠN VỊ 90×210 (cm) -> lo_don_vi_kha_nghi (không trừ)", (not r.get("co_ket_qua")) and r.get("lo_don_vi_kha_nghi"))
+    r = _xay(kc, '{"chieu_dai":5000,"chieu_cao":3000,"be_day":200,"lo_cua":[{"rong":900,"cao":2200}]}')
+    _emit("thiếu sl -> block (KHÔNG mặc định 1)", (not r.get("co_ket_qua")) and r.get("so_lieu_khong_hop_le"))
+    r = _xay(kc, '{"chieu_dai":5000,"chieu_cao":3000,"be_day":200,"lo_cua":[{"ma":"d2","rong":900,"cao":2200,"sl":1}]}')
+    _emit("khai CẢ mã LẪN kích thước -> lo_cua_khong_hop_le", (not r.get("co_ket_qua")) and r.get("lo_cua_khong_hop_le"))
+    r = _xay(kc, '{"chieu_dai":5000,"chieu_cao":3000,"be_day":200,"lo_cua":"abc"}')
+    _emit("lo_cua sai kiểu (chuỗi) -> lo_cua_khong_hop_le", (not r.get("co_ket_qua")) and r.get("lo_cua_khong_hop_le"))
+    r = kc.tinh_dai_luong("khối lượng đào đất", "", '{"chieu_dai":10000,"chieu_rong":8000,"chieu_sau":2000,"lo_cua":[{"rong":900,"cao":2200,"sl":1}]}')
+    _emit("lo_cua cho ĐÀO ĐẤT -> khong_ho_tro_tru_lo (LỘ, không âm thầm)", (not r.get("co_ket_qua")) and r.get("khong_ho_tro_tru_lo"))
+    # N.4 HARDENING sau KIỂM CHỨNG ĐỐI KHÁNG (workflow đa-agent) — vá 4 lỗ hổng panel bắt được
+    if cua:
+        # (1) over-count LÁCH bằng tách 1 mã thành nhiều entry -> cộng dồn theo mã rồi mới so trần
+        r = _xay(cua, '{"chieu_dai":100000,"chieu_cao":100000,"be_day":200,"lo_cua":[{"ma":"d2","sl":18},{"ma":"d2","sl":18}]}')
+        _emit("over-count TÁCH mã d2 18+18=36 > 18 -> lo_vuot_so_luong (không trừ khống)", (not r.get("co_ket_qua")) and r.get("lo_vuot_so_luong"))
+        r = _xay(cua, '{"chieu_dai":50000,"chieu_cao":5000,"be_day":200,"lo_cua":[{"ma":"d2","sl":9},{"ma":"d2","sl":9}]}')
+        _emit("split HỢP LỆ d2 9+9=18 (=trần, tường lớn) -> tính, so_lo=18", r.get("co_ket_qua") and r.get("so_lo") == 18, "-> %s" % r.get("ket_qua"))
+        # (3) sl vs so_luong mâu thuẫn -> block; trùng khớp -> tính
+        r = _xay(cua, '{"chieu_dai":5000,"chieu_cao":3000,"be_day":200,"lo_cua":[{"ma":"d1","sl":1,"so_luong":999}]}')
+        _emit("sl≠so_luong (1 vs 999) mâu thuẫn -> lo_cua_khong_hop_le", (not r.get("co_ket_qua")) and r.get("lo_cua_khong_hop_le"))
+        r = _xay(cua, '{"chieu_dai":5000,"chieu_cao":3000,"be_day":200,"lo_cua":[{"ma":"d2","sl":2,"so_luong":2}]}')
+        _emit("sl==so_luong (2==2) KHÔNG mâu thuẫn -> tính", r.get("co_ket_qua") and r.get("so_lo") == 2)
+    # (2) net làm tròn về 0.0 (lỗ ≈ tường) -> BLOCK, TUYỆT ĐỐI không trả 0.0 như kết quả hợp lệ
+    r = _xay(kc, '{"chieu_dai":2000,"chieu_cao":2000,"be_day":100,"lo_cua":[{"rong":1999,"cao":2000,"sl":1}]}')
+    _emit("net≈0 (xây) làm tròn 0.0 -> lo_lon_hon_tuong, KHÔNG 0.0", (not r.get("co_ket_qua")) and r.get("lo_lon_hon_tuong") and r.get("ket_qua") is None)
+    r = _trat(kc, '{"chieu_dai":3000,"chieu_cao":2000,"so_mat":1,"lo_cua":[{"rong":2999,"cao":2000,"sl":1}]}')
+    _emit("net≈0 (trát) làm tròn 0.0 -> lo_lon_hon_tuong, KHÔNG 0.0", (not r.get("co_ket_qua")) and r.get("lo_lon_hon_tuong") and r.get("ket_qua") is None)
+    # (4) sl khổng lồ dim-mode -> block sạch, so_lo KHÔNG là int rác 300 chữ số
+    r = _xay(kc, '{"chieu_dai":20000,"chieu_cao":3000,"be_day":200,"lo_cua":[{"rong":9000,"cao":9000,"sl":1e300}]}')
+    _emit("sl=1e300 -> block sạch, so_lo không phải int khổng lồ", (not r.get("co_ket_qua")) and len(str(r.get("so_lo"))) < 12)
+
     print("\n%d PASS / %d FAIL" % (PASS, FAIL))
     return 1 if FAIL else 0
 

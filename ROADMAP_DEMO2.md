@@ -24,7 +24,7 @@
 | # | Hạng mục | Effort | Ghi chú / chống bịa |
 |---|---|---|---|
 | A | **TỔNG PHỤ theo đơn vị** (tổng cửa m², tổng thép kg, tổng BT m³) trong tổng hợp + Excel | S | Con số headline đối tác hay cần; hiện phải tự nhẩm. Chỉ cộng ô numeric đã có nguồn (lọc ô chuỗi tiết diện). Salvage demo 1 |
-| B | **Trừ lỗ cửa/cửa sổ** khi tính xây tường & trát (đang ghi "CHƯA trừ" → vượt khối lượng) | M | Hệ đã tính được diện tích cửa; đối tác XÁC NHẬN lỗ cần trừ, không tự đoán cửa nào thuộc tường nào |
+| B | ✅ **XONG** — **Trừ lỗ cửa/cửa sổ** khi tính xây tường & trát | M | `lo_cua` trong inputs_bo_sung: {ma,sl} (tra bảng cửa confident, có handle) hoặc {rong,cao,sl} (mm). SL do đối tác khai (KHÔNG tự đoán cửa nào thuộc tường nào). net=gross−Σ(R×C×SL)×(be_day\|so_mat). Chống bịa: mã giả/không-confident/lỗ≥tường/sl bẩn/lẫn đơn vị/over-count đều BLOCK+LỘ, không âm, không bịa size. Backward-compat số cũ y hệt. Test [N] 20 ca offline (`test_takeoff_chong_bia.py` 96/96) |
 | C | **Liệt kê diện tích GHI SẴN** (nhãn "… m²" nguyên văn + handle) để đối tác đối chiếu/cấp diện tích sàn | M | Feedback đối tác hỏi diện tích sàn. CHỈ đọc nhãn ghi sẵn (không khẳng định là "sàn xây dựng") hoặc đối tác cấp; **KHÔNG** suy từ hình học (giữ luật cũ). ⚠ cần probe xem file có nhãn diện-tích-sàn đáng tin không |
 | D | **Tự NÊU ứng viên "X kg/bộ" / số đo** gần mã để đối tác **1-click xác nhận** (thay gõ tay) | M | Feedback "AI phải hỏi nhiều". Ứng viên = GỢI Ý (nguyên văn + handle + khoảng cách), chỉ thành input khi đối tác xác nhận (không tự cắm) |
 | E | **Gợi ý m³ GHI SẴN** khi takeoff (đào/đắp/xây/trát) báo thiếu input | S | Demo đã trích `stated_vol` nhưng nhánh "thiếu" chưa tham chiếu → bỏ lỡ dữ liệu đã đọc. Salvage demo 1 |

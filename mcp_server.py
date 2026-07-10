@@ -164,6 +164,9 @@ def tinh_dai_luong(ten_dai_luong: str, ma_cau_kien: str = "", inputs_bo_sung: st
     - ten_dai_luong: 'diện tích cửa' | 'thể tích bê tông cột' | 'ván khuôn cột' (hoặc mô tả tự do).
     - ma_cau_kien: mã cấu kiện, vd 'D1', 'C1', 'cửa D1'.
     - inputs_bo_sung: JSON số liệu ĐỐI TÁC cấp khi tool báo thiếu, vd '{"chieu_cao":3600}' (đơn vị mm). Trống nếu chưa có.
+      TRỪ LỖ cửa/cửa sổ (CHỈ 'khối lượng xây tường' & 'diện tích trát'): thêm "lo_cua" = danh sách lỗ, mỗi lỗ
+      {"ma":"D2","sl":1} (kích thước tra từ bảng thống kê cửa) HOẶC {"rong":900,"cao":2200,"sl":1} (mm, đối tác cấp).
+      SL lỗ do ĐỐI TÁC khai (hệ KHÔNG tự đoán cửa nào thuộc tường nào). Trả thêm gross/khau_tru_lo/chi_tiet_lo; ket_qua = đã trừ (net).
     Trả: ĐỦ input -> ket_qua + so_do_he_thong_tinh; THIẾU -> inputs_da_co + inputs_thieu + can_bo_sung=true (KHÔNG bịa số thiếu);
     CẤU KIỆN KHÔNG CÓ trong bản vẽ -> khong_tim_thay=true (báo không tìm thấy, KHÔNG hỏi thông số);
     HỎI SAI LOẠI (vd tính MÓNG cho một cái DẦM) -> sai_loai=true + loai_thuc_te (báo nhầm loại, KHÔNG tính)."""

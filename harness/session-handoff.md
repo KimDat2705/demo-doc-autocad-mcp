@@ -1,8 +1,9 @@
 # Session Handoff — demo 2
 
-## Trạng thái hiện tại (2026-07-09 — CHỐT demo 2 là sản phẩm chính + củng cố + tích hợp HARNESS)
+## Trạng thái hiện tại (2026-07-10 — TASK B trừ lỗ cửa | trước đó: chốt demo 2 + tích hợp HARNESS)
 > Mỗi tuyên bố "xong" kèm BẰNG CHỨNG (commit + số test) truy được. Nhật ký chi tiết hơn: `GHI_CHU_HOAN_THIEN.md`.
 
+- **✅ TASK B — TRỪ LỖ cửa/cửa sổ (xây tường & trát) [2026-07-10]:** `xay_tuong`/`dien_tich_trat` nhận `lo_cua` (list) trong `inputs_bo_sung` — mỗi lỗ `{ma,sl}` (tra `door_size_index` confident, có handle) HOẶC `{rong,cao,sl}` (mm). net = gross − Σ(R×C×SL)×(be_day|so_mat). SL do ĐỐI TÁC khai (mirror inox — KHÔNG tự đoán cửa nào thuộc tường nào). Backward-compat: không `lo_cua` → số cũ y hệt. Kiểm chứng đối kháng 2 vòng (loop-until-dry): vòng 1 bắt 4 bug thật → vá (over-count cộng dồn per-code; net<=0 SAU làm tròn; block `sl`≠`so_luong`; trần SL 100000); vòng 2 DRY. Code: `_resolve_lo_cua`/`_sl_hop_le`/`tinh_dai_luong` (`tools_core.py`) + docstring `mcp_server.py` + SYSTEM_PROMPT `mcp_bridge.py`. Test **[N] 27 ca** (`test_takeoff_chong_bia.py` 103/103). ⚠ CHƯA commit — chờ user duyệt.
 - **QUYẾT ĐỊNH CHIẾN LƯỢC:** đối tác test 2 demo → ưng demo 2. Rà soát: khác biệt tốc độ do MODEL (demo 1 pro vs demo 2 flash), không phải kiến trúc; "thất bại" demo 2 (inox/diện tích sàn) là giới hạn CHUNG/chống-bịa. → **Chốt demo 2 là sản phẩm chính, DỪNG demo 1.** Nguyên tắc "2 demo cân bằng" NGHỈ.
 - **VÁ PARITY cm/mm + đọc bảng cột nhà 9T** (`_build_section_index` ghép tọa độ + ngưỡng 130 + cờ mơ hồ): 9T C-3 = 80×80cm → **23.04 m³ KHỚP demo 1**; Gia Lộc mm 4.704 m³ không đổi. Commit `2a90a36`.
 - **Endpoint `/version`** (RENDER_GIT_COMMIT + sect_cm_max + has_section_index) — verify deploy qua HTTP. Commit `e870074`.
@@ -16,7 +17,7 @@
 - **⚠ Lưu ý cấu trúc:** demo 2 KHÔNG có `specs/specs.json` (theo quy ước Harness đã ghi ở `AGENTS.md`) — `feature_list.json` thay cho specs/. Rà trạng thái tính năng ở `feature_list.json`, KHÔNG tìm specs/.
 
 ## Còn lại / Bước tiếp (xem `feature_list.json` + `ROADMAP_DEMO2.md`)
-- **Củng cố treo:** B (trừ lỗ cửa khi xây/trát), C (liệt kê diện tích ghi sẵn), D (ứng viên kg/bộ 1-click), F (ước cao cột theo cao độ), G (test đối kháng đa-domain).
+- **Củng cố treo:** ~~B (trừ lỗ cửa) — XONG 2026-07-10~~; C (liệt kê diện tích ghi sẵn), D (ứng viên kg/bộ 1-click), F (ước cao cột theo cao độ), G (test đối kháng đa-domain).
 - **Robustness treo:** H (model fallback 429/503), I (chặn file lớn sớm), J (dọn file TTL), K (tách session), L (keep-alive + giám sát).
 - **Đề xuất trước khi giao rộng:** audit an toàn đa-agent trên MỌI tool; xin 3-5 bản vẽ đơn vị thiết kế khác nhau; dựng KPI "tỷ lệ bịa".
 
