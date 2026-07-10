@@ -1204,11 +1204,27 @@ class Drawing:
         ten_dl = ("%s %s" % (F["ten"], ma_cau_kien)).strip()
         if thieu:
             # Cấu kiện tồn tại (đã qua cửa kiểm tra ở đầu hàm) nhưng THIẾU số liệu -> mời đối tác cấp.
-            return {"dai_luong": ten_dl, "co_ket_qua": False, "can_bo_sung": True, "cach_tinh": F["cach_tinh"],
-                    "inputs_da_co": da_co, "inputs_thieu": thieu,
-                    "ghi_chu": "ĐÃ CÓ %d/%d số liệu. CÒN THIẾU: %s. Hãy nêu rõ cho đối tác biết đã có gì / thiếu gì, "
-                               "mời đối tác cấp phần thiếu (nhập qua chat) rồi gọi lại để tính. TUYỆT ĐỐI KHÔNG tự bịa số thiếu."
-                               % (len(da_co), len(F["inputs"]), ", ".join(t["ten"] for t in thieu))}
+            # E) GỢI Ý m³ GHI SẴN liên quan: bản vẽ đã ghi sẵn khối lượng (vd 'ĐÀO MÓNG 860 M3') mà hệ ĐÃ đọc (stated_vol)
+            # -> nêu để đối tác ĐỐI CHIẾU trước khi nhập kích thước (dùng lại dữ liệu đã đọc; nguyên văn + handle, KHÔNG tự tính).
+            _kw = {"khoi_luong_dao_dat": ("dao",), "khoi_luong_dap_dat": ("dap", "san lap"),
+                   "xay_tuong": ("xay",), "dien_tich_trat": ("trat",),
+                   "the_tich_be_tong_cot": ("be tong", "btct"), "the_tich_be_tong_dam": ("be tong", "btct"),
+                   "the_tich_be_tong_san": ("be tong", "btct", "san"), "the_tich_be_tong_mong": ("be tong", "btct", "mong")}
+            goi_y = [{"text": sv["text"].strip(), "gia_tri": sv["m3"], "don_vi": "m³", "handle": sv["handle"]}
+                     for sv in (getattr(self, "stated_vol", None) or [])
+                     if any(k in unaccent(sv["text"]).lower() for k in _kw.get(key, ()))]
+            gc = ("ĐÃ CÓ %d/%d số liệu. CÒN THIẾU: %s. Hãy nêu rõ cho đối tác biết đã có gì / thiếu gì, mời đối tác cấp "
+                  "phần thiếu (nhập qua chat) rồi gọi lại để tính. TUYỆT ĐỐI KHÔNG tự bịa số thiếu."
+                  % (len(da_co), len(F["inputs"]), ", ".join(t["ten"] for t in thieu)))
+            r = {"dai_luong": ten_dl, "co_ket_qua": False, "can_bo_sung": True, "cach_tinh": F["cach_tinh"],
+                 "inputs_da_co": da_co, "inputs_thieu": thieu}
+            if goi_y:
+                r["goi_y_ghi_san"] = goi_y
+                gc += (" ⚠ Bản vẽ có GHI SẴN khối lượng liên quan: %s — nếu ĐÚNG là con số đối tác cần thì DÙNG LUÔN "
+                       "(số đọc sẵn, có handle), khỏi nhập kích thước; nếu là hạng mục KHÁC thì bỏ qua."
+                       % "; ".join("'%s'=%s m³[%s]" % (g["text"][:40], g["gia_tri"], g["handle"]) for g in goi_y))
+            r["ghi_chu"] = gc
+            return r
         # CHỐNG CRASH + SỐ VÔ LÝ: đối tác có thể nhập 'abc' / số âm / 0 qua chat. Mọi input phải là SỐ DƯƠNG hợp lệ;
         # nếu không -> KHÔNG tính (báo số liệu không hợp lệ, mời nhập lại) — tránh TypeError và đại lượng ÂM.
         xau = [x["ten"] for x in da_co
@@ -1330,9 +1346,20 @@ class Drawing:
             rows.append({"hang_muc": "Chiều cao tầng điển hình (số tầng ước tính: %s)" % lv.get("n_tang_est"),
                          "loai": "Cao độ/tầng", "gia_tri": lv["typical_floor_h"], "don_vi": "m",
                          "nguon": "hệ thống tính (hiệu cao độ)", "handle": ""})
-        return {"co_du_lieu": bool(rows), "so_hang": len(rows), "bang": rows,
+        # TỔNG PHỤ theo (LOẠI, ĐƠN VỊ): CODE cộng các dòng cùng loại+đơn vị (số đã có nguồn). Nhóm theo (loai,don_vi)
+        # để KHÔNG gộp nhầm khác bản chất (Thể tích BT m³ ≠ Khối lượng ghi sẵn/đào móng m³); ô 'gia_tri' dạng chuỗi (tiết diện) bỏ qua.
+        _tp = {}
+        _khong_cong = {"Cao độ/tầng"}      # loại KHÔNG phải đại lượng để CỘNG (cao độ tầng = 1 trị, cộng vô nghĩa)
+        for r in rows:
+            v = r.get("gia_tri")
+            if r["loai"] not in _khong_cong and isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v):
+                a = _tp.setdefault((r["loai"], r.get("don_vi") or ""), [0.0, 0]); a[0] += v; a[1] += 1
+        tong_phu = [{"loai": lo, "don_vi": dv, "tong": round(t, 2), "so_dong": n} for (lo, dv), (t, n) in _tp.items()]
+        return {"co_du_lieu": bool(rows), "so_hang": len(rows), "bang": rows, "tong_phu": tong_phu,
                 "can_bo_sung": can_bs, "gia_dinh": gia_dinh,
                 "ghi_chu": "BẢNG TỔNG HỢP SƠ BỘ. Cột 'nguon' cho biết số ĐỌC SẴN / HỆ THỐNG TÍNH / TẠM TÍNH (giả định). "
+                           "'tong_phu' = TỔNG theo từng (loại, đơn vị) do HỆ THỐNG cộng (vd tổng bê tông m³, tổng thép kg) — "
+                           "TRÌNH BÀY các tổng này cho đối tác; lưu ý mỗi tổng thuộc 1 loại riêng, KHÔNG gộp khác đơn vị/khác loại. "
                            "'can_bo_sung' = mục còn thiếu số liệu để tính; 'gia_dinh' = giả định đã dùng. KHÔNG coi là dự "
                            "toán chốt — chỉ gồm cấu kiện có nhãn đọc được. Xuất Excel để rà soát/hoàn thiện."}
 
@@ -1351,6 +1378,12 @@ class Drawing:
             c.font = Font(bold=True, color="FFFFFF"); c.fill = PatternFill("solid", fgColor="2F5496")
         for i, r in enumerate(th["bang"], 1):
             ws.append([i, r["hang_muc"], r["loai"], r["gia_tri"], r["don_vi"], r["nguon"], r.get("handle", "")])
+        ws.append([]); ws.append(["TỔNG PHỤ (hệ thống cộng theo LOẠI + ĐƠN VỊ):"])
+        ws["A%d" % ws.max_row].font = Font(bold=True)
+        for tp in th.get("tong_phu", []):
+            row = ["", "TỔNG %s" % tp["loai"], "", tp["tong"], tp["don_vi"], "%d dòng cộng lại" % tp["so_dong"], ""]
+            ws.append(row)
+            for c in ws[ws.max_row]: c.font = Font(bold=True)
         ws.append([]); ws.append(["CẦN BỔ SUNG (còn thiếu số liệu để tính):"])
         for x in th["can_bo_sung"]: ws.append(["", x])
         ws.append([]); ws.append(["GIẢ ĐỊNH ĐÃ DÙNG:"])

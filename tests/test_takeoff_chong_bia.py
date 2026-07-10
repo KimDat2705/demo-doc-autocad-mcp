@@ -223,6 +223,28 @@ def main():
     PASS, FAIL = PASS + int(bool(ok)), FAIL + int(not ok)
     print("  [%s] 'thể tích inox' -> tính kg + CẢNH BÁO lệch đại lượng (chưa chắc phải lộ)" % ("OK" if ok else "FAIL"))
 
+    print("[M] CỦNG CỐ — TỔNG PHỤ (A) + GỢI Ý m³ ghi sẵn (E)")
+    th = kc.tong_hop_khoi_luong()
+    tp = th.get("tong_phu", [])
+    ok = isinstance(tp, list) and len(tp) > 0 and all(("tong" in x and "don_vi" in x) for x in tp)
+    PASS, FAIL = PASS + int(bool(ok)), FAIL + int(not ok)
+    print("  [%s] A: tong_hop có 'tong_phu' (%d nhóm tổng theo loại+đơn vị)" % ("OK" if ok else "FAIL", len(tp)))
+    m3 = [x for x in tp if x["don_vi"] == "m³"]
+    ok = len(m3) >= 2   # Thể tích BT (16.93) và Khối lượng ghi sẵn/đào móng (860) phải là 2 dòng RIÊNG, không gộp
+    PASS, FAIL = PASS + int(bool(ok)), FAIL + int(not ok)
+    print("  [%s] A: tổng m³ KHÔNG gộp nhầm khác loại (%d dòng m³ riêng)" % ("OK" if ok else "FAIL", len(m3)))
+    ok = all(x["loai"] != "Cao độ/tầng" for x in tp)   # loại trị vô nghĩa khỏi tổng
+    PASS, FAIL = PASS + int(ok), FAIL + int(not ok)
+    print("  [%s] A: KHÔNG cộng 'Cao độ/tầng' (trị không phải để tổng)" % ("OK" if ok else "FAIL"))
+    r = kc.tinh_dai_luong("khối lượng đào đất", "", "")
+    gy = r.get("goi_y_ghi_san") or []
+    ok = r.get("can_bo_sung") and any(abs(g["gia_tri"] - 860.0) < 0.01 for g in gy) and "860" in r.get("ghi_chu", "")
+    PASS, FAIL = PASS + int(bool(ok)), FAIL + int(not ok)
+    print("  [%s] E: đào đất thiếu số -> gợi ý '860 m³ ghi sẵn' (dùng data đã đọc, có handle)" % ("OK" if ok else "FAIL"))
+    ok = not (kc.tinh_dai_luong("diện tích trát", "", "").get("goi_y_ghi_san"))
+    PASS, FAIL = PASS + int(ok), FAIL + int(not ok)
+    print("  [%s] E: trát (không m³ liên quan) -> KHÔNG gợi ý nhiễu" % ("OK" if ok else "FAIL"))
+
     print("\n%d PASS / %d FAIL" % (PASS, FAIL))
     return 1 if FAIL else 0
 
