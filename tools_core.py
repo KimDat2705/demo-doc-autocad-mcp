@@ -632,12 +632,20 @@ class Drawing:
     """Một bản vẽ đã nạp: GIỮ doc (render) + dữ liệu trích xuất (tra cứu). Chống bịa: số do CODE."""
 
     def __init__(self, path):
+        # Robustness I — CHẶN FILE LỚN SỚM (trước convert/parse). File raw đã > READFILE_MAX_MB thì chắc chắn
+        # vượt gói máy chủ: DXF chính là file sẽ parse; DWG -> DXF sau convert LUÔN ≥ DWG (DXF phình 2-8x)
+        # -> loại NGAY, KHỎI tốn ODA convert (~600s) + KHỎI nạp ezdxf vào RAM.
+        raw_mb = os.path.getsize(path) / (1024 * 1024)
+        if raw_mb > READFILE_MAX_MB:
+            raise RuntimeError("File tải lên quá lớn (~%.0fMB, vượt giới hạn %dMB của gói máy chủ). "
+                               "Vui lòng thử file nhỏ hơn hoặc nâng cấp máy chủ (env READFILE_MAX_MB)." % (raw_mb, READFILE_MAX_MB))
         if path.lower().endswith(".dwg"):
             path = convert_dwg_to_dxf(path, UPLOAD_DIR)
-        size_mb = os.path.getsize(path) / (1024 * 1024)
-        if size_mb > READFILE_MAX_MB:
-            raise RuntimeError("File này quá lớn (~%.0fMB) so với gói máy chủ hiện tại. "
-                               "Vui lòng thử file nhỏ hơn hoặc nâng cấp máy chủ." % size_mb)
+            # DWG nén -> DXF có thể phình vượt ngưỡng dù DWG nhỏ: kiểm LẠI sau convert (không đoán được trước).
+            size_mb = os.path.getsize(path) / (1024 * 1024)
+            if size_mb > READFILE_MAX_MB:
+                raise RuntimeError("File .dwg này bung ra .dxf ~%.0fMB, vượt giới hạn %dMB của gói máy chủ. "
+                                   "Vui lòng thử file nhỏ hơn." % (size_mb, READFILE_MAX_MB))
         self.path = path
         self.name = os.path.basename(path)
         self.doc = ezdxf.readfile(path)          # GIỮ trong RAM để render

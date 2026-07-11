@@ -21,6 +21,9 @@ app = Flask(__name__)
 app.json.ensure_ascii = False
 MAX_UPLOAD_MB = int(os.environ.get("MAX_UPLOAD_MB", "150"))
 app.config["MAX_CONTENT_LENGTH"] = MAX_UPLOAD_MB * 1024 * 1024
+# Robustness I — giới hạn file PARSE (MB); KHỚP tools_core.READFILE_MAX_MB (cùng đọc env này) để chặn upload lớn
+# SỚM ở tầng app (khỏi gọi MCP/convert/parse). MAX_CONTENT_LENGTH (150MB) là trần thô cho DWG NÉN; đây là trần PARSE.
+READFILE_MAX_MB = int(os.environ.get("READFILE_MAX_MB", "45"))
 
 BRIDGE = None          # phiên MCP bền (lười khởi tạo)
 SUMMARY = ""           # tóm tắt bản vẽ đang nạp (đưa vào system prompt)
@@ -74,6 +77,16 @@ def upload():
         return jsonify({"error": "Chỉ nhận file .dxf hoặc .dwg."}), 400
     dest = os.path.join(UPLOAD_DIR, os.path.basename(f.filename))
     f.save(dest)
+    # Robustness I — CHẶN SỚM: file đã lưu > giới hạn parse -> loại NGAY (khỏi gọi MCP/convert/parse ~600s)
+    # + DỌN file rác luôn (liên quan J). DWG NÉN dưới ngưỡng vẫn qua -> tools_core kiểm lại sau convert.
+    raw_mb = os.path.getsize(dest) / (1024 * 1024)
+    if raw_mb > READFILE_MAX_MB:
+        try:
+            os.remove(dest)
+        except OSError:
+            pass
+        return jsonify({"error": "File tải lên (~%.0fMB) vượt giới hạn %dMB của gói máy chủ. Vui lòng thử file nhỏ hơn."
+                        % (raw_mb, READFILE_MAX_MB)}), 413
     try:
         res = get_bridge().call("nap_ban_ve", {"path": dest}, timeout=600)
         if isinstance(res, dict) and res.get("loi"):
