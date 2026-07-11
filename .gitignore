@@ -10,7 +10,8 @@ spikes/spike_bridge_out.txt
 # Test artifacts (kết quả chạy, log) — giữ SCRIPT test, bỏ dữ liệu chạy
 tests/battery_results*.jsonl
 tests/*.log
-tests/verify_chunks/
+tests/verify*_chunks/
 tests/battery.json
+tests/kichban*_ketqua.*
 
 # LƯU Ý: vendor/ODAFileConverter.deb PHẢI commit lên repo (Render build Docker cần) -> dùng repo PRIVATE.

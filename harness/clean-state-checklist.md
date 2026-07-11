@@ -4,7 +4,7 @@ Chạy TRƯỚC mỗi commit và cuối mỗi phiên (một phiên = một "tran
 
 ## Build / Import
 - [ ] `python -c "import tools_core"` sạch (không lỗi import)
-- [ ] `grep -c "@mcp.tool" mcp_server.py` = **20** (số MCP tool hiện tại)
+- [ ] `grep -c "@mcp.tool" mcp_server.py` = **21** (số MCP tool hiện tại; +liet_ke_dien_tich_ghi_san task C)
 - [ ] `requirements.txt` đủ (ezdxf, Flask, gunicorn, google-genai, mcp, matplotlib, pillow, openpyxl)
 
 ## Kiến trúc / Nguyên tắc
@@ -25,7 +25,7 @@ Chạy TRƯỚC mỗi commit và cuối mỗi phiên (một phiên = một "tran
 - [ ] Mọi nội dung cụ thể kèm **handle** có thật trong file
 
 ## Dữ liệu / Hồi quy
-- [ ] `python tests/test_takeoff_chong_bia.py` = **76/76 PASS** (offline, không tốn API)
+- [ ] `python tests/test_takeoff_chong_bia.py` = **149/149 PASS** (offline, không tốn API; nhóm A-Q, +N/O/P/Q = task B/C/D/F)
 - [ ] `python tests/test_qa_data.py` = **129/129** (đọc — cần ../input_files/_dxf + ../demo_doc_autocad)
 - [ ] `bash harness/scripts/check.sh` = **HARNESS GATE: PASS**
 
