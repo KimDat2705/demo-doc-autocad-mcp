@@ -360,6 +360,38 @@ def main():
     else:
         print("  [..] BỎ QUA O.4 — không thấy file 9T")
 
+    print("[P] ỨNG VIÊN gợi ý cho input thiếu (task D) — 1-click xác nhận, hệ KHÔNG tự cắm")
+    import tools_core as _TCp
+    _pu = lambda s: bool(_TCp._KG_PU_RE.search(s))
+    # P.1 UNIT — per-unit detector bền garble (data-independent)
+    _emit("per-unit: '(1 be):…= 8.62 kg' -> True", _pu("khung inox (1 be):13.42m= 8.62 kg"))
+    _emit("per-unit: 'kg/bộ' -> True", _pu("8.62 kg/bo"))
+    _emit("per-unit: '02 bộ bản lề' bare (phụ kiện) -> False (KHÔNG nhầm)", not _pu("ban le 02 bo, chot 01 bo"))
+    _emit("per-unit: '( tính trên 1 cầu thang)' -> False ('1' không sát '(')", not _pu("( tinh tren 1 cau thang) 80,52 kg"))
+    # P.2 kg_moi_bo trên KT inox S1 (ground truth 8.62)
+    r = kt.tinh_dai_luong("khối lượng inox", "S1", "")
+    thk = next((t for t in r.get("inputs_thieu", []) if t["ten"] == "kg_moi_bo"), None)
+    uv = (thk or {}).get("ung_vien", [])
+    _emit("KT inox S1: ung_vien 8.62 (trung_binh) ĐỨNG ĐẦU", bool(uv) and abs(uv[0]["gia_tri"] - 8.62) < 1e-6 and uv[0]["do_tin_cay"] == "trung_binh", "-> %s" % [(e["gia_tri"], e["do_tin_cay"]) for e in uv])
+    _emit("ung_vien: verbatim + handle + la_goi_y + khoang_cach=None (verbatim, không proximity)",
+          bool(uv) and uv[0].get("nguyen_van") and uv[0].get("handle") and uv[0].get("la_goi_y") and uv[0]["khoang_cach"] is None)
+    _emit("ung_vien KHÔNG chứa 'TỔNG KHỐI LƯỢNG' (loại tổng)", not any("tong" in e["nguyen_van"].lower() for e in uv))
+    _emit("KHÔNG tự cắm: 8.62 vắng inputs_da_co + co_ket_qua=False", (not r.get("co_ket_qua")) and not any(x["ten"] == "kg_moi_bo" for x in r.get("inputs_da_co", [])))
+    _emit("ghi_chu: nêu 'ỨNG VIÊN' + 'KHÔNG tự cắm'", "ỨNG VIÊN" in r.get("ghi_chu", "") and "KHÔNG tự cắm" in r.get("ghi_chu", ""))
+    r2 = kt.tinh_dai_luong("khối lượng inox", "S1", '{"kg_moi_bo":8.62}')
+    _emit("XÁC NHẬN kg/bộ=8.62 -> tính 137.92 (đường xác nhận KHÔNG đổi)", r2.get("co_ket_qua") and abs(r2["ket_qua"] - 137.92) < 0.01)
+    # P.3 ANTI-FAB: input KHÔNG có nguồn -> KHÔNG ung_vien
+    r = kc.tinh_dai_luong("thể tích bê tông cột", "C1", "")
+    thc = next((t for t in r.get("inputs_thieu", []) if t["ten"] == "chieu_cao"), None)
+    _emit("C1 chieu_cao (_rs_chieu_cao_cot=chênh cao độ) -> KHÔNG ung_vien (dim 220 là tiết diện)", thc is not None and not thc.get("ung_vien"))
+    r = kc.tinh_dai_luong("diện tích trát", "", '{"chieu_dai":5000,"chieu_cao":3000}')
+    ths = next((t for t in r.get("inputs_thieu", []) if t["ten"] == "so_mat"), None)
+    _emit("so_mat (chọn 1/2, không đo được) -> KHÔNG ung_vien", ths is not None and not ths.get("ung_vien"))
+    # P.4 dim finder: không mã -> [] (chống vơ dim toàn file); có mã -> loại 0.0 + 'thap' + khoảng cách
+    _emit("_ung_vien_dim(ma='') -> [] (chống vơ dim toàn file)", kc._ung_vien_dim("", "ngang") == [])
+    dc = kc._ung_vien_dim("C1", "ngang")
+    _emit("_ung_vien_dim('C1'): mọi ứng viên value!=0, do_tin_cay='thap', khoang_cach int", all(e["gia_tri"] != 0.0 and e["do_tin_cay"] == "thap" and isinstance(e["khoang_cach"], int) for e in dc))
+
     print("\n%d PASS / %d FAIL" % (PASS, FAIL))
     return 1 if FAIL else 0
 

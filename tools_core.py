@@ -133,6 +133,12 @@ _DOOR_SIZE_MIN, _DOOR_SIZE_MAX, _DOOR_PAIR_R = 300, 9000, 1100
 # -> trả None (báo thiếu, KHÔNG bịa số phi lý).
 _OPENING_DIM_LO, _OPENING_DIM_HI = 400, 6000
 _SL_LO_MAX = 100000   # trần SL lỗ 1 lần khai (chống số vô lý/tràn: không tường nào có >100k lỗ)
+# Task D — ỨNG VIÊN gợi ý cho input thiếu: regex 'X kg' (kg LIỀN sau số) + khoảng dim hợp lý (loại 0.0 & phi lý).
+_KG_UV_RE = re.compile(r"(\d+(?:[.,]\d+)?)\s*kg\b", re.I)
+# Dấu hiệu PER-UNIT (kg/bộ) BỀN với garble TCVN 'bộ'->'bé': '(1 …)' (per 1 đơn vị, vd '(1 bé):…=8.62 kg') hoặc 'kg/bộ'.
+# KHÔNG dùng bare 'bộ' (dễ khớp nhầm '02 bộ bản lề' = phụ kiện, không phải đơn vị của trị kg).
+_KG_PU_RE = re.compile(r"\(\s*1\b|/\s*bo\b")
+_DIM_UV_LO, _DIM_UV_HI = 20, 100000
 
 
 def _plausible_door_size(w, h):
@@ -1023,6 +1029,66 @@ class Drawing:
             return {"gia_tri": di["value"], "handle": di["handle"], "khoang_cach": round(dist), "do_tin_cay": tc}
         return {"tim_thay_neo": True, "neo": chosen["neo"], "rong": _mk(chosen_b["ngang"]), "cao": _mk(chosen_b["doc"])}
 
+    # ---- Task D: ỨNG VIÊN gợi ý cho input THIẾU (nguyên văn + handle) — đối tác 1-CLICK xác nhận, hệ KHÔNG tự cắm ----
+    def _ung_vien_kg_moi_bo(self, limit=4):
+        """ỨNG VIÊN 'X kg/bộ' đọc VERBATIM từ ghi chú (vd '(1 bộ) ... = 8.62 kg') để đối tác xác nhận kg/bộ CHO mã.
+        CHỐNG BỊA: KHÔNG khẳng định note thuộc mã nào (đối tác tự link). Ưu tiên note có 'bộ'/'bó' (per-unit); loại 'TỔNG'."""
+        out, seen = [], set()
+        for t in self.texts:
+            vn = (t.get("vn") or "").strip()
+            if not vn: continue
+            nv = unaccent(vn).lower()
+            if "tong" in nv: continue                     # 'TỔNG KHỐI LƯỢNG (kG): X' = TỔNG, không phải /bộ
+            m = _KG_UV_RE.search(vn)
+            if not m: continue
+            val = _to_num(m.group(1))
+            if val is None or not (isinstance(val, (int, float)) and math.isfinite(val) and val > 0): continue
+            h = t["handle"]
+            if h in seen: continue
+            seen.add(h)
+            co_bo = bool(_KG_PU_RE.search(nv))             # dấu hiệu PER-UNIT '(1 …)'/'kg/bộ' -> tin cậy hơn
+            out.append({"nguyen_van": vn[:80], "gia_tri": val, "don_vi": "kg", "handle": h,
+                        "nguon": "ghi_chu_verbatim", "khoang_cach": None, "la_goi_y": True,
+                        "do_tin_cay": "trung_binh" if co_bo else "thap",
+                        "tin_hieu": "ghi chú có dấu hiệu PER-UNIT ('(1 …)'/'kg/bộ') — nhiều khả năng kg/bộ" if co_bo
+                                    else "ghi chú có 'kg' (CHƯA rõ có phải /bộ) — đối tác đọc nguyên văn xác nhận"})
+        out.sort(key=lambda e: (e["do_tin_cay"] != "trung_binh", e["gia_tri"], e["handle"] or ""))
+        return out[:limit]
+
+    def _ung_vien_dim(self, ma_cau_kien, huong_can, R=8000.0, limit=3):
+        """ỨNG VIÊN SỐ ĐO = đường kích thước GẦN MÃ (đúng hướng), trong khoảng hợp lý, LOẠI dim rỗng 0.0/phi lý.
+        CHỈ khi mã có CHỮ SỐ (neo theo mã) — không mã -> [] (chống vơ dim toàn file = bịa). LUÔN 'chưa chắc' + khoảng cách."""
+        code_toks = [w for w in _norm_label(ma_cau_kien or "").split() if any(c.isdigit() for c in w)]
+        if not code_toks: return []
+        cands = self._neo_ung_vien(code_toks)
+        if not cands: return []
+        found = {}
+        for c in cands:
+            ax, ay = c["x"], c["y"]
+            for di in self.dim_items:
+                if di.get("khong_toa_do") or di.get("huong") != huong_can: continue
+                v = di["value"]
+                if not (isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v) and _DIM_UV_LO <= v <= _DIM_UV_HI): continue
+                dist = ((di["x"] - ax) ** 2 + (di["y"] - ay) ** 2) ** 0.5
+                if dist > R: continue
+                h = di["handle"]
+                if h not in found or dist < found[h][0]: found[h] = (dist, float(v))
+        out = [{"nguyen_van": "%g mm (dim %s)" % (v, huong_can), "gia_tri": v, "don_vi": "mm", "handle": h,
+                "nguon": "dim_gan_ma", "khoang_cach": round(dist), "la_goi_y": True, "do_tin_cay": "thap",
+                "tin_hieu": "đường kích thước %s gần mã (cách %d) — CHƯA CHẮC, đối tác xác nhận" % (huong_can, round(dist))}
+               for h, (dist, v) in found.items()]
+        out.sort(key=lambda e: (e["khoang_cach"], e["gia_tri"], e["handle"] or ""))
+        return out[:limit]
+
+    def _ung_vien_cho_input(self, ma_cau_kien, ten, rs_name):
+        """Dispatch ỨNG VIÊN theo (RESOLVER, tên) — KHÔNG theo 'ten' đơn (vì 'chieu_cao' dùng cả _rs_chieu_cao_cot
+        [chênh cao độ, KHÔNG gợi] lẫn _rs_bs_only [tường, gợi được]). so_mat (chọn 1/2) & cao cột KHÔNG gợi (không nguồn)."""
+        if rs_name == "_rs_bs_only" and ten == "kg_moi_bo":
+            return self._ung_vien_kg_moi_bo()
+        if rs_name == "_rs_bs_only" and ten in ("chieu_dai", "chieu_cao", "chieu_rong", "chieu_sau"):
+            return self._ung_vien_dim(ma_cau_kien, "ngang" if ten in ("chieu_dai", "chieu_rong") else "doc")
+        return []
+
     def _doc_tiet_dien(self, ma_cau_kien):
         """Đọc tiết diện của mã cấu kiện. ƯU TIÊN section_index (ghép tọa độ + inline, có đơn vị cm/mm ghi rõ/suy đoán);
         fallback quét CÙNG-TEXT (cũng suy đoán đơn vị + cổng unit-aware). a,b = mm-TƯƠNG ĐƯƠNG (cm đã ×10, để công
@@ -1352,8 +1418,11 @@ class Drawing:
         for ten, dv, rs_name, _bs_key in F["inputs"]:
             res = getattr(self, rs_name)(ma_cau_kien, bs, ten)
             if res is None:
-                thieu.append({"ten": ten, "don_vi": dv,
-                              "cach_cung_cap": "đối tác nhập qua chat, vd '%s %s = ...'" % (ten.replace("_", " "), ma_cau_kien or "")})
+                e_thieu = {"ten": ten, "don_vi": dv,
+                           "cach_cung_cap": "đối tác nhập qua chat, vd '%s %s = ...'" % (ten.replace("_", " "), ma_cau_kien or "")}
+                uv = self._ung_vien_cho_input(ma_cau_kien, ten, rs_name)   # Task D: GỢI Ý ứng viên (không tự cắm)
+                if uv: e_thieu["ung_vien"] = uv
+                thieu.append(e_thieu)
             else:
                 vals[ten] = res["gia_tri"]
                 da_co.append({"ten": ten, "gia_tri": res["gia_tri"], "don_vi": dv, "nguon": res["nguon"],
@@ -1382,6 +1451,11 @@ class Drawing:
                 gc += (" ⚠ Bản vẽ có GHI SẴN khối lượng liên quan: %s — nếu ĐÚNG là con số đối tác cần thì DÙNG LUÔN "
                        "(số đọc sẵn, có handle), khỏi nhập kích thước; nếu là hạng mục KHÁC thì bỏ qua."
                        % "; ".join("'%s'=%s m³[%s]" % (g["text"][:40], g["gia_tri"], g["handle"]) for g in goi_y))
+            # D) GỢI Ý ỨNG VIÊN cho input thiếu (kg/bộ đọc từ ghi chú, số đo gần mã): nêu để đối tác 1-CLICK xác nhận.
+            if any(t.get("ung_vien") for t in thieu):
+                gc += (" 💡 CÓ ỨNG VIÊN gợi ý cho input thiếu (xem 'ung_vien' trong inputs_thieu — nguyên văn + handle): "
+                       "NÊU cho đối tác để họ XÁC NHẬN 1-click, KÈM 'do_tin_cay' (trung_binh/thấp) + nguồn. ⛔ Ứng viên chỉ là "
+                       "GỢI Ý — hệ TUYỆT ĐỐI KHÔNG tự cắm; CHỈ khi đối tác XÁC NHẬN (nhập qua inputs_bo_sung) mới tính.")
             r["ghi_chu"] = gc
             return r
         # CHỐNG CRASH + SỐ VÔ LÝ: đối tác có thể nhập 'abc' / số âm / 0 qua chat. Mọi input phải là SỐ DƯƠNG hợp lệ;

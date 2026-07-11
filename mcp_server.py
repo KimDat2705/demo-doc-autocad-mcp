@@ -176,7 +176,8 @@ def tinh_dai_luong(ten_dai_luong: str, ma_cau_kien: str = "", inputs_bo_sung: st
       TRỪ LỖ cửa/cửa sổ (CHỈ 'khối lượng xây tường' & 'diện tích trát'): thêm "lo_cua" = danh sách lỗ, mỗi lỗ
       {"ma":"D2","sl":1} (kích thước tra từ bảng thống kê cửa) HOẶC {"rong":900,"cao":2200,"sl":1} (mm, đối tác cấp).
       SL lỗ do ĐỐI TÁC khai (hệ KHÔNG tự đoán cửa nào thuộc tường nào). Trả thêm gross/khau_tru_lo/chi_tiet_lo; ket_qua = đã trừ (net).
-    Trả: ĐỦ input -> ket_qua + so_do_he_thong_tinh; THIẾU -> inputs_da_co + inputs_thieu + can_bo_sung=true (KHÔNG bịa số thiếu);
+    Trả: ĐỦ input -> ket_qua + so_do_he_thong_tinh; THIẾU -> inputs_da_co + inputs_thieu + can_bo_sung=true (KHÔNG bịa số thiếu;
+    mỗi inputs_thieu[i] có thể kèm 'ung_vien' = GỢI Ý số đọc từ bản vẽ [nguyên văn+handle+do_tin_cay] để đối tác 1-CLICK xác nhận, HỆ KHÔNG tự cắm);
     CẤU KIỆN KHÔNG CÓ trong bản vẽ -> khong_tim_thay=true (báo không tìm thấy, KHÔNG hỏi thông số);
     HỎI SAI LOẠI (vd tính MÓNG cho một cái DẦM) -> sai_loai=true + loai_thuc_te (báo nhầm loại, KHÔNG tính)."""
     return _need() or DRAWING.tinh_dai_luong(ten_dai_luong, ma_cau_kien, inputs_bo_sung)
