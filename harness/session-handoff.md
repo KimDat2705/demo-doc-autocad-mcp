@@ -1,7 +1,9 @@
 # Session Handoff — demo 2
 
-## Trạng thái hiện tại (2026-07-10 — TASK B trừ lỗ + C liệt kê diện tích + D ứng viên gợi ý | trước đó: chốt demo 2 + HARNESS)
+## Trạng thái hiện tại (2026-07-10 — TASK B trừ lỗ + C diện tích + D ứng viên + F ước cao cột | trước đó: chốt demo 2)
 > Mỗi tuyên bố "xong" kèm BẰNG CHỨNG (commit + số test) truy được. Nhật ký chi tiết hơn: `GHI_CHU_HOAN_THIEN.md`.
+
+- **✅ TASK F — ƯỚC CHIỀU CAO CỘT theo cao độ [2026-07-10]:** `_rs_chieu_cao_cot` ước = `typical_floor_h`×1000mm khi đối tác không cấp (cờ `gia_dinh_cao_tang` + nguon `suy_tu_cao_do` + `chua_chac`); `_la_cot` (nhãn thắng prefix) chặn không-cột. **MÓNG resolver RIÊNG `_rs_chieu_cao_mong`** (luôn hỏi — hàng rào tất định ở tầng `_FORMULAS`). ghi_chu tách 'GIẢ ĐỊNH 1 tầng' khỏi 'GÁN VỊ TRÍ'. Không levels → hỏi (không bịa). ⚠ ĐỔI HÀNH VI: cập nhật test B (C1 chưa cấp cao → nay tính được) + P.3 (D↔F). Kiểm chứng đối kháng 29 probe = **0 lỗ** (F1-F7). Test **[Q] 14 ca** (149/149). ⚠ CHƯA commit — chờ user.
 
 - **✅ TASK D — ỨNG VIÊN GỢI Ý cho input thiếu (1-click) [2026-07-10]:** `tinh_dai_luong` gắn `ung_vien` vào từng `inputs_thieu[i]` (additive). `_ung_vien_kg_moi_bo` (quét 'X kg', loại 'TỔNG', cờ per-unit `_KG_PU_RE` bền garble bộ→bé; GT inox 8.62 [67FFC]) + `_ung_vien_dim` (dim gần mã, đòi mã, loại 0.0, 'thap'+khoảng cách). Dispatch theo RESOLVER (không theo 'ten'): `chieu_cao` cột (`_rs_chieu_cao_cot`=cao độ) KHÔNG gợi vs tường (`_rs_bs_only`) gợi được; so_mat KHÔNG gợi. CHỐNG BỊA: ứng viên KHÔNG tự cắm (không vào vals/da_co, co_ket_qua giữ False), chỉ `inputs_bo_sung` mới tính; kg KHÔNG khẳng định thuộc mã. Kiểm chứng đối kháng 27 probe = **0 lỗ**. Test **[P] 14 ca** (134/134). ⚠ CHƯA commit — chờ user.
 
@@ -20,7 +22,7 @@
 - **⚠ Lưu ý cấu trúc:** demo 2 KHÔNG có `specs/specs.json` (theo quy ước Harness đã ghi ở `AGENTS.md`) — `feature_list.json` thay cho specs/. Rà trạng thái tính năng ở `feature_list.json`, KHÔNG tìm specs/.
 
 ## Còn lại / Bước tiếp (xem `feature_list.json` + `ROADMAP_DEMO2.md`)
-- **Củng cố treo:** ~~B (trừ lỗ cửa)~~ ✓ · ~~C (liệt kê diện tích ghi sẵn)~~ ✓ · ~~D (ứng viên kg/bộ 1-click)~~ ✓ — B/C/D XONG 2026-07-10; còn F (ước cao cột theo cao độ), G (test đối kháng đa-domain).
+- **Củng cố treo:** ~~B (trừ lỗ cửa)~~ ✓ · ~~C (liệt kê diện tích ghi sẵn)~~ ✓ · ~~D (ứng viên kg/bộ 1-click)~~ ✓ · ~~E (gợi ý m³ ghi sẵn)~~ ✓ (từ trước) · ~~F (ước cao cột theo cao độ)~~ ✓ — B/C/D/F XONG 2026-07-10; **còn G** (test đối kháng đa-domain) + robustness H/I/J/K/L.
 - **Robustness treo:** H (model fallback 429/503), I (chặn file lớn sớm), J (dọn file TTL), K (tách session), L (keep-alive + giám sát).
 - **Đề xuất trước khi giao rộng:** audit an toàn đa-agent trên MỌI tool; xin 3-5 bản vẽ đơn vị thiết kế khác nhau; dựng KPI "tỷ lệ bịa".
 

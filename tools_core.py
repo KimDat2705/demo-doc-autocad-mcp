@@ -471,7 +471,7 @@ _FORMULAS = {
         "ten": "Thể tích bê tông móng", "don_vi": "m³",
         "cach_tinh": "canh_a × canh_b × chiều_cao × số_lượng ÷ 1.000.000.000",
         "inputs": [("canh_a", "mm", "_rs_canh_a", "canh_a"), ("canh_b", "mm", "_rs_canh_b", "canh_b"),
-                   ("chieu_cao", "mm", "_rs_chieu_cao_cot", "chieu_cao"), ("so_luong", "cái", "_rs_so_luong", "so_luong")],
+                   ("chieu_cao", "mm", "_rs_chieu_cao_mong", "chieu_cao"), ("so_luong", "cái", "_rs_so_luong", "so_luong")],
         "compute": lambda v: round(v["canh_a"] * v["canh_b"] * v["chieu_cao"] * v["so_luong"] / 1e9, 3),
     },
     # --- Nhóm 🔴 (đối tác chủ yếu nhập số; bản vẽ ít ghi mã+kích thước sẵn) — dựng SẴN công thức ---
@@ -1273,8 +1273,26 @@ class Drawing:
         td = self._doc_tiet_dien(ma)
         return self._td_prov(td, "b") if td else None
 
+    def _la_cot(self, ma):
+        """CỘT? — NHÃN bản vẽ THẮNG prefix (chống overfit tên): 'DẦM DM-1'->{dam}->False; nhãn ghi 'cột'->True.
+        Không nhãn -> chỉ nhận mã dạng c<digit> ('c1','c-3'->True; 'm1','s1','d1',''->False). Mirror is_cot của tong_hop."""
+        loai = self._loai_tu_ban_ve(ma)
+        if loai: return "cot" in loai
+        codes = [w for w in _norm_label(ma or "").split() if any(c.isdigit() for c in w)]
+        return any(re.match(r"c-?\d", c) for c in codes)
+
     def _rs_chieu_cao_cot(self, ma, bs, ten=None):
-        # chiều cao cột/móng KHÔNG đọc tự động (là chênh cao độ) -> đối tác nhập
+        # Task F: chiều cao CỘT — đối tác cấp -> override; else ƯỚC = 1 TẦNG (typical_floor_h suy từ cao độ), CỜ giả định.
+        if ten and ten in bs: return _nd(bs[ten])
+        typ = (getattr(self, "levels", None) or {}).get("typical_floor_h")
+        if not typ or not self._la_cot(ma):     # không suy được cao tầng HOẶC không xác nhận là CỘT -> hỏi (không bịa)
+            return None
+        return {"gia_tri": float(typ) * 1000.0, "nguon": "suy_tu_cao_do", "handle": None,
+                "chua_chac": True, "do_tin_cay": "thap", "gia_dinh_cao_tang": True,
+                "giai_thich": "GIẢ ĐỊNH cột cao 1 tầng = %.2fm (hệ thống suy từ CAO ĐỘ, không đo trực tiếp); xác nhận nếu khác" % float(typ)}
+
+    def _rs_chieu_cao_mong(self, ma, bs, ten=None):
+        # Chiều cao MÓNG = chiều dày đế (KHÁC chiều cao TẦNG) -> KHÔNG ước theo cao độ; đối tác nhập (giữ luật cũ).
         if ten and ten in bs: return _nd(bs[ten])
         return None
 
@@ -1428,6 +1446,7 @@ class Drawing:
                 da_co.append({"ten": ten, "gia_tri": res["gia_tri"], "don_vi": dv, "nguon": res["nguon"],
                               "handle": res.get("handle"), "do_tin_cay": res.get("do_tin_cay"),
                               "chua_chac": res.get("chua_chac", False), "suy_doan_don_vi": res.get("suy_doan_don_vi", False),
+                              "gia_dinh_cao_tang": res.get("gia_dinh_cao_tang", False),
                               "giai_thich": res.get("giai_thich", "")})
         ten_dl = ("%s %s" % (F["ten"], ma_cau_kien)).strip()
         if thieu:
@@ -1509,10 +1528,11 @@ class Drawing:
                 tru_extra = {"gross": kq, "khau_tru_lo": round(ded_raw, prec),
                              "so_lo": data_lo["so_lo"], "chi_tiet_lo": data_lo["chi_tiet"]}
                 kq = net   # ket_qua = NET (đã trừ lỗ)
-        chua_chac = any(x["chua_chac"] for x in da_co)
+        co_gan_dim = any(x["chua_chac"] and x.get("nguon") == "gan_vi_tri" for x in da_co)
+        co_gia_dinh_cao = any(x.get("gia_dinh_cao_tang") for x in da_co)   # Task F: ước cao cột theo cao độ
         suy_dv = any(x.get("suy_doan_don_vi") for x in da_co)
         so_do = ["%s = %s %s (%s%s)" % (x["ten"], (round(x["gia_tri"], 2)), x["don_vi"], x["nguon"],
-                                        ", CHƯA CHẮC" if x["chua_chac"] else "") for x in da_co]
+                                        ((", GIẢ ĐỊNH 1 tầng" if x.get("gia_dinh_cao_tang") else ", CHƯA CHẮC") if x["chua_chac"] else "")) for x in da_co]
         if tru_extra:
             so_do.append("gross (chưa trừ lỗ) = %s %s  [%s]" % (tru_extra["gross"], F["don_vi"], F["cach_tinh"]))
             for c in tru_extra["chi_tiet_lo"]:
@@ -1522,12 +1542,19 @@ class Drawing:
                          % (F["ten"], tru_extra["khau_tru_lo"], F["don_vi"], kq, F["don_vi"]))
         else:
             so_do.append("→ %s = %s %s  [%s]" % (F["ten"], kq, F["don_vi"], F["cach_tinh"]))
-        gc = ("Đây là SỐ DO HỆ THỐNG TÍNH (không phải số ghi sẵn trong file). "
-              + ("Có input lấy theo GÁN VỊ TRÍ (đường kích thước gần cấu kiện) → CHƯA CHẮC đúng 100%; đối tác nên xác nhận."
-                 if chua_chac else "Mọi input đọc trực tiếp từ file (đáng tin).")
-              + (" ⚠ ĐƠN VỊ tiết diện (cm/mm) là SUY ĐOÁN theo kích thước (bản vẽ không ghi rõ) — nếu sai quy ước, "
-                 "kết quả lệch 100×; đề nghị đối tác xác nhận đơn vị." if suy_dv else "")
-              + canh_bao_dv)
+        gc = "Đây là SỐ DO HỆ THỐNG TÍNH (không phải số ghi sẵn trong file). "
+        if co_gan_dim:
+            gc += "Có input lấy theo GÁN VỊ TRÍ (đường kích thước gần cấu kiện) → CHƯA CHẮC đúng 100%; đối tác nên xác nhận. "
+        elif not co_gia_dinh_cao:
+            gc += "Mọi input đọc trực tiếp từ file (đáng tin). "
+        if co_gia_dinh_cao:
+            _typ = (getattr(self, "levels", None) or {}).get("typical_floor_h")
+            gc += ("⚠ CHIỀU CAO CỘT là GIẢ ĐỊNH 1 tầng ≈ %.2fm (hệ thống SUY từ CAO ĐỘ, KHÔNG đo trực tiếp) — đối tác "
+                   "XÁC NHẬN nếu cột cao khác (nhiều tầng / một phần tầng). " % (_typ or 0))
+        if suy_dv:
+            gc += (" ⚠ ĐƠN VỊ tiết diện (cm/mm) là SUY ĐOÁN theo kích thước (bản vẽ không ghi rõ) — nếu sai quy ước, "
+                   "kết quả lệch 100×; đề nghị đối tác xác nhận đơn vị.")
+        gc += canh_bao_dv
         if tru_extra:
             gc += (" ĐÃ TRỪ %d lỗ cửa/cửa sổ (khấu trừ %s %s; gross %s %s). SỐ LƯỢNG lỗ do ĐỐI TÁC khai, KÍCH THƯỚC lỗ "
                    "do CODE (bảng thống kê)/đối tác cấp — hệ KHÔNG tự đoán cửa nào thuộc tường nào. Reveal/bệ cửa (mặt bên "

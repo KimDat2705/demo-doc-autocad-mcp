@@ -60,7 +60,7 @@ def main():
     ck(kt, "diện tích cửa", "GL9", '{"rong":800}', "vang", "GL9 vắng + số bù")
     ck(kc, "thể tích bê tông cột", "C1", '{"chieu_cao":3600}', "tinh", "C1 thật + số bù")
     ck(kc, "thể tích bê tông sàn", "", '{"dien_tich":50,"chieu_day":100}', "tinh", "mã trống = nhập tay")
-    ck(kc, "thể tích bê tông cột", "C1", "", "thieu", "C1 thật, chưa cấp cao")
+    ck(kc, "thể tích bê tông cột", "C1", "", "tinh", "C1 thật, chưa cấp cao -> NAY ước 1 tầng (task F), tính được (cờ giả định)")
 
     print("[C] SAI LOẠI — mã có thật nhưng bản vẽ ghi là loại KHÁC")
     ck(kc, "thể tích bê tông móng", "DM-1", '{"chieu_cao":1000}', "sailoai", "DM-1 là DẦM, hỏi MÓNG")
@@ -380,10 +380,9 @@ def main():
     _emit("ghi_chu: nêu 'ỨNG VIÊN' + 'KHÔNG tự cắm'", "ỨNG VIÊN" in r.get("ghi_chu", "") and "KHÔNG tự cắm" in r.get("ghi_chu", ""))
     r2 = kt.tinh_dai_luong("khối lượng inox", "S1", '{"kg_moi_bo":8.62}')
     _emit("XÁC NHẬN kg/bộ=8.62 -> tính 137.92 (đường xác nhận KHÔNG đổi)", r2.get("co_ket_qua") and abs(r2["ket_qua"] - 137.92) < 0.01)
-    # P.3 ANTI-FAB: input KHÔNG có nguồn -> KHÔNG ung_vien
-    r = kc.tinh_dai_luong("thể tích bê tông cột", "C1", "")
-    thc = next((t for t in r.get("inputs_thieu", []) if t["ten"] == "chieu_cao"), None)
-    _emit("C1 chieu_cao (_rs_chieu_cao_cot=chênh cao độ) -> KHÔNG ung_vien (dim 220 là tiết diện)", thc is not None and not thc.get("ung_vien"))
+    # P.3 ANTI-FAB (dispatch tất định, độc lập task F): chiều cao cột/móng KHÔNG có ứng viên dim (cao độ ≠ dim)
+    _emit("dispatch chieu_cao cột (_rs_chieu_cao_cot) -> KHÔNG ung_vien (dim 220 là tiết diện, không phải cao)", kc._ung_vien_cho_input("C1", "chieu_cao", "_rs_chieu_cao_cot") == [])
+    _emit("dispatch chieu_cao móng (_rs_chieu_cao_mong) -> KHÔNG ung_vien", kc._ung_vien_cho_input("M1", "chieu_cao", "_rs_chieu_cao_mong") == [])
     r = kc.tinh_dai_luong("diện tích trát", "", '{"chieu_dai":5000,"chieu_cao":3000}')
     ths = next((t for t in r.get("inputs_thieu", []) if t["ten"] == "so_mat"), None)
     _emit("so_mat (chọn 1/2, không đo được) -> KHÔNG ung_vien", ths is not None and not ths.get("ung_vien"))
@@ -391,6 +390,34 @@ def main():
     _emit("_ung_vien_dim(ma='') -> [] (chống vơ dim toàn file)", kc._ung_vien_dim("", "ngang") == [])
     dc = kc._ung_vien_dim("C1", "ngang")
     _emit("_ung_vien_dim('C1'): mọi ứng viên value!=0, do_tin_cay='thap', khoang_cach int", all(e["gia_tri"] != 0.0 and e["do_tin_cay"] == "thap" and isinstance(e["khoang_cach"], int) for e in dc))
+
+    print("[Q] ƯỚC CHIỀU CAO CỘT theo cao độ (task F) — giả định 1 tầng có CỜ, KHÔNG cho móng")
+    import tools_core as _TCq
+    # Q.1 KC C1 không cấp chiều cao -> ước 1 tầng (typical_floor_h=3.6m) -> tính + cờ giả định LỘ
+    r = kc.tinh_dai_luong("thể tích bê tông cột", "C1", "")
+    _emit("C1 (chưa cấp cao) -> ước 1 tầng, ket_qua≈4.704 (0.22×0.22×3.6×27)", r.get("co_ket_qua") and abs(r["ket_qua"] - 4.704) < 0.01, "-> %s" % r.get("ket_qua"))
+    cc = next((x for x in r.get("inputs_da_co", []) if x["ten"] == "chieu_cao"), None)
+    _emit("chieu_cao: nguon='suy_tu_cao_do' + gia_dinh_cao_tang + chua_chac (giả định LỘ)",
+          cc is not None and cc["nguon"] == "suy_tu_cao_do" and cc.get("gia_dinh_cao_tang") and cc["chua_chac"])
+    _emit("ghi_chu: có 'GIẢ ĐỊNH'+'tầng', KHÔNG có 'GÁN VỊ TRÍ' (thông điệp đúng, không nhầm gán-dim)",
+          "GIẢ ĐỊNH" in r.get("ghi_chu", "") and "tầng" in r.get("ghi_chu", "") and "GÁN VỊ TRÍ" not in r.get("ghi_chu", ""))
+    # Q.2 override đối tác cấp -> đường CŨ, KHÔNG giả định
+    r = kc.tinh_dai_luong("thể tích bê tông cột", "C1", '{"chieu_cao":5000}')
+    _emit("override chieu_cao=5000 -> 6.534, KHÔNG cờ giả định (đường cũ)", r.get("co_ket_qua") and abs(r["ket_qua"] - 6.534) < 0.01 and "GIẢ ĐỊNH cột cao" not in r.get("ghi_chu", ""), "-> %s" % r.get("ket_qua"))
+    # Q.3 ván khuôn cột cũng ước (chung resolver _rs_chieu_cao_cot)
+    r = kc.tinh_dai_luong("diện tích ván khuôn cột", "C1", "")
+    _emit("ván khuôn cột C1 -> ước 1 tầng + cờ giả định", r.get("co_ket_qua") and "GIẢ ĐỊNH" in r.get("ghi_chu", ""))
+    # Q.4 MÓNG KHÔNG ước — resolver RIÊNG _rs_chieu_cao_mong (hàng rào tất định ở tầng công thức)
+    _emit("móng dùng resolver riêng '_rs_chieu_cao_mong'", _TCq._FORMULAS["the_tich_be_tong_mong"]["inputs"][2][2] == "_rs_chieu_cao_mong")
+    _emit("_rs_chieu_cao_mong luôn None (không bs) -> móng HỎI như cũ (chiều cao móng ≠ 1 tầng)", kc._rs_chieu_cao_mong("M1", {}, "chieu_cao") is None)
+    # Q.5 _la_cot phân biệt cột / móng / dầm / rỗng
+    for ma, exp in [("C1", True), ("C4", True), ("DM-1", False), ("M1", False), ("", False)]:
+        _emit("_la_cot(%r)=%s" % (ma, exp), kc._la_cot(ma) == exp)
+    # Q.6 guard: có levels nhưng mã KHÔNG phải cột -> KHÔNG ước; và KHÔNG levels -> hỏi (không bịa)
+    _emit("có levels nhưng mã M1 (không-cột) -> _rs_chieu_cao_cot None (không ước bừa)", kc._rs_chieu_cao_cot("M1", {}, "chieu_cao") is None)
+    _sv = kc.levels; kc.levels = {}
+    _emit("KHÔNG levels -> C1 _rs_chieu_cao_cot None (không bịa mặc định)", kc._rs_chieu_cao_cot("C1", {}, "chieu_cao") is None)
+    kc.levels = _sv
 
     print("\n%d PASS / %d FAIL" % (PASS, FAIL))
     return 1 if FAIL else 0
