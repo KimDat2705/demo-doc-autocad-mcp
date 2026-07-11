@@ -27,7 +27,8 @@ Chạy TRƯỚC mỗi commit và cuối mỗi phiên (một phiên = một "tran
 ## Dữ liệu / Hồi quy
 - [ ] `python tests/test_takeoff_chong_bia.py` = **177/177 PASS** (offline, không tốn API; nhóm A-V, +N/O/P/Q = task B/C/D/F, +R/S/T/U + I.5/I.6 = task G đa-domain & vá tong_phu gộp thép/Số lượng + parity diện tích, +V = Residual G #1 đọc SL bảng thống kê theo cột TỔNG)
 - [ ] `python tests/test_qa_data.py` = **129/129** (đọc — cần ../input_files/_dxf + ../demo_doc_autocad)
-- [ ] `bash harness/scripts/check.sh` = **HARNESS GATE: PASS**
+- [ ] `python tests/test_model_fallback.py` = **20/20 PASS** (robustness H — chuỗi model 429/503, offline mock, KHÔNG tốn API)
+- [ ] `bash harness/scripts/check.sh` = **HARNESS GATE: PASS** (4 bước: import+tool · no-key · takeoff 177 · fallback 20)
 
 ## Tổng quát (chống overfit)
 - [ ] Quy ước mới nhận diện → test trên **≥3 file khác domain** (9T cm / Gia Lộc mm / hạ tầng)
@@ -39,4 +40,4 @@ Chạy TRƯỚC mỗi commit và cuối mỗi phiên (một phiên = một "tran
 
 ## Cloud
 - [ ] Push `main` → Render rebuild OK
-- [ ] `GET /version` live = commit VỪA push + `sect_cm_max:130` + `has_section_index:true` (xác nhận đúng bản đã lên)
+- [ ] `GET /version` live = commit VỪA push + `sect_cm_max:130` + `has_section_index:true` + `models:[2.5-flash,2.0-flash,1.5-flash]` (bản đã lên + chuỗi fallback H)

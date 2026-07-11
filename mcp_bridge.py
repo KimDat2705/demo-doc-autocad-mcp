@@ -40,6 +40,52 @@ MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
 # Flash gọi tool kém gọn hơn Pro -> 8 lượt dễ hết -> AI bỏ cuộc dù data có sẵn. Nới rộng.
 MAX_TURNS = int(os.environ.get("GEMINI_MAX_TURNS", "14"))
 
+# ---- Robustness H — CHUỖI MODEL DỰ PHÒNG khi model chính 429 (cạn quota) / 503 (quá tải) KÉO DÀI ----
+# Phân tầng: SDK (HttpRetryOptions) đã retry HTTP 429/5xx ~3 lần/model cho blip tạm; H kích khi model VẪN
+# cạn/quá tải SAU retry -> NHẢY model kế trong chuỗi (fail-forward), KHÔNG lùi lại model đã hỏng trong cùng
+# request. Cấu hình chuỗi phụ qua env GEMINI_FALLBACK_MODELS (danh sách ngăn phẩy). Mặc định 2.0-flash,1.5-flash
+# (free-tier phổ biến); deploy nên đặt theo model account có quyền. Chuỗi rỗng -> hành vi CŨ (1 model).
+_FALLBACK_DEFAULT = "gemini-2.0-flash,gemini-1.5-flash"
+MODELS = [MODEL] + [m.strip() for m in os.environ.get("GEMINI_FALLBACK_MODELS", _FALLBACK_DEFAULT).split(",")
+                    if m.strip() and m.strip() != MODEL]
+_OVERLOAD_CODES = {429, 500, 502, 503, 504}   # 429 cạn quota · 503 quá tải · 5xx transient (khớp HttpRetryOptions)
+
+
+def _is_overloaded(e):
+    """Lỗi có phải 'model cạn quota / quá tải' (đáng thử model KHÁC)? Ưu tiên mã HTTP (google.genai.APIError.code),
+    fallback khớp chuỗi. Lỗi KHÁC (safety/malformed/400/404/key sai) -> False (thử model khác KHÔNG giúp)."""
+    for attr in ("code", "status_code", "status"):
+        v = getattr(e, attr, None)
+        if isinstance(v, int) and v in _OVERLOAD_CODES:
+            return True
+    s = str(e).lower()
+    if any(str(c) in s for c in _OVERLOAD_CODES):
+        return True
+    return any(k in s for k in ("resource_exhausted", "resourceexhausted", "unavailable",
+                                "overloaded", "quota", "rate limit", "rate_limit", "high demand"))
+
+
+def _gen_fallback(client, contents, cfg, state):
+    """generate_content với CHUỖI MODEL: thử MODELS[state['i']:] theo thứ tự; gặp 429/503 -> model KẾ (fail-forward).
+    state['i'] = chỉ số model đang dùng OK (lần gọi sau trong CÙNG request bắt đầu từ đây -> không dò lại model đã
+    hỏng). Lỗi KHÁC quá-tải HOẶC hết model -> NÉM để caller xử như cũ. state['tried'] log (model, loại lỗi)."""
+    last = None
+    for i in range(state.get("i", 0), len(MODELS)):
+        try:
+            resp = client.models.generate_content(model=MODELS[i], contents=contents, config=cfg)
+            state["i"] = i
+            return resp
+        except Exception as e:
+            state.setdefault("tried", []).append((MODELS[i], type(e).__name__))
+            if not _is_overloaded(e) or i >= len(MODELS) - 1:
+                state["i"] = i          # dừng ở model này (lỗi không-quá-tải hoặc đã là model cuối)
+                raise
+            last = e                    # 429/503 và còn model -> thử model kế
+    if last is not None:
+        raise last
+    raise RuntimeError("Không có model khả dụng trong chuỗi")
+
+
 try:
     from google import genai
     from google.genai import types
@@ -288,6 +334,7 @@ def tra_loi_ai(bridge, q, file_summary="", history=None):
         tools=tools, temperature=0, max_output_tokens=8192,
         automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True))
     client = _get_client()
+    _mstate = {"i": 0}          # Robustness H: chỉ số model đang dùng trong chuỗi MODELS (giữ qua các lượt của request)
     contents = []
     for h in (history or []):
         r = "model" if h.get("role") == "model" else "user"
@@ -298,7 +345,13 @@ def tra_loi_ai(bridge, q, file_summary="", history=None):
     da_goi, da_nhac = False, False
 
     for _ in range(MAX_TURNS):
-        resp = client.models.generate_content(model=MODEL, contents=contents, config=cfg)
+        try:
+            resp = _gen_fallback(client, contents, cfg, _mstate)   # H: chuỗi model dự phòng 429/503
+        except Exception as e:
+            if _is_overloaded(e):     # MỌI model trong chuỗi đều cạn/quá tải -> báo LỘ, KHÔNG crash (robustness)
+                return {"answer": "⚠ AI đang quá tải hoặc hết lượt truy vấn (đã thử %d model). Vui lòng thử lại sau ít phút." % len(MODELS),
+                        "evidence": _flat_ev(evidence), "anh_id": anh_id, "file_id": file_id, "ai": True}
+            raise                     # lỗi khác (safety/malformed/cấu hình) -> để app.py bắt như cũ
         cand = (resp.candidates or [None])[0]
         if not cand or not cand.content:
             return {"answer": _msg_finish(getattr(cand, "finish_reason", None)) or
@@ -352,7 +405,7 @@ def tra_loi_ai(bridge, q, file_summary="", history=None):
         system_instruction=SYSTEM_PROMPT + ("\n\nBản vẽ đang nạp: " + file_summary if file_summary else ""),
         temperature=0, max_output_tokens=8192)   # KHÔNG truyền tools -> model buộc tự trả lời từ dữ liệu đã có
     try:
-        resp = client.models.generate_content(model=MODEL, contents=contents, config=cfg_final)
+        resp = _gen_fallback(client, contents, cfg_final, _mstate)   # H: chuỗi model dự phòng cho câu trả lời cuối
         cand = (resp.candidates or [None])[0]
         parts = (cand.content.parts or []) if (cand and cand.content) else []
         text = "".join(getattr(p, "text", "") or "" for p in parts if not getattr(p, "thought", False)).strip()

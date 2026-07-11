@@ -61,6 +61,7 @@ def version():
         info["has_section_index"] = hasattr(tools_core, "_build_section_index")
     except Exception as e:
         info["tools_core_error"] = "%s: %s" % (type(e).__name__, e)
+    info["models"] = getattr(mcp_bridge, "MODELS", None)   # H: chuỗi model dự phòng 429/503 (verify đã deploy)
     return jsonify(info)
 
 
