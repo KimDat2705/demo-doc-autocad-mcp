@@ -1,8 +1,9 @@
 # Session Handoff — demo 2
 
-## Trạng thái hiện tại (2026-07-10 — TASK B trừ lỗ + C diện tích + D ứng viên + F ước cao cột | trước đó: chốt demo 2)
+## Trạng thái hiện tại (2026-07-11 — TASK G test đối kháng đa-domain + vá 3 bug tong_phu/diện tích | trước: B/C/D/F, chốt demo 2)
 > Mỗi tuyên bố "xong" kèm BẰNG CHỨNG (commit + số test) truy được. Nhật ký chi tiết hơn: `GHI_CHU_HOAN_THIEN.md`.
 
+- **✅ TASK G — TEST ĐỐI KHÁNG ĐA-DOMAIN + VÁ 3 BUG [2026-07-11]:** workflow probe 6-agent (KC/KT 9T + rachmop + gap-check + overfit-hunter) chạy engine thật → TỰ KIỂM CHỨNG (repro độc lập) 3 bug tầng tổng hợp/đọc: **(A cao, LIVE)** `tong_phu` gộp thép tròn+hình thành 1 số kg (KC 67759.7, KT 4110.7) — vi phạm rule 8b (mcp_bridge:164), mâu thuẫn code-vs-policy; **(C)** gộp 'Số lượng' dị loại → 835/191 vô nghĩa; **(B latent)** `_rs_dien_tich_ghi_san` regex thô đọc mật độ '16 cọc/1m2'=diện tích 1 (parity gap; live-scan 0/4 file). VÁ `tools_core.py`: tách loai thép tròn/hình + 'Số lượng'∈`_khong_cong` + resolver dùng `_STATED_M2_RE` (lookbehind). Test **[R][S][T][U] + I.5/I.6** (9T KC F ước 10 tầng=21.12 + C999 vàng; 9T KT 193k obj recall 16 nhãn đủ handle). Hoist 9T KC nạp 1 lần (trước 2 lần). **takeoff 167/167 (was 149) · qa 129/129 · check.sh PASS.** ⚠ CHƯA commit — chờ user.
 - **✅ CHỐT SỔ 2026-07-10:** clean-state PASS — takeoff **149/149** · data **129/129** · `check.sh` PASS · 21 MCP tool · no-key · working tree TRACKED sạch, push hết, HEAD `a775825` LIVE (verify `/version`). Củng cố **A–F XONG**; còn G + robustness H–L. (Dùng SCRIPT runner, KHÔNG pytest.)
 - **✅ TASK F — ƯỚC CHIỀU CAO CỘT theo cao độ [2026-07-10]:** `_rs_chieu_cao_cot` ước = `typical_floor_h`×1000mm khi đối tác không cấp (cờ `gia_dinh_cao_tang` + nguon `suy_tu_cao_do` + `chua_chac`); `_la_cot` (nhãn thắng prefix) chặn không-cột. **MÓNG resolver RIÊNG `_rs_chieu_cao_mong`** (luôn hỏi — hàng rào tất định ở tầng `_FORMULAS`). ghi_chu tách 'GIẢ ĐỊNH 1 tầng' khỏi 'GÁN VỊ TRÍ'. Không levels → hỏi (không bịa). ⚠ ĐỔI HÀNH VI: cập nhật test B (C1 chưa cấp cao → nay tính được) + P.3 (D↔F). Kiểm chứng đối kháng 29 probe = **0 lỗ** (F1-F7). Test **[Q] 14 ca** (149/149). ⚠ CHƯA commit — chờ user.
 
@@ -23,7 +24,8 @@
 - **⚠ Lưu ý cấu trúc:** demo 2 KHÔNG có `specs/specs.json` (theo quy ước Harness đã ghi ở `AGENTS.md`) — `feature_list.json` thay cho specs/. Rà trạng thái tính năng ở `feature_list.json`, KHÔNG tìm specs/.
 
 ## Còn lại / Bước tiếp (xem `feature_list.json` + `ROADMAP_DEMO2.md`)
-- **Củng cố treo:** ~~B (trừ lỗ cửa)~~ ✓ · ~~C (liệt kê diện tích ghi sẵn)~~ ✓ · ~~D (ứng viên kg/bộ 1-click)~~ ✓ · ~~E (gợi ý m³ ghi sẵn)~~ ✓ (từ trước) · ~~F (ước cao cột theo cao độ)~~ ✓ — B/C/D/F XONG 2026-07-10; **còn G** (test đối kháng đa-domain) + robustness H/I/J/K/L.
+- **Củng cố treo:** ~~B (trừ lỗ cửa)~~ ✓ · ~~C (liệt kê diện tích ghi sẵn)~~ ✓ · ~~D (ứng viên kg/bộ 1-click)~~ ✓ · ~~E (gợi ý m³ ghi sẵn)~~ ✓ · ~~F (ước cao cột theo cao độ)~~ ✓ · ~~G (test đối kháng đa-domain)~~ ✓ [2026-07-11, +vá 3 bug tong_phu/diện tích] — **A–G XONG**; còn robustness H/I/J/K/L.
+- **Residual G (vòng sau):** recall SL 9T KT cần ground-truth độc lập; cờ `suy_doan_don_vi` cho tiết diện cạnh <40; (concurrency thuộc robustness K).
 - **Robustness treo:** H (model fallback 429/503), I (chặn file lớn sớm), J (dọn file TTL), K (tách session), L (keep-alive + giám sát).
 - **Đề xuất trước khi giao rộng:** audit an toàn đa-agent trên MỌI tool; xin 3-5 bản vẽ đơn vị thiết kế khác nhau; dựng KPI "tỷ lệ bịa".
 

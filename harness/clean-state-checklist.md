@@ -25,7 +25,7 @@ Chạy TRƯỚC mỗi commit và cuối mỗi phiên (một phiên = một "tran
 - [ ] Mọi nội dung cụ thể kèm **handle** có thật trong file
 
 ## Dữ liệu / Hồi quy
-- [ ] `python tests/test_takeoff_chong_bia.py` = **149/149 PASS** (offline, không tốn API; nhóm A-Q, +N/O/P/Q = task B/C/D/F)
+- [ ] `python tests/test_takeoff_chong_bia.py` = **167/167 PASS** (offline, không tốn API; nhóm A-U, +N/O/P/Q = task B/C/D/F, +R/S/T/U + I.5/I.6 = task G đa-domain & vá tong_phu gộp thép/Số lượng + parity diện tích)
 - [ ] `python tests/test_qa_data.py` = **129/129** (đọc — cần ../input_files/_dxf + ../demo_doc_autocad)
 - [ ] `bash harness/scripts/check.sh` = **HARNESS GATE: PASS**
 

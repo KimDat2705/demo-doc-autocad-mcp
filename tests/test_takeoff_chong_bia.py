@@ -45,6 +45,11 @@ def main():
     global PASS, FAIL
     kt, kc = Drawing(KT), Drawing(KC)
     cua = Drawing(CUA) if os.path.isfile(CUA) else None
+    # 9T (đa-domain) — nạp 1 LẦN, tái dùng ở [I]/[O]/[U] (trước đây 9T KC nạp 2 lần, phí ~53s):
+    P9 = os.path.join(BASE, "BV+DT nha 9 tang", "2. Ket Cau_NHA 9T.dxf")       # 9T KẾT CẤU (quy ước cm)
+    n9 = Drawing(P9) if os.path.isfile(P9) else None
+    P9KT = os.path.join(BASE, "BV+DT nha 9 tang", "1. Kien truc nha 9T.dxf")   # 9T KIẾN TRÚC (193k obj — recall diện tích)
+    n9kt = Drawing(P9KT) if os.path.isfile(P9KT) else None
 
     print("[A] EXISTENCE — cấu kiện thật vs giả (đa-domain)")
     for ma in ["D1", "S1", "CM1"]: ck(kt, "diện tích cửa", ma, "", "ton_tai")
@@ -142,9 +147,7 @@ def main():
         PASS, FAIL = PASS + int(ok), FAIL + int(not ok)
         print("  [%s] _sect_to_mm(%d,%d,%r) đơn vị=%s (mong %s)" % ("OK" if ok else "FAIL", a, b, st, u, exp))
     # I.2 Nhà 9T (quy ước cm): trước đây MÙ (báo thiếu). Nay đọc được cột + tính ĐÚNG (không lệch 100×).
-    P9 = os.path.join(BASE, "BV+DT nha 9 tang", "2. Ket Cau_NHA 9T.dxf")
-    if os.path.isfile(P9):
-        n9 = Drawing(P9)
+    if n9:
         ccm = [e for e in n9.section_index if e["code"].startswith("c-") and e["don_vi"] == "cm"]
         ok = len(ccm) >= 3; PASS, FAIL = PASS + int(ok), FAIL + int(not ok)
         print("  [%s] 9T: đọc %d cột đơn vị CM (mong ≥3; trước fix = 0, mù hoàn toàn)" % ("OK" if ok else "FAIL", len(ccm)))
@@ -160,6 +163,17 @@ def main():
         okf = r.get("co_ket_qua") and "SUY ĐOÁN" in r.get("ghi_chu", "")
         PASS, FAIL = PASS + int(bool(okf)), FAIL + int(not okf)
         print("  [%s] 9T C-3: có CẢNH BÁO đơn vị suy đoán cm/mm (chống bịa: chưa chắc phải lộ)" % ("OK" if okf else "FAIL"))
+        # I.5 (đa-domain G) — F ước cao cột trên 9T (10 TẦNG, typical 3.3m): C-3 KHÔNG cấp cao -> ước 1 tầng
+        r = n9.tinh_dai_luong("thể tích bê tông cột", "C-3", "")
+        okg = r.get("co_ket_qua") and abs((r.get("ket_qua") or 0) - 21.12) < 0.01 and "GIẢ ĐỊNH" in r.get("ghi_chu", "")
+        PASS, FAIL = PASS + int(bool(okg)), FAIL + int(not okg)
+        print("  [%s] 9T C-3 (chưa cấp cao) -> F ước 1 tầng 3.3m = %s m³ (mong 21.12, cờ GIẢ ĐỊNH lộ)" % ("OK" if okg else "FAIL", r.get("ket_qua")))
+        # I.6 existence trên 9T: mã cột GIẢ -> vàng (không bịa số cho thứ không có trên domain lạ) + tầng khác Gia Lộc
+        ck(n9, "thể tích bê tông cột", "C999", "", "vang", "9T: mã cột giả phải vàng")
+        tt = n9.thong_tin_tang()
+        okt = tt.get("co_cao_do") and abs((tt.get("chieu_cao_tang_dien_hinh_m") or 0) - 3.3) < 0.3
+        PASS, FAIL = PASS + int(bool(okt)), FAIL + int(not okt)
+        print("  [%s] 9T thong_tin_tang: typical≈3.3m — cross-domain khác Gia Lộc 3.6m" % ("OK" if okt else "FAIL"))
     else:
         print("  [..] BỎ QUA I.2 — không thấy file 9T (%s)" % P9)
     # I.3 Gia Lộc (quy ước mm): KHÔNG regression — vẫn đọc mm, KHÔNG cảnh báo nhiễu, thể tích C1 giữ nguyên.
@@ -351,11 +365,10 @@ def main():
     th = kt.tong_hop_khoi_luong()
     _emit("tong_hop: có dòng loại 'Diện tích (ghi sẵn)' nhưng KHÔNG vào tong_phu",
           any(row["loai"] == "Diện tích (ghi sẵn)" for row in th["bang"]) and not any(x["loai"] == "Diện tích (ghi sẵn)" for x in th["tong_phu"]))
-    # O.4 EMPTY (9T): 0 nhãn -> LỘ + gợi ý CẤP, không bịa
-    P9O = os.path.join(BASE, "BV+DT nha 9 tang", "2. Ket Cau_NHA 9T.dxf")
-    if os.path.isfile(P9O):
-        r = Drawing(P9O).liet_ke_dien_tich_ghi_san()
-        _emit("9T (0 nhãn) -> co_du_lieu=False + goi_y mời đối tác CẤP (không bịa/suy hình học)",
+    # O.4 EMPTY (9T KẾT CẤU): 0 nhãn -> LỘ + gợi ý CẤP, không bịa (tái dùng n9 đã nạp — không nạp lại)
+    if n9:
+        r = n9.liet_ke_dien_tich_ghi_san()
+        _emit("9T KC (0 nhãn) -> co_du_lieu=False + goi_y mời đối tác CẤP (không bịa/suy hình học)",
               (not r.get("co_du_lieu")) and r.get("so_nhan") == 0 and "CẤP" in r.get("goi_y", ""))
     else:
         print("  [..] BỎ QUA O.4 — không thấy file 9T")
@@ -418,6 +431,55 @@ def main():
     _sv = kc.levels; kc.levels = {}
     _emit("KHÔNG levels -> C1 _rs_chieu_cao_cot None (không bịa mặc định)", kc._rs_chieu_cao_cot("C1", {}, "chieu_cao") is None)
     kc.levels = _sv
+
+    print("[R] TỔNG PHỤ KHÔNG GỘP THÉP (G) — thép tròn + thép hình RIÊNG (rule 8b), KHÔNG ra 4110.7/67759.7 kg")
+    for lb, d in [("KC", kc), ("KT", kt)]:
+        th = d.tong_hop_khoi_luong(); tp = th["tong_phu"]
+        tron = d.thep.get("tong_kg") if d.thep.get("co_bang") else None
+        hinh = d.thep_hinh.get("tong_kg") if d.thep_hinh.get("co_bang") else None
+        gop = None if (tron is None or hinh is None) else round(tron + hinh, 2)
+        _emit("%s: KHÔNG có tong_phu kg == thép tròn+hình (%s) gộp ≥2 dòng" % (lb, gop),
+              gop is None or not any(x["don_vi"] == "kg" and abs(x["tong"] - gop) < 0.01 and x["so_dong"] >= 2 for x in tp))
+        if tron is not None and hinh is not None:
+            _emit("%s: thép tròn %s & thép hình %s là 2 dòng tong_phu RIÊNG (loai khác nhau)" % (lb, tron, hinh),
+                  any(x["loai"] == "Khối lượng thép tròn" and abs(x["tong"] - tron) < 0.01 for x in tp) and
+                  any(x["loai"] == "Khối lượng thép hình" and abs(x["tong"] - hinh) < 0.01 for x in tp))
+
+    print("[S] PARITY _rs_dien_tich_ghi_san (G) — KHÔNG đọc mật độ 'N cọc/1m2' làm diện tích (đồng bộ _build_stated_areas)")
+    _fd = {"vn": "sàn SX9 diện tích 16 cọc/1m2", "handle": "TESTDENS", "layer": ""}
+    _fr = {"vn": "sàn SY9 diện tích 634m2", "handle": "TESTREAL", "layer": ""}
+    kc.texts.append(_fd); kc.texts.append(_fr)
+    try:
+        rd = kc._rs_dien_tich_ghi_san("SX9", {}, None)
+        _emit("mật độ '16 cọc/1m2' -> None (KHÔNG bịa diện tích=1.0)", rd is None, "-> %s" % rd)
+        rr = kc._rs_dien_tich_ghi_san("SY9", {}, None)
+        _emit("diện tích thật '634m2' -> đọc 634 (case hợp lệ KHÔNG regression)",
+              rr is not None and abs(rr.get("gia_tri", 0) - 634.0) < 1e-6, "-> %s" % (rr and rr.get("gia_tri")))
+    finally:
+        kc.texts.remove(_fd); kc.texts.remove(_fr)
+    import tools_core as _TCs
+    _emit("_STATED_M2_RE chặn '/1m2' (parity mức module)", _TCs._STATED_M2_RE.search("16 coc/1m2") is None)
+
+    print("[T] TỔNG PHỤ KHÔNG GỘP 'Số lượng' DỊ LOẠI (G) — không ra con số 835/191 bộ/cái vô nghĩa")
+    for lb, d in [("KC", kc), ("KT", kt)]:
+        th = d.tong_hop_khoi_luong()
+        _emit("%s: KHÔNG có tong_phu loại 'Số lượng' (SL dị loại không gộp tổng)" % lb,
+              not any(x["loai"] == "Số lượng" for x in th["tong_phu"]))
+        _emit("%s: dòng 'Số lượng' VẪN còn trong bảng (không mất dữ liệu, chỉ không gộp)" % lb,
+              any(x["loai"] == "Số lượng" for x in th["bang"]))
+
+    print("[U] ĐA-DOMAIN 9T KIẾN TRÚC (193k đối tượng) — recall nhãn diện tích + KHÔNG bịa trên domain lạ")
+    if n9kt:
+        la = n9kt.liet_ke_dien_tich_ghi_san()
+        _emit("9T KT: co_du_lieu=True + so_nhan≥15 (recall nhãn m² trên file lớn)",
+              bool(la.get("co_du_lieu")) and la.get("so_nhan", 0) >= 15, "-> so_nhan=%s" % la.get("so_nhan"))
+        _emit("9T KT: MỌI mục có handle + verbatim (đối chiếu được — thất bại phải lộ)",
+              bool(la.get("danh_sach")) and all(x.get("handle") and x.get("text") for x in la["danh_sach"]))
+        _emit("9T KT: KHÔNG mục nào m2<=0 (không bịa trị rác)",
+              all((x.get("m2") or 0) > 0 for x in la.get("danh_sach", [])))
+        ck(n9kt, "diện tích cửa", "ZZ99", "", "vang", "9T KT: mã cửa giả -> vàng")
+    else:
+        print("  [..] BỎ QUA [U] — không thấy file 9T KT")
 
     print("\n%d PASS / %d FAIL" % (PASS, FAIL))
     return 1 if FAIL else 0

@@ -1329,14 +1329,17 @@ class Drawing:
         if not toks:
             return None            # KHÔNG có mã cụ thể -> KHÔNG quét cả file vơ 'diện tích Xm2' bất kỳ (chống bịa
                                    # diện tích sàn từ số vô chủ) -> đối tác nhập dien_tich qua chat. Đồng bộ _rs_chieu_day.
-        rex = re.compile(r"(\d+(?:[.,]\d+)?)\s*m2")
         for tx in self.texts:
             nv = _norm_label(tx["vn"])
             if not all(_tok_bound(t, nv) for t in toks): continue
-            m = rex.search(nv)
-            if m and "dien tich" in nv:
-                return {"gia_tri": float(m.group(1).replace(",", ".")), "nguon": "doc_verbatim", "handle": tx["handle"],
-                        "chua_chac": False, "do_tin_cay": "cao", "giai_thich": "diện tích ghi '%s'" % tx["vn"][:40]}
+            if "dien tich" not in nv: continue
+            # PARITY với _build_stated_areas (Task C): dùng _STATED_M2_RE (lookbehind chặn mật độ '/1m2' + đuôi
+            # thập phân) + gộp '/  1m2'->'/1m2'. Regex thô cũ đọc '16 cọc/1m2' thành diện tích=1 (BỊA sàn).
+            m = _STATED_M2_RE.search(re.sub(r"/\s+", "/", nv))
+            if m:
+                return {"gia_tri": float((m.group(1) or m.group(2)).replace(",", ".")), "nguon": "doc_verbatim",
+                        "handle": tx["handle"], "chua_chac": False, "do_tin_cay": "cao",
+                        "giai_thich": "diện tích ghi '%s'" % tx["vn"][:40]}
         return None
 
     def _cau_kien_hien_dien(self, ma_cau_kien):
@@ -1640,11 +1643,13 @@ class Drawing:
                              "don_vi": "", "nguon": "đọc sẵn" + ("" if sl is None else ", SL=%d" % sl), "handle": s["handle"]})
                 need = ("chiều dài" if not is_cot else ("số lượng" if typ else "chiều cao tầng"))
                 can_bs.append("Thể tích %s: cần %s để tính." % (s["code"].upper(), need))
-        if self.thep.get("co_bang"):                     # 4) THÉP
-            rows.append({"hang_muc": "Cốt thép tròn (tổng)", "loai": "Khối lượng", "gia_tri": self.thep["tong_kg"],
+        # 4) THÉP — loai RIÊNG cho thép tròn vs thép hình/inox để tong_phu KHÔNG gộp 2 bản chất khác nhau thành
+        # MỘT con số kg (rule 8b mcp_bridge CẤM cộng 564.8+3545.9=4110.7); mỗi bảng là 1 tổng riêng, trình bày riêng.
+        if self.thep.get("co_bang"):
+            rows.append({"hang_muc": "Cốt thép tròn (tổng)", "loai": "Khối lượng thép tròn", "gia_tri": self.thep["tong_kg"],
                          "don_vi": "kg", "nguon": "đọc bảng thống kê thép", "handle": ""})
         if self.thep_hinh.get("co_bang"):
-            rows.append({"hang_muc": "Thép hình/inox (tổng)", "loai": "Khối lượng", "gia_tri": self.thep_hinh["tong_kg"],
+            rows.append({"hang_muc": "Thép hình/inox (tổng)", "loai": "Khối lượng thép hình", "gia_tri": self.thep_hinh["tong_kg"],
                          "don_vi": "kg", "nguon": "đọc bảng thống kê", "handle": ""})
         for sv in (getattr(self, "stated_vol", None) or []):   # 5) m³ GHI SẴN
             rows.append({"hang_muc": sv["text"][:44], "loai": "Khối lượng (ghi sẵn)", "gia_tri": sv["m3"],
@@ -1662,7 +1667,8 @@ class Drawing:
         # để KHÔNG gộp nhầm khác bản chất (Thể tích BT m³ ≠ Khối lượng ghi sẵn/đào móng m³); ô 'gia_tri' dạng chuỗi (tiết diện) bỏ qua.
         _tp = {}
         # 'Diện tích (ghi sẵn)' KHÔNG cộng: nhãn HỖN TẠP (mái+sơn+granit...) cộng lại vô nghĩa (Task C). Như 'Cao độ/tầng'.
-        _khong_cong = {"Cao độ/tầng", "Diện tích (ghi sẵn)"}
+        # 'Số lượng' KHÔNG cộng: gộp SL DỊ LOẠI (cửa+dầm+cột+nhóm thép) thành 1 con số 'bộ/cái' vô nghĩa + double-count dầm chia đoạn.
+        _khong_cong = {"Cao độ/tầng", "Diện tích (ghi sẵn)", "Số lượng"}
         for r in rows:
             v = r.get("gia_tri")
             if r["loai"] not in _khong_cong and isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v):
