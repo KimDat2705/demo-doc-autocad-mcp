@@ -481,6 +481,22 @@ def main():
     else:
         print("  [..] BỎ QUA [U] — không thấy file 9T KT")
 
+    print("[V] ĐỌC SỐ LƯỢNG BẢNG THỐNG KÊ theo cột TỔNG (G residual #1) — gated fail-silent, số do BẢN VẼ GHI")
+    if n9kt:
+        sch = {e["label_norm"].strip(): e["so_luong"] for e in n9kt.qty_index if e.get("nguon", "").startswith("bảng thống kê")}
+        for code, exp in [("d2", 9), ("d3", 20), ("d10", 18), ("d4", 11), ("d8", 2), ("sk2", 16)]:
+            _emit("9T KT bảng cửa: %s = %d (cột TỔNG, đúng số bản vẽ ghi)" % (code, exp), sch.get(code) == exp, "-> %s" % sch.get(code))
+        _emit("9T KT: ≥15 mã đọc từ 'bảng thống kê (cột TỔNG)' + MỌI mã có handle (đối chiếu được)",
+              len(sch) >= 15 and all(e.get("handle") for e in n9kt.qty_index if e.get("nguon", "").startswith("bảng thống kê")))
+        r = n9kt.tra_cuu_so_luong("d3")   # end-to-end qua tool LLM gọi
+        _emit("tra_cuu_so_luong('d3') -> co_ghi_so_luong=True, có so_luong=20", r.get("co_ghi_so_luong") and any(m["so_luong"] == 20 for m in r.get("danh_sach_so_luong", [])))
+    else:
+        print("  [..] BỎ QUA [V] positive — không thấy file 9T KT")
+    # NEGATIVE (chống bịa): KC Gia Lộc (kết cấu, KHÔNG bảng cửa) -> resolver KHÔNG sinh entry nào
+    _emit("KC Gia Lộc: 0 entry 'bảng thống kê' (fail-silent — không bịa SL trên file không có bảng cửa)",
+          not any(e.get("nguon", "").startswith("bảng thống kê") for e in kc.qty_index))
+    _emit("KC Gia Lộc: qty_index giữ 94 mục (port demo 1 KHÔNG đổi)", len(kc.qty_index) == 94)
+
     print("\n%d PASS / %d FAIL" % (PASS, FAIL))
     return 1 if FAIL else 0
 

@@ -199,6 +199,78 @@ def _build_door_size_index(texts):
     return out
 
 
+# ---- BẢNG THỐNG KÊ CỬA/CỬA SỔ: đọc SỐ LƯỢNG theo CỘT 'TỔNG' (mã ở cột ký-hiệu <-> số ở cột tổng, cùng hàng) ----
+# VÌ SAO cần: _QTY_RE đòi từ-khoá + số trong CÙNG 1 text entity, nhưng bảng thống kê đặt tiêu đề cột ('TỔNG') và
+# TỪNG ô số ở các entity RIÊNG -> số lượng theo cột VÔ HÌNH với _build_qty_index (bỏ sót cả bảng cửa: d2=9, d3=20...).
+# CHỐNG BỊA (fail-silent): CHỈ xuất khi cột 'TỔNG' cho block SẠCH — ≥MINPAIRS cặp mã↔số DUY NHẤT, |Δy| chặt (cùng
+# hàng), mã ký-hiệu nằm SÁT bên TRÁI cột tổng (không vơ mã mặt-bằng ở xa). Header ghép bậy (bảng thép, ô 'tổng'
+# lạc) -> <MINPAIRS cặp -> BỎ cả header. Ưu tiên cột 'TỔNG' (KHÔNG cộng từng cột Tầng -> tránh double-count).
+_SCHED_DY = 60          # |Δy| tối đa coi là cùng hàng (đơn vị bản vẽ)
+_SCHED_XTOL = 800       # dung sai khớp cột với header 'TỔNG'
+_SCHED_XLEFT = 13000    # mã ký-hiệu phải nằm trong khoảng này bên TRÁI 'TỔNG'
+_SCHED_YSPAN = 40000    # chiều cao bảng tối đa dưới header (không vơ số ở tận cuối sheet)
+_SCHED_MINPAIRS = 5     # header phải cho ≥ ngần này cặp SẠCH mới nhận (loại bảng thép/ô lạc)
+_SCHED_VMAX = 2000      # số lượng 1 loại cửa hợp lý (chống ô số rác quá lớn)
+
+
+def _build_schedule_qty_index(texts):
+    """Đọc SỐ LƯỢNG cửa/cửa sổ từ CỘT 'TỔNG' của bảng thống kê (ghép mã↔số theo hàng). Trả list entry tương
+    thích qty_index (nguon='bảng thống kê (cột TỔNG)'). fail-silent: block không đủ sạch -> bỏ (thà thiếu hơn bịa)."""
+    heads = [t for t in texts if _norm_label(t.get("vn", "")).strip() in ("tong", "tong cong")]
+    if not heads:
+        return []
+    codes, ints = [], []
+    for t in texts:
+        s = (t.get("vn") or "").strip()
+        mc = _DOOR_CODE_RE.match(s)
+        if mc:
+            codes.append({"code": mc.group(1).lower().replace(" ", ""), "x": t.get("x", 0.0),
+                          "y": t.get("y", 0.0), "handle": t["handle"], "vn": s})
+            continue
+        if re.fullmatch(r"0*\d{1,4}", s):                # ô SỐ NGUYÊN thuần (giá trị cột)
+            v = int(s)
+            if 1 <= v <= _SCHED_VMAX:
+                ints.append({"v": v, "x": t.get("x", 0.0), "y": t.get("y", 0.0), "handle": t["handle"]})
+    if len(codes) < _SCHED_MINPAIRS or not ints:
+        return []
+    accepted, conflict = {}, set()                       # accepted[code] = (so_luong, code_cell, int_handle)
+    for h in heads:
+        hx, hy = h.get("x", 0.0), h.get("y", 0.0)
+        col = [i for i in ints if abs(i["x"] - hx) <= _SCHED_XTOL and (hy - _SCHED_YSPAN) < i["y"] < hy]
+        if len(col) < _SCHED_MINPAIRS:
+            continue
+        pairs, pc = {}, set()
+        for iv in col:
+            band = [c for c in codes if abs(c["y"] - iv["y"]) <= _SCHED_DY and (hx - _SCHED_XLEFT) <= c["x"] < hx]
+            if not band:
+                continue
+            band.sort(key=lambda c: (abs(c["y"] - iv["y"]), hx - c["x"]))
+            best = band[0]
+            if len(band) > 1 and (abs(band[1]["y"] - iv["y"]) - abs(best["y"] - iv["y"])) < 3:
+                continue                                  # hai mã gần tương đương về hàng -> mơ hồ -> bỏ
+            code = best["code"]
+            if code in pairs and pairs[code][0] != iv["v"]:
+                pc.add(code)
+                continue
+            pairs[code] = (iv["v"], best, iv["handle"])
+        clean = {k: v for k, v in pairs.items() if k not in pc}
+        if len(clean) < _SCHED_MINPAIRS:                  # cột không đủ sạch -> bỏ cả header (fail-silent)
+            continue
+        for code, tup in clean.items():
+            if code in accepted and accepted[code][0] != tup[0]:
+                conflict.add(code)
+            else:
+                accepted[code] = tup
+    out = []
+    for code, (v, cc, ih) in accepted.items():
+        if code in conflict:
+            continue
+        out.append({"label": cc["vn"].strip(), "label_norm": _norm_label(cc["vn"]), "so_luong": v,
+                    "handle": cc["handle"], "qty_handle": ih, "nguon": "bảng thống kê (cột TỔNG)",
+                    "x": cc["x"], "y": cc["y"]})
+    return out
+
+
 # ---- TIẾT DIỆN kết cấu: đơn vị cm/mm + ghép mã↔tiết diện theo tọa độ (port demo 1 _build_section_index) ----
 def _is_structcode(code):
     """Mã có phải cấu kiện KẾT CẤU (cột/dầm/đài/giằng)? Loại token rác/vật liệu (vd 'hop-50x100x2', '(sl=2;')."""
@@ -648,6 +720,10 @@ class Drawing:
         self.sheets = sheets
         self.sheets_sorted = sorted(sheets, key=lambda s: -s.get("y", 0.0))
         self.qty_index = self._build_qty_index(texts)
+        _seen_ql = {e["label_norm"] for e in self.qty_index}   # BẢNG THỐNG KÊ: bổ sung SL cửa/cửa sổ theo cột TỔNG
+        for _e in _build_schedule_qty_index(texts):            # (gated fail-silent) — bỏ mã đã có (không đè inline/spatial)
+            if _e["label_norm"] not in _seen_ql:
+                self.qty_index.append(_e); _seen_ql.add(_e["label_norm"])
         self.door_size_index = _build_door_size_index(texts)   # GĐ2: R×C cửa từ bảng thống kê (confident)
         self.section_index = _build_section_index(texts)       # tiết diện kết cấu: ghép mã↔AxB theo tọa độ + đơn vị cm/mm
         self.levels = _build_levels(texts)                     # GĐ2c: cao độ -> chiều cao tầng điển hình
