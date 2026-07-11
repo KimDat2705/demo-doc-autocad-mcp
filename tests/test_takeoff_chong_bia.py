@@ -322,6 +322,44 @@ def main():
     r = _xay(kc, '{"chieu_dai":20000,"chieu_cao":3000,"be_day":200,"lo_cua":[{"rong":9000,"cao":9000,"sl":1e300}]}')
     _emit("sl=1e300 -> block sạch, so_lo không phải int khổng lồ", (not r.get("co_ket_qua")) and len(str(r.get("so_lo"))) < 12)
 
+    print("[O] LIỆT KÊ DIỆN TÍCH GHI SẴN (task C) — nhãn m² verbatim, không phân loại/không suy hình học")
+    import tools_core as _TCo
+    def _sa(txt):  # unit test builder tất định (không phụ thuộc file)
+        return [e["m2"] for e in _TCo._build_stated_areas([{"vn": txt, "handle": "H", "layer": "L"}])]
+    def _sae(txt):
+        return _TCo._build_stated_areas([{"vn": txt, "handle": "H", "layer": "L"}])
+    # O.1 UNIT — lọc nhiễu + đa-trị + thập phân + cờ keyword (data-independent)
+    _emit("unit: '…250m2; …180m2' -> BẮT CẢ 250 & 180 (đa diện tích ngăn bởi ';')", sorted(_sa("dien tich 250m2; tang 2: 180m2")) == [180.0, 250.0])
+    _emit("unit: '16 cọc//1m2' MẬT ĐỘ -> RỖNG (lookbehind '/')", _sa("16 coc//1m2") == [])
+    _emit("unit: density CÓ KHOẢNG TRẮNG sau '/' ('16 cọc/ 1m2', '/  1m2') -> RỖNG (gộp '/ '->'/')", _sa("16 coc/ 1m2") == [] and _sa("16 coc/  1m2") == [])
+    _emit("unit: đuôi thập phân KHÔNG bịa — '.../44,5m2' KHÔNG ra 4.5/8.1 (lookbehind [/.,digit])", _sa("x 100m2/44,5m2/38.1m2") == [100.0])
+    _emit("unit: 'sơn 117m2/44,5m2/38.1m2' -> chỉ 117 (sub-area sau '/' còn trong verbatim)", _sa("son - dien tich 117m2/44,5m2/38.1m2") == [117.0])
+    _emit("unit: mã 'DM2' & 'dm2(22x50)' -> RỖNG (không chữ số liền trước m2)", _sa("mc dam mong DM2") == [] and _sa("dm2(22x50)") == [])
+    _emit("unit: '(m2)' đơn vị trần -> RỖNG", _sa("(m2)") == [])
+    _emit("unit: thập phân dấu phẩy '77,5m2' -> 77.5", _sa("tuong xay - dien tich 77,5m2") == [77.5])
+    _emit("unit: '634m2' 0-space + co_tu_khoa=True", _sae("mai ton dien tich 634m2")[0]["m2"] == 634.0 and _sae("mai ton dien tich 634m2")[0]["co_tu_khoa_dien_tich"])
+    _emit("unit: nhãn không keyword 'dày 12mm: 3,3m2' -> liệt kê, co_tu_khoa=False", _sae("compact hpl day 12mm: 3,3m2")[0]["co_tu_khoa_dien_tich"] is False)
+    # O.2 FILE THẬT — KT (nhiều nhãn), KC (lọc density)
+    r = kt.liet_ke_dien_tich_ghi_san()
+    _emit("KT: co_du_lieu + so_nhan>=15", r.get("co_du_lieu") and r.get("so_nhan", 0) >= 15, "-> %d nhãn, %d có keyword" % (r.get("so_nhan", 0), r.get("so_co_tu_khoa", 0)))
+    _emit("KT: có mái 634 m² (co_tu_khoa=True) + mọi mục có handle", any(e["m2"] == 634 and e["co_tu_khoa_dien_tich"] for e in r["danh_sach"]) and all(e.get("handle") for e in r["danh_sach"]))
+    _emit("KT: KHÔNG field tổng (không cộng gộp khác bản chất)", all(k not in r for k in ("tong", "tong_dien_tich", "tong_m2")))
+    _emit("KT: sort — item đầu co_tu_khoa=True + m² lớn nhất (tất định)", r["danh_sach"][0]["co_tu_khoa_dien_tich"] and r["danh_sach"][0]["m2"] == max(e["m2"] for e in r["danh_sach"]))
+    r = kc.liet_ke_dien_tich_ghi_san()
+    _emit("KC: đọc 7.04 (KHÔNG lấy 16 mật độ, KHÔNG lấy 1 density)", any(abs(e["m2"] - 7.04) < 1e-6 for e in r["danh_sach"]) and not any(e["m2"] in (1.0, 16.0) for e in r["danh_sach"]))
+    # O.3 tong_hop: loại riêng, KHÔNG cộng gộp
+    th = kt.tong_hop_khoi_luong()
+    _emit("tong_hop: có dòng loại 'Diện tích (ghi sẵn)' nhưng KHÔNG vào tong_phu",
+          any(row["loai"] == "Diện tích (ghi sẵn)" for row in th["bang"]) and not any(x["loai"] == "Diện tích (ghi sẵn)" for x in th["tong_phu"]))
+    # O.4 EMPTY (9T): 0 nhãn -> LỘ + gợi ý CẤP, không bịa
+    P9O = os.path.join(BASE, "BV+DT nha 9 tang", "2. Ket Cau_NHA 9T.dxf")
+    if os.path.isfile(P9O):
+        r = Drawing(P9O).liet_ke_dien_tich_ghi_san()
+        _emit("9T (0 nhãn) -> co_du_lieu=False + goi_y mời đối tác CẤP (không bịa/suy hình học)",
+              (not r.get("co_du_lieu")) and r.get("so_nhan") == 0 and "CẤP" in r.get("goi_y", ""))
+    else:
+        print("  [..] BỎ QUA O.4 — không thấy file 9T")
+
     print("\n%d PASS / %d FAIL" % (PASS, FAIL))
     return 1 if FAIL else 0
 

@@ -127,6 +127,15 @@ def boc_tach_kich_thuoc(tu_khoa: str = "", gioi_han: int = 30) -> dict:
 
 
 @mcp.tool()
+def liet_ke_dien_tich_ghi_san() -> dict:
+    """LIỆT KÊ mọi nhãn 'X m²' GHI SẴN trên bản vẽ (số ĐỌC + NGUYÊN VĂN + handle + layer) để đối tác ĐỐI CHIẾU /
+    CẤP diện tích (vd diện tích sàn). DÙNG khi hỏi 'diện tích sàn/mái/lát... là bao nhiêu', 'có ghi diện tích không'.
+    ⚠ Nhãn HỖN TẠP — hệ KHÔNG phân loại và KHÔNG khẳng định nhãn nào là 'diện tích sàn'; KHÔNG cộng gộp; KHÔNG suy
+    từ hình học. 0 nhãn -> gợi ý đối tác cấp. 'co_tu_khoa_dien_tich'=true = nhãn có 'diện tích'/'S=' (tin cậy hơn)."""
+    return _need() or DRAWING.liet_ke_dien_tich_ghi_san()
+
+
+@mcp.tool()
 def thong_tin_tang() -> dict:
     """Cao độ + CHIỀU CAO TẦNG điển hình + SỐ TẦNG ước tính (đọc mốc cao độ ±0.000/+3.600...).
     DÙNG cho 'chiều cao tầng', 'cao độ các tầng', 'công trình mấy tầng'. Số tầng là ƯỚC TÍNH."""

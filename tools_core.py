@@ -359,6 +359,40 @@ def _build_stated_volumes(texts):
     return out
 
 
+# ---- m² GHI SẴN trên bản vẽ (Task C — liệt kê nhãn diện tích, KHÔNG suy hình học, KHÔNG phân loại) ----
+# (?<![/.,\d]) chặn: MẬT ĐỘ '.../1m2' (số sau '/'), và ĐUÔI THẬP PHÂN/GIỮA-SỐ (số sau '.'/','/chữ-số) — nếu chỉ
+# dùng (?<!/) thì '117m2/44,5m2' sẽ bịa ra '4.5'/'8.1' từ đuôi số. GIỮ diện tích thật ngăn bởi space/';' (vd
+# 'tầng 1: 250m2; tầng 2: 180m2' -> cả 2). Mã 'DM2'/'dm2' tự loại (không CHỮ SỐ liền trước m2).
+_STATED_M2_RE = re.compile(r"(?<![/.,\d])(\d+(?:[.,]\d+)?)\s{0,2}m2\b|(?<![/.,\d])(\d+(?:[.,]\d+)?)\s{0,2}m²", re.I)
+_DT_KW_RE = re.compile(r"dien tich|\bs\s*=")   # cờ TIN CẬY (nhãn có 'diện tích'/'S=') — CHỈ để xếp ưu tiên, KHÔNG lọc
+
+
+def _build_stated_areas(texts):
+    """m² GHI SẴN trên bản vẽ (vd 'diện tích 634m2', 'S=6.36m2') -> số ĐỌC verbatim + handle (Task C).
+    Mirror _build_stated_volumes. LỌC mật độ '/1m2'; KHÔNG đặt min (giữ diện tích nhỏ thật); KHÔNG phân loại
+    type (mái/sơn/granit/sàn) — đối tác tự đối chiếu; co_tu_khoa_dien_tich = cờ tin cậy (nhãn có 'diện tích'/'S=').
+    GIỚI HẠN CÓ CHỦ Ý (an toàn = thà DROP còn hơn BỊA): nhiều diện tích trong 1 nhãn ngăn bởi '/' hoặc ',' liền ->
+    chỉ trị ĐẦU (đuôi sau '/'/',' bị lookbehind chặn để không bịa số thập phân/mật độ); ngăn bởi cách/';'/'và' -> đủ.
+    Trị vẫn còn NGUYÊN VĂN ở 'text'. Không manifest trên file mẫu (mỗi nhãn là 1 entity riêng)."""
+    out, seen = [], set()
+    for t in texts:
+        vn = (t.get("vn") or "").strip()
+        if not vn: continue
+        # gộp '/  1m2' -> '/1m2' để lookbehind chặn CẢ mật độ có khoảng trắng sau '/' (vd '16 cọc/ 1m2' -> bỏ '1');
+        # match trên 'scan', nhưng LƯU 'vn' NGUYÊN VĂN làm text (chỉ dùng để lấy TRỊ, không đổi hiển thị).
+        scan = re.sub(r"/\s+", "/", vn)
+        kw = bool(_DT_KW_RE.search(unaccent(vn).lower()))
+        for m in _STATED_M2_RE.finditer(scan):
+            val = _to_num(m.group(1) or m.group(2))
+            if not val or val <= 0: continue
+            key = (vn, round(val, 2))
+            if key in seen: continue
+            seen.add(key)
+            out.append({"text": vn, "m2": val, "handle": t["handle"],
+                        "layer": t.get("layer") or "", "co_tu_khoa_dien_tich": kw})
+    return out
+
+
 def _tok_bound(tok, lab):
     """Token có chữ số -> khớp RANH GIỚI TỪ, BỎ gạch ngang giữa chữ-số (C1 == C-1, ĐC3 == đc-3);
     vẫn chặn C-4 khớp nhầm C-40 (ranh giới). Token chữ -> substring (khớp font/ghép từ)."""
@@ -612,6 +646,7 @@ class Drawing:
         self.section_index = _build_section_index(texts)       # tiết diện kết cấu: ghép mã↔AxB theo tọa độ + đơn vị cm/mm
         self.levels = _build_levels(texts)                     # GĐ2c: cao độ -> chiều cao tầng điển hình
         self.stated_vol = _build_stated_volumes(texts)         # GĐ2d: m³ ghi sẵn trên bản vẽ
+        self.stated_area = _build_stated_areas(texts)          # Task C: m² ghi sẵn (nhãn diện tích, verbatim)
 
     # ---------------- qty index (port) ----------------
     def _find_title_for_qty(self, info, i):
@@ -891,6 +926,28 @@ class Drawing:
                            "ghi liền số (mm/cm/m/?) — cần đối tác XÁC NHẬN, KHÔNG coi là căn cứ 'vật liệu hay cấu kiện'. "
                            "Nhiều chuỗi 'AxBxC' (nhất là mm) là KÍCH THƯỚC VẬT LIỆU (gạch/thép/tấm), KHÔNG phải khối lượng. "
                            "Hệ KHÔNG tự tính (chống bịa). Muốn tính: đối tác xác nhận số rồi gọi tinh_dai_luong. m²/m³ là số ĐỌC thật."}
+
+    def liet_ke_dien_tich_ghi_san(self, **_):
+        """Task C: LIỆT KÊ mọi nhãn 'X m²' GHI SẴN trên bản vẽ (số ĐỌC + NGUYÊN VĂN + handle) để đối tác ĐỐI CHIẾU
+        / CẤP diện tích sàn. CHỈ đọc nhãn ghi sẵn — KHÔNG phân loại (mái/sơn/granit/sàn), KHÔNG suy từ hình học,
+        KHÔNG cộng gộp. Mật độ 'N/m²' đã lọc. co_tu_khoa_dien_tich = cờ tin cậy (nhãn có 'diện tích'/'S=')."""
+        items = list(getattr(self, "stated_area", None) or [])
+        items.sort(key=lambda e: (not e["co_tu_khoa_dien_tich"], -e["m2"], e["handle"] or ""))
+        if not items:
+            return {"co_du_lieu": False, "so_nhan": 0, "danh_sach": [],
+                    "goi_y": "Bản vẽ KHÔNG có nhãn 'X m²' đọc được. Nếu cần diện tích (vd diện tích sàn), đề nghị ĐỐI TÁC "
+                             "CẤP con số qua chat — hệ KHÔNG suy diện tích từ hình học (chống bịa).",
+                    "ghi_chu": "Không tìm thấy nhãn diện tích ghi sẵn nào trong bản vẽ."}
+        so_kw = sum(1 for e in items if e["co_tu_khoa_dien_tich"])
+        return {"co_du_lieu": True, "so_nhan": len(items), "so_co_tu_khoa": so_kw, "danh_sach": items,
+                "ghi_chu": "LIỆT KÊ các nhãn 'X m²' GHI SẴN (số do CODE đọc, text NGUYÊN VĂN + handle + layer). "
+                           "⚠ Nhãn HỖN TẠP (có thể là diện tích mái/sơn/lát/tường/ô-trống...) — hệ KHÔNG phân loại và "
+                           "TUYỆT ĐỐI KHÔNG khẳng định bất kỳ nhãn nào là 'DIỆN TÍCH SÀN'. Đối tác tự đối chiếu qua handle "
+                           "rồi CHỌN/CẤP con số đúng. 'co_tu_khoa_dien_tich'=true = nhãn có chữ 'diện tích'/'S=' (chủ đích "
+                           "diện tích, độ tin cao hơn) NHƯNG vẫn không nghĩa là sàn. TUYỆT ĐỐI KHÔNG cộng gộp các trị "
+                           "(khác bản chất). Hệ KHÔNG suy diện tích từ HÌNH HỌC — thiếu thì đối tác CẤP. Lưu ý: nếu MỘT "
+                           "nhãn chứa NHIỀU diện tích ngăn bởi '/' hoặc ',' LIỀN (không cách) thì chỉ trị ĐẦU được tách "
+                           "tự động — đối tác đọc NGUYÊN VĂN (text) để lấy đủ (ngăn bởi dấu cách/';'/'và' thì tách đủ)."}
 
     def tom_tat(self):
         return {"name": self.name, "dxfversion": self.dxfversion, "so_layer": len(self.layers),
@@ -1496,10 +1553,15 @@ class Drawing:
             rows.append({"hang_muc": "Chiều cao tầng điển hình (số tầng ước tính: %s)" % lv.get("n_tang_est"),
                          "loai": "Cao độ/tầng", "gia_tri": lv["typical_floor_h"], "don_vi": "m",
                          "nguon": "hệ thống tính (hiệu cao độ)", "handle": ""})
+        for sa in (getattr(self, "stated_area", None) or []):   # 7) DIỆN TÍCH GHI SẴN (Task C) — nhãn m² đọc verbatim
+            rows.append({"hang_muc": sa["text"][:44], "loai": "Diện tích (ghi sẵn)", "gia_tri": sa["m2"], "don_vi": "m²",
+                         "nguon": "đọc sẵn trên bản vẽ" + (" (có 'diện tích')" if sa["co_tu_khoa_dien_tich"] else " (chưa rõ loại)"),
+                         "handle": sa["handle"]})
         # TỔNG PHỤ theo (LOẠI, ĐƠN VỊ): CODE cộng các dòng cùng loại+đơn vị (số đã có nguồn). Nhóm theo (loai,don_vi)
         # để KHÔNG gộp nhầm khác bản chất (Thể tích BT m³ ≠ Khối lượng ghi sẵn/đào móng m³); ô 'gia_tri' dạng chuỗi (tiết diện) bỏ qua.
         _tp = {}
-        _khong_cong = {"Cao độ/tầng"}      # loại KHÔNG phải đại lượng để CỘNG (cao độ tầng = 1 trị, cộng vô nghĩa)
+        # 'Diện tích (ghi sẵn)' KHÔNG cộng: nhãn HỖN TẠP (mái+sơn+granit...) cộng lại vô nghĩa (Task C). Như 'Cao độ/tầng'.
+        _khong_cong = {"Cao độ/tầng", "Diện tích (ghi sẵn)"}
         for r in rows:
             v = r.get("gia_tri")
             if r["loai"] not in _khong_cong and isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v):
