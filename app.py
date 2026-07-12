@@ -7,8 +7,8 @@ Khác demo 1: (1) kiến trúc MCP CHUẨN (server tách rời, cắm được C
             (2) TRỰC QUAN — thấy bản vẽ + highlight, không chỉ chữ. Vẫn deploy cloud (không cần AutoCAD).
 Chạy: python app.py  ->  http://localhost:5050
 """
-import os, sys
-from flask import Flask, request, jsonify, send_file
+import os, sys, threading, uuid, time
+from flask import Flask, request, jsonify, send_file, g
 import mcp_bridge
 from fileutil import cleanup_old_files          # Robustness J — dọn file TTL (nhẹ, không kéo ezdxf)
 
@@ -28,17 +28,58 @@ READFILE_MAX_MB = int(os.environ.get("READFILE_MAX_MB", "45"))
 # Robustness J — dọn file _uploads/_renders cũ hơn ngần này phút mỗi lần upload (0 = tắt). KHỚP tools_core.FILE_TTL_MIN.
 FILE_TTL_MIN = int(os.environ.get("FILE_TTL_MIN", "60"))
 
-BRIDGE = None          # phiên MCP bền (lười khởi tạo)
-SUMMARY = ""           # tóm tắt bản vẽ đang nạp (đưa vào system prompt)
-CHAT_HISTORY = []      # lịch sử hội thoại [{role,text}] — để nhớ ngữ cảnh (đối tác nhập bù số thiếu ở lượt sau)
 MAX_HISTORY_TURNS = int(os.environ.get("MAX_HISTORY_TURNS", "6"))  # số lượt (mỗi lượt = 1 hỏi + 1 đáp) giữ lại
 
+# Robustness K — STATE THEO SESSION (thay 1 Drawing/history GLOBAL): mỗi phiên trình duyệt có bridge RIÊNG
+# (1 MCP subprocess = 1 Drawing) + summary + history + lock RIÊNG -> 2 người dùng KHÔNG đạp state nhau. Bound RAM
+# bằng CAP (trần phiên đồng thời; đầy -> đóng phiên CŨ NHẤT/LRU) + TTL (đóng phiên nhàn rỗi, giải phóng subprocess).
+SESSIONS = {}                     # sid -> {"bridge","summary","history","lock","last"}
+_SESS_LOCK = threading.RLock()    # bảo vệ dict SESSIONS
+MAX_SESSIONS = int(os.environ.get("MAX_SESSIONS", "4"))
+SESSION_TTL_MIN = int(os.environ.get("SESSION_TTL_MIN", "30"))
 
-def get_bridge():
-    global BRIDGE
-    if BRIDGE is None:
-        BRIDGE = mcp_bridge.MCPBridge(["mcp_server.py"], cwd=BASE)
-    return BRIDGE
+
+def _make_bridge():               # tách ra để test monkeypatch FakeBridge (khỏi spawn subprocess thật)
+    return mcp_bridge.MCPBridge(["mcp_server.py"], cwd=BASE)
+
+
+def _close_session(sid):          # GỌI TRONG _SESS_LOCK: bỏ phiên + đóng bridge (giải phóng subprocess/RAM)
+    s = SESSIONS.pop(sid, None)
+    if s and s.get("bridge"):
+        try:
+            s["bridge"].close()
+        except Exception:
+            pass
+
+
+def get_session():
+    """Lấy (hoặc TẠO) phiên theo cookie 'sid'. Sweep TTL + enforce CAP (đóng LRU). Trả (sid, session) + stash
+    g.sid để after_request set cookie. Bridge tạo LƯỜI ở /upload (phiên chưa upload -> KHÔNG tốn subprocess)."""
+    now = time.time()
+    sid = request.cookies.get("sid") or ""
+    with _SESS_LOCK:
+        if SESSION_TTL_MIN > 0:                        # đóng phiên quá hạn (giải phóng subprocess nhàn rỗi)
+            cutoff = now - SESSION_TTL_MIN * 60
+            for k in [k for k, v in SESSIONS.items() if v["last"] < cutoff]:
+                _close_session(k)
+        s = SESSIONS.get(sid)
+        if s is None:
+            sid = uuid.uuid4().hex
+            while SESSIONS and len(SESSIONS) >= MAX_SESSIONS:   # cap đầy -> đóng phiên CŨ NHẤT (LRU)
+                _close_session(min(SESSIONS, key=lambda k: SESSIONS[k]["last"]))
+            s = {"bridge": None, "summary": "", "history": [], "lock": threading.Lock(), "last": now}
+            SESSIONS[sid] = s
+        s["last"] = now
+    g.sid = sid
+    return sid, s
+
+
+@app.after_request
+def _attach_sid(resp):
+    sid = getattr(g, "sid", None)
+    if sid:
+        resp.set_cookie("sid", sid, max_age=(SESSION_TTL_MIN * 60 or 1800), httponly=True, samesite="Lax")
+    return resp
 
 
 @app.errorhandler(413)
@@ -73,7 +114,6 @@ def version():
 
 @app.route("/upload", methods=["POST"])
 def upload():
-    global SUMMARY
     f = request.files.get("file")
     name = (f.filename or "").lower() if f else ""
     if not f or not (name.endswith(".dxf") or name.endswith(".dwg")):
@@ -92,13 +132,17 @@ def upload():
             pass
         return jsonify({"error": "File tải lên (~%.0fMB) vượt giới hạn %dMB của gói máy chủ. Vui lòng thử file nhỏ hơn."
                         % (raw_mb, READFILE_MAX_MB)}), 413
+    sid, s = get_session()          # Robustness K — bridge/summary/history theo PHIÊN (không đạp người khác)
     try:
-        res = get_bridge().call("nap_ban_ve", {"path": dest}, timeout=600)
-        if isinstance(res, dict) and res.get("loi"):
-            return jsonify({"error": res["loi"]}), 500
-        SUMMARY = "%s (AutoCAD %s), %s đối tượng, %s layer." % (
-            res.get("name"), res.get("dxfversion"), res.get("tong_doi_tuong"), res.get("so_layer"))
-        CHAT_HISTORY.clear()   # nạp bản vẽ mới -> quên hội thoại cũ
+        with s["lock"]:             # tuần tự hoá các request CÙNG phiên (khác phiên = khác bridge -> song song)
+            if s["bridge"] is None:
+                s["bridge"] = _make_bridge()
+            res = s["bridge"].call("nap_ban_ve", {"path": dest}, timeout=600)
+            if isinstance(res, dict) and res.get("loi"):
+                return jsonify({"error": res["loi"]}), 500
+            s["summary"] = "%s (AutoCAD %s), %s đối tượng, %s layer." % (
+                res.get("name"), res.get("dxfversion"), res.get("tong_doi_tuong"), res.get("so_layer"))
+            s["history"] = []       # nạp bản vẽ mới -> quên hội thoại cũ (CỦA PHIÊN NÀY)
         return jsonify(res)
     except Exception as e:
         print("[upload] %s: %s" % (type(e).__name__, e), file=sys.stderr, flush=True)
@@ -112,12 +156,17 @@ def ask():
         return jsonify({"answer": "Hãy nhập câu hỏi.", "evidence": [], "ai": True})
     if not mcp_bridge.USE_AI:
         return jsonify({"answer": "Chưa cấu hình GEMINI_API_KEY trên máy chủ.", "evidence": [], "ai": True})
+    sid, s = get_session()          # Robustness K — bridge/summary/history của PHIÊN NÀY
+    if s["bridge"] is None:
+        return jsonify({"answer": "Chưa nạp bản vẽ cho phiên này. Hãy tải file .dxf/.dwg trước.",
+                        "evidence": [], "ai": True})
     try:
-        r = mcp_bridge.tra_loi_ai(get_bridge(), q, SUMMARY, history=CHAT_HISTORY)
-        # Ghi lại lượt này vào lịch sử (chỉ hỏi + đáp cuối) + cắt giữ N lượt gần nhất.
-        CHAT_HISTORY.append({"role": "user", "text": q})
-        CHAT_HISTORY.append({"role": "model", "text": r.get("answer", "")})
-        del CHAT_HISTORY[:-2 * MAX_HISTORY_TURNS]
+        with s["lock"]:             # tuần tự hoá request cùng phiên (tránh 2 lượt đạp history/bridge)
+            r = mcp_bridge.tra_loi_ai(s["bridge"], q, s["summary"], history=s["history"])
+            # Ghi lại lượt này vào lịch sử (chỉ hỏi + đáp cuối) + cắt giữ N lượt gần nhất.
+            s["history"].append({"role": "user", "text": q})
+            s["history"].append({"role": "model", "text": r.get("answer", "")})
+            del s["history"][:-2 * MAX_HISTORY_TURNS]
         return jsonify(r)
     except Exception as e:
         print("[ask] %s: %s" % (type(e).__name__, e), file=sys.stderr, flush=True)

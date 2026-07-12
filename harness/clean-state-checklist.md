@@ -30,7 +30,8 @@ Chạy TRƯỚC mỗi commit và cuối mỗi phiên (một phiên = một "tran
 - [ ] `python tests/test_model_fallback.py` = **20/20 PASS** (robustness H — chuỗi model 429/503, offline mock, KHÔNG tốn API)
 - [ ] `python tests/test_size_guard.py` = **9/9 PASS** (robustness I — chặn file lớn sớm trước convert/parse, offline)
 - [ ] `python tests/test_file_ttl.py` = **12/12 PASS** (robustness J — dọn file _uploads/_renders cũ theo TTL, offline)
-- [ ] `bash harness/scripts/check.sh` = **HARNESS GATE: PASS** (6 bước: import+tool · no-key · takeoff 177 · fallback 20 · size-guard 9 · file-ttl 12)
+- [ ] `python tests/test_session.py` = **17/17 PASS** (robustness K — tách state theo phiên, Flask test_client + FakeBridge, offline)
+- [ ] `bash harness/scripts/check.sh` = **HARNESS GATE: PASS** (7 bước: import+tool · no-key · takeoff 177 · fallback 20 · size-guard 9 · file-ttl 12 · session 17)
 
 ## Tổng quát (chống overfit)
 - [ ] Quy ước mới nhận diện → test trên **≥3 file khác domain** (9T cm / Gia Lộc mm / hạ tầng)
