@@ -4,7 +4,8 @@ Chạy TRƯỚC mỗi commit và cuối mỗi phiên (một phiên = một "tran
 
 ## Build / Import
 - [ ] `python -c "import tools_core"` sạch (không lỗi import)
-- [ ] `grep -c "@mcp.tool" mcp_server.py` = **21** (số MCP tool hiện tại; +liet_ke_dien_tich_ghi_san task C)
+- [ ] `grep -c "@mcp.tool" mcp_server.py` = **23** (21 + `hoi_de_hoc` + `doi_chieu_nghi_ngo` — AI tự học P0-P1 đọc-thuần)
+- [ ] ⚠ KHÔNG dùng `pytest` (test đổi `sys.stdout` lúc import → pytest crash `I/O operation on closed file`); chạy SCRIPT trực tiếp + `check.sh`. KHÔNG có `specs/specs.json` (dùng `feature_list.json`).
 - [ ] `requirements.txt` đủ (ezdxf, Flask, gunicorn, google-genai, mcp, matplotlib, pillow, openpyxl)
 
 ## Kiến trúc / Nguyên tắc
@@ -25,14 +26,15 @@ Chạy TRƯỚC mỗi commit và cuối mỗi phiên (một phiên = một "tran
 - [ ] Mọi nội dung cụ thể kèm **handle** có thật trong file
 
 ## Dữ liệu / Hồi quy
-- [ ] `python tests/test_takeoff_chong_bia.py` = **191/191 PASS** (offline, không tốn API; nhóm A-W; +N/O/P/Q = task B/C/D/F; +R/S/T/U + I.5/I.6 = task G đa-domain & vá tong_phu gộp thép/Số lượng + parity diện tích; +V = Residual G #1 SL bảng thống kê; **+W = audit an toàn đa-agent vá 9 lỗ** VN-thousands/tong_phu m³/non-dict crash/tra_cuu tổng/tong_so_luong/liet_ke_so_luong/layer/ván-khuôn-móng/mm-label)
+- [ ] `python tests/test_takeoff_chong_bia.py` = **214/214 PASS** (offline, không tốn API; nhóm A-Y; +W = audit 9 lỗ; **+X 12 ca = P-1 vá 6 lỗ tồn tại E1-E6** (neo ứng viên/provenance xác nhận/đối chiếu/chống injection/loud-skip/uuid); **+Y 11 ca = AI tự học P0-P1** (used_handles/residual + classifier ①②③ + noise-filter thép/mác + data-independent)) — *cần env READFILE_MAX_MB=300 để load 9T (114MB); check.sh tự set*
 - [ ] `python tests/test_qa_data.py` = **129/129** (đọc — cần ../input_files/_dxf + ../demo_doc_autocad)
 - [ ] `python tests/test_model_fallback.py` = **20/20 PASS** (robustness H — chuỗi model 429/503, offline mock, KHÔNG tốn API)
 - [ ] `python tests/test_size_guard.py` = **9/9 PASS** (robustness I — chặn file lớn sớm trước convert/parse, offline)
 - [ ] `python tests/test_file_ttl.py` = **12/12 PASS** (robustness J — dọn file _uploads/_renders cũ theo TTL, offline)
 - [ ] `python tests/test_session.py` = **17/17 PASS** (robustness K — tách state theo phiên, Flask test_client + FakeBridge, offline)
 - [ ] `python tests/test_health.py` = **11/11 PASS** (robustness L — /health + self-ping keep-alive + metrics, offline)
-- [ ] `bash harness/scripts/check.sh` = **HARNESS GATE: PASS** (8 bước: import+tool · no-key · takeoff 177 · fallback 20 · size-guard 9 · file-ttl 12 · session 17 · health 11)
+- [ ] `python tests/test_hoc_log.py` = **20/20 PASS** (P2 AI tự học — log WORM append-only + grep-guard "không reader" + rotation, offline)
+- [ ] `bash harness/scripts/check.sh` = **HARNESS GATE: PASS** (9 bước: import+tool · no-key · takeoff 214 · fallback 20 · size-guard 9 · file-ttl 12 · session 17 · health 11 · hoc-log 20)
 
 ## Tổng quát (chống overfit)
 - [ ] Quy ước mới nhận diện → test trên **≥3 file khác domain** (9T cm / Gia Lộc mm / hạ tầng)

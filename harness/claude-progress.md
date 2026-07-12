@@ -4,6 +4,21 @@
 > Mới nhất ở TRÊN CÙNG. Bàn giao đầy đủ: `session-handoff.md`. Nhật ký chi tiết hơn nữa: `../GHI_CHU_HOAN_THIEN.md`.
 
 ---
+## Session 2026-07-13 (CHỐT SỔ) — Khởi động vòng AI TỰ HỌC: Kế hoạch + P-1 + P0-P1 + P2 (đều LIVE)
+**Tóm tắt phiên (DÀI, nhiều commit, mỗi phase theo quy trình chuẩn: implement → adversarial review → vá finding → test giữ baseline → commit → push/deploy/verify LIVE):**
+- **Baseline đầu phiên** xác nhận (lưu ý user gõ `pytest`/`backend/` generic — dự án KHÔNG có, dùng script+check.sh).
+- **KẾ HOẠCH CHI TIẾT AI tự học** (`KE_HOACH_AI_TU_HOC_CHI_TIET.md`) — workflow 17-agent (design-panel 3 lăng kính + red-team 7 hướng) → kiến trúc eng-minimal + grafts safety-first; phát hiện + tự-tái-hiện **6 lỗ tồn tại E1-E6** phải vá trước; lộ trình P-1..P5. Commit `e32d7ce`.
+- **P-1** vá 6 lỗ E1-E6 (`73990de`, LIVE `5ecaca1`): neo ứng viên/provenance-xác-nhận-theo-handle/comparator-đối-chiếu/chống-injection/loud-skip/uuid-upload. Red-team diff bắt+vá overfit E1 (note kg xa mã bị vứt im lặng). Test [X] 12 ca.
+- **P0-P1** đọc-thuần (`6608edf`, LIVE `015161e`): `used_handles`/`_residual_texts` + `phan_loai_tin_hieu` ①②③ + tool `hoi_de_hoc`/`doi_chieu_nghi_ngo` (23 tool) + luật 16. Red-team ĐA-FIXTURE bắt classifier NGẬP NHIỄU 99% (thép/mác chuẩn coi 'mã lạ'; 9T KC 96 ứng viên/mã) → vá `_la_notation_chuan`+branch-order → 336→2. Test [Y] 11 ca.
+- **P2** log WORM (`787b1e6`, LIVE `b94da21`): `hoclog.py` CHỈ GHI (redact/cap+xoay/best-effort) + wiring tool-layer giữ core thuần; **bất biến KHÔNG hồi-tiếp inference** khoá bằng grep-guard (đếm-open+glob). Adversarial review 1-agent: 0 CONFIRMED cao/TB, vá 2 thap. Test [P2] 20 ca → check.sh [9/9].
+
+**Kết quả test (clean-state cuối phiên, ĐỀU 0 FAIL):** `test_takeoff_chong_bia.py` **214/214** (nhóm A-Y) · `test_qa_data.py` **129/129** · `check.sh` = **HARNESS GATE PASS [9/9]** (import+23 tool · no-key · takeoff 214 · fallback 20 · size-guard 9 · file-ttl 12 · session 17 · health 11 · hoc-log 20). Working tree TRACKED sạch, push hết, **HEAD `cd0d767`** (P2 code verify LIVE tại `b94da21`). **KHÔNG pytest** (crash `I/O operation on closed file`). feature_list: 28 done / 1 deferred (dự toán chi phí) / 1 planned (ai-tu-hoc — đang xây theo phase).
+
+**Quyết định dài hạn (đã lưu memory):** vòng AI tự học xây INCREMENTAL, P-1→P0-P1→P2 đều ĐỌC-THUẦN (chưa học gì, an toàn tuyệt đối); **P3 = ranh giới MỞ KÊNH HỌC = rủi ro cao nhất**, cần red-team workflow đa-agent mạnh. Bài học lặp lại: **red-team trên DIFF THẬT + ĐA-FIXTURE bắt overfit/nhiễu mà test-1-fixture (kể cả có số kỳ vọng) bỏ sót** — đã cứu 2 lần trong phiên (E1 R=8000, classifier 99% noise).
+
+**Đang chờ / bước tiếp:** **P3** (`self.hoc_phien` + `hoc_quy_uoc`: đối tác dạy cách đọc, áp-phiên, cờ chưa-xác-nhận, thu-hồi được) — làm KHI user chốt, chạy red-team mạnh trước. P4 (rào Excel không-vào-tổng) · P5 (codify quy ước toàn cục — **CHẶN tới khi có corpus ≥3 đơn vị thiết kế**, nút thắt cứng nhất). Dự toán chi phí vẫn HOÃN chờ đối tác.
+
+---
 ## Session 2026-07-13 — AI TỰ HỌC P2: log WORM append-only (cổng-4, đọc-thuần)
 **Mục tiêu:** user chốt "làm tiếp P2 log WORM" — ghi NHẬT KÝ các lần phơi "chỗ bí" (`hoi_de_hoc`/`doi_chieu_nghi_ngo`) cho DEV rà. Vẫn đọc-thuần, KHÔNG học/KHÔNG hồi-tiếp inference.
 
