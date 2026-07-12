@@ -64,6 +64,6 @@
     { "id": "du-toan-chi-phi", "name": "DỰ TOÁN CHI PHÍ (thành tiền = KL x đơn giá + định mức + thuế, mẫu Excel dự toán, mác BT/BOQ)", "status": "deferred",
       "evidence": "ROADMAP_DEMO2.md mục 4 'HOÃN — chờ đối tác chốt yêu cầu'. User chốt 2026-07-09: phạm vi demo = KHỐI LƯỢNG, không phải thành tiền." },
     { "id": "ai-tu-hoc", "name": "AI tự học từ đối tác (hỏi-để-học + log ứng viên + đối chiếu chéo + cổng duyệt)", "status": "planned",
-      "evidence": "NGHIEN_CUU_AI_TU_HOC.md — mới ở mức NGHIÊN CỨU/thiết kế (học CÁCH ĐỌC không học SỰ THẬT; áp-phiên tự động, hóa-cứng thì người duyệt). CHƯA code." }
+      "evidence": "NGHIEN_CUU_AI_TU_HOC.md (nguyên tắc) + KE_HOACH_AI_TU_HOC_CHI_TIET.md (bản KỸ THUẬT 2026-07-12: workflow 17-agent design-panel + red-team; kiến trúc eng-minimal + grafts safety-first; neo code thật; 6 lỗ tồn tại E1-E6 phải vá trước; lộ trình P-1..P5). CHƯA code — chờ corpus >=3 firm để mở P5." }
   ]
 }

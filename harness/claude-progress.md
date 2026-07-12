@@ -4,6 +4,22 @@
 > Mới nhất ở TRÊN CÙNG. Bàn giao đầy đủ: `session-handoff.md`. Nhật ký chi tiết hơn nữa: `../GHI_CHU_HOAN_THIEN.md`.
 
 ---
+## Session 2026-07-12 (b) — NGHIÊN CỨU + KẾ HOẠCH CHI TIẾT "AI tự học" (planning, KHÔNG code)
+**Mục tiêu:** user giao "tiếp tục nghiên cứu + lên kế hoạch chi tiết đầu mục AI tự học" (đang ở mức planned). Deliverable = tài liệu kế hoạch kỹ thuật, KHÔNG đụng code sản phẩm.
+
+**Đã làm:**
+- **Baseline đầu phiên (xác nhận trước khi làm):** `check.sh` **HARNESS GATE PASS [8/8]** (takeoff **191/191** + robustness 20/9/12/17/11) · `test_qa_data.py` **129/129** · git sạch, HEAD `5e1961f`=origin/main (đã push). *(Lưu ý: user gõ `cd backend && pytest` — dự án KHÔNG có backend/ & KHÔNG pytest; chạy script + check.sh.)*
+- **Workflow 17-agent** (Ground 4 đọc code thật → Design panel 3 lăng kính → Judge 3 chấm chéo → Red-team 7 hướng): điểm safety-first 23.5 / product 22 / **eng-minimal 25 THẮNG**. Tổng hợp = xương sống eng-minimal + **ghép bắt buộc** đảm bảo an toàn của safety-first (cổng ngữ-nghĩa hoá-code, mặc-định-chỉ-log, thu-hồi first-class, comparator ③ 5 nguồn, cap tin-cậy).
+- **TỰ tái hiện 6 lỗ ĐANG TỒN TẠI trên code thật** (không tin mù red-team — đúng `feedback-bia-tai-sinh-tang-code`): **E1** `_ung_vien_kg_moi_bo` quét cả file khoang_cach=None (1168-1191); **E2** xác nhận ứng viên qua `_nd` mất provenance→Excel chắc chắn (_nd 512, _rs_bs_only 1442); **E3** `_rs_*` short-circuit bs TRƯỚC đọc file→đè số-đọc âm thầm (1258 trước 1259); **E4** SYSTEM_PROMPT 0 dòng chống prompt-injection (mà vn[:80] đã vào context Gemini); **E5** test silent-skip + 0 dwg/dxf commit→gate ≥3-file không ép được (test 47-52); **E6** app.py:169 basename→2 phiên đè file.
+- **Viết `KE_HOACH_AI_TU_HOC_CHI_TIET.md`** (bản kỹ thuật của NGHIEN_CUU_AI_TU_HOC.md): kiến trúc neo code thật (3 primitive lõi used_handles/_residual_texts/dò-residual-gần-mã; 3 tín hiệu; data model 3 bản ghi; 6 tool; 4 cổng↔code); threat-model 7 red-team + biện pháp bắt buộc; lộ trình **P-1 (vá E1-E6) → P0..P5**; bất biến/non-goals/kill-criteria; **giới hạn nền tảng** (đối tác sở hữu file → cổng-1 không đủ, phòng thủ thật = chua_chac + ≥3 nguồn + người + không-vào-tổng). Cập nhật `feature_list.json` evidence (vẫn planned).
+
+**Kết quả test:** KHÔNG đổi code sản phẩm → baseline giữ nguyên (191/129/[8/8]). Chỉ thêm 1 doc + sửa 1 dòng evidence.
+
+**Bài học:** design-panel + red-team đối kháng lộ ra tính năng "tự học" KHUẾCH ĐẠI lỗ SẴN CÓ (provenance-laundering khi xác nhận ứng viên, injection qua vn[:80]) → kế hoạch phải có phase PRE-WORK vá lỗ tồn tại trước khi xây vòng học. Sự thật cứng: đối tác SỞ HỮU file nên "neo handle thật" (cổng-1) thoả mãn tầm thường — phải nói thẳng giới hạn.
+
+**Đang chờ:** ⚠ CHƯA commit (doc kế hoạch) — chờ user duyệt. Khi triển khai: bắt đầu P-1 (vá E1-E6, có giá trị độc lập). Mở P5 (codify) CHẶN tới khi có corpus ≥3 firm khác nhau (trùng "xin 3-5 bản vẽ đa-domain" đã treo).
+
+---
 ## Session 2026-07-12 (CHỐT SỔ) — Củng cố G + Residual G + Robustness H–L + Audit an toàn
 **Tóm tắt phiên:** phiên DÀI, **8 commit** đều theo quy trình chuẩn (probe → design → adversarial verify → test → docs → commit/push/deploy/verify `/version`(+`/health`) LIVE). Chi tiết từng đầu việc ở các entry bên dưới.
 
