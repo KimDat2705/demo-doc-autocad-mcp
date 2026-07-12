@@ -27,6 +27,9 @@ app.config["MAX_CONTENT_LENGTH"] = MAX_UPLOAD_MB * 1024 * 1024
 READFILE_MAX_MB = int(os.environ.get("READFILE_MAX_MB", "45"))
 # Robustness J — dọn file _uploads/_renders cũ hơn ngần này phút mỗi lần upload (0 = tắt). KHỚP tools_core.FILE_TTL_MIN.
 FILE_TTL_MIN = int(os.environ.get("FILE_TTL_MIN", "60"))
+# E6 — cookie sid cờ Secure GATE THEO ENV (mặc định OFF để local/test HTTP vẫn set được cookie; prod HTTPS đặt
+# COOKIE_SECURE=true trong render.yaml). Bật Secure -> cookie sid không lộ qua kênh HTTP không mã hoá.
+COOKIE_SECURE = os.environ.get("COOKIE_SECURE", "").lower() in ("1", "true", "yes")
 
 MAX_HISTORY_TURNS = int(os.environ.get("MAX_HISTORY_TURNS", "6"))  # số lượt (mỗi lượt = 1 hỏi + 1 đáp) giữ lại
 
@@ -86,7 +89,7 @@ def get_session():
 def _attach_sid(resp):
     sid = getattr(g, "sid", None)
     if sid:
-        resp.set_cookie("sid", sid, max_age=(SESSION_TTL_MIN * 60 or 1800), httponly=True, samesite="Lax")
+        resp.set_cookie("sid", sid, max_age=(SESSION_TTL_MIN * 60 or 1800), httponly=True, samesite="Lax", secure=COOKIE_SECURE)
     return resp
 
 
@@ -166,7 +169,9 @@ def upload():
         return jsonify({"error": "Chỉ nhận file .dxf hoặc .dwg."}), 400
     # Robustness J — DỌN file cũ mỗi lần upload (bound đĩa qua nhiều phiên): xoá _uploads/_renders quá TTL.
     cleanup_old_files([UPLOAD_DIR, RENDER_DIR], FILE_TTL_MIN)
-    dest = os.path.join(UPLOAD_DIR, os.path.basename(f.filename))
+    # E6 — tên đích DUY NHẤT theo uuid (GIỮ tên gốc làm hậu tố để vẫn là substring khi hiển thị): 2 phiên upload
+    # trùng tên (vd 'plan.dwg') KHÔNG còn ghi đè cùng 1 path -> phiên A không bị phiên B đạp file đang render.
+    dest = os.path.join(UPLOAD_DIR, uuid.uuid4().hex + "_" + os.path.basename(f.filename))
     f.save(dest)
     # Robustness I — CHẶN SỚM: file đã lưu > giới hạn parse -> loại NGAY (khỏi gọi MCP/convert/parse ~600s)
     # + DỌN file rác luôn (liên quan J). DWG NÉN dưới ngưỡng vẫn qua -> tools_core kiểm lại sau convert.

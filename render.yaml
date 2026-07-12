@@ -20,3 +20,5 @@ services:
         value: "150"
       - key: READFILE_MAX_MB
         value: "45"      # lên gói RAM cao hơn -> tăng ~250 để đọc file lớn
+      - key: COOKIE_SECURE
+        value: "true"    # E6 — Render chạy HTTPS -> cookie sid gắn cờ Secure (không lộ qua HTTP)

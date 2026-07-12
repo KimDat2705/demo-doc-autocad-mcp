@@ -76,7 +76,8 @@ def main():
             ok("HTTP 413 (payload too large)", resp.status_code == 413, resp.status_code)
             j = resp.get_json() or {}
             ok("thông báo lỗi nêu 'giới hạn'", "giới hạn" in (j.get("error") or ""), j)
-            ok("file đã bị DỌN (không để rác trong _uploads)", not os.path.isfile(os.path.join(A.UPLOAD_DIR, fname)))
+            ok("file đã bị DỌN (không để rác trong _uploads)",   # E6: file lưu dạng '<uuid>_sizeguard_tmp.dxf' -> kiểm theo hậu tố
+               not any(f.endswith("sizeguard_tmp.dxf") for f in os.listdir(A.UPLOAD_DIR)))
         finally:
             A.READFILE_MAX_MB = _asave
 

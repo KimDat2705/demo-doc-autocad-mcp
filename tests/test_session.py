@@ -130,10 +130,12 @@ def main():
         A._make_bridge, A.mcp_bridge.tra_loi_ai, A.mcp_bridge.USE_AI = _mk, _tl, _ua
         A.MAX_SESSIONS, A.SESSION_TTL_MIN = _ms, _ttl
         for nm in upl:
-            try:
-                os.remove(os.path.join(A.UPLOAD_DIR, nm))
-            except OSError:
-                pass
+            for _f in os.listdir(A.UPLOAD_DIR):      # E6: file lưu dạng '<uuid>_<nm>' -> dọn theo hậu tố
+                if _f == nm or _f.endswith("_" + nm):
+                    try:
+                        os.remove(os.path.join(A.UPLOAD_DIR, _f))
+                    except OSError:
+                        pass
 
     print("\n%d PASS / %d FAIL" % (PASS, FAIL))
     return 1 if FAIL else 0
