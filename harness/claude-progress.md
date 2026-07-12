@@ -13,11 +13,11 @@
 - **P1:** `phan_loai_tin_hieu(ma)` → ① (residual có DẤU HIỆU cấu trúc trong band quanh mã → HỎI-ĐỂ-HỌC, phơi nguyên văn+handle, KHÔNG bịa nghĩa) / ② (không). `doi_chieu_nghi_ngo(ma)` → ③ (đa tiết diện/đơn vị cm-mm/cửa chưa chắc, KHÔNG tự chọn bên). 2 MCP tool `hoi_de_hoc`/`doi_chieu_nghi_ngo` (23 tool) + luật 16 SYSTEM_PROMPT.
 - **Red-team đối kháng 2-agent** (diff + fixture thật) bắt **lỗi CAO mà test 1-fixture bỏ sót:** classifier NGẬP NHIỄU 99% — ký hiệu thép chuẩn 'Ø10a100'→'a100', mác 'B20'/'CB240' bị coi 'mã lạ'. **9T KC: D3=96 ứng viên (334/336 là thép)** — đúng kịch bản memory cảnh báo. VÁ: `_la_notation_chuan` loại thép Ø/rải a·/mác b/cb; branch `_SECT_STD_RE` TRƯỚC (không nhầm '800x3000'='mã lạ x3000'); dedupe theo nhãn; `_ELEV_RE.match` thay `_ELEV_IN_RE.search` (không nuốt text hỗn hợp). → **9T KC 336→2** (còn 'THÉP CHỜ V-1' = nhãn lạ THẬT), Gia Lộc 26→0 (② trung thực).
 
-**Kết quả test:** takeoff **214/214** (nhóm mới **[Y] 11 ca**: P0 residual + classifier ①②③ + noise-filter fixture thật + data-independent tất định) · qa **129/129** · check.sh **[8/8]**. Commit **`6608edf`**. Read-only → 0 regression tool cũ. ⚠ CHƯA push/deploy — chờ user.
+**Kết quả test:** takeoff **214/214** (nhóm mới **[Y] 11 ca**: P0 residual + classifier ①②③ + noise-filter fixture thật + data-independent tất định) · qa **129/129** · check.sh **[8/8]**. Commit **`6608edf`**(code)+**`015161e`**(doc). Read-only → 0 regression tool cũ. **✅ PUSH + DEPLOY + VERIFY LIVE:** `/version` commit = `015161e62fb870...` khớp HEAD; `/health` ok.
 
 **Bài học:** red-team ĐA-FIXTURE bắt overfit mà test 1-file KHÔNG lộ (Gia Lộc C1=1 ứng viên "sạch", nhưng 9T=96 ngập nhiễu). ① đúng phải HIẾM (chỉ nhãn thật bất thường) — notation chuẩn TCVN (thép/mác) KHÔNG phải "chỗ bí". Đây đúng ethos chống-overfit + memory `feedback-tranh-overfit`.
 
-**Đang chờ:** push/deploy P0-P1 (chờ user). Bước tiếp: **P2** (log WORM append-only) → **P3** (self.hoc_phien + hoc_quy_uoc — MỞ KÊNH HỌC, rủi ro cao nhất) → P4 (rào Excel) → P5 (codify, CHẶN tới khi có corpus ≥3 firm).
+**Đang chờ:** (P0-P1 đã LIVE ✅) — bước tiếp **P2** (log WORM append-only, vẫn đọc-thuần) → **P3** (self.hoc_phien + hoc_quy_uoc — MỞ KÊNH HỌC, rủi ro cao nhất, cần red-team mạnh) → P4 (rào Excel) → P5 (codify, CHẶN tới khi có corpus ≥3 firm).
 
 ---
 ## Session 2026-07-12 (c) — TRIỂN KHAI P-1: vá 6 lỗ tồn tại E1-E6 (nền cho AI tự học)
