@@ -4,6 +4,22 @@
 > Mới nhất ở TRÊN CÙNG. Bàn giao đầy đủ: `session-handoff.md`. Nhật ký chi tiết hơn nữa: `../GHI_CHU_HOAN_THIEN.md`.
 
 ---
+## Session 2026-07-13 — AI TỰ HỌC P2: log WORM append-only (cổng-4, đọc-thuần)
+**Mục tiêu:** user chốt "làm tiếp P2 log WORM" — ghi NHẬT KÝ các lần phơi "chỗ bí" (`hoi_de_hoc`/`doi_chieu_nghi_ngo`) cho DEV rà. Vẫn đọc-thuần, KHÔNG học/KHÔNG hồi-tiếp inference.
+
+**Đã làm:**
+- **`hoclog.py`** (module mới): logger **CHỈ GHI** (mode `'a'`), redact `file_hash` (KHÔNG lưu path thật) + `vn` cắt ngắn, best-effort nuốt lỗi (không chặn luồng), tắt bằng env `HOC_LOG=0`, cap `HOC_LOG_MAX_MB`(5) → xoay `.1` (bound đĩa).
+- **Wiring ở TOOL LAYER** (`mcp_server.py`): `hoi_de_hoc`/`doi_chieu_nghi_ngo` gọi `hoclog.ghi` → **core `tools_core` giữ THUẦN** (test cũ không sinh log rác). `_hoc_log/` gitignored.
+- **BẤT BIẾN sống còn** (log KHÔNG hồi-tiếp inference → chống warm-start `hoc_phien` = đầu-độc chéo phiên) khoá bằng **grep-guard test**.
+- **Adversarial review (1 agent, tự tái hiện code thật):** KHÔNG CONFIRMED cao/TB về đúng-đắn/an-toàn (bất biến giữ, tool không thể vỡ vì log lỗi nhờ 2 lớp try/except, backward-compat sạch). Vá 2 thap: **rotation/cap** (CONFIRMED) + **grep-guard porous** → siết bằng đếm-`open()`==1 (chặn `open()` mặc-định-đọc + iterator-read) + GLOB mọi `*.py` (bền hơn danh sách cứng 4 module).
+
+**Kết quả test:** `tests/test_hoc_log.py` **[P2.A-D] 20 ca** (schema/redact/off + grep-guard + wiring + rotation) → `check.sh` thêm bước **[9/9]** = **HARNESS GATE PASS**. takeoff **214/214** + qa **129/129** KHÔNG regression (P2 không đụng core/tool cũ). Commit **`787b1e6`**. ⚠ CHƯA push/deploy — chờ user.
+
+**Bài học:** với feature ĐỌC-THUẦN nhỏ (logger), review 1-agent gọn là proportionate; grep-guard là "hàng rào bất biến" — phải siết chống cả open()-mặc-định-đọc + module mới (glob), không chỉ blacklist chuỗi. Wiring ở TOOL LAYER giữ core thuần = test không nhiễm side-effect.
+
+**Đang chờ:** push/deploy P2 (chờ user). Bước tiếp: **P3 — MỞ KÊNH HỌC** (`self.hoc_phien` + `hoc_quy_uoc`: đối tác dạy cách đọc, áp-phiên) = **rủi ro CAO NHẤT**, cần red-team mạnh (workflow đa-agent) trước khi làm. P4 (rào Excel) · P5 (codify, chặn tới khi có corpus ≥3 firm).
+
+---
 ## Session 2026-07-12 (d) — AI TỰ HỌC P0→P1 (đọc-thuần: used_handles/residual + classifier ①②③)
 **Mục tiêu:** user chốt "làm tiếp P0→P1 vòng AI tự học" — phần ĐỌC-THUẦN (read-only, KHÔNG học/KHÔNG mutate state): phát hiện & phơi "chỗ bí" cho đối tác, chưa học gì.
 
