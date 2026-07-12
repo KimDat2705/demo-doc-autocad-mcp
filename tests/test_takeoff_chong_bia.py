@@ -244,9 +244,13 @@ def main():
     PASS, FAIL = PASS + int(bool(ok)), FAIL + int(not ok)
     print("  [%s] A: tong_hop có 'tong_phu' (%d nhóm tổng theo loại+đơn vị)" % ("OK" if ok else "FAIL", len(tp)))
     m3 = [x for x in tp if x["don_vi"] == "m³"]
-    ok = len(m3) >= 2   # Thể tích BT (16.93) và Khối lượng ghi sẵn/đào móng (860) phải là 2 dòng RIÊNG, không gộp
+    # 'Thể tích BT' (bê tông tính) LÀ 1 tổng m³; 'Khối lượng (ghi sẵn)' (đào 860...) KHÔNG gộp vào tong_phu — nhãn m³
+    # HỖN TẠP (đào+bê tông+đắp), cộng lại vô nghĩa (audit H2, như 'Diện tích ghi sẵn') -> chỉ nằm trong 'bang'.
+    ok = (any(x["loai"] == "Thể tích BT" for x in m3)
+          and not any(x["loai"] == "Khối lượng (ghi sẵn)" for x in tp)
+          and any(row["loai"] == "Khối lượng (ghi sẵn)" for row in th["bang"]))
     PASS, FAIL = PASS + int(bool(ok)), FAIL + int(not ok)
-    print("  [%s] A: tổng m³ KHÔNG gộp nhầm khác loại (%d dòng m³ riêng)" % ("OK" if ok else "FAIL", len(m3)))
+    print("  [%s] A: 'Thể tích BT' là tổng m³; 'Khối lượng (ghi sẵn)' KHÔNG gộp tong_phu (chỉ ở bảng, audit H2)" % ("OK" if ok else "FAIL"))
     ok = all(x["loai"] != "Cao độ/tầng" for x in tp)   # loại trị vô nghĩa khỏi tổng
     PASS, FAIL = PASS + int(ok), FAIL + int(not ok)
     print("  [%s] A: KHÔNG cộng 'Cao độ/tầng' (trị không phải để tổng)" % ("OK" if ok else "FAIL"))
@@ -496,6 +500,53 @@ def main():
     _emit("KC Gia Lộc: 0 entry 'bảng thống kê' (fail-silent — không bịa SL trên file không có bảng cửa)",
           not any(e.get("nguon", "").startswith("bảng thống kê") for e in kc.qty_index))
     _emit("KC Gia Lộc: qty_index giữ 94 mục (port demo 1 KHÔNG đổi)", len(kc.qty_index) == 94)
+
+    print("[W] AUDIT AN TOÀN đa-agent — vá 9 lỗ hổng bịa/crash/mislabel (đã tự tái hiện trên file thật)")
+    import tools_core as _TCw
+    # W.1 (H1) số kiểu VN 'X.XXX' = NGHÌN, không phải thập phân (chống '1.130 m2' -> 1.13, lệch 1000×)
+    _emit("_to_num_vn: 1.130->1130, 7.04->7.04, 634->634, 1,13->1.13, 1.234.567->1234567",
+          _TCw._to_num_vn("1.130") == 1130 and _TCw._to_num_vn("7.04") == 7.04 and _TCw._to_num_vn("634") == 634
+          and _TCw._to_num_vn("1,13") == 1.13 and _TCw._to_num_vn("1.234.567") == 1234567)
+    if n9kt:
+        _dsa = n9kt.liet_ke_dien_tich_ghi_san().get("danh_sach", [])
+        _emit("9T KT: nhãn '1.130 m2' đọc = 1130 m² (KHÔNG 1.13)",
+              any(abs(x["m2"] - 1130) < 1 for x in _dsa) and not any(abs(x["m2"] - 1.13) < 0.001 for x in _dsa))
+    # W.2 (H2) tong_phu KHÔNG gộp 'Khối lượng (ghi sẵn)' m³ dị-loại (đào+bê tông) thành 1 số
+    _sv = getattr(kc, "stated_vol", [])
+    kc.stated_vol = [{"text": "ĐÀO 860 M3", "m3": 860.0, "handle": "HT1"}, {"text": "BÊ TÔNG 500 M3", "m3": 500.0, "handle": "HT2"}]
+    _emit("2 stated_vol dị-loại -> KHÔNG có tong_phu 'Khối lượng (ghi sẵn)' (không gộp 1360 vô nghĩa)",
+          not any(x["loai"] == "Khối lượng (ghi sẵn)" for x in kc.tong_hop_khoi_luong()["tong_phu"]))
+    kc.stated_vol = _sv
+    # W.3 (M3) inputs_bo_sung là JSON hợp lệ nhưng NON-DICT -> KHÔNG crash
+    for bs in ["[1,2]", "5", '"x"', "true"]:
+        crashed = False
+        try:
+            kc.tinh_dai_luong("thể tích bê tông cột", "C1", bs)
+        except Exception:
+            crashed = True
+        _emit("non-dict bs=%s -> KHÔNG crash (coerce {})" % bs, not crashed)
+    # W.4 (M4) mã lẻ nêu trong câu 'TỔNG SỐ CỌC: 131' KHÔNG bị gán 131 làm SL của mã đó
+    _emit("tra_cuu_so_luong('c-40') KHÔNG trả 131 (TỔNG cọc) làm SL c-40",
+          not any(m["so_luong"] == 131 for m in kc.tra_cuu_so_luong("c-40").get("danh_sach_so_luong", [])))
+    _emit("control tra_cuu_so_luong('c-1') VẪN = 27 (mã thật không đổi)",
+          any(m["so_luong"] == 27 for m in kc.tra_cuu_so_luong("c-1").get("danh_sach_so_luong", [])))
+    # W.5 (M5) tong_so_luong KHÔNG lọc -> KHÔNG gộp dị-loại (tong=None)
+    _emit("tong_so_luong() không lọc -> tong=None (không gộp cửa+cột+cọc vô nghĩa)", kc.tong_so_luong().get("tong") is None)
+    # W.6 (M6) liet_ke_so_luong lọc không khớp -> LỘ (so_muc=0), KHÔNG âm thầm trả cả bảng
+    _emit("liet_ke_so_luong('xyz-không-có') -> so_muc=0 (lộ thất bại); full vẫn 94",
+          kc.liet_ke_so_luong("xyz-khong-co-abc").get("so_muc") == 0 and kc.liet_ke_so_luong().get("so_muc") == 94)
+    # W.7 (M7) liet_ke_chu_theo_layer khớp CHÍNH XÁC layer (không overmatch substring)
+    _rl = kc.liet_ke_chu_theo_layer("KCS_TEXT")
+    _emit("liet_ke_chu_theo_layer('KCS_TEXT') -> MỌI kết quả ĐÚNG layer đó (không gom layer khác chứa chuỗi)",
+          all(k["layer"] == "KCS_TEXT" for k in _rl.get("ket_qua", [])))
+    # W.8 (M8) ván khuôn móng -> fail-closed (None), không rơi vào 'the_tich_be_tong_mong'
+    _emit("_chuan_hoa('ván khuôn móng')=None (fail-closed); 'ván khuôn cột'=van_khuon_cot (không đổi)",
+          _TCw._chuan_hoa_ten_dai_luong("diện tích ván khuôn móng") is None
+          and _TCw._chuan_hoa_ten_dai_luong("diện tích ván khuôn cột") == "dien_tich_van_khuon_cot")
+    # W.9 (M9) thong_tin_kich_thuoc LỘ đơn vị chưa chắc (không khẳng định mm mù)
+    _tkt = kc.thong_tin_kich_thuoc()
+    _emit("thong_tin_kich_thuoc: có 'don_vi_khai_bao' + ghi_chu nêu 'GIẢ ĐỊNH'",
+          "don_vi_khai_bao" in _tkt and "GIẢ ĐỊNH" in _tkt.get("ghi_chu", ""))
 
     print("\n%d PASS / %d FAIL" % (PASS, FAIL))
     return 1 if FAIL else 0

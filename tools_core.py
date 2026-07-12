@@ -57,6 +57,22 @@ def _to_num(s):
     except Exception:
         return None
 
+
+def _to_num_vn(s):
+    """Số kiểu VN cho TEXT NGƯỜI GÕ (nhãn m²/m³): '.' = phân cách NGHÌN, ',' = thập phân.
+    'X.XXX' (chấm + nhóm ĐÚNG 3 chữ số) -> nghìn: '1.130'->1130, '1.234.567'->1234567, '1.130,5'->1130.5.
+    Dạng khác giữ như cũ: '634'->634, '1,13'->1.13, '7.04'->7.04 (2 số sau chấm != nghìn -> thập phân).
+    (Chống bug đọc '1.130 m2' thành 1.13 — lệch 1000×. KHÔNG dùng cho số máy-định-dạng: tiết diện/dim -> _to_num.)"""
+    st = str(s).strip()
+    if re.fullmatch(r"\d{1,3}(\.\d{3})+(,\d+)?", st):    # nghìn kiểu VN
+        st = st.replace(".", "").replace(",", ".")
+    else:
+        st = st.replace(",", ".")
+    try:
+        return float(st)
+    except Exception:
+        return None
+
 # ---- Bảng thống kê thép (port) ----
 def _acc_thep(thep, att):
     tl = _to_num(att.get("TL"))
@@ -430,7 +446,7 @@ def _build_stated_volumes(texts):
         vn = (t.get("vn") or "").strip()
         m = _M3_RE.search(vn)
         if not m: continue
-        val = _to_num(m.group(1) or m.group(2))
+        val = _to_num_vn(m.group(1) or m.group(2))   # VN thousands: '1.130 m3' = 1130, KHÔNG phải 1.13
         if not val or val < _M3_MIN: continue
         if _M3_EXCLUDE_RE.search(unaccent(vn)): continue
         key = (vn, round(val, 2))
@@ -464,7 +480,7 @@ def _build_stated_areas(texts):
         scan = re.sub(r"/\s+", "/", vn)
         kw = bool(_DT_KW_RE.search(unaccent(vn).lower()))
         for m in _STATED_M2_RE.finditer(scan):
-            val = _to_num(m.group(1) or m.group(2))
+            val = _to_num_vn(m.group(1) or m.group(2))   # VN thousands: '1.130 m2' = 1130, KHÔNG phải 1.13
             if not val or val <= 0: continue
             key = (vn, round(val, 2))
             if key in seen: continue
@@ -626,6 +642,10 @@ def _chuan_hoa_ten_dai_luong(ten):
     t = (ten or "").strip()
     if t in _FORMULAS: return t
     tn = unaccent(t)
+    if "van khuon" in tn:    # M8 — VÁN KHUÔN chỉ có công thức cột/dầm; loại khác (móng/sàn...) -> FAIL-CLOSED (None),
+        if "cot" in tn: return "dien_tich_van_khuon_cot"   # KHÔNG rơi nhầm vào 'the_tich_be_tong_mong' (ván khuôn m² != bê tông m³)
+        if "dam" in tn: return "dien_tich_van_khuon_dam"
+        return None
     for kws, key in _TEN_MAP:
         if all(k in tn for k in kws): return key
     return None
@@ -767,17 +787,20 @@ class Drawing:
         for i, it in enumerate(info):
             if it["qty"] is None: continue
             t, nv, qty = it["t"], it["nv"], it["qty"]
+            # M4 — số từ nhánh 'TỔNG SỐ/CỘNG' (vd 'TỔNG SỐ CỌC: 131') là TỔNG TOÀN CỤC, KHÔNG phải SL của mã lẻ
+            # (c-40/c-61...) tình cờ nêu trong câu -> đánh cờ để tra_so_luong KHÔNG gán cho truy vấn mã cụ thể.
+            is_tot = bool(re.search(r"tong\s*(?:so|cong)\b", nv))
             resid = _QTY_STRIP.sub(" ", nv)
             if not _is_dim_label(nv) and _looks_like_title(resid):
                 idx.append({"label": t["vn"].strip(), "label_norm": nv, "so_luong": qty,
                             "handle": t["handle"], "qty_handle": t["handle"], "nguon": "inline",
-                            "x": t.get("x", 0.0), "y": t.get("y", 0.0)})
+                            "is_total": is_tot, "x": t.get("x", 0.0), "y": t.get("y", 0.0)})
                 continue
             cand = self._find_title_for_qty(info, i)
             if cand:
                 idx.append({"label": cand["vn"].strip(), "label_norm": _norm_label(cand["vn"]),
                             "so_luong": qty, "handle": cand["handle"], "qty_handle": t["handle"],
-                            "nguon": "spatial", "x": cand.get("x", 0.0), "y": cand.get("y", 0.0)})
+                            "nguon": "spatial", "is_total": is_tot, "x": cand.get("x", 0.0), "y": cand.get("y", 0.0)})
         return idx
 
     # ---------------- tra cứu cơ bản (port) ----------------
@@ -801,6 +824,8 @@ class Drawing:
         out = []
         for e in idx:
             lab = e["label_norm"]
+            if e.get("is_total") and codes:   # M4 — TỔNG toàn cục KHÔNG trả cho truy vấn MÃ CỤ THỂ (mã trong câu tổng = tình cờ)
+                continue
             full = all(_tok_bound(t, lab) for t in toks)          # ranh giới + bỏ gạch ngang (C1==C-1)
             code = any(_tok_bound(c, lab) for c in codes) if codes else False
             if full or code: out.append(dict(e, _score=2 if full else 1))
@@ -852,28 +877,39 @@ class Drawing:
 
     def liet_ke_so_luong(self, loc=None, **_):
         idx = self.qty_index or []
-        items = self.tra_so_luong(loc) if (loc or "").strip() else idx
-        if (loc or "").strip() and len(items) < 2: items = idx
+        co_loc = bool((loc or "").strip())
+        items = self.tra_so_luong(loc) if co_loc else idx
         ds = [{"noi_dung": e["label"], "so_luong": e["so_luong"],
                "handle": e.get("qty_handle", e["handle"])} for e in items]
+        if co_loc and not ds:   # M6 — LỘ thất bại: lọc KHÔNG khớp -> báo rõ, KHÔNG âm thầm trả CẢ bảng (đối tác tưởng đã lọc)
+            return {"so_muc": 0, "danh_sach": [],
+                    "ghi_chu": "KHÔNG có mục số lượng nào khớp '%s'. Bỏ tham số lọc để xem TẤT CẢ, hoặc thử mã ngắn (vd 'D1')." % loc}
         return {"so_muc": len(ds), "danh_sach": ds[:60],
                 "ghi_chu": "Các mục CÓ GHI SỐ LƯỢNG (nhãn 'số lượng: N bộ'/'SL='). Tên có thể lỗi font "
                            "('cöa'='cửa'). Số THẬT ghi trên bản vẽ, không phải đếm chữ."}
 
     def tong_so_luong(self, loc=None, **_):
-        items = self.tra_so_luong(loc) if (loc or "").strip() else (self.qty_index or [])
+        co_loc = bool((loc or "").strip())
+        items = self.tra_so_luong(loc) if co_loc else (self.qty_index or [])
         seen, muc = set(), []
         for e in items:
+            if e.get("is_total"): continue   # M5 — KHÔNG cộng TỔNG toàn cục vào tổng số lượng (tránh gộp/đếm trùng)
             cs = re.findall(r"[a-zđ]+-?\d+[a-z]?", e["label_norm"])
             code = cs[-1] if cs else e["label_norm"]
             if code in seen: continue
             seen.add(code)
             muc.append({"noi_dung": e["label"], "so_luong": e["so_luong"],
                         "handle": e.get("qty_handle", e["handle"])})
-        return {"loc": loc or None, "so_muc": len(muc), "tong": sum(m["so_luong"] for m in muc),
-                "cac_muc": muc[:50],
-                "ghi_chu": "TỔNG do hệ thống CỘNG (đã gộp mục cùng mã tránh đếm trùng). Kiểm cac_muc: "
-                           "nếu có mục không thuộc nhóm hỏi thì trừ ra. Số từng mục là số THẬT trên bản vẽ."}
+        # M5 — KHÔNG lọc -> KHÔNG cộng gộp SL KHÁC LOẠI (cửa+cột+cọc... vô nghĩa); chỉ tổng khi đối tác LỌC theo 1 loại.
+        if co_loc:
+            gc = ("TỔNG do hệ thống CỘNG các mục ĐÃ LỌC theo '%s' (đã gộp cùng mã tránh trùng). Kiểm cac_muc: "
+                  "nếu có mục không thuộc nhóm hỏi thì trừ ra. Số từng mục là số THẬT trên bản vẽ." % loc)
+        else:
+            gc = ("KHÔNG cộng gộp số lượng KHÁC LOẠI thành 1 số (cửa+cột+cọc... vô nghĩa) -> tong=null. "
+                  "Muốn 1 tổng: gọi lại với loc = LOẠI cụ thể (vd 'cửa','cột'). cac_muc: số từng mục là số THẬT trên bản vẽ.")
+        return {"loc": loc or None, "so_muc": len(muc),
+                "tong": (sum(m["so_luong"] for m in muc) if co_loc else None),
+                "cac_muc": muc[:50], "ghi_chu": gc}
 
     def thong_ke_thep(self, duong_kinh=None, **_):
         th = self.thep or {}; by = th.get("by_dk") or {}
@@ -917,10 +953,14 @@ class Drawing:
     def liet_ke_chu_theo_layer(self, layer=None, gioi_han=60, **_):
         ly = (layer or "").strip()
         if not ly: return {"loi": "Thiếu tên layer cần liệt kê.", "so_doan_chu": 0, "ket_qua": []}
-        hits = self.search_texts("", layer=ly)
+        # M7 — KHỚP CHÍNH XÁC tên layer (docstring hứa 'một layer cụ thể'); search_texts dùng SUBSTRING nên
+        # 'KCS_TEXT' gom nhầm mọi layer CHỨA chuỗi đó -> đếm sai + mislabel. (Muốn tìm theo phần: dùng tim_kiem.)
+        lyn = unaccent(ly)
+        hits = [tx for tx in self.texts if unaccent(tx.get("layer") or "") == lyn]
         cap = max(0, min(int(gioi_han or 60), 200))
         ket = [{"handle": h["handle"], "layer": h.get("layer") or "", "text": h["vn"]} for h in hits[:cap]]
-        return {"layer": ly, "so_doan_chu": len(hits), "hien_thi": len(ket), "ket_qua": ket}
+        return {"layer": ly, "so_doan_chu": len(hits), "hien_thi": len(ket), "ket_qua": ket,
+                "ghi_chu": "Chữ thuộc ĐÚNG layer '%s' (khớp CHÍNH XÁC tên). Tìm theo phần tên -> dùng tim_kiem(layer=...)." % ly}
 
     def liet_ke_sheet(self, **_):
         sh = self.sheets_sorted or self.sheets
@@ -961,11 +1001,19 @@ class Drawing:
     def thong_tin_kich_thuoc(self, **_):
         dv = self.dim_vals
         pho_bien = [{"mm": int(v), "so_lan": n} for v, n in self.dim_top]
+        # M9 — trường '_mm' là GIẢ ĐỊNH mm; đọc $INSUNITS (nếu khai) để LỘ đơn vị chưa chắc, tránh khẳng định sai.
+        try:
+            insunits = int(self.doc.header.get("$INSUNITS", 0) or 0)
+        except Exception:
+            insunits = 0
+        don_vi = {4: "mm", 5: "cm", 6: "m"}.get(insunits)
+        ct = ("bản vẽ khai $INSUNITS=%d (%s)" % (insunits, don_vi) if don_vi
+              else "bản vẽ KHÔNG khai $INSUNITS -> đơn vị CHƯA CHẮC mm; giá trị RẤT LỚN có thể là toạ độ/khoảng, không phải kích thước cấu kiện")
         return {"so_duong_kich_thuoc": len(self.dims),
                 "nho_nhat_mm": dv[0] if dv else None, "lon_nhat_mm": dv[-1] if dv else None,
-                "gia_tri_pho_bien_mm": pho_bien,
-                "ghi_chu": "Đường kích thước (DIMENSION). gia_tri_pho_bien_mm = giá trị xuất hiện NHIỀU NHẤT "
-                           "(thường là bước cột/nhịp). Giá trị lớn nhất KHÔNG chắc là kích thước tổng công trình."}
+                "gia_tri_pho_bien_mm": pho_bien, "don_vi_khai_bao": don_vi,
+                "ghi_chu": "Đường kích thước (DIMENSION); trường '_mm' theo GIẢ ĐỊNH mm (%s). gia_tri_pho_bien = giá trị "
+                           "NHIỀU NHẤT (thường bước cột/nhịp); lớn nhất KHÔNG chắc là kích thước tổng công trình." % ct}
 
     def thong_tin_tang(self, **_):
         """GĐ2c: BÁO cao độ + chiều cao tầng điển hình + số tầng ƯỚC TÍNH. KHÔNG tự bơm vào tính toán (an toàn)."""
@@ -1514,6 +1562,7 @@ class Drawing:
             try:
                 import json as _json
                 bs = _json.loads(inputs_bo_sung) if isinstance(inputs_bo_sung, str) else dict(inputs_bo_sung)
+                if not isinstance(bs, dict): bs = {}   # M3 — JSON hợp lệ nhưng KHÔNG phải object (list/số/chuỗi/bool) -> bỏ (chống crash bs.get)
             except Exception: bs = {}
         # Task B — LỖ CỬA/CỬA SỔ: CHỈ 'xây tường' & 'diện tích trát' hỗ trợ 'lo_cua'. Truyền cho công thức khác
         # (đào/bê tông...) -> LỘ rõ (không âm thầm bỏ qua để đối tác tưởng đã trừ). lo_cua rỗng/None -> bỏ qua.
@@ -1755,7 +1804,8 @@ class Drawing:
         _tp = {}
         # 'Diện tích (ghi sẵn)' KHÔNG cộng: nhãn HỖN TẠP (mái+sơn+granit...) cộng lại vô nghĩa (Task C). Như 'Cao độ/tầng'.
         # 'Số lượng' KHÔNG cộng: gộp SL DỊ LOẠI (cửa+dầm+cột+nhóm thép) thành 1 con số 'bộ/cái' vô nghĩa + double-count dầm chia đoạn.
-        _khong_cong = {"Cao độ/tầng", "Diện tích (ghi sẵn)", "Số lượng"}
+        # 'Khối lượng (ghi sẵn)' KHÔNG cộng: nhãn m³ HỖN TẠP (đào + bê tông + đắp...) — cộng lại vô nghĩa (như 'Diện tích ghi sẵn').
+        _khong_cong = {"Cao độ/tầng", "Diện tích (ghi sẵn)", "Số lượng", "Khối lượng (ghi sẵn)"}
         for r in rows:
             v = r.get("gia_tri")
             if r["loai"] not in _khong_cong and isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v):

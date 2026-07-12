@@ -25,7 +25,7 @@ Chạy TRƯỚC mỗi commit và cuối mỗi phiên (một phiên = một "tran
 - [ ] Mọi nội dung cụ thể kèm **handle** có thật trong file
 
 ## Dữ liệu / Hồi quy
-- [ ] `python tests/test_takeoff_chong_bia.py` = **177/177 PASS** (offline, không tốn API; nhóm A-V, +N/O/P/Q = task B/C/D/F, +R/S/T/U + I.5/I.6 = task G đa-domain & vá tong_phu gộp thép/Số lượng + parity diện tích, +V = Residual G #1 đọc SL bảng thống kê theo cột TỔNG)
+- [ ] `python tests/test_takeoff_chong_bia.py` = **191/191 PASS** (offline, không tốn API; nhóm A-W; +N/O/P/Q = task B/C/D/F; +R/S/T/U + I.5/I.6 = task G đa-domain & vá tong_phu gộp thép/Số lượng + parity diện tích; +V = Residual G #1 SL bảng thống kê; **+W = audit an toàn đa-agent vá 9 lỗ** VN-thousands/tong_phu m³/non-dict crash/tra_cuu tổng/tong_so_luong/liet_ke_so_luong/layer/ván-khuôn-móng/mm-label)
 - [ ] `python tests/test_qa_data.py` = **129/129** (đọc — cần ../input_files/_dxf + ../demo_doc_autocad)
 - [ ] `python tests/test_model_fallback.py` = **20/20 PASS** (robustness H — chuỗi model 429/503, offline mock, KHÔNG tốn API)
 - [ ] `python tests/test_size_guard.py` = **9/9 PASS** (robustness I — chặn file lớn sớm trước convert/parse, offline)

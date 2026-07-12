@@ -4,6 +4,24 @@
 > Mới nhất ở TRÊN CÙNG. Bàn giao đầy đủ: `session-handoff.md`. Nhật ký chi tiết hơn nữa: `../GHI_CHU_HOAN_THIEN.md`.
 
 ---
+## Session 2026-07-12 — AUDIT AN TOÀN đa-agent (mọi tool) + vá 9 lỗ hổng
+**Mục tiêu:** audit chống-bịa toàn diện MỌI tool (đề xuất trước giao rộng), rồi vá lỗ tìm được. (Sau robustness H–L, HEAD `fee67f9` live.)
+
+**Đã làm:**
+- **AUDIT (workflow 27-agent):** 7 agent audit song song theo nhóm tool (quantity/steel/listing/dimensions/takeoff×2/agg) chạy engine THẬT offline với input đối kháng → 19 finding nghi ngờ → 19 skeptic verify độc lập (mặc định refute) → **10 confirmed** (9 refute là an-toàn/đúng-thiết-kế). Rồi **TỰ tái hiện TẤT CẢ trên file thật** (không tin mù synth/verify — synth under-report + 1 finding verify refute mà synth lại promote → phải tự chạy).
+- **9 LỖ THẬT đã vá (`tools_core.py`):**
+  - **H1 VN-thousands:** `_to_num_vn` — '.' = phân cách NGHÌN. Nhãn thật 9T KT `'ký túc xá: 1.130 m2'` đọc **1.13 → nay 1130** (lệch 1000×). Dùng ở `_build_stated_areas`/`_build_stated_volumes`.
+  - **H2 tong_phu gộp m³ ghi sẵn dị-loại** (đào 860+bê tông 500=1360): thêm "Khối lượng (ghi sẵn)" vào `_khong_cong` (đúng lớp bug G thép/Số lượng — [[feedback-bia-tai-sinh-tang-code]] đoán đúng).
+  - **M3** `tinh_dai_luong` crash JSON non-dict (`[1,2]`/`5`...) → coerce {}. **M4** `tra_cuu_so_luong` gán 131 (TỔNG cọc) cho mã lẻ c-40 → cờ `is_total`, `tra_so_luong` bỏ qua khi truy vấn mã. **M5** `tong_so_luong` gộp 711 dị-loại → tong=None khi không lọc. **M6** `liet_ke_so_luong` lọc trượt âm thầm trả cả 94 → so_muc=0 LỘ. **M7** `liet_ke_chu_theo_layer` overmatch substring → khớp CHÍNH XÁC. **M8** "ván khuôn móng" → the_tich_be_tong_mong → fail-closed None. **M9** `thong_tin_kich_thuoc` hardcode mm → đọc $INSUNITS + ghi_chu chưa-chắc.
+- **BỀ MẶT AN TOÀN xác nhận (audit chứng cả cái vững):** 177 test cũ · G tách thép · `_nd` inf/nan/bool · existence gate · `_resolve_lo_cua` trần/tràn · takeoff `math.isfinite`+>0. Lõi chống-bịa vững; 9 lỗ ở tầng ĐỌC/TỔNG-HỢP/TRA-CỨU phụ.
+
+**Kết quả test:** `test_takeoff_chong_bia.py` **191/191** (nhóm mới **[W]** 14 ca khoá 9 fix + [M] cập nhật do m³-ghi-sẵn nay chỉ ở bảng) · `test_qa_data.py` **129/129** (port KHÔNG đổi — KEYWORDS không có mã cọc lẻ nên is_total-skip vô hại) · `check.sh` [8/8].
+
+**Bài học:** audit đa-agent + skeptic-verify hiệu quả (10/19 sống sót) nhưng SYNTH/VERIFY có mâu thuẫn → phải TỰ tái hiện; audit tìm đúng bug SAME-CLASS mà [[feedback-bia-tai-sinh-tang-code]] cảnh báo (tong_phu còn 1 danh mục m³ chưa loại) — kiểm code-vs-policy phải quét HẾT danh mục cùng lớp.
+
+**Đang chờ:** ⚠ CHƯA commit audit fixes — chờ user. Sau audit: xin 3-5 bản vẽ khác layout (củng cố đọc bảng thống kê + VN-thousands đa-file) + KPI tỷ lệ bịa; dự toán chi phí HOÃN.
+
+---
 ## Session 2026-07-11 (g) — Robustness L: keep-alive + giám sát (CHỐT robustness H–L)
 **Mục tiêu:** đầu việc L (robustness CUỐI) — Render free ngủ sau ~15' idle → cold-start; giữ thức + health check + quan sát cơ bản. (Sau K, HEAD `7c721a8` live.)
 
