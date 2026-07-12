@@ -13,11 +13,11 @@
 - **BẤT BIẾN sống còn** (log KHÔNG hồi-tiếp inference → chống warm-start `hoc_phien` = đầu-độc chéo phiên) khoá bằng **grep-guard test**.
 - **Adversarial review (1 agent, tự tái hiện code thật):** KHÔNG CONFIRMED cao/TB về đúng-đắn/an-toàn (bất biến giữ, tool không thể vỡ vì log lỗi nhờ 2 lớp try/except, backward-compat sạch). Vá 2 thap: **rotation/cap** (CONFIRMED) + **grep-guard porous** → siết bằng đếm-`open()`==1 (chặn `open()` mặc-định-đọc + iterator-read) + GLOB mọi `*.py` (bền hơn danh sách cứng 4 module).
 
-**Kết quả test:** `tests/test_hoc_log.py` **[P2.A-D] 20 ca** (schema/redact/off + grep-guard + wiring + rotation) → `check.sh` thêm bước **[9/9]** = **HARNESS GATE PASS**. takeoff **214/214** + qa **129/129** KHÔNG regression (P2 không đụng core/tool cũ). Commit **`787b1e6`**. ⚠ CHƯA push/deploy — chờ user.
+**Kết quả test:** `tests/test_hoc_log.py` **[P2.A-D] 20 ca** (schema/redact/off + grep-guard + wiring + rotation) → `check.sh` thêm bước **[9/9]** = **HARNESS GATE PASS**. takeoff **214/214** + qa **129/129** KHÔNG regression (P2 không đụng core/tool cũ). Commit **`787b1e6`**(code)+**`b94da21`**(doc). **✅ PUSH + DEPLOY + VERIFY LIVE:** `/version` commit = `b94da21d34657...` khớp HEAD; `/health` ok.
 
 **Bài học:** với feature ĐỌC-THUẦN nhỏ (logger), review 1-agent gọn là proportionate; grep-guard là "hàng rào bất biến" — phải siết chống cả open()-mặc-định-đọc + module mới (glob), không chỉ blacklist chuỗi. Wiring ở TOOL LAYER giữ core thuần = test không nhiễm side-effect.
 
-**Đang chờ:** push/deploy P2 (chờ user). Bước tiếp: **P3 — MỞ KÊNH HỌC** (`self.hoc_phien` + `hoc_quy_uoc`: đối tác dạy cách đọc, áp-phiên) = **rủi ro CAO NHẤT**, cần red-team mạnh (workflow đa-agent) trước khi làm. P4 (rào Excel) · P5 (codify, chặn tới khi có corpus ≥3 firm).
+**Đang chờ:** (P2 đã LIVE ✅) — bước tiếp: **P3 — MỞ KÊNH HỌC** (`self.hoc_phien` + `hoc_quy_uoc`: đối tác dạy cách đọc, áp-phiên) = **rủi ro CAO NHẤT**, cần red-team mạnh (workflow đa-agent) trước khi làm. P4 (rào Excel) · P5 (codify, chặn tới khi có corpus ≥3 firm).
 
 ---
 ## Session 2026-07-12 (d) — AI TỰ HỌC P0→P1 (đọc-thuần: used_handles/residual + classifier ①②③)
