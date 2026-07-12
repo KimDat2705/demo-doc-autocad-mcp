@@ -3,6 +3,7 @@ __pycache__/
 *.pyc
 _uploads/
 _renders/
+_hoc_log/
 spikes/out_*.png
 spikes/spike_bridge_out.txt
 .env
