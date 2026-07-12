@@ -4,6 +4,23 @@
 > Mới nhất ở TRÊN CÙNG. Bàn giao đầy đủ: `session-handoff.md`. Nhật ký chi tiết hơn nữa: `../GHI_CHU_HOAN_THIEN.md`.
 
 ---
+## Session 2026-07-11 (g) — Robustness L: keep-alive + giám sát (CHỐT robustness H–L)
+**Mục tiêu:** đầu việc L (robustness CUỐI) — Render free ngủ sau ~15' idle → cold-start; giữ thức + health check + quan sát cơ bản. (Sau K, HEAD `7c721a8` live.)
+
+**Đã làm:**
+- **PROBE:** `Dockerfile` chạy `gunicorn --workers 1 --threads 4` (→ giả định 1-worker của K ĐÚNG); `render.yaml` `plan: free` + `healthCheckPath: /` (nặng — trả cả HTML); chưa có keep-alive. Render tự set `RENDER_EXTERNAL_URL`.
+- **TRIỂN KHAI (`app.py`):** `/health` — JSON NHẸ (no API/no bản vẽ): `{ok, uptime_s, sessions, use_ai, model, metrics}`. `_METRICS` (uploads/asks/errors) tăng ở upload/ask (giám sát cơ bản). Self-ping: `_keepalive_ping()` GET `<RENDER_EXTERNAL_URL|KEEPALIVE_URL>/health` (traffic NGOÀI thật → Render không ngủ), nuốt lỗi; `_keepalive_loop` mỗi `KEEPALIVE_MIN` (10') ; `_start_keepalive()` CHỈ chạy khi có URL (production) — local/test KHÔNG kích. `render.yaml` `healthCheckPath` → `/health`.
+- **AN TOÀN:** self-ping guard theo URL (không chạy local/test/không cấu hình); nuốt mọi lỗi (không crash luồng nền); `/health` không tốn API/không đụng bản vẽ; `KEEPALIVE_MIN=0` tắt.
+
+**Kết quả test:** `tests/test_health.py` **11/11** (offline: /health 200+shape, metrics tăng sau upload/ask, self-ping không chạy khi URL rỗng + ping đúng `<url>/health` + nuốt lỗi khi urlopen fail, _start_keepalive an toàn, healthCheckPath render.yaml) · `check.sh` **[8/8] PASS** · takeoff 177 + fallback 20 + size-guard 9 + file-ttl 12 + session 17 KHÔNG regression.
+
+**★ CHỐT ROBUSTNESS H–L HOÀN TẤT:** H (model fallback) · I (chặn file lớn) · J (dọn file TTL) · K (tách session) · L (keep-alive+giám sát) — ĐỀU XONG, mỗi mục có test offline riêng trong cổng [8/8]. Cùng Củng cố A–G + Residual G.
+
+**Bài học:** self-ping bằng `RENDER_EXTERNAL_URL` (traffic ngoài) là cách keep-alive hợp lệ trên Render free (khác self-ping nội bộ vô tác dụng); guard-theo-env cho phép tính năng production chạy an toàn mà test offline không kích; tách hàm 1-lần (`_keepalive_ping`) khỏi vòng lặp vô hạn để test tất định.
+
+**Đang chờ:** ⚠ CHƯA commit L — chờ user duyệt. Sau H–L: đề xuất trước giao rộng = audit an toàn đa-agent MỌI tool + xin 3-5 bản vẽ khác layout (củng cố đọc bảng thống kê) + dựng KPI tỷ lệ bịa; dự toán chi phí vẫn HOÃN chờ đối tác.
+
+---
 ## Session 2026-07-11 (f) — Robustness K: tách state theo session (hết cảnh 2 người đạp nhau)
 **Mục tiêu:** đầu việc K (robustness NẶNG NHẤT) — hiện 1 `Drawing` global + 1 MCP subprocess + 1 SUMMARY/CHAT_HISTORY global → người B upload xoá bản vẽ + lịch sử của người A. Cô lập per-session. (Sau J, HEAD `f472ee0` live.)
 

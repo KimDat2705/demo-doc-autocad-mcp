@@ -38,6 +38,14 @@ _SESS_LOCK = threading.RLock()    # bảo vệ dict SESSIONS
 MAX_SESSIONS = int(os.environ.get("MAX_SESSIONS", "4"))
 SESSION_TTL_MIN = int(os.environ.get("SESSION_TTL_MIN", "30"))
 
+# Robustness L — KEEP-ALIVE + GIÁM SÁT. Render free ngủ sau ~15' idle -> cold-start; self-ping /health giữ THỨC
+# (dùng RENDER_EXTERNAL_URL Render tự set -> traffic ngoài thật; chỉ chạy khi có URL = production, local/test KHÔNG kích).
+# /health = endpoint NHẸ (no API/no bản vẽ) cho monitor ngoài (UptimeRobot...) + quan sát cơ bản (uptime/sessions/metrics).
+START_TS = time.time()
+_METRICS = {"uploads": 0, "asks": 0, "errors": 0}
+KEEPALIVE_MIN = int(os.environ.get("KEEPALIVE_MIN", "10"))          # 0 = tắt self-ping
+_KEEPALIVE_URL = (os.environ.get("KEEPALIVE_URL") or os.environ.get("RENDER_EXTERNAL_URL") or "").strip()
+
 
 def _make_bridge():               # tách ra để test monkeypatch FakeBridge (khỏi spawn subprocess thật)
     return mcp_bridge.MCPBridge(["mcp_server.py"], cwd=BASE)
@@ -112,6 +120,44 @@ def version():
     return jsonify(info)
 
 
+@app.route("/health")
+def health():
+    """Robustness L — health check NHẸ (no API, no bản vẽ): cho Render healthCheckPath + monitor ngoài + self-ping.
+    Trả trạng thái sống + quan sát cơ bản (uptime, số phiên đang mở, model, đếm request)."""
+    return jsonify({"ok": True, "uptime_s": round(time.time() - START_TS),
+                    "sessions": len(SESSIONS), "use_ai": mcp_bridge.USE_AI,
+                    "model": getattr(mcp_bridge, "MODEL", None), "metrics": dict(_METRICS)})
+
+
+def _keepalive_ping():
+    """1 lần ping /health CỦA CHÍNH MÌNH qua URL công khai (traffic ngoài -> Render không ngủ). Nuốt lỗi.
+    Trả True nếu có URL cấu hình (đã thử ping), False nếu không cấu hình (local/test -> không làm gì)."""
+    if not _KEEPALIVE_URL:
+        return False
+    import urllib.request
+    try:
+        urllib.request.urlopen(_KEEPALIVE_URL.rstrip("/") + "/health", timeout=20).read(50)
+    except Exception:
+        pass
+    return True
+
+
+def _keepalive_loop():
+    while True:
+        time.sleep(max(60, KEEPALIVE_MIN * 60))
+        _keepalive_ping()
+
+
+def _start_keepalive():
+    """Khởi động self-ping NỀN chỉ khi có URL công khai + KEEPALIVE_MIN>0 (production). Local/test: KHÔNG chạy."""
+    if _KEEPALIVE_URL and KEEPALIVE_MIN > 0:
+        threading.Thread(target=_keepalive_loop, daemon=True).start()
+        print("[keepalive] self-ping %s/health moi %d phut" % (_KEEPALIVE_URL, KEEPALIVE_MIN), file=sys.stderr, flush=True)
+
+
+_start_keepalive()
+
+
 @app.route("/upload", methods=["POST"])
 def upload():
     f = request.files.get("file")
@@ -143,8 +189,10 @@ def upload():
             s["summary"] = "%s (AutoCAD %s), %s đối tượng, %s layer." % (
                 res.get("name"), res.get("dxfversion"), res.get("tong_doi_tuong"), res.get("so_layer"))
             s["history"] = []       # nạp bản vẽ mới -> quên hội thoại cũ (CỦA PHIÊN NÀY)
+        _METRICS["uploads"] += 1    # L — đếm giám sát (hiện ở /health)
         return jsonify(res)
     except Exception as e:
+        _METRICS["errors"] += 1
         print("[upload] %s: %s" % (type(e).__name__, e), file=sys.stderr, flush=True)
         return jsonify({"error": "Lỗi xử lý file: %s" % e}), 500
 
@@ -167,8 +215,10 @@ def ask():
             s["history"].append({"role": "user", "text": q})
             s["history"].append({"role": "model", "text": r.get("answer", "")})
             del s["history"][:-2 * MAX_HISTORY_TURNS]
+        _METRICS["asks"] += 1       # L — đếm giám sát (hiện ở /health)
         return jsonify(r)
     except Exception as e:
+        _METRICS["errors"] += 1
         print("[ask] %s: %s" % (type(e).__name__, e), file=sys.stderr, flush=True)
         return jsonify({"answer": "⚠ Lỗi khi hỏi AI: %s" % e, "evidence": [], "ai": True})
 

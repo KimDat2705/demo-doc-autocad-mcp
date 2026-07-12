@@ -12,7 +12,7 @@ services:
     dockerfilePath: ./Dockerfile
     dockerContext: .
     plan: free          # Free: ngủ sau 15p, RAM 512MB (đủ file nhỏ/vừa). File lớn -> nâng 'starter'/'2GB'.
-    healthCheckPath: /
+    healthCheckPath: /health          # L — endpoint NHẸ (no API/no bản vẽ); Render tự set RENDER_EXTERNAL_URL -> self-ping giữ thức
     envVars:
       - key: GEMINI_API_KEY
         sync: false      # nhập tay trên dashboard, KHÔNG commit

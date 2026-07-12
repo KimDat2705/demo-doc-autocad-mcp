@@ -31,7 +31,8 @@ Chạy TRƯỚC mỗi commit và cuối mỗi phiên (một phiên = một "tran
 - [ ] `python tests/test_size_guard.py` = **9/9 PASS** (robustness I — chặn file lớn sớm trước convert/parse, offline)
 - [ ] `python tests/test_file_ttl.py` = **12/12 PASS** (robustness J — dọn file _uploads/_renders cũ theo TTL, offline)
 - [ ] `python tests/test_session.py` = **17/17 PASS** (robustness K — tách state theo phiên, Flask test_client + FakeBridge, offline)
-- [ ] `bash harness/scripts/check.sh` = **HARNESS GATE: PASS** (7 bước: import+tool · no-key · takeoff 177 · fallback 20 · size-guard 9 · file-ttl 12 · session 17)
+- [ ] `python tests/test_health.py` = **11/11 PASS** (robustness L — /health + self-ping keep-alive + metrics, offline)
+- [ ] `bash harness/scripts/check.sh` = **HARNESS GATE: PASS** (8 bước: import+tool · no-key · takeoff 177 · fallback 20 · size-guard 9 · file-ttl 12 · session 17 · health 11)
 
 ## Tổng quát (chống overfit)
 - [ ] Quy ước mới nhận diện → test trên **≥3 file khác domain** (9T cm / Gia Lộc mm / hạ tầng)
@@ -44,3 +45,4 @@ Chạy TRƯỚC mỗi commit và cuối mỗi phiên (một phiên = một "tran
 ## Cloud
 - [ ] Push `main` → Render rebuild OK
 - [ ] `GET /version` live = commit VỪA push + `sect_cm_max:130` + `has_section_index:true` + `models:[2.5-flash,2.0-flash,1.5-flash]` (bản đã lên + chuỗi fallback H)
+- [ ] `GET /health` live = `{ok:true, uptime_s, sessions, metrics}` (L — healthCheckPath Render + monitor ngoài; self-ping tự chạy khi có RENDER_EXTERNAL_URL)
