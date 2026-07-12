@@ -10,6 +10,7 @@ Chạy: python app.py  ->  http://localhost:5050
 import os, sys
 from flask import Flask, request, jsonify, send_file
 import mcp_bridge
+from fileutil import cleanup_old_files          # Robustness J — dọn file TTL (nhẹ, không kéo ezdxf)
 
 BASE = os.path.dirname(os.path.abspath(__file__))
 UPLOAD_DIR = os.path.join(BASE, "_uploads")
@@ -24,6 +25,8 @@ app.config["MAX_CONTENT_LENGTH"] = MAX_UPLOAD_MB * 1024 * 1024
 # Robustness I — giới hạn file PARSE (MB); KHỚP tools_core.READFILE_MAX_MB (cùng đọc env này) để chặn upload lớn
 # SỚM ở tầng app (khỏi gọi MCP/convert/parse). MAX_CONTENT_LENGTH (150MB) là trần thô cho DWG NÉN; đây là trần PARSE.
 READFILE_MAX_MB = int(os.environ.get("READFILE_MAX_MB", "45"))
+# Robustness J — dọn file _uploads/_renders cũ hơn ngần này phút mỗi lần upload (0 = tắt). KHỚP tools_core.FILE_TTL_MIN.
+FILE_TTL_MIN = int(os.environ.get("FILE_TTL_MIN", "60"))
 
 BRIDGE = None          # phiên MCP bền (lười khởi tạo)
 SUMMARY = ""           # tóm tắt bản vẽ đang nạp (đưa vào system prompt)
@@ -75,6 +78,8 @@ def upload():
     name = (f.filename or "").lower() if f else ""
     if not f or not (name.endswith(".dxf") or name.endswith(".dwg")):
         return jsonify({"error": "Chỉ nhận file .dxf hoặc .dwg."}), 400
+    # Robustness J — DỌN file cũ mỗi lần upload (bound đĩa qua nhiều phiên): xoá _uploads/_renders quá TTL.
+    cleanup_old_files([UPLOAD_DIR, RENDER_DIR], FILE_TTL_MIN)
     dest = os.path.join(UPLOAD_DIR, os.path.basename(f.filename))
     f.save(dest)
     # Robustness I — CHẶN SỚM: file đã lưu > giới hạn parse -> loại NGAY (khỏi gọi MCP/convert/parse ~600s)

@@ -24,6 +24,7 @@ from ezdxf.addons.drawing.config import Configuration, HatchPolicy
 
 from vntext import to_unicode
 from dwgconv import convert_dwg_to_dxf
+from fileutil import cleanup_old_files          # Robustness J — dọn file TTL
 
 BASE = os.path.dirname(os.path.abspath(__file__))
 UPLOAD_DIR = os.path.join(BASE, "_uploads")
@@ -32,6 +33,8 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 os.makedirs(RENDER_DIR, exist_ok=True)
 # Giới hạn .dxf đọc (MB) — giữ như demo 1 (an toàn RAM). Lên gói mạnh -> tăng env.
 READFILE_MAX_MB = int(os.environ.get("READFILE_MAX_MB", "45"))
+# Robustness J — dọn file _renders (png/xlsx) cũ hơn ngần này phút mỗi lần tạo file mới (0 = tắt). Bound đĩa trong phiên dài.
+FILE_TTL_MIN = int(os.environ.get("FILE_TTL_MIN", "60"))
 
 # ----------------------------------------------------------------------------
 # CHUẨN HOÁ (port nguyên từ demo 1 app.py — đã test kỹ)
@@ -1795,7 +1798,9 @@ class Drawing:
         for col, w in zip("ABCDEFG", [5, 42, 18, 12, 8, 34, 10]):
             ws.column_dimensions[col].width = w
         fid = "th_%s.xlsx" % uuid.uuid4().hex[:10]
-        wb.save(os.path.join(RENDER_DIR, fid))
+        _xp = os.path.join(RENDER_DIR, fid)
+        wb.save(_xp)
+        cleanup_old_files([RENDER_DIR], FILE_TTL_MIN, keep=[_xp])   # J: dọn png/xlsx cũ (giữ file vừa tạo)
         return {"file_id": fid, "ten_file": "tong_hop_khoi_luong.xlsx", "so_hang": th["so_hang"],
                 "ghi_chu": "Đã xuất bảng tổng hợp ra Excel (%d hàng). Host cho đối tác TẢI qua file_id. "
                            "Số liệu & nguồn như tong_hop_khoi_luong (bảng SƠ BỘ, không phải dự toán chốt)." % th["so_hang"]}
@@ -1847,6 +1852,7 @@ class Drawing:
         fid = "hl_%s.png" % uuid.uuid4().hex[:10]
         fpath = os.path.join(RENDER_DIR, fid)
         fig.savefig(fpath, dpi=dpi); plt.close(fig)
+        cleanup_old_files([RENDER_DIR], FILE_TTL_MIN, keep=[fpath])   # J: dọn png/xlsx cũ (giữ file vừa tạo)
         return fid, fpath, len(ents)
 
     @staticmethod
