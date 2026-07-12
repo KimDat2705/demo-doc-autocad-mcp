@@ -12,11 +12,11 @@
 - **Vá 6 lỗ** (`tools_core.py`/`mcp_bridge.py`/`app.py`/`render.yaml`/tests): **E1** neo+lọc-bán-kính `_KG_UV_R` (loại note ngữ cảnh khác); **E2** `_xac_nhan_ung_vien_theo_handle` giữ provenance (chua_chac/handle/can_doi_chieu, handle bịa→từ chối); **E3** `_rs_so_luong` đối chiếu file→`nghi_ngo` khi lệch (số dùng đối tác); **E4** SYSTEM_PROMPT rule 15 + `_co_chi_thi_dang_ngo` (advisory); **E5** runner đếm SKIP+CANH BAO; **E6** upload uuid_basename + cookie Secure gate-env.
 - **Red-team đối kháng 4-agent trên diff** → 4 CONFIRMED đã vá: **E1 overfit** (note kg xa mã bị vứt IM LẶNG → nay LỘ note xa hạ 'thap'+khoảng cách, "thất bại phải lộ"); **E4 false-positive** ('coi như tường 220'/'bỏ qua lớp vữa' bị cờ oan → thu hẹp chỉ bắt 'bỏ qua LUẬT/quy ước'); **E2 ép-thiếu-oan** (so_luong_handle → fall-through đọc file); **E3 xau** (lộ nghi_ngo cả khi input khác không hợp lệ). Red-team XÁC NHẬN **KHÔNG rò P4** (tong_hop/Excel không tiêu thụ output tinh_dai_luong) + backward-compat.
 
-**Kết quả test:** `test_takeoff_chong_bia.py` **203/203** (was 191; nhóm mới **[X] 12 ca** khoá E1-E4 + E2 fall-through + E1 far-fallback) · `test_qa_data.py` **129/129** · `check.sh` **[8/8] PASS**. Commit **`73990de`** (code) + doc. ⚠ CHƯA push/deploy — chờ user duyệt.
+**Kết quả test:** `test_takeoff_chong_bia.py` **203/203** (was 191; nhóm mới **[X] 12 ca** khoá E1-E4 + E2 fall-through + E1 far-fallback) · `test_qa_data.py` **129/129** · `check.sh` **[8/8] PASS**. Commit **`73990de`** (code) + **`5ecaca1`** (doc). **✅ PUSH + DEPLOY + VERIFY LIVE:** `/version` commit = `5ecaca1bf767...` khớp HEAD; `/health` ok (uptime mới, use_ai, metrics sạch).
 
 **Bài học:** red-team trên DIFF THẬT (không chỉ design) bắt được overfit E1 mà test-với-fixture-đơn KHÔNG lộ (fixture Gia Lộc xanh chỉ vì note tình cờ gần mã) — đúng ethos chống-overfit + "thất bại phải lộ". Fix đúng KHÔNG phải siết chặt hơn mà là LỘ khi recall bị cắt. Backward-compat = chỉ thêm key khi kênh mới kích hoạt (input cũ byte-identical).
 
-**Đang chờ:** push/deploy P-1 (chờ user) → verify `/version` LIVE. Sau P-1: P0→P1 (đọc-thuần: used_handles/residual/hỏi-để-học) an toàn tuyệt đối, làm tiếp được. P5 (codify) vẫn CHẶN tới khi có corpus ≥3 firm.
+**Đang chờ:** (P-1 đã LIVE ✅) — bước tiếp P0→P1 (đọc-thuần: used_handles/residual/hỏi-để-học) an toàn tuyệt đối, làm được ngay. P5 (codify) vẫn CHẶN tới khi có corpus ≥3 firm.
 
 ---
 ## Session 2026-07-12 (b) — NGHIÊN CỨU + KẾ HOẠCH CHI TIẾT "AI tự học" (planning, KHÔNG code)
