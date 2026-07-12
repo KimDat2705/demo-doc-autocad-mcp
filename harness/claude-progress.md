@@ -4,6 +4,24 @@
 > Mới nhất ở TRÊN CÙNG. Bàn giao đầy đủ: `session-handoff.md`. Nhật ký chi tiết hơn nữa: `../GHI_CHU_HOAN_THIEN.md`.
 
 ---
+## Session 2026-07-12 (CHỐT SỔ) — Củng cố G + Residual G + Robustness H–L + Audit an toàn
+**Tóm tắt phiên:** phiên DÀI, **8 commit** đều theo quy trình chuẩn (probe → design → adversarial verify → test → docs → commit/push/deploy/verify `/version`(+`/health`) LIVE). Chi tiết từng đầu việc ở các entry bên dưới.
+
+**Đã làm (8 commit, tất cả deploy LIVE):**
+- **G** `7b06188` — test đối kháng ĐA-DOMAIN (9T KT/KC) + vá **3 bug tầng tổng hợp** (tong_phu gộp thép 67759.7/4110.7 · gộp Số lượng 835 · parity diện tích density).
+- **Residual G** `d1c8b03` — đọc SL BẢNG THỐNG KÊ theo cột TỔNG (`_build_schedule_qty_index`, gated fail-silent); #2 cờ đơn vị <40 = by-design no-fix.
+- **Robustness H–L:** `3f16531` model fallback 429/503 · `a890f9f` chặn file lớn sớm · `f472ee0` dọn file TTL · `7c721a8` tách state theo session · `fee67f9` keep-alive+giám sát (/health).
+- **Audit an toàn đa-agent** `301ccdd` — workflow 27-agent → vá **9 lỗ** (H1 VN-thousands 1.130→1130 · H2 tong_phu gộp m³ ghi sẵn · M3-M9 crash/mislabel/tra-cứu). Bề mặt an toàn xác nhận vững.
+
+**Kết quả test (clean-state cuối phiên, ĐỀU 0 FAIL):** `test_takeoff_chong_bia.py` **191/191** (nhóm A-W) · `test_qa_data.py` **129/129** · `harness/scripts/check.sh` = **HARNESS GATE: PASS [8/8]** (import+21 tool · no-key · takeoff 191 · fallback 20 · size-guard 9 · file-ttl 12 · session 17 · health 11). Working tree TRACKED sạch, push hết, HEAD `301ccdd` LIVE (`/version`+`/health`). **KHÔNG pytest** (test đổi sys.stdout lúc import → pytest crash; dùng SCRIPT runner + check.sh).
+
+**Quyết định dài hạn (đã lưu memory):** audit đa-agent hiệu quả nhưng SYNTH/VERIFY có thể mâu thuẫn/thổi phồng → **phải TỰ tái hiện** finding trên file thật; kiểm code-vs-policy phải quét HẾT danh mục cùng lớp (audit tìm đúng bug SAME-CLASS mà `feedback-bia-tai-sinh-tang-code` cảnh báo).
+
+**Trạng thái ROADMAP:** Củng cố **A–G** ✅ · Residual G ✅ · Robustness **H–L** ✅ · Audit an toàn đa-agent ✅. feature_list: 28 done / 1 deferred (dự toán chi phí) / 1 planned (AI tự học).
+
+**Đang chờ / bước tiếp (trước giao rộng):** xin 3-5 bản vẽ đơn vị khác LAYOUT (củng cố đọc bảng thống kê + VN-thousands đa-file) + dựng KPI "tỷ lệ bịa". Dự toán chi phí = HOÃN chờ đối tác chốt. AI tự học = planned (research).
+
+---
 ## Session 2026-07-12 — AUDIT AN TOÀN đa-agent (mọi tool) + vá 9 lỗ hổng
 **Mục tiêu:** audit chống-bịa toàn diện MỌI tool (đề xuất trước giao rộng), rồi vá lỗ tìm được. (Sau robustness H–L, HEAD `fee67f9` live.)
 
