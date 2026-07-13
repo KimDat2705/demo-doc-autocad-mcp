@@ -233,6 +233,18 @@ def _norm_ma(s):
     Map Đ/đ -> 'dj' TRƯỚC khi _norm_label (distinct, ASCII, an toàn _tok_bound). Dùng RIÊNG cho khớp mã ở hoc_quy_uoc/_ung_vien_hoc."""
     return _norm_label((s or "").replace("Đ", "dj").replace("đ", "dj"))
 
+_MA_PAREN_RE = re.compile(r"\([^()]*\)")
+_MA_LEN_RE = re.compile(r"\bl\s*[=:]\s*\d+(?:[.,]\d+)?\s*m?m?\b")   # 'L= 4.42m' / 'L:3.00' (chú thích chiều dài)
+
+def _ma_key(label):
+    """KHOÁ DEDUP theo NHÃN cấu kiện — GIỮ phân biệt đ/d (đài ≠ dầm) qua _norm_ma (id84), rồi BỎ chú thích
+    SL / chiều-dài / trong ngoặc và so NHÃN. CHỈ gộp khi nhãn TRÙNG (sau khi bỏ annotation) -> khử đếm trùng
+    inline/spatial CÙNG nhãn ('ĐC-3 (SL-25)' = 'ĐC-3' -> 'djc-3') NHƯNG KHÔNG gộp nhầm 2 cấu kiện KHÁC LOẠI
+    cùng mã trần ('DẦM D1' ≠ 'CỬA D1'). Hướng an toàn (ethos): nghi ngờ thì TÁCH, KHÔNG GỘP -> không thổi số."""
+    m = _norm_ma(label or "")
+    m = _MA_LEN_RE.sub(" ", _QTY_STRIP.sub(" ", _MA_PAREN_RE.sub(" ", m)))
+    return " ".join(m.split())
+
 
 def _plausible_door_size(w, h):
     """Loại gạch (600x600 max<1200), thép hộp (50x100). Cửa/cửa sổ thực: cạnh lớn ≥1200mm."""
@@ -358,7 +370,8 @@ def _build_schedule_qty_index(texts):
     for code, (v, cc, ih) in accepted.items():
         if code in conflict:
             continue
-        out.append({"label": cc["vn"].strip(), "label_norm": _norm_label(cc["vn"]), "so_luong": v,
+        out.append({"label": cc["vn"].strip(), "label_norm": _norm_label(cc["vn"]),
+                    "label_ma": _norm_ma(cc["vn"]), "so_luong": v,
                     "handle": cc["handle"], "qty_handle": ih, "nguon": "bảng thống kê (cột TỔNG)",
                     "x": cc["x"], "y": cc["y"]})
     return out
@@ -1076,13 +1089,14 @@ class Drawing:
             is_tot = bool(re.search(r"tong\s*(?:so|cong)\b", nv))
             resid = _QTY_STRIP.sub(" ", nv)
             if not _is_dim_label(nv) and _looks_like_title(resid):
-                idx.append({"label": t["vn"].strip(), "label_norm": nv, "so_luong": qty,
-                            "handle": t["handle"], "qty_handle": t["handle"], "nguon": "inline",
+                idx.append({"label": t["vn"].strip(), "label_norm": nv, "label_ma": _norm_ma(t["vn"]),
+                            "so_luong": qty, "handle": t["handle"], "qty_handle": t["handle"], "nguon": "inline",
                             "is_total": is_tot, "x": t.get("x", 0.0), "y": t.get("y", 0.0)})
                 continue
             cand = self._find_title_for_qty(info, i)
             if cand:
                 idx.append({"label": cand["vn"].strip(), "label_norm": _norm_label(cand["vn"]),
+                            "label_ma": _norm_ma(cand["vn"]),
                             "so_luong": qty, "handle": cand["handle"], "qty_handle": t["handle"],
                             "nguon": "spatial", "is_total": is_tot, "x": cand.get("x", 0.0), "y": cand.get("y", 0.0)})
         return idx
@@ -1101,23 +1115,33 @@ class Drawing:
 
     def tra_so_luong(self, keyword):
         idx = self.qty_index
-        kw = _norm_label(keyword or "").strip()
+        kw = _norm_ma(keyword or "").strip()   # id84: GIỮ đ/d ('ĐC'->'djc' ≠ 'DC'->'dc') -> đài cọc KHÔNG hút dầm 'DC*'
         toks = [w for w in kw.split() if w]
         if not toks: return []
         codes = [w for w in toks if any(c.isdigit() for c in w)]
         out = []
         for e in idx:
-            lab = e["label_norm"]
+            lab = e.get("label_ma") or _norm_ma(e["label"])   # khớp trên nhãn GIỮ đ/d (.get: entry cũ thiếu field)
             if e.get("is_total") and codes:   # M4 — TỔNG toàn cục KHÔNG trả cho truy vấn MÃ CỤ THỂ (mã trong câu tổng = tình cờ)
                 continue
             full = all(_tok_bound(t, lab) for t in toks)          # ranh giới + bỏ gạch ngang (C1==C-1)
             code = any(_tok_bound(c, lab) for c in codes) if codes else False
             if full or code: out.append(dict(e, _score=2 if full else 1))
-        out.sort(key=lambda x: -x["_score"])
-        seen, res = set(), []
+        out.sort(key=lambda x: -x["_score"])   # score-desc, ỔN ĐỊNH (giữ thứ tự qty_index) -> KHÔNG phá consumer phụ thuộc thứ tự
+        seen, res = {}, []
         for e in out:
-            k = (e["label_norm"], e["so_luong"])
-            if k not in seen: seen.add(k); res.append(e)
+            k = _ma_key(e["label"])   # id84: dedup theo NHÃN CHUẨN (gộp inline+spatial CÙNG nhãn) -> hết đếm trùng 'ĐC-3' 2 lần
+            if k not in seen:
+                seen[k] = e; res.append(e); continue
+            p = seen[k]               # trùng nhãn: THẤT BẠI PHẢI LỘ nếu SL lệch -> KHÔNG cộng dồn; ưu tiên nguồn 'inline' (callout tự-chứa)
+            if e["so_luong"] != p["so_luong"]:
+                sl_a, sl_b = p["so_luong"], e["so_luong"]
+                if e.get("nguon") == "inline" and p.get("nguon") != "inline":
+                    p.update(so_luong=e["so_luong"], label=e["label"],
+                             handle=e.get("handle", p.get("handle")), qty_handle=e.get("qty_handle", p.get("qty_handle")))
+                if not p.get("canh_bao_sl"):
+                    p["canh_bao_sl"] = ("SL khác nhau giữa 2 nguồn cùng mã (%s vs %s) -> chọn nguồn 'inline', cần đối chiếu bản vẽ."
+                                        % (sl_a, sl_b))
         return res[:20]
 
     # ============================================================
@@ -1149,12 +1173,15 @@ class Drawing:
         tk = (tu_khoa or "").strip()
         if not tk: return {"loi": "Thiếu tên cấu kiện cần tra số lượng.", "co_ghi_so_luong": False}
         matches = self.tra_so_luong(tk)
-        stated = [{"noi_dung": m["label"], "so_luong": m["so_luong"], "handle": m["handle"],
-                   "qty_handle": m.get("qty_handle", m["handle"])} for m in matches]
+        stated = [dict({"noi_dung": m["label"], "so_luong": m["so_luong"], "handle": m["handle"],
+                        "qty_handle": m.get("qty_handle", m["handle"])},
+                       **({"canh_bao": m["canh_bao_sl"]} if m.get("canh_bao_sl") else {})) for m in matches]
         if stated:
+            gc = "Số lượng do BẢN VẼ GHI RÕ (nhãn 'số lượng: N bộ' hoặc 'SL='). Số THẬT."
+            if any("canh_bao" in s for s in stated):   # id84: LỘ xung đột SL (không im lặng)
+                gc += " ⚠ Có mã SL KHÁC NHAU giữa 2 nguồn (xem 'canh_bao') — cần đối chiếu, KHÔNG cộng dồn."
             return {"tu_khoa": tk, "co_ghi_so_luong": True, "so_muc_co_ghi": len(stated),
-                    "danh_sach_so_luong": stated[:40],
-                    "ghi_chu": "Số lượng do BẢN VẼ GHI RÕ (nhãn 'số lượng: N bộ' hoặc 'SL='). Số THẬT."}
+                    "danh_sach_so_luong": stated[:40], "ghi_chu": gc}
         return {"tu_khoa": tk, "co_ghi_so_luong": False, "so_muc_co_ghi": 0, "danh_sach_so_luong": [],
                 "ghi_chu": ("Bản vẽ KHÔNG ghi sẵn số lượng cho '%s'. KHÔNG lấy số lần xuất hiện làm số lượng. "
                             "Thử mã cấu kiện ngắn (vd 'D1'). Nếu thật sự không ghi -> cần bóc tách." % tk)}
@@ -1163,27 +1190,35 @@ class Drawing:
         idx = self.qty_index or []
         co_loc = bool((loc or "").strip())
         items = self.tra_so_luong(loc) if co_loc else idx
-        ds = [{"noi_dung": e["label"], "so_luong": e["so_luong"],
-               "handle": e.get("qty_handle", e["handle"])} for e in items]
+        ds = [dict({"noi_dung": e["label"], "so_luong": e["so_luong"],
+                    "handle": e.get("qty_handle", e["handle"])},
+                   **({"canh_bao": e["canh_bao_sl"]} if e.get("canh_bao_sl") else {})) for e in items]
         if co_loc and not ds:   # M6 — LỘ thất bại: lọc KHÔNG khớp -> báo rõ, KHÔNG âm thầm trả CẢ bảng (đối tác tưởng đã lọc)
             return {"so_muc": 0, "danh_sach": [],
                     "ghi_chu": "KHÔNG có mục số lượng nào khớp '%s'. Bỏ tham số lọc để xem TẤT CẢ, hoặc thử mã ngắn (vd 'D1')." % loc}
-        return {"so_muc": len(ds), "danh_sach": ds[:60],
-                "ghi_chu": "Các mục CÓ GHI SỐ LƯỢNG (nhãn 'số lượng: N bộ'/'SL='). Tên có thể lỗi font "
-                           "('cöa'='cửa'). Số THẬT ghi trên bản vẽ, không phải đếm chữ."}
+        gc = ("Các mục CÓ GHI SỐ LƯỢNG (nhãn 'số lượng: N bộ'/'SL='). Tên có thể lỗi font "
+              "('cöa'='cửa'). Số THẬT ghi trên bản vẽ, không phải đếm chữ.")
+        if any("canh_bao" in d for d in ds):   # id84: LỘ xung đột SL (không im lặng)
+            gc += " ⚠ Có mã SL KHÁC NHAU giữa 2 nguồn (xem 'canh_bao') — cần đối chiếu, KHÔNG cộng dồn."
+        return {"so_muc": len(ds), "danh_sach": ds[:60], "ghi_chu": gc}
 
     def tong_so_luong(self, loc=None, **_):
         co_loc = bool((loc or "").strip())
         items = self.tra_so_luong(loc) if co_loc else (self.qty_index or [])
-        seen, muc = set(), []
+        seen, muc = {}, []
         for e in items:
             if e.get("is_total"): continue   # M5 — KHÔNG cộng TỔNG toàn cục vào tổng số lượng (tránh gộp/đếm trùng)
-            cs = re.findall(r"[a-zđ]+-?\d+[a-z]?", e["label_norm"])
-            code = cs[-1] if cs else e["label_norm"]
-            if code in seen: continue
-            seen.add(code)
-            muc.append({"noi_dung": e["label"], "so_luong": e["so_luong"],
-                        "handle": e.get("qty_handle", e["handle"])})
+            code = _ma_key(e["label"])       # id84: gộp theo MÃ CHUẨN (đ/d-aware) thay cs[-1] (vốn nhặt nhầm annotation 'sl-25')
+            if code in seen:
+                p = muc[seen[code]]          # THẤT BẠI PHẢI LỘ: SL lệch cùng mã -> KHÔNG cộng dồn, LỘ cảnh báo
+                if e["so_luong"] != p["so_luong"] and "canh_bao" not in p:
+                    p["canh_bao"] = ("SL khác nhau giữa 2 nguồn cùng mã (%s vs %s) — chọn 1 nguồn, cần đối chiếu."
+                                     % (p["so_luong"], e["so_luong"]))
+                continue
+            seen[code] = len(muc)
+            m = {"noi_dung": e["label"], "so_luong": e["so_luong"], "handle": e.get("qty_handle", e["handle"])}
+            if e.get("canh_bao_sl"): m["canh_bao"] = e["canh_bao_sl"]   # id84: mang cảnh báo xung đột từ tra_so_luong ra output
+            muc.append(m)
         # M5 — KHÔNG lọc -> KHÔNG cộng gộp SL KHÁC LOẠI (cửa+cột+cọc... vô nghĩa); chỉ tổng khi đối tác LỌC theo 1 loại.
         if co_loc:
             gc = ("TỔNG do hệ thống CỘNG các mục ĐÃ LỌC theo '%s' (đã gộp cùng mã tránh trùng). Kiểm cac_muc: "
@@ -1191,6 +1226,8 @@ class Drawing:
         else:
             gc = ("KHÔNG cộng gộp số lượng KHÁC LOẠI thành 1 số (cửa+cột+cọc... vô nghĩa) -> tong=null. "
                   "Muốn 1 tổng: gọi lại với loc = LOẠI cụ thể (vd 'cửa','cột'). cac_muc: số từng mục là số THẬT trên bản vẽ.")
+        if any("canh_bao" in m for m in muc):   # id84: xung đột SL KHÔNG im lặng ở tầng output
+            gc += " ⚠ Có mã SL KHÁC NHAU giữa 2 nguồn (xem 'canh_bao' ở cac_muc) — cần đối chiếu, KHÔNG cộng dồn."
         return {"loc": loc or None, "so_muc": len(muc),
                 "tong": (sum(m["so_luong"] for m in muc) if co_loc else None),
                 "cac_muc": muc[:50], "ghi_chu": gc}
@@ -2159,7 +2196,7 @@ class Drawing:
         rows, can_bs, gia_dinh = [], [], []
         seen = set()
         for e in (self.qty_index or []):                 # 1) SỐ LƯỢNG (đọc sẵn nhãn SL)
-            k = (e["label_norm"], e["so_luong"])
+            k = (_ma_key(e["label"]), e["so_luong"])     # id84: gộp inline+spatial CÙNG mã+SL ('ĐC-3' hết 2 dòng) thay (label_norm,SL)
             if k in seen: continue
             seen.add(k)
             rows.append({"hang_muc": e["label"].strip()[:44], "loai": "Số lượng", "gia_tri": e["so_luong"],

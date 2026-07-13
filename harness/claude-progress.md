@@ -4,6 +4,24 @@
 > Mới nhất ở TRÊN CÙNG. Bàn giao đầy đủ: `session-handoff.md`. Nhật ký chi tiết hơn nữa: `../GHI_CHU_HOAN_THIEN.md`.
 
 ---
+## Session 2026-07-13 (nối 5) — VÁ FINDING id84 (đài cọc 142→59) — ⚠ CHƯA COMMIT
+**Mục tiêu:** user "nghiên cứu đầu mục nào tiếp theo hợp lý/đúng logic nhất → triển khai". Chọn qua workflow đa-agent, KHÔNG tự ý làm đầu mục cần quyết-định-user hay corpus ngoài.
+
+**Chọn đầu mục (workflow: research 3-agent song song → synthesize → vet overfit):**
+- Xếp hạng: **id84 > id135 > F-B > GĐ4 > P5 > dự toán**. Chọn **id84** — DUY NHẤT vừa UNBLOCKED vừa REPRO được engine thật (file `2. KetCau MN GiaLoc.dxf` CÓ trong corpus). Loại: **id135** BLOCKED (file 'hạ tầng' -14.26 KHÔNG có trong `_dxf` → không verify → vi phạm 'phải có bằng chứng engine thật'); **F-B** cần user quyết (fork web-UI vs MCP-only); **GĐ4/P5** chặn corpus ≥3 firm; **dự toán** HOÃN. id84 là lỗi SAI-TỰ-TIN (lớp tệ nhất theo ethos anti-bịa>phủ).
+
+**Đã làm (probe → design → implement → vá regress → test):**
+- **REPRO offline:** `tong_so_luong(loc='ĐC')` = **142** (đúng 59); query 'ĐC' và 'DC' cho kết quả GIỐNG HỆT (bằng chứng đ/d fold). Danh sách gộp DẦM (DCN/DCTH/DCT) + đếm trùng inline/spatial (ĐC-3=25+25).
+- **4 ROOT-CAUSE** (`tools_core.py`): RC1 `unaccent` gộp đ→d (:45) → 'ĐC'≡'DC' ở khớp; RC2 `_tok_bound` token chữ=substring (:574); RC3 dedup `(label_norm,so_luong)` không gộp inline vs spatial; RC4 `tong_so_luong` `cs[-1]` nhặt nhầm 'sl-25'.
+- **VÁ CẤU TRÚC** (tận dụng tiền lệ `_norm_ma` F3, KHÔNG hardcode 'ĐC'/'DCN'): (a) field `label_ma`=`_norm_ma(nhãn)` + khớp qty trên đó ('ĐC'→'djc'≠'DC'→'dc'); (b) helper `_ma_key` BẢO THỦ (bỏ annotation → so NHÃN đầy đủ) gộp inline/spatial cùng nhãn NHƯNG KHÔNG over-merge 'DẦM D1'≠'CỬA D1'; (c) xung đột SL 2 nguồn → chọn inline + LỘ `canh_bao`+⚠ (wire ra tra_cuu/liet_ke/tong_so_luong), KHÔNG cộng dồn. Áp `_ma_key` cả `tong_hop_khoi_luong` (Excel hết 'ĐC-3' 2 dòng).
+- **VET OVERFIT (adversarial, TRƯỚC code) bắt 3 lỗi:** ① TYPE_WORDS chưa qua _norm_ma ('đài'→'djai') → nếu dùng first-token key thì 'ĐÀI CỌC ĐC-1' cho ma_key='djai' gộp mọi đài → **đổi sang key BẢO THỦ (so nhãn) né hẳn**; ② fail-loud chỉ ở entry nội bộ → **wire ra output**; ③ claim 'mã không-đ 0 đổi' sai ở tầng dedup → **thêm positive-control**. Verdict GO_WITH_ADJUSTMENTS.
+- **VÁ REGRESS [E]:** lần đầu dùng key strip-type-word → over-merge 'DẦM D1'(dầm)+'CỬA D1'(cửa) → test [E] (4 biến thể 'diện tích cửa D1' → 1 giá trị) VỠ (3.51 vs 84.24). Đổi sang `_ma_key` bảo thủ (chỉ bỏ annotation) → door/beam TÁCH lại → [E] ổn định 84.24. (Bài học: dedup đụng mọi consumer; type-word là DISCRIMINATOR khi mã trần trùng.)
+
+**Kết quả test (0 FAIL):** `tong_so_luong('ĐC')` **142→59**/6 mã, chỉ đài cọc · DC(dầm) chỉ dầm · door/beam D1 giữ nguyên. Test **[id84] 12 ca** → `test_takeoff_chong_bia.py` **252/252** · `check.sh` **[18/18] PASS** (excel-content 17, misc-tools 84 không regress) · `test_qa_data.py` **129/129**. **⚠ CHƯA push/deploy — chờ user chốt commit.**
+
+**Đang chờ:** commit id84 (rồi push+deploy+verify LIVE theo quy trình). **id135** vá khi có file hạ tầng (refuse-guard + recall cao-độ-text). **F-B** user quyết. **GĐ4/P5** chặn corpus ≥3 firm.
+
+---
 ## Session 2026-07-13 (CHỐT SỔ) — P3+P4 AI tự học LIVE + KIỂM THỬ TỔNG THỂ GĐ0-3 (5 commit code, 3 bug vá, đều LIVE)
 **Tóm tắt phiên (DÀI):** hoàn tất vòng AI tự học (P-1.1+P3+P4) rồi đóng vai TESTER rà toàn dự án (GĐ0-3). Chi tiết từng phần ở các entry (nối)/(nối 2/3/4) bên dưới.
 

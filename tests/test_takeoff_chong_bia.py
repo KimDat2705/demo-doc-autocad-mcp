@@ -848,6 +848,50 @@ def main():
           and all(str(r.get("handle")) != _HH for r in _thk2["bang"]))
     kt.thu_hoi_quy_uoc("")
 
+    # ---- [id84] ĐÀI CỌC (Đ) ≠ DẦM (D): hết gộp nhầm loại + hết đếm trùng inline/spatial; xung đột SL LỘ ra ----
+    print("[id84] Đài cọc ĐC vs dầm DC — phân biệt đ/d + dedup mã chuẩn (engine THẬT, Gia Lộc KC)")
+    import tools_core as _tc
+    # _ma_key (bảo thủ, GIỮ đ/d): gộp inline/spatial CÙNG nhãn (khử annotation) NHƯNG KHÔNG gộp 2 loại khác cùng mã trần
+    _emit("_ma_key: 'ĐC-3 (SL-25)' == 'ĐC-3' (khử annotation -> gộp inline/spatial)",
+          _tc._ma_key("ĐC-3 (SL-25)") == _tc._ma_key("ĐC-3"))
+    _emit("_ma_key: 'DẦM D1' ≠ 'CỬA D1' (KHÔNG gộp 2 cấu kiện khác loại cùng mã trần — chống over-merge)",
+          _tc._ma_key("DẦM D1") != _tc._ma_key("CỬA D1"))
+    _emit("_ma_key: 'ĐÀI CỌC ĐC-1' ≠ 'ĐÀI CỌC ĐC-2' (đài phân biệt, không collapse)",
+          _tc._ma_key("ĐÀI CỌC ĐC-1") != _tc._ma_key("ĐÀI CỌC ĐC-2"))
+    _emit("_norm_ma: đ/d KHÔNG fold ('dc' KHÔNG là substring 'djc')", "dc" not in _tc._norm_ma("ĐC"))
+    _rdc = kc.tong_so_luong(loc="ĐC")
+    _emit("tong_so_luong('ĐC') = 59, so_muc=6 (was 142/17 — hết gộp dầm + hết đếm trùng)",
+          _rdc.get("tong") == 59 and _rdc.get("so_muc") == 6, "-> tong=%s so_muc=%s" % (_rdc.get("tong"), _rdc.get("so_muc")))
+    _emit("tong_so_luong('ĐC') CHỈ gồm đài cọc ĐC-* (KHÔNG lẫn DẦM/DCN/DCT)",
+          all("ĐC-" in m["noi_dung"] for m in _rdc["cac_muc"])
+          and not any(("DẦM" in m["noi_dung"]) or ("DCN" in m["noi_dung"]) or ("DCT" in m["noi_dung"]) for m in _rdc["cac_muc"]))
+    _emit("ĐC-3 chỉ 1 dòng, SL=25 (không double 50)",
+          [m["so_luong"] for m in _rdc["cac_muc"] if m["noi_dung"].startswith("ĐC-3 ")] == [25])
+    _rd = kc.tong_so_luong(loc="DC")   # dầm (không dấu) — tách sạch khỏi đài cọc
+    _emit("tong_so_luong('DC'=dầm) CHỈ gồm dầm, KHÔNG lẫn đài cọc ĐC-*",
+          _rd.get("so_muc", 0) >= 1 and not any("ĐC-" in m["noi_dung"] for m in _rd["cac_muc"]),
+          "-> so_muc=%s" % _rd.get("so_muc"))
+    _emit("liet_ke_so_luong('ĐC') so_muc=6, sum=59",
+          kc.liet_ke_so_luong(loc="ĐC").get("so_muc") == 6
+          and sum(x["so_luong"] for x in kc.liet_ke_so_luong(loc="ĐC")["danh_sach"]) == 59)
+    _emit("SANITY: truy vấn 'ĐC' và 'DC' KHÔNG còn cho kết quả giống hệt",
+          set((m["noi_dung"], m["so_luong"]) for m in kc.liet_ke_so_luong(loc="ĐC")["danh_sach"])
+          != set((m["noi_dung"], m["so_luong"]) for m in kc.liet_ke_so_luong(loc="DC")["danh_sach"]))
+    # POSITIVE-CONTROL (mã KHÔNG đ, đa-callout SL lệch): gộp theo mã + ưu tiên inline + LỘ (không im lặng), KHÔNG boi số
+    _cf = _mk_th({"label": "C-9 (SL-5)", "label_norm": "c-9 (sl-5)", "so_luong": 5,
+                  "handle": "CF1", "qty_handle": "CF1", "nguon": "inline", "x": 0.0, "y": 0.0})
+    _cf.qty_index.append({"label": "C-9", "label_norm": "c-9", "so_luong": 7,
+                          "handle": "CF2", "qty_handle": "CF2", "nguon": "spatial", "x": 0.0, "y": 0.0})
+    _rcf = _cf.tong_so_luong(loc="C-9")
+    _emit("mã không-đ 2 nguồn SL lệch (5 vs 7): gộp 1 mục, chọn inline=5 (không 12), LỘ canh_bao",
+          _rcf.get("so_muc") == 1 and _rcf.get("tong") == 5 and any("canh_bao" in m for m in _rcf["cac_muc"]))
+    # 9T KetCau KHÔNG có mã DC/ĐC -> M6 lộ thất bại (so_muc=0), KHÔNG bịa
+    if n9:
+        _r9 = n9.tong_so_luong(loc="ĐC")
+        _emit("9T KetCau: tong_so_luong('ĐC') so_muc=0 (M6 lộ thất bại, KHÔNG bịa)", _r9.get("so_muc") == 0)
+    else:
+        skip("id84-9T", "khong nap duoc 9T KetCau (%s)" % P9)
+
     if SKIP:
         print("CANH BAO: %d nhom BO QUA do thieu fixture — KHONG phai da kiem (gate >=3-domain that o P5)" % SKIP)
     print("\n%d PASS / %d FAIL / %d BO QUA" % (PASS, FAIL, SKIP))
