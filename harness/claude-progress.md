@@ -4,6 +4,25 @@
 > Mới nhất ở TRÊN CÙNG. Bàn giao đầy đủ: `session-handoff.md`. Nhật ký chi tiết hơn nữa: `../GHI_CHU_HOAN_THIEN.md`.
 
 ---
+## Session 2026-07-13 (nối 6) — VÁ id135 REFUSE-GUARD (grounding, an toàn recall) — ⚠ CHƯA COMMIT
+**Mục tiêu:** user "vá tiếp id135 với refuse-guard khi n_evidence=0", rồi delegate "nghiên cứu chi tiết + chọn phương án tối ưu".
+
+**PHÁT HIỆN then chốt (probe battery THẬT trước khi thiết kế):** `n_evidence=0` KHÔNG phải tín hiệu bịa — **60/198 câu (30%) có n_ev=0 + có số + ĐÚNG** (id1 '8024 đối tượng', id2 '141 layer', id16 '15/58800mm', id17 '298.4 kg') vì tool trả số tổng-hợp (đếm/bảng thép/min-max/mốc cao độ) KHÔNG gắn handle per-item. Guard `n_evidence=0 → từ chối` thô sẽ **SẬP recall 30%** (recall là điểm yếu THẬT của demo). → hỏi user, user delegate.
+
+**Thiết kế qua workflow (design + false-positive-hunt battery + effectiveness/test + synthesize + vet):**
+- Tín hiệu ĐÚNG = **GROUNDING**: số ĐO-LƯỜNG trong answer có truy được về số nào tool ĐÃ trả trong RAW result không (KHÔNG phải theo handle/evidence). id135 '-10m': −10 vắng khỏi mọi result → bịa; id1 '8024': tool đếm trả 8024 → grounded.
+- **2 lớp** (`mcp_bridge.py`): (L2) `_guard_text`: gom `tool_numbers` từ mọi RAW result (`_collect_numbers` walk dict/list + regex số trong chuỗi, siêu-tập để rộng tay); `_answer_numbers` trích số ĐO-LƯỜNG của answer (có đơn vị m/mm/kg/m2/% hoặc thập phân) — MIỄN số đếm trơn + mã-hiệu (B20/M14/Ø22/1÷200/AxB/handle); `_is_grounded` khớp ×1000/÷1000 + sai số 1%, CÓ DẤU; CHỈ từ chối khi MỌI số (đo-lường lẫn đếm) đều ungrounded (neo=tất-cả-số → chống nuke câu đúng có phần đếm grounded). (L1) luật SYSTEM_PROMPT cao độ/chiều sâu.
+- Hook tại 2 return-có-text-model (dòng ~419, ~436); KHÔNG đụng return thông-báo-hệ-thống.
+
+**Vet red-team (GO_WITH_ADJUSTMENTS) — đã CHẠY `_answer_numbers` trên cả 198 câu battery → FP=0** (0 câu đúng bị từ chối nhầm; mọi số đo-lường của 60 câu n_ev=0 đều truy được về nguồn tool THẬT). Đã tiếp thu 2 adjustment: (1) neo grounding dùng TẤT-CẢ-số (kể cả đếm grounded) chống nuke câu 'id91-shape'; (2) xác nhận chiều-cao-tầng derived grounded vì `thong_tin_tang` trả `typical_floor_h` trong result (concern #2 tự tan). L1 prompt là BẮT BUỘC (guard hẹp, chỉ bắt số âm/ngoài-dải như -10).
+
+**⚠ GIỚI HẠN E2E (trung thực):** KHÔNG chạy được câu id135 THẬT — file hạ tầng KHÔNG có trong corpus + cần API. Xác minh bằng **mock-E2E qua `tra_loi_ai` (đúng code path) + unit + phân tích battery**, KHÔNG phải E2E-thật. Rủi ro deploy thấp vì thứ verify = AN-TOÀN-RECALL (câu đúng được bảo vệ, FP=0); worst-case guard vô hiệu → id135 không tệ hơn cũ.
+
+**Kết quả test:** `test_grounding_guard.py` **32/32** (8 unit trích-số/grounding + mock BAN id135 + GIỮ đếm/thép/đổi-đơn-vị/any-grounded/từ-chối-sẵn). check.sh **[18/18]→[19/19] PASS** · takeoff **252** · qa **129** · 0 regress. **⚠ CHƯA push/deploy — theo quy trình sẽ commit+push+deploy+verify.**
+
+**Đang chờ / bước tiếp:** **id135 RECALL** — thêm recall-tool `cao_do_min_max` (đọc TEXT cao độ min/max kèm handle) để trả ĐÚNG -14.26 (guard chỉ chặn bịa, không giúp đọc đúng) — làm khi có file hạ tầng verify. **F-B** user quyết. **GĐ4/P5** chặn corpus ≥3 firm.
+
+---
 ## Session 2026-07-13 (nối 5) — VÁ FINDING id84 (đài cọc 142→59) — ✅ LIVE `c0b85af`
 **Mục tiêu:** user "nghiên cứu đầu mục nào tiếp theo hợp lý/đúng logic nhất → triển khai". Chọn qua workflow đa-agent, KHÔNG tự ý làm đầu mục cần quyết-định-user hay corpus ngoài.
 

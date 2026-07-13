@@ -9,7 +9,7 @@ Vì sao tự viết bridge (không dùng auto-MCP của google-genai):
   - Quan trọng nhất: GIỮ NGUYÊN vòng lặp tự điều khiển + mọi chốt CHỐNG BỊA của demo 1
     (số do code/tool, kèm handle, temperature=0, ép gọi tool, ranh giới năng lực).
 """
-import os, sys, json, asyncio, threading
+import os, sys, json, asyncio, threading, re, math
 
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
@@ -205,6 +205,9 @@ SYSTEM_PROMPT = (
     "-> nói 'chưa hỗ trợ suy ra kích thước tổng thể từ hình học'. ⛔ KHÔNG lấy DIMENSION lớn nhất (vd 58800mm) làm 'chiều dài công trình'.\n"
     "  • CAO ĐỘ / CHIỀU CAO TẦNG / CÔNG TRÌNH MẤY TẦNG -> GỌI thong_tin_tang (đọc MỐC cao độ ghi sẵn; chiều cao tầng = "
     "HIỆU cao độ liền kề; số tầng ƯỚC TÍNH). Đây là ĐỌC + tính hiệu, ĐƯỢC PHÉP (khác suy hình học). Nói rõ số tầng là 'ước tính'.\n"
+    "    ↳ CAO ĐỘ THẤP/SÂU NHẤT, độ dốc, một con số đo đọc từ TEXT mặt cắt: CHỈ nêu con số nếu công cụ TRẢ VỀ đúng số đó "
+    "(kèm handle/nguyên văn). Nếu công cụ KHÔNG lộ con số đó -> nói thẳng 'không đọc được ... có căn cứ trong bản vẽ'. "
+    "⛔ TUYỆT ĐỐI KHÔNG ước/đoán/bịa một con số cao độ cụ thể (vd '-10m') khi không có nguồn từ công cụ.\n"
     "  • ĐƯỢC PHÉP (B) — hãy GỌI TOOL tìm_kiếm/thong_tin_kich_thuoc rồi trích: giá trị GHI SẴN trong ghi chú "
     "(diện tích lát gạch '591m2', độ dốc mái 'i=32%', bề dày lớp '100mm', đường kính ống 'DN80'), số lượng/giá trị/min-max "
     "của các ĐƯỜNG KÍCH THƯỚC (kèm caveat 'là giá trị trên đường kích thước, không phải kích thước tổng công trình'). "
@@ -320,6 +323,94 @@ def _flat_ev(evidence, per_group=20, total_cap=60):
     return out
 
 
+# ============================================================
+# GROUNDING-GUARD (id135) — chống bịa CON SỐ ĐO-LƯỜNG không nguồn.
+# Tín hiệu KHÔNG phải n_evidence=0 (60/198 câu ĐÚNG có n_ev=0 vì tool trả số tổng-hợp KHÔNG gắn handle:
+# đếm đối tượng, bảng thép, min/max dim, mốc cao độ). Tín hiệu ĐÚNG = GROUNDING: số ĐO-LƯỜNG trong câu
+# trả lời có truy được về số nào tool ĐÃ trả trong RAW result không. CHỈ từ chối khi MỌI số (đo-lường lẫn
+# đếm) đều KHÔNG truy được -> bịa thuần (vd id135 'cao độ -10m' trong khi không tool nào lộ -10).
+# ============================================================
+REFUSE_MESSAGE = "Không có thông tin này trong bản vẽ."
+_REFUSAL_MARKERS = ("không có thông tin", "chưa hỗ trợ", "không hỗ trợ", "không tìm thấy",
+                    "không có trong bản vẽ", "không đưa ra", "quá tải")
+_NUM_IN_STR_RE = re.compile(r"-?\d+(?:[.,]\d+)?")
+# Token MÃ-HIỆU (KHÔNG phải đại lượng đo-lường) -> loại TRƯỚC khi trích số đo-lường của answer:
+_MAHIEU_RES = [
+    re.compile(r"\[[0-9A-Za-z]+\]"),                                                          # handle [2A3F]
+    re.compile(r"\d+(?:[.,]\d+)?\s*[x×]\s*\d+(?:[.,]\d+)?(?:\s*[x×]\s*\d+(?:[.,]\d+)?)*"),     # tiết diện AxBxC
+    re.compile(r"\bK\d+\s*\+\s*\d+", re.I),                                                    # ly trình K0+500
+    re.compile(r"\d+\s*/\s*\d+"),                                                              # tỉ lệ 1/200
+    re.compile(r"[A-Za-zØøĐđ]+[-.]?\d+[A-Za-z0-9\-#.]*"),                                      # chữ-dính-số: M14,B20,DN80,Ø22,C-1,P.103a
+    re.compile(r"\d+\s*#"),                                                                    # mác 250#
+]
+_UNIT_NUM_RE = re.compile(r"(-?\d+(?:[.,]\d+)?)\s*(mm|cm|dm|km|m2|m²|m3|m³|kg|tấn|tan|mpa|m|%)(?![0-9A-Za-zÀ-ỹ])", re.I)
+_DECIMAL_RE = re.compile(r"-?\d+[.,]\d+")
+_ANY_NUM_RE = re.compile(r"-?\d+(?:[.,]\d+)?")
+
+
+def _to_f(s):
+    try:
+        v = float(str(s).replace(",", "."))
+        return v if math.isfinite(v) else None
+    except Exception:
+        return None
+
+
+def _collect_numbers(obj):
+    """Gom MỌI số từ RAW result của tool (giá trị số + số trong chuỗi) -> set float. Cố tình SIÊU TẬP
+    (over-collect) để grounding rộng tay -> bảo vệ recall (thà bỏ sót bịa còn hơn từ chối nhầm câu đúng)."""
+    out = set()
+    def walk(v):
+        if isinstance(v, bool): return
+        if isinstance(v, (int, float)):
+            f = _to_f(v)
+            if f is not None: out.add(f)
+        elif isinstance(v, str):
+            for m in _NUM_IN_STR_RE.findall(v):
+                f = _to_f(m)
+                if f is not None: out.add(f)
+        elif isinstance(v, dict):
+            for x in v.values(): walk(x)
+        elif isinstance(v, (list, tuple)):
+            for x in v: walk(x)
+    walk(obj)
+    return out
+
+
+def _answer_numbers(text):
+    """Trả (tat_ca, do_luong). do_luong = số CÓ đơn vị hoặc THẬP PHÂN (= 'khẳng định đo-lường' cần truy nguồn);
+    số nguyên trơn (đếm đối tượng/bộ/loại/tầng) KHÔNG tính là đo-lường. tat_ca = MỌI số ứng viên (đã loại
+    mã-hiệu) dùng làm NEO grounding (kể cả số đếm đã truy được -> chống nuke câu đúng có phần đếm grounded)."""
+    t = " " + (text or "") + " "
+    for rx in _MAHIEU_RES: t = rx.sub("  ", t)
+    do_luong = [f for f in (_to_f(m.group(1)) for m in _UNIT_NUM_RE.finditer(t)) if f is not None]
+    do_luong += [f for f in (_to_f(m.group(0)) for m in _DECIMAL_RE.finditer(t)) if f is not None]
+    tat_ca = [f for f in (_to_f(m.group(0)) for m in _ANY_NUM_RE.finditer(t)) if f is not None]
+    return tat_ca, do_luong
+
+
+def _is_grounded(a, nums):
+    """a truy được về nums nếu khớp chính nó / ×1000 / ÷1000 (đơn vị mm<->m) trong sai số ~1% (che làm tròn).
+    Khớp CÓ DẤU -> cao độ âm bịa (-10) không khớp mốc dương (id135 = true-positive)."""
+    for t in nums:
+        for cand in (t, t * 1000.0, t / 1000.0):
+            if abs(a - cand) <= max(abs(cand) * 0.01, 0.05):
+                return True
+    return False
+
+
+def _guard_text(text, tool_numbers):
+    """GROUNDING-GUARD: câu khẳng định số ĐO-LƯỜNG mà KHÔNG số nào (đo-lường lẫn đếm) truy được về RAW result
+    tool -> bịa -> thay bằng câu từ chối (giữ evidence). Ngược lại GIỮ NGUYÊN. TUYỆT ĐỐI không biến 1 câu
+    ĐÃ từ chối thành câu khác. Neo = TAT_CA số -> chỉ từ chối khi câu bịa THUẦN (mọi số đều vô căn cứ)."""
+    tl = (text or "").lower()
+    if any(m in tl for m in _REFUSAL_MARKERS): return text
+    tat_ca, do_luong = _answer_numbers(text)
+    if not do_luong: return text                                        # không có khẳng định đo-lường -> không đụng
+    if any(_is_grounded(a, tool_numbers) for a in tat_ca): return text  # ≥1 số truy được -> GIỮ (bảo vệ recall)
+    return REFUSE_MESSAGE
+
+
 def _msg_finish(fr):
     n = getattr(fr, "name", str(fr)) if fr is not None else None
     if n == "MAX_TOKENS": return "AI bị cắt do trả lời quá dài. Hãy hỏi hẹp hơn."
@@ -358,6 +449,7 @@ def tra_loi_ai(bridge, q, file_summary="", history=None):
         if t: contents.append(types.Content(role=r, parts=[types.Part(text=t)]))
     contents.append(types.Content(role="user", parts=[types.Part(text=q)]))
     evidence, anh_id, file_id = [], None, None
+    tool_numbers = set()          # id135: MỌI số tool đã trả (RAW result) -> grounding-guard chống bịa số đo-lường
     da_goi, da_nhac, da_nhac_rong = False, False, False
 
     for _ in range(MAX_TURNS):
@@ -392,6 +484,7 @@ def tra_loi_ai(bridge, q, file_summary="", history=None):
                 grp = fc.name + (": " + str(args.get("tu_khoa") or args.get("layer") or args.get("loc") or "")
                                  if any(k in args for k in ("tu_khoa", "layer", "loc")) else "")
                 evidence.extend(_evidence_from(result, grp.strip(": ")))
+                if isinstance(result, dict): tool_numbers |= _collect_numbers(result)   # id135: gom số RAW result cho grounding-guard
                 rparts.append(types.Part(function_response=types.FunctionResponse(name=fc.name, response=result)))
             contents.append(types.Content(role="user", parts=rparts))
             continue
@@ -416,7 +509,8 @@ def tra_loi_ai(bridge, q, file_summary="", history=None):
                 continue
             return {"answer": "AI không đưa ra nội dung, vui lòng thử lại.",
                     "evidence": _flat_ev(evidence), "anh_id": anh_id, "file_id": file_id, "ai": True}
-        return {"answer": text, "evidence": _flat_ev(evidence), "anh_id": anh_id, "file_id": file_id, "ai": True}
+        return {"answer": _guard_text(text, tool_numbers),   # id135: chặn bịa số đo-lường không nguồn
+                "evidence": _flat_ev(evidence), "anh_id": anh_id, "file_id": file_id, "ai": True}
 
     # Hết lượt tool mà chưa chốt (Flash hay LẶP gọi tool) -> ÉP trả lời NGAY từ dữ liệu ĐÃ thu,
     # KHÔNG gọi thêm tool, KHÔNG bỏ cuộc -> tránh "đọc thiếu" khi data thực ra đã có trong evidence.
@@ -433,7 +527,8 @@ def tra_loi_ai(bridge, q, file_summary="", history=None):
         parts = (cand.content.parts or []) if (cand and cand.content) else []
         text = "".join(getattr(p, "text", "") or "" for p in parts if not getattr(p, "thought", False)).strip()
         if text:
-            return {"answer": text, "evidence": _flat_ev(evidence), "anh_id": anh_id, "file_id": file_id, "ai": True}
+            return {"answer": _guard_text(text, tool_numbers),   # id135: chặn bịa số đo-lường không nguồn
+                    "evidence": _flat_ev(evidence), "anh_id": anh_id, "file_id": file_id, "ai": True}
     except Exception:
         pass
     return {"answer": "Câu hỏi cần tra cứu phức tạp. Hãy thử hỏi cụ thể từng phần (ví dụ hỏi riêng số lượng, riêng kích thước).",
