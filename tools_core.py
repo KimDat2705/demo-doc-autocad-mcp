@@ -2210,6 +2210,24 @@ class Drawing:
             rows.append({"hang_muc": sa["text"][:44], "loai": "Diện tích (ghi sẵn)", "gia_tri": sa["m2"], "don_vi": "m²",
                          "nguon": "đọc sẵn trên bản vẽ" + (" (có 'diện tích')" if sa["co_tu_khoa_dien_tich"] else " (chưa rõ loại)"),
                          "handle": sa["handle"]})
+        # P4 — RÀO BẤT BIẾN "learned KHÔNG vào tổng/Excel" (fail-closed, biến lời-hứa-thiết-kế thành RÀNG-BUỘC-CODE):
+        # loại MỌI row có handle ∈ quy ước học. Bình thường learned-anchor là RESIDUAL -> KHÔNG ở index nào -> filter
+        # là NO-OP; nhưng đây khoá bất biến bằng CODE (chống future-bug / P5-codify vô tình hút anchor học vào index).
+        learned_handles = {str(r["anchor_handle"]) for r in self._quy_tac_hieu_luc()}
+        rows = [r for r in rows if str(r.get("handle")) not in learned_handles]
+        for r in rows:   # P4: cờ chua_chac PER-ROW (TẠM TÍNH/suy đoán/thiếu SL/chưa rõ loại) -> hiện cột ở Excel
+            _rt = str(r.get("nguon", "")) + " " + str(r.get("hang_muc", ""))   # quét CẢ hang_muc ('(đv suy đoán)' nằm ở đó, không ở nguon)
+            r["chua_chac"] = any(k in _rt for k in ("TẠM TÍNH", "suy đoán", "thiếu SL", "chưa rõ"))
+        # P4 — QUY ƯỚC ĐỐI TÁC DẠY (chưa xác nhận): re-parse TƯƠI (không cache số), LỘ để đối tác THẤY 'đã dạy X' —
+        # NHƯNG KHÔNG tính vào tổng, KHÔNG là số chốt (song song can_bo_sung/gia_dinh; chỉ hiện, không cộng).
+        quy_uoc_chua_xn = []
+        for r in self._quy_tac_hieu_luc():
+            t = (getattr(self, "_text_by_handle", None) or {}).get(str(r["anchor_handle"]))
+            p = _hoc_reparse(r["template_id"], (t.get("vn") or "").strip(), r.get("ma_ap_dung")) if t else None
+            if not p: continue
+            quy_uoc_chua_xn.append({"ma": r.get("ma_ap_dung"), "y_nghia": r["y_nghia"], "gia_tri": p["gia_tri"],
+                                    "don_vi": p["don_vi"], "handle": str(r["anchor_handle"]), "rule_id": r["rule_id"],
+                                    "nhan": "CHƯA XÁC NHẬN — đối tác dạy cách đọc, KHÔNG tính vào tổng (cần đối chiếu ≥3 nguồn)"})
         # TỔNG PHỤ theo (LOẠI, ĐƠN VỊ): CODE cộng các dòng cùng loại+đơn vị (số đã có nguồn). Nhóm theo (loai,don_vi)
         # để KHÔNG gộp nhầm khác bản chất (Thể tích BT m³ ≠ Khối lượng ghi sẵn/đào móng m³); ô 'gia_tri' dạng chuỗi (tiết diện) bỏ qua.
         _tp = {}
@@ -2222,13 +2240,16 @@ class Drawing:
             if r["loai"] not in _khong_cong and isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v):
                 a = _tp.setdefault((r["loai"], r.get("don_vi") or ""), [0.0, 0]); a[0] += v; a[1] += 1
         tong_phu = [{"loai": lo, "don_vi": dv, "tong": round(t, 2), "so_dong": n} for (lo, dv), (t, n) in _tp.items()]
+        _gc = ("BẢNG TỔNG HỢP SƠ BỘ. Cột 'nguon' cho biết số ĐỌC SẴN / HỆ THỐNG TÍNH / TẠM TÍNH (giả định); 'chua_chac'=true "
+               "là dòng tạm tính/suy đoán cần đối chiếu. 'tong_phu' = TỔNG theo từng (loại, đơn vị) do HỆ THỐNG cộng (vd tổng "
+               "bê tông m³, tổng thép kg) — TRÌNH BÀY cho đối tác; mỗi tổng thuộc 1 loại riêng, KHÔNG gộp khác đơn vị/khác loại. "
+               "'can_bo_sung' = mục còn thiếu số liệu; 'gia_dinh' = giả định đã dùng. KHÔNG coi là dự toán chốt — chỉ gồm cấu "
+               "kiện có nhãn đọc được. Xuất Excel để rà soát/hoàn thiện.")
+        if quy_uoc_chua_xn:
+            _gc += (" ⚠ 'quy_uoc_chua_xac_nhan' = %d cách đọc ĐỐI TÁC DẠY (P3) — hệ ĐÃ re-parse nhưng TUYỆT ĐỐI KHÔNG "
+                    "cộng vào tổng/Excel: nêu cho đối tác đối chiếu, KHÔNG dùng làm số chốt tới khi dev codify ≥3 nguồn." % len(quy_uoc_chua_xn))
         return {"co_du_lieu": bool(rows), "so_hang": len(rows), "bang": rows, "tong_phu": tong_phu,
-                "can_bo_sung": can_bs, "gia_dinh": gia_dinh,
-                "ghi_chu": "BẢNG TỔNG HỢP SƠ BỘ. Cột 'nguon' cho biết số ĐỌC SẴN / HỆ THỐNG TÍNH / TẠM TÍNH (giả định). "
-                           "'tong_phu' = TỔNG theo từng (loại, đơn vị) do HỆ THỐNG cộng (vd tổng bê tông m³, tổng thép kg) — "
-                           "TRÌNH BÀY các tổng này cho đối tác; lưu ý mỗi tổng thuộc 1 loại riêng, KHÔNG gộp khác đơn vị/khác loại. "
-                           "'can_bo_sung' = mục còn thiếu số liệu để tính; 'gia_dinh' = giả định đã dùng. KHÔNG coi là dự "
-                           "toán chốt — chỉ gồm cấu kiện có nhãn đọc được. Xuất Excel để rà soát/hoàn thiện."}
+                "can_bo_sung": can_bs, "gia_dinh": gia_dinh, "quy_uoc_chua_xac_nhan": quy_uoc_chua_xn, "ghi_chu": _gc}
 
     def xuat_excel(self, **_):
         """GĐ2d: ghi BẢNG TỔNG HỢP ra file .xlsx trong _renders/, trả file_id (host cho tải qua /file/<id>).
@@ -2240,23 +2261,30 @@ class Drawing:
             return {"loi": "Máy chủ chưa cài openpyxl để xuất Excel (thêm 'openpyxl' vào requirements)."}
         th = self.tong_hop_khoi_luong()
         wb = Workbook(); ws = wb.active; ws.title = "Tong hop khoi luong"
-        ws.append(["STT", "Hạng mục", "Loại", "Giá trị", "Đơn vị", "Nguồn", "Handle"])
+        ws.append(["STT", "Hạng mục", "Loại", "Giá trị", "Đơn vị", "Nguồn", "Chưa chắc", "Handle"])
         for c in ws[1]:
             c.font = Font(bold=True, color="FFFFFF"); c.fill = PatternFill("solid", fgColor="2F5496")
         for i, r in enumerate(th["bang"], 1):
-            ws.append([i, r["hang_muc"], r["loai"], r["gia_tri"], r["don_vi"], r["nguon"], r.get("handle", "")])
+            ws.append([i, r["hang_muc"], r["loai"], r["gia_tri"], r["don_vi"], r["nguon"],
+                       "⚠ CHƯA CHẮC" if r.get("chua_chac") else "", r.get("handle", "")])
         ws.append([]); ws.append(["TỔNG PHỤ (hệ thống cộng theo LOẠI + ĐƠN VỊ):"])
         ws["A%d" % ws.max_row].font = Font(bold=True)
         for tp in th.get("tong_phu", []):
-            row = ["", "TỔNG %s" % tp["loai"], "", tp["tong"], tp["don_vi"], "%d dòng cộng lại" % tp["so_dong"], ""]
+            row = ["", "TỔNG %s" % tp["loai"], "", tp["tong"], tp["don_vi"], "%d dòng cộng lại" % tp["so_dong"], "", ""]
             ws.append(row)
             for c in ws[ws.max_row]: c.font = Font(bold=True)
         ws.append([]); ws.append(["CẦN BỔ SUNG (còn thiếu số liệu để tính):"])
         for x in th["can_bo_sung"]: ws.append(["", x])
         ws.append([]); ws.append(["GIẢ ĐỊNH ĐÃ DÙNG:"])
         for x in th["gia_dinh"]: ws.append(["", x])
+        if th.get("quy_uoc_chua_xac_nhan"):   # P4: khối QUY ƯỚC ĐỐI TÁC DẠY (chưa xác nhận) — LỘ RÕ, KHÔNG tính vào tổng
+            ws.append([]); ws.append(["QUY ƯỚC ĐỐI TÁC DẠY (CHƯA XÁC NHẬN — KHÔNG tính vào tổng):"])
+            ws["A%d" % ws.max_row].font = Font(bold=True, color="C00000")
+            for q in th["quy_uoc_chua_xac_nhan"]:
+                ws.append(["", "%s [%s]" % (q.get("ma"), q.get("y_nghia")), "quy ước học", q.get("gia_tri"),
+                           q.get("don_vi"), q.get("nhan"), "⚠ CHƯA CHẮC", q.get("handle")])
         ws.append([]); ws.append(["Ghi chú:", th["ghi_chu"]])
-        for col, w in zip("ABCDEFG", [5, 42, 18, 12, 8, 34, 10]):
+        for col, w in zip("ABCDEFGH", [5, 42, 16, 12, 8, 30, 12, 10]):
             ws.column_dimensions[col].width = w
         fid = "th_%s.xlsx" % uuid.uuid4().hex[:10]
         _xp = os.path.join(RENDER_DIR, fid)

@@ -821,6 +821,32 @@ def main():
     _dMM = _mkh([{"handle": "MA", "vn": "C1", "x": 0.0, "y": 0.0}, {"handle": "HMM", "vn": "C1 nang 30 kg (1 bo)", "x": 1.0, "y": 1.0}])
     _emit("Z16 (F4): học 'C1 C9' mà anchor chỉ nhắc C1 -> TỪ CHỐI (anchor phải chứa MỌI token mã)",
           not _dMM.hoc_quy_uoc("HMM", "KG_PER_UNIT", "C1 C9").get("ok"))
+    # --- P4: rào bất biến "learned KHÔNG vào tổng/Excel" (CODE) + hiện mục "chưa xác nhận" + cột chua_chac ---
+    def _mk_th(qrow):
+        d = _mkh([{"handle": qrow["handle"], "vn": qrow["label"], "x": 0.0, "y": 0.0}])
+        d.qty_index = [qrow]; d.thep = {"co_bang": False}; d.thep_hinh = {"co_bang": False}; d.levels = {}
+        return d
+    # P4a fail-closed: handle vừa ở index VỪA ở quy ước học -> BỊ LOẠI khỏi tong_hop (rào bất biến bằng CODE, chống future-bug)
+    _p4 = _mk_th({"label_norm": "c1", "label": "C1", "so_luong": 5, "handle": "QH", "qty_handle": "QH", "x": 0.0, "y": 0.0})
+    _p4.hoc_phien = [{"rule_id": "R1", "anchor_handle": "QH", "y_nghia": "kg_moi_bo", "template_id": "KG_PER_UNIT", "ma_ap_dung": "C1"}]
+    _th4 = _p4.tong_hop_khoi_luong()
+    _emit("P4a fail-closed: handle vừa ở index vừa ở quy ước học -> BỊ LOẠI khỏi tong_hop (rào bất biến bằng CODE)",
+          all(str(r.get("handle")) != "QH" for r in _th4["bang"]))
+    # P4 cột chua_chac: field per-row CÓ mặt; dòng 'đọc sẵn (nhãn SL)' -> False (TẠM TÍNH/suy đoán -> True qua keyword)
+    _p4b = _mk_th({"label_norm": "d1", "label": "D1", "so_luong": 3, "handle": "QH2", "qty_handle": "QH2", "x": 0.0, "y": 0.0})
+    _thb = _p4b.tong_hop_khoi_luong()
+    _emit("P4: cột chua_chac per-row CÓ mặt; dòng 'đọc sẵn' -> chua_chac=False",
+          len(_thb["bang"]) == 1 and _thb["bang"][0].get("chua_chac") is False)
+    _xr4 = _p4b.xuat_excel()
+    _emit("P4: xuat_excel KHÔNG crash (trả file_id hoặc lỗi openpyxl rõ ràng)",
+          bool(_xr4.get("file_id")) or ("openpyxl" in _xr4.get("loi", "")))
+    # P4b visibility (fixture THẬT): dạy quy ước -> tong_hop có 'quy_uoc_chua_xac_nhan' (HIỆN) + handle KHÔNG ở bang (KHÔNG tính)
+    kt.hoc_quy_uoc(_HH, "KG_PER_UNIT", "S1")
+    _thk2 = kt.tong_hop_khoi_luong()
+    _emit("P4b: tong_hop có quy_uoc_chua_xac_nhan (12.5 kg, handle _HH) + handle KHÔNG ở bang (hiện nhưng KHÔNG tính)",
+          any(abs(q["gia_tri"] - 12.5) < 0.01 and q["handle"] == _HH for q in _thk2.get("quy_uoc_chua_xac_nhan", []))
+          and all(str(r.get("handle")) != _HH for r in _thk2["bang"]))
+    kt.thu_hoi_quy_uoc("")
 
     if SKIP:
         print("CANH BAO: %d nhom BO QUA do thieu fixture — KHONG phai da kiem (gate >=3-domain that o P5)" % SKIP)

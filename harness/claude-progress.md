@@ -4,6 +4,21 @@
 > Mới nhất ở TRÊN CÙNG. Bàn giao đầy đủ: `session-handoff.md`. Nhật ký chi tiết hơn nữa: `../GHI_CHU_HOAN_THIEN.md`.
 
 ---
+## Session 2026-07-13 (nối 2) — P4 RÀO TỔNG/EXCEL (learned không-vào-tổng + cột chưa-chắc) — ⚠ CHƯA COMMIT
+**Mục tiêu:** user "làm tiếp P4" (sau P-1.1+P3 đã LIVE `6933643`).
+
+**Đã làm (probe → design → implement → adversarial review → test):**
+- **PROBE:** đọc `tong_hop_khoi_luong`+`xuat_excel` — xác nhận rows dựng HOÀN TOÀN từ 8 index, KHÔNG bao giờ đọc `hoc_phien` → số học structurally không vào tổng (INV-2 đã giữ). P4 = biến lời-hứa thành ràng-buộc-CODE + hiện mục học.
+- **IMPLEMENT (`tools_core.py`):** (1) **fail-closed guard** `learned_handles={r['anchor_handle'] for r in _quy_tac_hieu_luc()}`; `rows=[r for r in rows if handle not in learned_handles]` (no-op bình thường vì learned-anchor residual, nhưng khoá bất biến bằng CODE chống future-bug/P5-codify hút anchor học vào index). (2) **cột `chua_chac`** per-row (keyword TẠM TÍNH/suy đoán/thiếu SL/chưa rõ, quét cả nguon+hang_muc). (3) **`quy_uoc_chua_xac_nhan`** = re-parse tươi các quy ước học, LỘ cho đối tác NHƯNG KHÔNG cộng tổng (song song can_bo_sung/gia_dinh). `xuat_excel`: cột 'Chưa chắc' (8 cột) + khối "QUY ƯỚC ĐỐI TÁC DẠY (CHƯA XÁC NHẬN)".
+- **ADVERSARIAL REVIEW (1-agent, tự-repro chạy engine + mở lại .xlsx):** AN TOÀN — mục 1/2/4/5 vững (số học KHÔNG vào tong_phu/bang, filter no-op đúng, `_hoc_reparse` không crash, Excel 8-cột OK, 0 regression khi hoc_phien=[]). Vá 1 LOW: keyword 'suy đoán' CHẾT (nằm ở hang_muc '(đv suy đoán)' không ở nguon) → quét cả hang_muc.
+
+**Kết quả test (0 FAIL):** `test_takeoff_chong_bia.py` **240/240** (+4 P4: fail-closed collision cưỡng bức, cột chua_chac, xuat_excel không crash, visibility fixture thật) · `test_qa_data.py` **129/129** · `check.sh` **[10/10] PASS**. Dọn rác repro agent (`scratchpad/`). **⚠ CHƯA COMMIT/push/deploy — chờ user.**
+
+**Bài học:** tầng tổng/Excel vốn đã an-toàn-cấu-trúc (không đọc hoc_phien) nhưng biến thành RÀNG-BUỘC-CODE + test khoá là đúng ethos "lời-hứa-thiết-kế → ràng-buộc-code"; adversarial review tự-repro (chạy + mở lại xlsx) bắt keyword-chết mà đọc-code-thường bỏ qua.
+
+**Đang chờ:** user chốt commit P4 (rồi push+deploy+verify LIVE). Sau đó: **P5** (codify — CHẶN tới khi có corpus ≥3 firm; G6 cần bản vẽ đa-domain). Dự toán chi phí HOÃN.
+
+---
 ## Session 2026-07-13 (nối) — P-1.1 vá R1 + **P3 MỞ KÊNH HỌC** (code + red-team 2 vòng) — ⚠ CHƯA COMMIT
 **Mục tiêu:** user chốt "khởi động P3, chạy red-team đa-agent TRƯỚC". Rồi "chọn phương án tối ưu và làm" (giao tôi quyết sắp xếp). Rồi "chưa commit, tiếp P3 luôn, commit cả cụm sau".
 
