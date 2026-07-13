@@ -358,7 +358,7 @@ def tra_loi_ai(bridge, q, file_summary="", history=None):
         if t: contents.append(types.Content(role=r, parts=[types.Part(text=t)]))
     contents.append(types.Content(role="user", parts=[types.Part(text=q)]))
     evidence, anh_id, file_id = [], None, None
-    da_goi, da_nhac = False, False
+    da_goi, da_nhac, da_nhac_rong = False, False, False
 
     for _ in range(MAX_TURNS):
         try:
@@ -407,6 +407,13 @@ def tra_loi_ai(bridge, q, file_summary="", history=None):
                 "Không có công cụ phù hợp thì nói 'Không có thông tin này trong bản vẽ.'"))]))
             continue
         if not text:
+            if not da_nhac_rong:      # Gemini 2.5-flash đôi khi trả part 'thought' RỖNG (không text/không tool) ở lượt đầu
+                da_nhac_rong = True   # -> NHẮC 1 lần (thay vì bỏ cuộc ngay) để model thật sự trả lời/gọi tool (robustness E2E)
+                contents.append(cand.content)
+                contents.append(types.Content(role="user", parts=[types.Part(text=(
+                    "Bạn CHƯA đưa ra câu trả lời. Hãy GỌI công cụ phù hợp rồi TRẢ LỜI bằng văn bản. "
+                    "Nếu bản vẽ không có thông tin thì nói rõ 'Không có thông tin này trong bản vẽ.'"))]))
+                continue
             return {"answer": "AI không đưa ra nội dung, vui lòng thử lại.",
                     "evidence": _flat_ev(evidence), "anh_id": anh_id, "file_id": file_id, "ai": True}
         return {"answer": text, "evidence": _flat_ev(evidence), "anh_id": anh_id, "file_id": file_id, "ai": True}

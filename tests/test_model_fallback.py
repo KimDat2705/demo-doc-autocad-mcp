@@ -115,6 +115,36 @@ def main():
     ok("không trùng lặp trong chuỗi", len(B.MODELS) == len(set(B.MODELS)), B.MODELS)
     ok("_FALLBACK_DEFAULT có ≥1 model phụ", len([m for m in B._FALLBACK_DEFAULT.split(",") if m.strip()]) >= 1)
 
+    print("[H.10] EMPTY-RESPONSE NUDGE — Gemini trả part 'thought' RỖNG lượt đầu -> NHẮC 1 lần rồi phục hồi (E2E bug)")
+    class _P:                                     # fake Part (text/thought/function_call)
+        def __init__(s, text="", thought=False): s.text = text; s.thought = thought; s.function_call = None
+    class _CT:
+        def __init__(s, parts): s.parts = parts
+    class _C:
+        def __init__(s, parts, fin=None): s.content = _CT(parts); s.finish_reason = fin
+    class _R:
+        def __init__(s, cand): s.candidates = [cand]
+    class _Bridge:
+        tools = []
+        def call(s, *a, **k): return {}
+    _scr = [[_R(_C([_P(thought=True)])), _R(_C([_P(text="Đã đánh dấu vị trí cửa trên bản vẽ.")]))]]  # rỗng->nhắc->text
+    _seq = [0]
+    _saveg, _savec = B._gen_fallback, B._get_client
+    B._get_client = lambda: None
+    def _fg(cl, co, cf, st):
+        r = _scr[0][min(_seq[0], len(_scr[0]) - 1)]; _seq[0] += 1; return r
+    B._gen_fallback = _fg
+    try:
+        r = B.tra_loi_ai(_Bridge(), "Đánh dấu cửa")
+        ok("empty lượt đầu -> NHẮC rồi trả text (KHÔNG 'không đưa ra nội dung')",
+           r["answer"] == "Đã đánh dấu vị trí cửa trên bản vẽ." and _seq[0] == 2, (r["answer"][:40], _seq[0]))
+        _seq[0] = 0; _scr[0] = [_R(_C([_P(thought=True)])), _R(_C([_P(thought=True)]))]   # rỗng CẢ 2 lượt
+        r = B.tra_loi_ai(_Bridge(), "Đánh dấu cửa")
+        ok("empty CẢ 2 lượt -> mới báo 'không đưa ra nội dung' (nhắc ĐÚNG 1 lần, không lặp vô hạn)",
+           "không đưa ra nội dung" in r["answer"] and _seq[0] == 2, (r["answer"][:40], _seq[0]))
+    finally:
+        B._gen_fallback, B._get_client = _saveg, _savec
+
     print("\n%d PASS / %d FAIL" % (PASS, FAIL))
     return 1 if FAIL else 0
 

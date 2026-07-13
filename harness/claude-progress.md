@@ -4,6 +4,22 @@
 > Mới nhất ở TRÊN CÙNG. Bàn giao đầy đủ: `session-handoff.md`. Nhật ký chi tiết hơn nữa: `../GHI_CHU_HOAN_THIEN.md`.
 
 ---
+## Session 2026-07-13 (nối 4) — KIỂM THỬ GĐ3 (E2E-AI 198 câu) + vá bug empty-response
+**Mục tiêu:** user chốt option 2 (gồm E2E-AI) + "chi phí API không quan trọng". Có key (`../demo_doc_autocad/.env`), USE_AI=True. Chạy GĐ3 LOCAL (không đụng LIVE đối tác).
+
+**Đã làm:**
+- **SMOKE (`kichban_gd2`, 12 lượt):** đối chiếu ENGINE-truth tự động → **10/10 khớp số**, 0 bịa. Anti-bịa mọi cờ (thiếu→hỏi/không-tồn-tại/đa-tiết-diện/chưa-chắc/số-lần≠số-bộ) đều lộ.
+- **FULL BATTERY 198 câu** (Gemini 2.5-flash, fallback-tắt-đo-sạch, 18 phút, 0 exception): DAT 105 + PHAN 27 (67%) · SAI 49 · RỖNG 17. **Judge-panel 12 agent Claude** (khác nhà-model Gemini, chống đồng-loã) chấm vs ky_vong/tieu_chi_dat + factsheet `dump_profile`.
+- **BUG EMPTY-RESPONSE (tìm+vá):** 17/198 (8.6%) trả "AI không đưa ra nội dung" @1s. Rerun fallback-BẬT: 9 hồi phục, 8 CỨNG ĐẦU (highlight + câu đơn giản). Root cause (đọc code): Gemini 2.5-flash trả part `thought` RỖNG (không text/không tool) lượt đầu → `tra_loi_ai` (mcp_bridge.py:409) bỏ cuộc NGAY. **Vá: NHẮC-1-lần** (cờ `da_nhac_rong`) trước khi bỏ cuộc → re-run 8/8 hồi phục (id54 'BỂ NƯỚC PCCC' thực CÓ [A1263]; id132 từ chối trung thực). Test `[H.10]` (mock fake-resp, 2 ca: nhắc-rồi-phục-hồi + rỗng-cả-2-lượt-mới-báo).
+- **XÁC MINH KPI BỊA (không tin judge mù — [[feedback-bia-tai-sinh-tang-code]]):** judge thô báo 7 bịa/3.9%; tự đọc answer+factsheet → **chỉ ~1.1% bịa CỨNG**: id84 (đài cọc tổng 142 vs 59 + gộp nhầm dầm) + id135 (cao độ -10 vs -14.26). Còn lại: id17 false-positive (100m THỰC có ở bảng thép), ~4 ranh-giới (ước-lượng-có-cờ ≠ bịa). 49 SAI đa số "đọc thiếu" (recall miss, an toàn).
+
+**Kết quả test:** check.sh **[18/18] PASS** (model_fallback 20→22 +H.10) · takeoff 240 · qa 129 · 0 FAIL. E2E: demo RẤT chắc anti-bịa (KPI ≈0% bịa gần đạt, ~1% bịa cứng edge-case). ⚠ CHƯA COMMIT lúc viết entry (commit vá empty-response).
+
+**Bài học:** E2E THẬT bắt bug mà offline không lộ (empty-response chỉ hiện khi gọi Gemini thật dưới tải). Judge-panel hữu ích NHƯNG phải TỰ xác minh KPI (judge over-flag ước-lượng-có-cờ + false-positive do factsheet thiếu cột). Điểm yếu thực của demo = RECALL (đọc thiếu), không phải bịa — đúng ethos "thà thiếu hơn bịa".
+
+**Đang chờ:** commit vá empty-response (rồi deploy LIVE). **FINDING vá sau:** id84 (gộp/đếm đài cọc), id135 (min cao độ), ước-lượng over-fire trên câu-bẫy. **GĐ4** đa-domain (cần bản vẽ VN ≥3 firm). **GĐ5** thu hồi ✅ (đã dọn _uploads/_renders test). **F-B** nối-UI-web-P3 hay MCP-only.
+
+---
 ## Session 2026-07-13 (nối 3) — KIỂM THỬ TỔNG THỂ GĐ0-2: +212 test + vá R11(IDOR)+F-A(race)
 **Mục tiêu:** user giao "đóng vai TESTER chuyên nghiệp, rà toàn dự án (A-Z, P1-P4), lên kế hoạch kiểm thử nhiều giai đoạn, thu hồi dữ liệu test, nghiên cứu nguồn bản vẽ mở". Budget API KHÔNG là ràng buộc. Chọn phương án tối ưu → GĐ0-2 (offline + vá code) trước.
 
