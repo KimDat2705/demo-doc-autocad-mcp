@@ -4,6 +4,24 @@
 > Mới nhất ở TRÊN CÙNG. Bàn giao đầy đủ: `session-handoff.md`. Nhật ký chi tiết hơn nữa: `../GHI_CHU_HOAN_THIEN.md`.
 
 ---
+## Session 2026-07-13 (CHỐT SỔ) — P3+P4 AI tự học LIVE + KIỂM THỬ TỔNG THỂ GĐ0-3 (5 commit code, 3 bug vá, đều LIVE)
+**Tóm tắt phiên (DÀI):** hoàn tất vòng AI tự học (P-1.1+P3+P4) rồi đóng vai TESTER rà toàn dự án (GĐ0-3). Chi tiết từng phần ở các entry (nối)/(nối 2/3/4) bên dưới.
+
+**Đã làm (5 commit code + docs, TẤT CẢ deploy+verify LIVE):**
+- **P-1.1 + P3 MỞ KÊNH HỌC** `6933643` — vá R1 (nhãn 'đáng tin' cho input chua_chac) + `hoc_quy_uoc`/`thu_hoi_quy_uoc` (học CÁCH ĐỌC theo phiên, §2.6 backstop số-học-không-thành-số-chốt, LLM chặn tool ghi R8). Red-team 2 tầng (thiết kế 119-agent + implementation 19-agent tự-repro, vá 5 bug cổng F1-F5).
+- **P4 rào tổng/Excel** `e9c4f80` — learned_handles fail-closed + cột chua_chac + mục 'chưa xác nhận'.
+- **KIỂM THỬ GĐ0-2** `5b13ba0` — +212 test offline (8 file: visual/excel/misc/vntext/fuzz/dwgconv/MCP-stdio-thật/routes) + vá **R11 (IDOR** cross-session /file//image) + **F-A (race** đóng subprocess giữa request). check.sh [10/10]→[18/18].
+- **KIỂM THỬ GĐ3 (E2E-AI)** `7e9335e` — battery 198 câu + smoke 10/10 vs engine-truth; vá **bug empty-response** (Gemini trả 'thought' rỗng → tra_loi_ai bỏ cuộc; nhắc-1-lần). KPI ~1.1% bịa cứng (tự xác minh, không tin judge 3.9%).
+
+**Kết quả test (clean-state CHỐT SỔ, 0 FAIL):** `check.sh` **HARNESS GATE PASS [18/18]** (25 tool · takeoff 240 · fallback 22 · session 25 · +8 file kiểm thử) · `test_qa_data.py` **129/129** · working tree TRACKED sạch, push hết, **HEAD `89ead72`** (code LIVE `7e9335e`). **KHÔNG pytest** (crash `I/O closed file`); **KHÔNG specs/** (dùng feature_list.json). feature_list: **29 done / 1 deferred** (ai-tu-hoc→done; dự toán chi phí HOÃN).
+
+**3 BUG VÁ phiên này (đều LIVE):** R11 (bảo mật IDOR), F-A (concurrency race), empty-response (E2E robustness). **2 BUG ĐỌC-SỐ ghi-nhận-vá-sau:** id84 (gộp/đếm đài cọc 142 vs 59), id135 (min cao độ -10 vs -14.26).
+
+**Quyết định dài hạn (đã lưu memory):** [[feedback-e2e-test-kpi]] (E2E bắt bug offline không lộ; judge KPI phải tự xác minh; điểm yếu demo=recall không phải bịa) · [[feedback-red-team-2-tang]] · [[project-ke-hoach-kiem-thu]] (kế hoạch 6-GĐ + finding). Vòng AI tự học: P-1..P4 XONG&LIVE; **P5 (codify) CHẶN tới khi có bản vẽ VN ≥3 firm**.
+
+**Đang chờ / bước tiếp:** **GĐ4 đa-domain** (cần bản vẽ VN thật ≥3 firm — budget không mua được, xin đối tác; trùng gate P5) · **id84/id135** vá sau · **F-B** (nối UI web cho kênh học P3 hay giữ MCP-client-only) · dự toán chi phí HOÃN.
+
+---
 ## Session 2026-07-13 (nối 4) — KIỂM THỬ GĐ3 (E2E-AI 198 câu) + vá bug empty-response
 **Mục tiêu:** user chốt option 2 (gồm E2E-AI) + "chi phí API không quan trọng". Có key (`../demo_doc_autocad/.env`), USE_AI=True. Chạy GĐ3 LOCAL (không đụng LIVE đối tác).
 

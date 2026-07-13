@@ -4,7 +4,7 @@ Chạy TRƯỚC mỗi commit và cuối mỗi phiên (một phiên = một "tran
 
 ## Build / Import
 - [ ] `python -c "import tools_core"` sạch (không lỗi import)
-- [ ] `grep -c "@mcp.tool" mcp_server.py` = **23** (21 + `hoi_de_hoc` + `doi_chieu_nghi_ngo` — AI tự học P0-P1 đọc-thuần)
+- [ ] `grep -c "@mcp.tool" mcp_server.py` = **25** (23 + `hoc_quy_uoc` + `thu_hoi_quy_uoc` — AI tự học P3 MỞ KÊNH HỌC; 2 tool này LOẠI khỏi gemini_tools = R8)
 - [ ] ⚠ KHÔNG dùng `pytest` (test đổi `sys.stdout` lúc import → pytest crash `I/O operation on closed file`); chạy SCRIPT trực tiếp + `check.sh`. KHÔNG có `specs/specs.json` (dùng `feature_list.json`).
 - [ ] `requirements.txt` đủ (ezdxf, Flask, gunicorn, google-genai, mcp, matplotlib, pillow, openpyxl)
 
@@ -26,15 +26,15 @@ Chạy TRƯỚC mỗi commit và cuối mỗi phiên (một phiên = một "tran
 - [ ] Mọi nội dung cụ thể kèm **handle** có thật trong file
 
 ## Dữ liệu / Hồi quy
-- [ ] `python tests/test_takeoff_chong_bia.py` = **214/214 PASS** (offline, không tốn API; nhóm A-Y; +W = audit 9 lỗ; **+X 12 ca = P-1 vá 6 lỗ tồn tại E1-E6** (neo ứng viên/provenance xác nhận/đối chiếu/chống injection/loud-skip/uuid); **+Y 11 ca = AI tự học P0-P1** (used_handles/residual + classifier ①②③ + noise-filter thép/mác + data-independent)) — *cần env READFILE_MAX_MB=300 để load 9T (114MB); check.sh tự set*
+- [ ] `python tests/test_takeoff_chong_bia.py` = **240/240 PASS** (offline; nhóm A-Y + **[Z0] R1 3 ca** (nhãn trung thực) + **[Z] P3 20 ca** (hoc_quy_uoc/thu_hoi/backstop/F1-F5) + **P4 4 ca** (rào tổng/Excel)) — *cần env READFILE_MAX_MB=300; check.sh tự set*
 - [ ] `python tests/test_qa_data.py` = **129/129** (đọc — cần ../input_files/_dxf + ../demo_doc_autocad)
-- [ ] `python tests/test_model_fallback.py` = **20/20 PASS** (robustness H — chuỗi model 429/503, offline mock, KHÔNG tốn API)
-- [ ] `python tests/test_size_guard.py` = **9/9 PASS** (robustness I — chặn file lớn sớm trước convert/parse, offline)
-- [ ] `python tests/test_file_ttl.py` = **12/12 PASS** (robustness J — dọn file _uploads/_renders cũ theo TTL, offline)
-- [ ] `python tests/test_session.py` = **17/17 PASS** (robustness K — tách state theo phiên, Flask test_client + FakeBridge, offline)
-- [ ] `python tests/test_health.py` = **11/11 PASS** (robustness L — /health + self-ping keep-alive + metrics, offline)
-- [ ] `python tests/test_hoc_log.py` = **20/20 PASS** (P2 AI tự học — log WORM append-only + grep-guard "không reader" + rotation, offline)
-- [ ] `bash harness/scripts/check.sh` = **HARNESS GATE: PASS** (9 bước: import+tool · no-key · takeoff 214 · fallback 20 · size-guard 9 · file-ttl 12 · session 17 · health 11 · hoc-log 20)
+- [ ] `python tests/test_model_fallback.py` = **22/22 PASS** (robustness H + **[H.10] empty-response nudge**; offline mock)
+- [ ] `python tests/test_size_guard.py` = **9/9** · `test_file_ttl.py` = **12/12** · `test_health.py` = **11/11** (robustness I/J/L, offline)
+- [ ] `python tests/test_session.py` = **25/25 PASS** (robustness K + **[K.7] R11 IDOR** cross-session 404 + **[K.8] F-A** race evict né phiên bận)
+- [ ] `python tests/test_hoc_log.py` = **20/20** · `test_hoc_quy_uoc.py` = **2/2** (P2 log WORM + P3 INV-10 LLM-exclusion/INV-12 grep-guard)
+- [ ] **GĐ1-2 kiểm thử (offline):** `test_visual_highlight` 15 · `test_excel_content` 17 (mở lại .xlsx) · `test_misc_tools` 84 · `test_vntext` 28 · `test_fuzz_input` 36 · `test_dwgconv` 10 · `test_mcp_stdio` 14 (spawn mcp_server thật) · `test_app_routes` 8
+- [ ] `bash harness/scripts/check.sh` = **HARNESS GATE: PASS** (**18 bước**: import+25tool · no-key · takeoff 240 · fallback 22 · size 9 · ttl 12 · session 25 · health 11 · hoc-log 20 · hoc-quy-uoc 2 · visual 15 · excel 17 · misc 84 · vntext 28 · fuzz 36 · dwgconv 10 · mcp-stdio 14 · app-routes 8)
+- [ ] **E2E-AI (TỐN API, NGOÀI cổng):** `tests/run_battery.py` 198 câu + `tests/kichban_gd2.py` 12 lượt (đối chiếu engine-truth) — KPI ~0% bịa (đã đo ~1.1% bịa cứng 2026-07-13, đều edge-case)
 
 ## Tổng quát (chống overfit)
 - [ ] Quy ước mới nhận diện → test trên **≥3 file khác domain** (9T cm / Gia Lộc mm / hạ tầng)

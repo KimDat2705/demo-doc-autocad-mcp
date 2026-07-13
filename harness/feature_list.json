@@ -1,69 +1,189 @@
 {
-  "project": "demo-doc-autocad-mcp (demo 2 — SẢN PHẨM CHÍNH)",
-  "description": "Web app đọc + tính toán bản vẽ AutoCAD (.dwg/.dxf) QUA MCP (Model Context Protocol). LLM = Google Gemini. Kiến trúc TOOL-USE (KHÔNG training): code Python tất định đọc/tính số THẬT kèm handle; Gemini hiểu câu hỏi + gọi tool + diễn đạt. Triết lý BẤT DI: CHỐNG BỊA (thiếu->hỏi, không bịa; suy đoán->gắn cờ; số do CODE).",
-  "stack": "Python 3.10 + Flask 3.1.3 + MCP 1.27 (FastMCP) + google-genai 2.10 (gemini-2.5-flash) + ezdxf 1.4.4 + matplotlib(Agg) + openpyxl + gunicorn + ODA File Converter + Docker + Render",
-  "testedAt": "2026-07-09",
-  "status_legend": "done = xong + có bằng chứng/test | partial = có phần, còn treo | planned = đã nghiên cứu/roadmap, chưa code | deferred = HOÃN chờ đối tác chốt",
-  "features": [
-    { "id": "mcp-server", "name": "MCP server chuẩn (FastMCP stdio, 20 tool)", "status": "done",
-      "evidence": "mcp_server.py FastMCP('doc-autocad'); 20 @mcp.tool() (đếm được); chạy stdio JSON-RPC -> cắm được client MCP bất kỳ (Claude Desktop/Cursor/CLI). Điểm HƠN demo 1 (kiến trúc chuẩn tái dùng)." },
-    { "id": "gemini-bridge", "name": "Cầu nối Gemini<->MCP (phiên bền + vòng lặp chống bịa)", "status": "done",
-      "evidence": "mcp_bridge.py class MCPBridge (asyncio nền + threading, KHÔNG teardown/request); tra_loi_ai() MAX_TURNS=14; SYSTEM_PROMPT 13 luật; 2 chốt: ép-gọi-tool khi model nêu số chưa gọi, ép-trả-lời khi hết lượt (không bỏ cuộc). Tự viết bridge vì google-genai 2.10 deepcopy ClientSession lỗi." },
-    { "id": "read-ezdxf", "name": "Đọc ezdxf + trích xuất (texts/dims/thép/qty/section/levels)", "status": "done",
-      "evidence": "tools_core.py Drawing._extract (dòng ~521): giữ doc RAM để render; build qty_index/door_size_index/section_index/levels/stated_vol. Chiến lược readfile (chính xác 100%) + cổng chặn file > READFILE_MAX_MB." },
-    { "id": "dwg-convert", "name": "Chuyển .dwg->.dxf trên server (ODA, Windows + Linux/xvfb)", "status": "done",
-      "evidence": "dwgconv.py convert_dwg_to_dxf() + find_oda(); Drawing.__init__ tự gọi khi path .dwg. KHÔNG cần AutoCAD -> deploy cloud được." },
-    { "id": "vntext", "name": "Chuẩn hoá text TCVN3 + mã AutoCAD/MTEXT", "status": "done",
-      "evidence": "vntext.py to_unicode(): TCVN3->Unicode, %%C->Ø, mã \\f;; chỉ giải mã khi phát hiện font cũ (cổng chữ ký, không phá Unicode sẵn đúng)." },
-    { "id": "quantity", "name": "Đọc số lượng cấu kiện (tra cứu/liệt kê/tổng/đếm chữ)", "status": "done",
-      "evidence": "tra_cuu_so_luong/liet_ke_so_luong/tong_so_luong/dem_so_luong + _build_qty_index; đa quy ước (SL=/(số lượng N bộ)), fold font, ghép vị trí. Cửa D1=24, tổng 73." },
-    { "id": "steel", "name": "Thống kê thép tròn + thép hình/inox (kg)", "status": "done",
-      "evidence": "thong_ke_thep/thong_ke_thep_hinh + _acc_thep(_hinh); đọc block DK/SHOW, bỏ block tổng tránh đếm trùng; cảnh báo 'còn thép hình chưa cộng'. KC 67370.7 kg." },
-    { "id": "listing", "name": "Tìm kiếm + liệt kê layer/block/sheet/đối tượng/kích thước", "status": "done",
-      "evidence": "tim_kiem, liet_ke_layer/block/sheet, thong_ke_doi_tuong, thong_tin_kich_thuoc — mỗi tool có ghi_chu khai báo bản chất con số." },
-    { "id": "boc-tach", "name": "Bóc tách số đo ghi chú tự do (KHÔNG tự tính vật liệu)", "status": "done",
-      "evidence": "boc_tach_kich_thuoc (dòng ~855): trích 3D/L=/m2/m3/bề dày + NGUYÊN VĂN + handle; test [F][G] granit/gạch PASS." },
-    { "id": "floor-levels", "name": "Thông tin tầng (cao độ->chiều cao tầng, số tầng)", "status": "done",
-      "evidence": "thong_tin_tang + _build_levels; test [D] KC cao độ 3.6m/~3 tầng, 9T 3.3m/~10 tầng." },
-    { "id": "takeoff-engine", "name": "Engine takeoff tinh_dai_luong + 12 công thức", "status": "done",
-      "evidence": "_FORMULAS 12 mục (cửa/BT cột-dầm-sàn-móng/ván khuôn cột-dầm/xây/trát/đào/đắp/inox); tinh_dai_luong (dòng ~1145); đủ->tính+sơ đồ, thiếu->hỏi. Test [A-M]." },
-    { "id": "unit-cm-mm", "name": "Suy đoán đơn vị cm/mm (ngưỡng 130) + ghép mã<->tiết diện theo toạ độ", "status": "done",
-      "evidence": "_SECT_CM_MAX=130, _sect_to_mm, _build_section_index (ghép tọa độ, đọc BẢNG cột nhà 9T mà cách cùng-text bỏ sót). Test [I]: 9T C-3=80x80cm->23.04 m3 (KHỚP demo 1); Gia Lộc mm 4.704 m3 không đổi; gắn cờ suy_doan_don_vi." },
-    { "id": "inox-mass", "name": "Khối lượng thép hình/INOX = SL(đọc) x kg/bộ(đối tác cấp) — feedback đối tác", "status": "done",
-      "evidence": "_FORMULAS.khoi_luong_thep_hinh; ánh xạ 'inox'/'thép hình' đầu _TEN_MAP (trước 'cửa'). inox S1=16x8.62=137.92 kg. kg/bộ CHỈ đối tác cấp (chống bịa liên kết). Test [J]." },
-    { "id": "tong-hop", "name": "Tổng hợp khối lượng sơ bộ + TỔNG PHỤ theo (loại,đơn vị)", "status": "done",
-      "evidence": "tong_hop_khoi_luong (dòng ~1298): cột NGUỒN + tong_phu (tổng cửa/BT/thép, không gộp nhầm m3) + can_bo_sung + gia_dinh. Test [D][M]." },
-    { "id": "excel", "name": "Xuất Excel bảng tổng hợp (.xlsx)", "status": "done",
-      "evidence": "xuat_excel (openpyxl) -> file_id + mục TỔNG PHỤ; route /file/<id>; test [D] file_id tồn tại." },
-    { "id": "visual-highlight", "name": "Render vùng + KHOANH ĐỎ cấu kiện trên ảnh (khác biệt cốt lõi)", "status": "done",
-      "evidence": "render_region (matplotlib Agg) + highlight + _largest_cluster (dòng ~1430); MCP tool danh_dau_cau_kien; route /image/<id>. Điểm HƠN demo 1." },
-    { "id": "anti-bia", "name": "Chống bịa nhiều lớp + hardening đối kháng", "status": "done",
-      "evidence": "_cau_kien_hien_dien (mã không tồn tại->khong_tim_thay kể cả có inputs_bo_sung; vá GHOSTINOX toàn-chữ), _loai_tu_ban_ve (sai_loai), math.isfinite gates + _nd từ chối bool/inf/nan (chặn 'Infinity kg'), _rs_dien_tich_ghi_san không tự-vơ diện tích. Test [H][K][L]." },
-    { "id": "web-ui", "name": "Web UI Flask (upload + chat + ảnh + tải Excel + nhớ hội thoại)", "status": "done",
-      "evidence": "app.py PAGE (HTML/JS nhúng); routes /,/upload,/ask,/image,/file,/config,/version; CHAT_HISTORY MAX_HISTORY_TURNS=6 (đối tác nhập bù số lượt sau)." },
-    { "id": "deploy", "name": "Deploy cloud (Docker + Render) + /version verify", "status": "done",
-      "evidence": "Dockerfile (python3.10-slim+ODA+xvfb, gunicorn 1w/4t/timeout600); render.yaml plan free; /version trả RENDER_GIT_COMMIT+sect_cm_max=130. Live doc-autocad-mcp-demo.onrender.com." },
-    { "id": "tests", "name": "Bộ test tất định (chống bịa takeoff + đọc dữ liệu)", "status": "done",
-      "evidence": "tests/test_takeoff_chong_bia.py 149/149 PASS (17 nhóm A-Q, offline không tốn API; N = trừ lỗ cửa task B, O = liệt kê diện tích ghi sẵn task C, P = ứng viên gợi ý task D, Q = ước cao cột theo cao độ task F); tests/test_qa_data.py đọc 129/129 (đối chiếu demo1 + ezdxf ground truth 3 file khác domain)." },
-    { "id": "roadmap-A-E", "name": "Củng cố: tổng phụ (A) + gợi ý m3 ghi sẵn (E)", "status": "done",
-      "evidence": "tong_phu + goi_y_ghi_san (đào đất thiếu số -> nêu 'ĐÀO MÓNG 860 M3' [handle]); test [M]." },
-    { "id": "model-fallback", "name": "Model fallback khi 429/503 kéo dài (chuỗi model phụ)", "status": "done",
-      "evidence": "[2026-07-11(c)] mcp_bridge.py: MODELS=[MODEL]+env GEMINI_FALLBACK_MODELS (mặc định gemini-2.0-flash,gemini-1.5-flash; rỗng->hành vi cũ 1 model). _is_overloaded(e) (mã HTTP 429/500/502/503/504 hoặc chuỗi resource_exhausted/unavailable/quota/high demand; lỗi khác=False) + _gen_fallback(client,contents,cfg,state) thử MODELS[state.i:], gặp 429/503 -> model kế (fail-forward), state.i giữ model đang dùng qua các lượt/1 request. Cắm CẢ 2 chỗ generate_content (vòng tool-use + câu cuối, chung _mstate). Hết chuỗi ở vòng tool -> trả LỘ 'AI đang quá tải, thử lại sau' (không crash/bịa); lỗi không-quá-tải -> ném ngay (app.py bắt). Phân tầng: SDK HttpRetryOptions lo blip TẠM cùng model, H đổi model khi cạn SAU retry. app.py /version thêm 'models'. Test tests/test_model_fallback.py 20/20 (OFFLINE mock client, KHÔNG tốn API) + check.sh [4/4] PASS. Deploy nên set env GEMINI_FALLBACK_MODELS theo model account." },
-    { "id": "tru-lo-cua", "name": "Trừ lỗ cửa/cửa sổ khi tính xây tường & trát (task B)", "status": "done",
-      "evidence": "xay_tuong/dien_tich_trat nhận 'lo_cua' (list) trong inputs_bo_sung: mỗi lỗ {ma,sl} (tra door_size_index confident, có handle) HOẶC {rong,cao,sl} (mm, đối tác cấp); net = gross − Σ(R×C×SL)×(be_day|so_mat). SL do ĐỐI TÁC khai (không tự đoán cửa nào thuộc tường nào — mirror inox). CHỐNG BỊA: _resolve_lo_cua block mã giả (_cau_kien_hien_dien), mã không-confident (không đoán size), lỗ≥tường (net_raw>0 trước round, không âm), sl bẩn, lẫn đơn vị (_plausible_door_size), over-count (_door_qty_for), sai kiểu, cả-2-mode, lo_cua cho công thức khác. Backward-compat: không lo_cua -> số cũ y hệt. Test [N] 20 ca (offline)." },
-    { "id": "robustness-ops", "name": "Tách state theo session + dọn file TTL + chặn file lớn sớm + keep-alive", "status": "done",
-      "evidence": "I (chặn file lớn sớm) DONE [2026-07-11(d)]: tools_core.Drawing.__init__ kiểm raw_mb > READFILE_MAX_MB TRƯỚC convert_dwg_to_dxf (DWG lớn -> DXF chắc >= DWG -> loại ngay, khỏi ODA ~600s) + giữ check sau-convert cho DWG nén phình; app.py hằng READFILE_MAX_MB (khớp env) + upload check getsize sau save/truoc MCP -> 413 + os.remove (dọn file). Không đổi ngưỡng -> không false-reject. Test tests/test_size_guard.py 9/9 (offline, Flask test_client) + check.sh. J (dọn file TTL) DONE [2026-07-11(e)]: fileutil.py cleanup_old_files(dirs,ttl_min,keep) (nhẹ, import chéo web+subprocess; xoá file mtime>TTL, chỉ FILE không đệ quy, keep giữ file mới, ttl<=0=tắt, nuốt lỗi I/O); FILE_TTL_MIN env (60') app.py+tools_core; dọn opportunistic: mỗi upload dọn _uploads+_renders, sau mỗi render_region/xuat_excel dọn _renders (keep file mới). File active mtime-mới -> không bị dọn; query/render dùng RAM. Test tests/test_file_ttl.py 12/12 + check.sh. K (tách state theo session) DONE [2026-07-11(f)]: app.py SESSIONS dict theo cookie sid -> mỗi phiên có bridge (1 MCP subprocess/1 Drawing) + summary + history + lock RIÊNG (hết cảnh 2 người đạp nhau). get_session sweep TTL + enforce CAP (MAX_SESSIONS=4, đầy->đóng LRU) + SESSION_TTL_MIN=30 (đóng phiên nhàn rỗi, giải phóng subprocess); bridge tạo lười ở /upload; @app.after_request set cookie; _make_bridge() tách để test mock. KHÔNG đụng mcp_server/tools/anti-bịa. Test tests/test_session.py 17/17 (offline, Flask test_client + FakeBridge, không subprocess/không API) + check.sh. L (keep-alive + giám sát) DONE [2026-07-11(g)]: app.py /health JSON nhẹ (no API/no bản vẽ: ok/uptime_s/sessions/use_ai/model/metrics) cho Render healthCheckPath + monitor ngoài; _METRICS (uploads/asks/errors) tăng ở upload/ask; self-ping _keepalive_ping() GET RENDER_EXTERNAL_URL/health (traffic ngoài -> Render không ngủ, nuốt lỗi) mỗi KEEPALIVE_MIN(10'), _start_keepalive() chỉ chạy khi có URL (local/test không kích); render.yaml healthCheckPath -> /health. Test tests/test_health.py 11/11 + check.sh [8/8]. => ROBUSTNESS H-L HOÀN TẤT (mỗi mục 1 test offline trong cổng). Deploy: self-ping tự chạy, tắt bằng KEEPALIVE_MIN=0." },
-    { "id": "liet-ke-dien-tich", "name": "Liệt kê DIỆN TÍCH GHI SẴN (nhãn 'X m²' verbatim + handle) — task C", "status": "done",
-      "evidence": "MCP tool liet_ke_dien_tich_ghi_san (21 tool); builder _build_stated_areas + self.stated_area (mirror stated_vol). Đọc mọi nhãn 'X m²' NGUYÊN VĂN + handle + layer + cờ co_tu_khoa_dien_tich (có 'diện tích'/'S='). CHỐNG BỊA/MISLABEL: KHÔNG phân loại 'diện tích sàn', KHÔNG suy hình học (0 nhãn -> goi_y đối tác CẤP), KHÔNG cộng gộp (tong_hop loại 'Diện tích (ghi sẵn)' vào _khong_cong). LỌC nhiễu: regex (?<![/.,\\d]) + normalize '/\\s+'->'/' chặn mật độ '/1m2'/'/ 1m2' & đuôi thập phân; mã DM2/mm2 tự loại; KHÔNG min (giữ 0.12m²). Kiểm chứng đối kháng 2 vòng (vòng 1 bắt bug bịa đuôi thập phân + density-space -> vá; vòng 2 xác nhận mọi vector BỊA đã kín, còn lại chỉ DROP-class an toàn có verbatim). Test [O] 15 ca offline (120/120). ROADMAP mục C." },
-    { "id": "ung-vien-goi-y", "name": "Ứng viên GỢI Ý (kg/bộ + số đo gần mã) cho input thiếu — 1-click xác nhận, task D", "status": "done",
-      "evidence": "Nhánh thiếu của tinh_dai_luong gắn 'ung_vien' vào TỪNG inputs_thieu[i] (chỉ khi non-empty -> additive). _ung_vien_kg_moi_bo: quét ghi chú 'X kg' (loại 'TỔNG', dedup handle, cờ per-unit _KG_PU_RE '(1 …)'/'kg/bộ' bền garble bộ->bé), verbatim+handle, KHÔNG proximity (note ở block xa); GT: inox 8.62 kg [67FFC] '(1 bé)'. _ung_vien_dim: dim GẦN MÃ (đòi code_toks, loại 0.0/phi lý, LUÔN 'thap'+khoảng cách). Dispatch theo RESOLVER (rs_name) không theo 'ten' (chieu_cao: _rs_chieu_cao_cot=cao độ KHÔNG gợi vs _rs_bs_only tường gợi được); so_mat & cao cột KHÔNG gợi. CHỐNG BỊA: ứng viên KHÔNG vào vals/da_co, KHÔNG lật co_ket_qua/can_bo_sung; CHỈ inputs_bo_sung (đối tác xác nhận) mới tính; kg KHÔNG khẳng định thuộc mã (chống bịa liên kết). Kiểm chứng đối kháng 27 probe/3 lens = 0 lỗ hổng (D1-D7). Test [P] 14 ca (134/134). ROADMAP mục D." },
-    { "id": "uoc-cao-cot", "name": "Ước CHIỀU CAO CỘT theo cao độ (cột cao 1 tầng) ở luồng takeoff lẻ — task F", "status": "done",
-      "evidence": "_rs_chieu_cao_cot: đối tác cấp -> override; else ƯỚC = typical_floor_h (suy từ cao độ) × 1000 mm, cờ gia_dinh_cao_tang + nguon 'suy_tu_cao_do' + chua_chac; _la_cot(ma) (NHÃN thắng prefix; c<digit> nếu không nhãn) chặn không-cột. MÓNG resolver RIÊNG _rs_chieu_cao_mong (luôn hỏi — chiều cao móng ≠ 1 tầng, hàng rào tất định ở tầng _FORMULAS). ghi_chu tách 'GIẢ ĐỊNH 1 tầng' khỏi 'GÁN VỊ TRÍ'. KHÔNG levels -> hỏi (không bịa). GT: KC C1 -> 4.704 (=test I.3 dùng 3600), 9T C-3 đa-cờ (giả định + suy đoán đơn vị). Kiểm chứng đối kháng 29 probe/3 lens = 0 lỗ (F1-F7). Test [Q] 14 ca (149/149). ⚠ ĐỔI HÀNH VI: cập nhật test B (C1 chưa cấp cao -> nay tính được). ROADMAP mục F." },
-    { "id": "cung-co-G", "name": "Củng cố treo: mở rộng test đối kháng đa-domain (G)", "status": "done",
-      "evidence": "Workflow probe 6-agent (KC/KT 9T + hạ tầng rachmop + gap-check Gia Lộc + overfit-hunter) chạy engine THẬT offline -> phát hiện + TỰ KIỂM CHỨNG (repro độc lập) 3 BUG THẬT ở tầng tổng hợp/đọc: (A cao) tong_hop_khoi_luong.tong_phu GỘP thép tròn+thép hình thành 1 số kg (KC 67759.7=67370.7+389.0, KT 4110.7=564.8+3545.9) — vi phạm rule 8b (mcp_bridge:164); (C) gộp 'Số lượng' dị loại thành 835/191 bộ/cái vô nghĩa; (B latent) _rs_dien_tich_ghi_san dùng regex thô đọc mật độ '16 cọc/1m2' thành diện tích=1 (parity gap với _build_stated_areas — cơ chế thật, live-scan 0/4 file). VÁ (tools_core.py): tách loai thép tròn/hình + thêm 'Số lượng' vào _khong_cong + dùng _STATED_M2_RE (lookbehind) trong resolver. Test [R][S][T][U] + I.5/I.6 (9T KC F ước 10 tầng=21.12 + existence C999 vàng + typical 3.3m; 9T KT 193k obj recall 16 nhãn diện tích đủ handle + mã cửa giả vàng). Hoist 9T KC nạp 1 lần (trước nạp 2 lần, phí ~53s). check.sh PASS: takeoff 167/167 (was 149) + qa 129/129. RESIDUAL [2026-07-11(b)]: #1 recall SL 9T KT = BUG THẬT đã vá -> _build_schedule_qty_index đọc SL bảng thống kê theo cột TỔNG (ghép mã<->số theo hàng+cột, gated fail-silent: >=5 cặp duy nhất/|dy| chặt/mã sát trái, block bẩn -> bỏ; validate âm KC/KT GiaLộc+rachmop=0 bịa), liet_ke_so_luong 9T KT 6->28 mục, test [V] -> takeoff 177/177; #2 cờ suy_doan_don_vi cạnh <40 = BY-DESIGN no-fix (mm-interp <4cm phi thực). Còn: window S-code |dy| lỏng hơn -> đối chiếu thêm layout khác; concurrency (1 Drawing global) thuộc robustness K." },
-    { "id": "du-toan-chi-phi", "name": "DỰ TOÁN CHI PHÍ (thành tiền = KL x đơn giá + định mức + thuế, mẫu Excel dự toán, mác BT/BOQ)", "status": "deferred",
-      "evidence": "ROADMAP_DEMO2.md mục 4 'HOÃN — chờ đối tác chốt yêu cầu'. User chốt 2026-07-09: phạm vi demo = KHỐI LƯỢNG, không phải thành tiền." },
-    { "id": "ai-tu-hoc", "name": "AI tự học từ đối tác (hỏi-để-học + log ứng viên + đối chiếu chéo + cổng duyệt)", "status": "planned",
-      "evidence": "NGHIEN_CUU_AI_TU_HOC.md (nguyên tắc) + KE_HOACH_AI_TU_HOC_CHI_TIET.md (bản KỸ THUẬT 2026-07-12: workflow 17-agent design-panel + red-team; kiến trúc eng-minimal + grafts safety-first; lộ trình P-1..P5). ✅ P-1 XONG [2026-07-12(c), commit 73990de, LIVE 5ecaca1]: vá 6 lỗ tồn tại E1-E6. ✅ P0-P1 XONG [2026-07-12(d), commit 6608edf]: đọc-thuần (read-only, KHÔNG học) — used_handles/residual + phan_loai_tin_hieu ①②③ + tool hoi_de_hoc/doi_chieu_nghi_ngo (23 tool); red-team bắt+vá classifier ngập nhiễu (thép/mác chuẩn), 9T KC 336→2 ứng viên; test [Y] 11 ca. ✅ P2 XONG [2026-07-13, commit 787b1e6]: log WORM append-only (hoclog.py CHỈ GHI, redact, cap+xoay; grep-guard khoá bất biến không-hồi-tiếp-inference; wiring tool-layer giữ core thuần); adversarial review 0 CONFIRMED cao/TB; test_hoc_log 20 ca, check.sh [9/9]. Còn P3 (mở kênh học, rủi ro cao) → P4/P5; P5 codify chặn tới khi có corpus >=3 firm." }
-  ]
+ "project": "demo-doc-autocad-mcp (demo 2 — SẢN PHẨM CHÍNH)",
+ "description": "Web app đọc + tính toán bản vẽ AutoCAD (.dwg/.dxf) QUA MCP (Model Context Protocol). LLM = Google Gemini. Kiến trúc TOOL-USE (KHÔNG training): code Python tất định đọc/tính số THẬT kèm handle; Gemini hiểu câu hỏi + gọi tool + diễn đạt. Triết lý BẤT DI: CHỐNG BỊA (thiếu->hỏi, không bịa; suy đoán->gắn cờ; số do CODE).",
+ "stack": "Python 3.10 + Flask 3.1.3 + MCP 1.27 (FastMCP) + google-genai 2.10 (gemini-2.5-flash) + ezdxf 1.4.4 + matplotlib(Agg) + openpyxl + gunicorn + ODA File Converter + Docker + Render",
+ "testedAt": "2026-07-09",
+ "status_legend": "done = xong + có bằng chứng/test | partial = có phần, còn treo | planned = đã nghiên cứu/roadmap, chưa code | deferred = HOÃN chờ đối tác chốt",
+ "features": [
+  {
+   "id": "mcp-server",
+   "name": "MCP server chuẩn (FastMCP stdio, 20 tool)",
+   "status": "done",
+   "evidence": "mcp_server.py FastMCP('doc-autocad'); 20 @mcp.tool() (đếm được); chạy stdio JSON-RPC -> cắm được client MCP bất kỳ (Claude Desktop/Cursor/CLI). Điểm HƠN demo 1 (kiến trúc chuẩn tái dùng)."
+  },
+  {
+   "id": "gemini-bridge",
+   "name": "Cầu nối Gemini<->MCP (phiên bền + vòng lặp chống bịa)",
+   "status": "done",
+   "evidence": "mcp_bridge.py class MCPBridge (asyncio nền + threading, KHÔNG teardown/request); tra_loi_ai() MAX_TURNS=14; SYSTEM_PROMPT 13 luật; 2 chốt: ép-gọi-tool khi model nêu số chưa gọi, ép-trả-lời khi hết lượt (không bỏ cuộc). Tự viết bridge vì google-genai 2.10 deepcopy ClientSession lỗi."
+  },
+  {
+   "id": "read-ezdxf",
+   "name": "Đọc ezdxf + trích xuất (texts/dims/thép/qty/section/levels)",
+   "status": "done",
+   "evidence": "tools_core.py Drawing._extract (dòng ~521): giữ doc RAM để render; build qty_index/door_size_index/section_index/levels/stated_vol. Chiến lược readfile (chính xác 100%) + cổng chặn file > READFILE_MAX_MB."
+  },
+  {
+   "id": "dwg-convert",
+   "name": "Chuyển .dwg->.dxf trên server (ODA, Windows + Linux/xvfb)",
+   "status": "done",
+   "evidence": "dwgconv.py convert_dwg_to_dxf() + find_oda(); Drawing.__init__ tự gọi khi path .dwg. KHÔNG cần AutoCAD -> deploy cloud được."
+  },
+  {
+   "id": "vntext",
+   "name": "Chuẩn hoá text TCVN3 + mã AutoCAD/MTEXT",
+   "status": "done",
+   "evidence": "vntext.py to_unicode(): TCVN3->Unicode, %%C->Ø, mã \\f;; chỉ giải mã khi phát hiện font cũ (cổng chữ ký, không phá Unicode sẵn đúng)."
+  },
+  {
+   "id": "quantity",
+   "name": "Đọc số lượng cấu kiện (tra cứu/liệt kê/tổng/đếm chữ)",
+   "status": "done",
+   "evidence": "tra_cuu_so_luong/liet_ke_so_luong/tong_so_luong/dem_so_luong + _build_qty_index; đa quy ước (SL=/(số lượng N bộ)), fold font, ghép vị trí. Cửa D1=24, tổng 73."
+  },
+  {
+   "id": "steel",
+   "name": "Thống kê thép tròn + thép hình/inox (kg)",
+   "status": "done",
+   "evidence": "thong_ke_thep/thong_ke_thep_hinh + _acc_thep(_hinh); đọc block DK/SHOW, bỏ block tổng tránh đếm trùng; cảnh báo 'còn thép hình chưa cộng'. KC 67370.7 kg."
+  },
+  {
+   "id": "listing",
+   "name": "Tìm kiếm + liệt kê layer/block/sheet/đối tượng/kích thước",
+   "status": "done",
+   "evidence": "tim_kiem, liet_ke_layer/block/sheet, thong_ke_doi_tuong, thong_tin_kich_thuoc — mỗi tool có ghi_chu khai báo bản chất con số."
+  },
+  {
+   "id": "boc-tach",
+   "name": "Bóc tách số đo ghi chú tự do (KHÔNG tự tính vật liệu)",
+   "status": "done",
+   "evidence": "boc_tach_kich_thuoc (dòng ~855): trích 3D/L=/m2/m3/bề dày + NGUYÊN VĂN + handle; test [F][G] granit/gạch PASS."
+  },
+  {
+   "id": "floor-levels",
+   "name": "Thông tin tầng (cao độ->chiều cao tầng, số tầng)",
+   "status": "done",
+   "evidence": "thong_tin_tang + _build_levels; test [D] KC cao độ 3.6m/~3 tầng, 9T 3.3m/~10 tầng."
+  },
+  {
+   "id": "takeoff-engine",
+   "name": "Engine takeoff tinh_dai_luong + 12 công thức",
+   "status": "done",
+   "evidence": "_FORMULAS 12 mục (cửa/BT cột-dầm-sàn-móng/ván khuôn cột-dầm/xây/trát/đào/đắp/inox); tinh_dai_luong (dòng ~1145); đủ->tính+sơ đồ, thiếu->hỏi. Test [A-M]."
+  },
+  {
+   "id": "unit-cm-mm",
+   "name": "Suy đoán đơn vị cm/mm (ngưỡng 130) + ghép mã<->tiết diện theo toạ độ",
+   "status": "done",
+   "evidence": "_SECT_CM_MAX=130, _sect_to_mm, _build_section_index (ghép tọa độ, đọc BẢNG cột nhà 9T mà cách cùng-text bỏ sót). Test [I]: 9T C-3=80x80cm->23.04 m3 (KHỚP demo 1); Gia Lộc mm 4.704 m3 không đổi; gắn cờ suy_doan_don_vi."
+  },
+  {
+   "id": "inox-mass",
+   "name": "Khối lượng thép hình/INOX = SL(đọc) x kg/bộ(đối tác cấp) — feedback đối tác",
+   "status": "done",
+   "evidence": "_FORMULAS.khoi_luong_thep_hinh; ánh xạ 'inox'/'thép hình' đầu _TEN_MAP (trước 'cửa'). inox S1=16x8.62=137.92 kg. kg/bộ CHỈ đối tác cấp (chống bịa liên kết). Test [J]."
+  },
+  {
+   "id": "tong-hop",
+   "name": "Tổng hợp khối lượng sơ bộ + TỔNG PHỤ theo (loại,đơn vị)",
+   "status": "done",
+   "evidence": "tong_hop_khoi_luong (dòng ~1298): cột NGUỒN + tong_phu (tổng cửa/BT/thép, không gộp nhầm m3) + can_bo_sung + gia_dinh. Test [D][M]."
+  },
+  {
+   "id": "excel",
+   "name": "Xuất Excel bảng tổng hợp (.xlsx)",
+   "status": "done",
+   "evidence": "xuat_excel (openpyxl) -> file_id + mục TỔNG PHỤ; route /file/<id>; test [D] file_id tồn tại."
+  },
+  {
+   "id": "visual-highlight",
+   "name": "Render vùng + KHOANH ĐỎ cấu kiện trên ảnh (khác biệt cốt lõi)",
+   "status": "done",
+   "evidence": "render_region (matplotlib Agg) + highlight + _largest_cluster (dòng ~1430); MCP tool danh_dau_cau_kien; route /image/<id>. Điểm HƠN demo 1."
+  },
+  {
+   "id": "anti-bia",
+   "name": "Chống bịa nhiều lớp + hardening đối kháng",
+   "status": "done",
+   "evidence": "_cau_kien_hien_dien (mã không tồn tại->khong_tim_thay kể cả có inputs_bo_sung; vá GHOSTINOX toàn-chữ), _loai_tu_ban_ve (sai_loai), math.isfinite gates + _nd từ chối bool/inf/nan (chặn 'Infinity kg'), _rs_dien_tich_ghi_san không tự-vơ diện tích. Test [H][K][L]."
+  },
+  {
+   "id": "web-ui",
+   "name": "Web UI Flask (upload + chat + ảnh + tải Excel + nhớ hội thoại)",
+   "status": "done",
+   "evidence": "app.py PAGE (HTML/JS nhúng); routes /,/upload,/ask,/image,/file,/config,/version; CHAT_HISTORY MAX_HISTORY_TURNS=6 (đối tác nhập bù số lượt sau). R11 (IDOR) VÁ: s['artifacts']+_artifact_owned -> /file//image chỉ phục vụ artifact CỦA phiên (cross-session 404), test_session [K.7]."
+  },
+  {
+   "id": "deploy",
+   "name": "Deploy cloud (Docker + Render) + /version verify",
+   "status": "done",
+   "evidence": "Dockerfile (python3.10-slim+ODA+xvfb, gunicorn 1w/4t/timeout600); render.yaml plan free; /version trả RENDER_GIT_COMMIT+sect_cm_max=130. Live doc-autocad-mcp-demo.onrender.com."
+  },
+  {
+   "id": "tests",
+   "name": "Bộ test tất định (chống bịa takeoff + đọc dữ liệu)",
+   "status": "done",
+   "evidence": "check.sh HARNESS GATE [18/18] PASS (offline, 0 API): import+25 MCP tool · no-key · takeoff 240 · model_fallback 22 · size-guard 9 · file-ttl 12 · session 25 · health 11 · hoc-log 20 · hoc-quy-uoc 2 · +GĐ1-2 kiểm thử: visual-highlight 15 · excel-content 17 (mở lại .xlsx) · misc-tools 84 · vntext 28 · fuzz 36 · dwgconv 10 · MCP-stdio-thật 14 · app-routes 8. test_qa_data 129/129 (3 file khác domain). E2E-AI (tốn API, ngoài cổng): kichban_gd2 10/10 vs engine-truth + battery 198 câu (judge-panel; KPI ~1.1% bịa cứng đã tự xác minh)."
+  },
+  {
+   "id": "roadmap-A-E",
+   "name": "Củng cố: tổng phụ (A) + gợi ý m3 ghi sẵn (E)",
+   "status": "done",
+   "evidence": "tong_phu + goi_y_ghi_san (đào đất thiếu số -> nêu 'ĐÀO MÓNG 860 M3' [handle]); test [M]."
+  },
+  {
+   "id": "model-fallback",
+   "name": "Model fallback khi 429/503 kéo dài (chuỗi model phụ)",
+   "status": "done",
+   "evidence": "[2026-07-11(c)] mcp_bridge.py: MODELS=[MODEL]+env GEMINI_FALLBACK_MODELS (mặc định gemini-2.0-flash,gemini-1.5-flash; rỗng->hành vi cũ 1 model). _is_overloaded(e) (mã HTTP 429/500/502/503/504 hoặc chuỗi resource_exhausted/unavailable/quota/high demand; lỗi khác=False) + _gen_fallback(client,contents,cfg,state) thử MODELS[state.i:], gặp 429/503 -> model kế (fail-forward), state.i giữ model đang dùng qua các lượt/1 request. Cắm CẢ 2 chỗ generate_content (vòng tool-use + câu cuối, chung _mstate). Hết chuỗi ở vòng tool -> trả LỘ 'AI đang quá tải, thử lại sau' (không crash/bịa); lỗi không-quá-tải -> ném ngay (app.py bắt). Phân tầng: SDK HttpRetryOptions lo blip TẠM cùng model, H đổi model khi cạn SAU retry. app.py /version thêm 'models'. Test tests/test_model_fallback.py 20/20 (OFFLINE mock client, KHÔNG tốn API) + check.sh [4/4] PASS. Deploy nên set env GEMINI_FALLBACK_MODELS theo model account."
+  },
+  {
+   "id": "tru-lo-cua",
+   "name": "Trừ lỗ cửa/cửa sổ khi tính xây tường & trát (task B)",
+   "status": "done",
+   "evidence": "xay_tuong/dien_tich_trat nhận 'lo_cua' (list) trong inputs_bo_sung: mỗi lỗ {ma,sl} (tra door_size_index confident, có handle) HOẶC {rong,cao,sl} (mm, đối tác cấp); net = gross − Σ(R×C×SL)×(be_day|so_mat). SL do ĐỐI TÁC khai (không tự đoán cửa nào thuộc tường nào — mirror inox). CHỐNG BỊA: _resolve_lo_cua block mã giả (_cau_kien_hien_dien), mã không-confident (không đoán size), lỗ≥tường (net_raw>0 trước round, không âm), sl bẩn, lẫn đơn vị (_plausible_door_size), over-count (_door_qty_for), sai kiểu, cả-2-mode, lo_cua cho công thức khác. Backward-compat: không lo_cua -> số cũ y hệt. Test [N] 20 ca (offline)."
+  },
+  {
+   "id": "robustness-ops",
+   "name": "Tách state theo session + dọn file TTL + chặn file lớn sớm + keep-alive",
+   "status": "done",
+   "evidence": "I (chặn file lớn sớm) DONE [2026-07-11(d)]: tools_core.Drawing.__init__ kiểm raw_mb > READFILE_MAX_MB TRƯỚC convert_dwg_to_dxf (DWG lớn -> DXF chắc >= DWG -> loại ngay, khỏi ODA ~600s) + giữ check sau-convert cho DWG nén phình; app.py hằng READFILE_MAX_MB (khớp env) + upload check getsize sau save/truoc MCP -> 413 + os.remove (dọn file). Không đổi ngưỡng -> không false-reject. Test tests/test_size_guard.py 9/9 (offline, Flask test_client) + check.sh. J (dọn file TTL) DONE [2026-07-11(e)]: fileutil.py cleanup_old_files(dirs,ttl_min,keep) (nhẹ, import chéo web+subprocess; xoá file mtime>TTL, chỉ FILE không đệ quy, keep giữ file mới, ttl<=0=tắt, nuốt lỗi I/O); FILE_TTL_MIN env (60') app.py+tools_core; dọn opportunistic: mỗi upload dọn _uploads+_renders, sau mỗi render_region/xuat_excel dọn _renders (keep file mới). File active mtime-mới -> không bị dọn; query/render dùng RAM. Test tests/test_file_ttl.py 12/12 + check.sh. K (tách state theo session) DONE [2026-07-11(f)]: app.py SESSIONS dict theo cookie sid -> mỗi phiên có bridge (1 MCP subprocess/1 Drawing) + summary + history + lock RIÊNG (hết cảnh 2 người đạp nhau). get_session sweep TTL + enforce CAP (MAX_SESSIONS=4, đầy->đóng LRU) + SESSION_TTL_MIN=30 (đóng phiên nhàn rỗi, giải phóng subprocess); bridge tạo lười ở /upload; @app.after_request set cookie; _make_bridge() tách để test mock. KHÔNG đụng mcp_server/tools/anti-bịa. Test tests/test_session.py 17/17 (offline, Flask test_client + FakeBridge, không subprocess/không API) + check.sh. L (keep-alive + giám sát) DONE [2026-07-11(g)]: app.py /health JSON nhẹ (no API/no bản vẽ: ok/uptime_s/sessions/use_ai/model/metrics) cho Render healthCheckPath + monitor ngoài; _METRICS (uploads/asks/errors) tăng ở upload/ask; self-ping _keepalive_ping() GET RENDER_EXTERNAL_URL/health (traffic ngoài -> Render không ngủ, nuốt lỗi) mỗi KEEPALIVE_MIN(10'), _start_keepalive() chỉ chạy khi có URL (local/test không kích); render.yaml healthCheckPath -> /health. Test tests/test_health.py 11/11 + check.sh [8/8]. => ROBUSTNESS H-L HOÀN TẤT (mỗi mục 1 test offline trong cổng). Deploy: self-ping tự chạy, tắt bằng KEEPALIVE_MIN=0. | F-A (race concurrency) VÁ [kiểm thử 2026-07-13]: _try_close_session acquire-non-blocking -> LRU/TTL KHÔNG đóng subprocess GIỮA request đang chạy, test_session [K.8]. | Empty-response VÁ (E2E): tra_loi_ai nhắc-1-lần khi Gemini trả part 'thought' rỗng lượt đầu (thay bỏ cuộc ngay), test_model_fallback [H.10]."
+  },
+  {
+   "id": "liet-ke-dien-tich",
+   "name": "Liệt kê DIỆN TÍCH GHI SẴN (nhãn 'X m²' verbatim + handle) — task C",
+   "status": "done",
+   "evidence": "MCP tool liet_ke_dien_tich_ghi_san (21 tool); builder _build_stated_areas + self.stated_area (mirror stated_vol). Đọc mọi nhãn 'X m²' NGUYÊN VĂN + handle + layer + cờ co_tu_khoa_dien_tich (có 'diện tích'/'S='). CHỐNG BỊA/MISLABEL: KHÔNG phân loại 'diện tích sàn', KHÔNG suy hình học (0 nhãn -> goi_y đối tác CẤP), KHÔNG cộng gộp (tong_hop loại 'Diện tích (ghi sẵn)' vào _khong_cong). LỌC nhiễu: regex (?<![/.,\\d]) + normalize '/\\s+'->'/' chặn mật độ '/1m2'/'/ 1m2' & đuôi thập phân; mã DM2/mm2 tự loại; KHÔNG min (giữ 0.12m²). Kiểm chứng đối kháng 2 vòng (vòng 1 bắt bug bịa đuôi thập phân + density-space -> vá; vòng 2 xác nhận mọi vector BỊA đã kín, còn lại chỉ DROP-class an toàn có verbatim). Test [O] 15 ca offline (120/120). ROADMAP mục C."
+  },
+  {
+   "id": "ung-vien-goi-y",
+   "name": "Ứng viên GỢI Ý (kg/bộ + số đo gần mã) cho input thiếu — 1-click xác nhận, task D",
+   "status": "done",
+   "evidence": "Nhánh thiếu của tinh_dai_luong gắn 'ung_vien' vào TỪNG inputs_thieu[i] (chỉ khi non-empty -> additive). _ung_vien_kg_moi_bo: quét ghi chú 'X kg' (loại 'TỔNG', dedup handle, cờ per-unit _KG_PU_RE '(1 …)'/'kg/bộ' bền garble bộ->bé), verbatim+handle, KHÔNG proximity (note ở block xa); GT: inox 8.62 kg [67FFC] '(1 bé)'. _ung_vien_dim: dim GẦN MÃ (đòi code_toks, loại 0.0/phi lý, LUÔN 'thap'+khoảng cách). Dispatch theo RESOLVER (rs_name) không theo 'ten' (chieu_cao: _rs_chieu_cao_cot=cao độ KHÔNG gợi vs _rs_bs_only tường gợi được); so_mat & cao cột KHÔNG gợi. CHỐNG BỊA: ứng viên KHÔNG vào vals/da_co, KHÔNG lật co_ket_qua/can_bo_sung; CHỈ inputs_bo_sung (đối tác xác nhận) mới tính; kg KHÔNG khẳng định thuộc mã (chống bịa liên kết). Kiểm chứng đối kháng 27 probe/3 lens = 0 lỗ hổng (D1-D7). Test [P] 14 ca (134/134). ROADMAP mục D."
+  },
+  {
+   "id": "uoc-cao-cot",
+   "name": "Ước CHIỀU CAO CỘT theo cao độ (cột cao 1 tầng) ở luồng takeoff lẻ — task F",
+   "status": "done",
+   "evidence": "_rs_chieu_cao_cot: đối tác cấp -> override; else ƯỚC = typical_floor_h (suy từ cao độ) × 1000 mm, cờ gia_dinh_cao_tang + nguon 'suy_tu_cao_do' + chua_chac; _la_cot(ma) (NHÃN thắng prefix; c<digit> nếu không nhãn) chặn không-cột. MÓNG resolver RIÊNG _rs_chieu_cao_mong (luôn hỏi — chiều cao móng ≠ 1 tầng, hàng rào tất định ở tầng _FORMULAS). ghi_chu tách 'GIẢ ĐỊNH 1 tầng' khỏi 'GÁN VỊ TRÍ'. KHÔNG levels -> hỏi (không bịa). GT: KC C1 -> 4.704 (=test I.3 dùng 3600), 9T C-3 đa-cờ (giả định + suy đoán đơn vị). Kiểm chứng đối kháng 29 probe/3 lens = 0 lỗ (F1-F7). Test [Q] 14 ca (149/149). ⚠ ĐỔI HÀNH VI: cập nhật test B (C1 chưa cấp cao -> nay tính được). ROADMAP mục F."
+  },
+  {
+   "id": "cung-co-G",
+   "name": "Củng cố treo: mở rộng test đối kháng đa-domain (G)",
+   "status": "done",
+   "evidence": "Workflow probe 6-agent (KC/KT 9T + hạ tầng rachmop + gap-check Gia Lộc + overfit-hunter) chạy engine THẬT offline -> phát hiện + TỰ KIỂM CHỨNG (repro độc lập) 3 BUG THẬT ở tầng tổng hợp/đọc: (A cao) tong_hop_khoi_luong.tong_phu GỘP thép tròn+thép hình thành 1 số kg (KC 67759.7=67370.7+389.0, KT 4110.7=564.8+3545.9) — vi phạm rule 8b (mcp_bridge:164); (C) gộp 'Số lượng' dị loại thành 835/191 bộ/cái vô nghĩa; (B latent) _rs_dien_tich_ghi_san dùng regex thô đọc mật độ '16 cọc/1m2' thành diện tích=1 (parity gap với _build_stated_areas — cơ chế thật, live-scan 0/4 file). VÁ (tools_core.py): tách loai thép tròn/hình + thêm 'Số lượng' vào _khong_cong + dùng _STATED_M2_RE (lookbehind) trong resolver. Test [R][S][T][U] + I.5/I.6 (9T KC F ước 10 tầng=21.12 + existence C999 vàng + typical 3.3m; 9T KT 193k obj recall 16 nhãn diện tích đủ handle + mã cửa giả vàng). Hoist 9T KC nạp 1 lần (trước nạp 2 lần, phí ~53s). check.sh PASS: takeoff 167/167 (was 149) + qa 129/129. RESIDUAL [2026-07-11(b)]: #1 recall SL 9T KT = BUG THẬT đã vá -> _build_schedule_qty_index đọc SL bảng thống kê theo cột TỔNG (ghép mã<->số theo hàng+cột, gated fail-silent: >=5 cặp duy nhất/|dy| chặt/mã sát trái, block bẩn -> bỏ; validate âm KC/KT GiaLộc+rachmop=0 bịa), liet_ke_so_luong 9T KT 6->28 mục, test [V] -> takeoff 177/177; #2 cờ suy_doan_don_vi cạnh <40 = BY-DESIGN no-fix (mm-interp <4cm phi thực). Còn: window S-code |dy| lỏng hơn -> đối chiếu thêm layout khác; concurrency (1 Drawing global) thuộc robustness K."
+  },
+  {
+   "id": "du-toan-chi-phi",
+   "name": "DỰ TOÁN CHI PHÍ (thành tiền = KL x đơn giá + định mức + thuế, mẫu Excel dự toán, mác BT/BOQ)",
+   "status": "deferred",
+   "evidence": "ROADMAP_DEMO2.md mục 4 'HOÃN — chờ đối tác chốt yêu cầu'. User chốt 2026-07-09: phạm vi demo = KHỐI LƯỢNG, không phải thành tiền."
+  },
+  {
+   "id": "ai-tu-hoc",
+   "name": "AI tự học từ đối tác (hỏi-để-học + log ứng viên + đối chiếu chéo + cổng duyệt)",
+   "status": "done",
+   "evidence": "NGHIEN_CUU_AI_TU_HOC.md (nguyên tắc) + KE_HOACH_AI_TU_HOC_CHI_TIET.md (bản KỸ THUẬT 2026-07-12: workflow 17-agent design-panel + red-team; kiến trúc eng-minimal + grafts safety-first; lộ trình P-1..P5). ✅ P-1 XONG [2026-07-12(c), commit 73990de, LIVE 5ecaca1]: vá 6 lỗ tồn tại E1-E6. ✅ P0-P1 XONG [2026-07-12(d), commit 6608edf]: đọc-thuần (read-only, KHÔNG học) — used_handles/residual + phan_loai_tin_hieu ①②③ + tool hoi_de_hoc/doi_chieu_nghi_ngo (23 tool); red-team bắt+vá classifier ngập nhiễu (thép/mác chuẩn), 9T KC 336→2 ứng viên; test [Y] 11 ca. ✅ P2 XONG [2026-07-13, commit 787b1e6]: log WORM append-only (hoclog.py CHỈ GHI, redact, cap+xoay; grep-guard khoá bất biến không-hồi-tiếp-inference; wiring tool-layer giữ core thuần); adversarial review 0 CONFIRMED cao/TB; test_hoc_log 20 ca, check.sh [9/9]. Còn P3 (mở kênh học, rủi ro cao) → P4/P5; P5 codify chặn tới khi có corpus >=3 firm. ✅ P-1.1 (vá R1: nhãn 'đáng tin' cho input chua_chac) + P3 MỞ KÊNH HỌC (hoc_quy_uoc/thu_hoi_quy_uoc ENUM template, học CÁCH ĐỌC theo phiên KHÔNG lưu số, §2.6 backstop số-học-không-thành-số-chốt, LLM bị chặn tool ghi R8) + P4 (rào tổng/Excel learned_handles fail-closed + cột chua_chac + mục 'chưa xác nhận') XONG & LIVE [commit 6933643→e9c4f80]. Red-team 2 tầng (thiết kế 119-agent + implementation 19-agent tự-repro). Test [Z]/[Z0] + test_hoc_quy_uoc (INV-10/12). ⏳ P5 (codify quy ước lên _build_* toàn cục) CHẶN tới khi có corpus ≥3 FIRM khác nhau (bản vẽ VN thật). Kênh học P3 hiện CHỈ qua MCP-client (chưa nối UI web — F-B chờ quyết)."
+  }
+ ]
 }
