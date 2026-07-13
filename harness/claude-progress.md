@@ -13,7 +13,7 @@
 - **BUG EMPTY-RESPONSE (tìm+vá):** 17/198 (8.6%) trả "AI không đưa ra nội dung" @1s. Rerun fallback-BẬT: 9 hồi phục, 8 CỨNG ĐẦU (highlight + câu đơn giản). Root cause (đọc code): Gemini 2.5-flash trả part `thought` RỖNG (không text/không tool) lượt đầu → `tra_loi_ai` (mcp_bridge.py:409) bỏ cuộc NGAY. **Vá: NHẮC-1-lần** (cờ `da_nhac_rong`) trước khi bỏ cuộc → re-run 8/8 hồi phục (id54 'BỂ NƯỚC PCCC' thực CÓ [A1263]; id132 từ chối trung thực). Test `[H.10]` (mock fake-resp, 2 ca: nhắc-rồi-phục-hồi + rỗng-cả-2-lượt-mới-báo).
 - **XÁC MINH KPI BỊA (không tin judge mù — [[feedback-bia-tai-sinh-tang-code]]):** judge thô báo 7 bịa/3.9%; tự đọc answer+factsheet → **chỉ ~1.1% bịa CỨNG**: id84 (đài cọc tổng 142 vs 59 + gộp nhầm dầm) + id135 (cao độ -10 vs -14.26). Còn lại: id17 false-positive (100m THỰC có ở bảng thép), ~4 ranh-giới (ước-lượng-có-cờ ≠ bịa). 49 SAI đa số "đọc thiếu" (recall miss, an toàn).
 
-**Kết quả test:** check.sh **[18/18] PASS** (model_fallback 20→22 +H.10) · takeoff 240 · qa 129 · 0 FAIL. E2E: demo RẤT chắc anti-bịa (KPI ≈0% bịa gần đạt, ~1% bịa cứng edge-case). ⚠ CHƯA COMMIT lúc viết entry (commit vá empty-response).
+**Kết quả test:** check.sh **[18/18] PASS** (model_fallback 20→22 +H.10) · takeoff 240 · qa 129 · 0 FAIL. E2E: demo RẤT chắc anti-bịa (KPI ≈0% bịa gần đạt, ~1% bịa cứng edge-case). **✅ COMMIT `7e9335e` + push + deploy + verify LIVE** (`/version` khớp + `/health` ok).
 
 **Bài học:** E2E THẬT bắt bug mà offline không lộ (empty-response chỉ hiện khi gọi Gemini thật dưới tải). Judge-panel hữu ích NHƯNG phải TỰ xác minh KPI (judge over-flag ước-lượng-có-cờ + false-positive do factsheet thiếu cột). Điểm yếu thực của demo = RECALL (đọc thiếu), không phải bịa — đúng ethos "thà thiếu hơn bịa".
 
