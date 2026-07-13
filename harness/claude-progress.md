@@ -4,6 +4,23 @@
 > Mới nhất ở TRÊN CÙNG. Bàn giao đầy đủ: `session-handoff.md`. Nhật ký chi tiết hơn nữa: `../GHI_CHU_HOAN_THIEN.md`.
 
 ---
+## Session 2026-07-13 (nối 3) — KIỂM THỬ TỔNG THỂ GĐ0-2: +212 test + vá R11(IDOR)+F-A(race)
+**Mục tiêu:** user giao "đóng vai TESTER chuyên nghiệp, rà toàn dự án (A-Z, P1-P4), lên kế hoạch kiểm thử nhiều giai đoạn, thu hồi dữ liệu test, nghiên cứu nguồn bản vẽ mở". Budget API KHÔNG là ràng buộc. Chọn phương án tối ưu → GĐ0-2 (offline + vá code) trước.
+
+**Đã làm:**
+- **NGHIÊN CỨU (workflow 4-agent):** bản-đồ-độ-phủ (25 tool vs test) + benchmark-infra (battery 198 câu/kichban_gd2 truth-engine/gap_verify) + corpus-mở (8 nguồn license rõ: ezdxf MIT, Autodesk imperial, LibreDWG…) + bề-mặt-E2E (routes + cách thu hồi). → `KE_HOACH_KIEM_THU_TONG_THE.md`.
+- **PHẢN BIỆN KẾ HOẠCH (workflow 4-góc):** 4/4 "cần sửa", 27 finding/10 CAO. TỰ xác minh 2 lỗi CODE: **F-A** (`_close_session` chỉ giữ `_SESS_LOCK` → LRU/TTL đóng subprocess GIỮA request) + **F-B** (grep `hoc_quy_uoc` app.py=0 → kênh học P3 KHÔNG tới web, chỉ MCP-client). Nâng plan lên v2 (E2E full battery, đo ổn định N-lặp, grader tất định mislabel+bịa-mềm, tách overfit 2 nhánh, budget-sửa-được vs không).
+- **GĐ1-2 (offline, 0 phí):** workflow 6-agent viết+tự-verify test → +8 file, **212 ca**, 0 bug: visual-highlight 15 · excel-content 17 (mở lại .xlsx) · misc-tools 84 · vntext 28 · fuzz 36 · dwgconv 10 · **MCP-stdio thật 14** (spawn mcp_server + JSON-RPC + wiring hoclog + số học không lọt tổng qua transport) · app-routes 8. check.sh [10/10]→**[18/18]**.
+- **VÁ R11 (IDOR):** `s["artifacts"]` + `_artifact_owned` → `/file` `/image` cross-session 404 + traversal 404. Test `[K.7]` (5 ca).
+- **VÁ F-A (race):** `_try_close_session` acquire-non-blocking (bận→bỏ qua) + `_evict_one_lru` né phiên bận. Test `[K.8]` (3 ca).
+
+**Kết quả test:** check.sh **[18/18] PASS** · takeoff 240 · qa 129 · session **25** (+K.7 R11 +K.8 F-A) · **0 FAIL**. 0 bug SẢN PHẨM (lõi đọc-số vững; 2 bug ở tầng session/route đã vá). ⚠ CHƯA COMMIT lúc viết entry (commit cuối phiên).
+
+**Bài học:** đóng-vai-tester + workflow phản biện KẾ HOẠCH (không chỉ code) bắt 2 bug hạ tầng mà 380+ test cũ (dùng FakeBridge tuần tự) KHÔNG lộ (race concurrency + IDOR). Test tầng transport THẬT (spawn subprocess) khác test method trực tiếp — phải có. 0-bug-sản-phẩm sau khi bịt gap = tín hiệu lõi cứng.
+
+**Đang chờ:** commit GĐ0-2 (rồi push+deploy+verify LIVE). **GĐ3** E2E-AI full battery (cần GEMINI_API_KEY riêng) · **GĐ4** đa-domain (cần bản vẽ VN ≥3 firm) · **GĐ5** thu hồi dữ liệu test · **F-B** quyết nối-UI-web-cho-P3 hay MCP-only.
+
+---
 ## Session 2026-07-13 (nối 2) — P4 RÀO TỔNG/EXCEL (learned không-vào-tổng + cột chưa-chắc) — ⚠ CHƯA COMMIT
 **Mục tiêu:** user "làm tiếp P4" (sau P-1.1+P3 đã LIVE `6933643`).
 

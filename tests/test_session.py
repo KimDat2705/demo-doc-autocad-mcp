@@ -122,6 +122,52 @@ def main():
         ok("trả 'Chưa nạp bản vẽ cho phiên này'", "Chưa nạp bản vẽ" in rz.get("answer", ""), rz)
         ok("KHÔNG tạo bridge cho phiên chưa upload", len(MADE) == 0, len(MADE))
 
+        print("[K.7 R11] IDOR — /image//file CHỈ phục vụ artifact CỦA phiên (chống cross-session fetch)")
+        _reset()
+        A.SESSION_TTL_MIN = 30
+        _aid, _fid = "hl_r11test.png", "th_r11test.xlsx"
+        A.mcp_bridge.tra_loi_ai = lambda b, q, summary="", history=None: {
+            "answer": "x", "evidence": [], "anh_id": _aid, "file_id": _fid, "ai": True}
+        _pa, _pf = os.path.join(A.RENDER_DIR, _aid), os.path.join(A.RENDER_DIR, _fid)
+        with open(_pa, "wb") as _h: _h.write(b"\x89PNG\r\n\x1a\n")     # file THẬT -> qua cửa isfile (test CỔNG SỞ HỮU)
+        with open(_pf, "wb") as _h: _h.write(b"PK\x03\x04")
+        try:
+            co, ce = A.app.test_client(), A.app.test_client()
+            _upload(co, "own.dxf"); upl.add("own.dxf")
+            _ask(co, "danh dau cua")          # owner ask -> artifact ghi vào phiên co
+            ok("chủ phiên GET /image/<id> -> 200 (sở hữu)", co.get("/image/" + _aid).status_code == 200)
+            ok("chủ phiên GET /file/<id> -> 200 (sở hữu)", co.get("/file/" + _fid).status_code == 200)
+            ok("phiên KHÁC GET /image/<id> -> 404 (KHÔNG sở hữu, chống IDOR)", ce.get("/image/" + _aid).status_code == 404)
+            ok("phiên KHÁC GET /file/<id> -> 404 (KHÔNG sở hữu, chống IDOR)", ce.get("/file/" + _fid).status_code == 404)
+            ok("traversal /file/..%2fapp.py -> 404 (không sở hữu + basename)", A.app.test_client().get("/file/..%2fapp.py").status_code == 404)
+        finally:
+            A.mcp_bridge.tra_loi_ai = _fake_tra_loi
+            for _p in (_pa, _pf):
+                try: os.remove(_p)
+                except OSError: pass
+
+        print("[K.8 F-A] EVICT/TTL KHÔNG đóng phiên đang BẬN (chống đóng subprocess GIỮA request)")
+        _reset()
+        A.MAX_SESSIONS = 2
+        A.SESSION_TTL_MIN = 30
+        cb1, cb2 = A.app.test_client(), A.app.test_client()
+        _upload(cb1, "busy.dxf"); upl.add("busy.dxf")
+        _upload(cb2, "idle.dxf"); upl.add("idle.dxf")
+        sid_busy = min(A.SESSIONS, key=lambda k: A.SESSIONS[k]["last"])
+        s_busy = A.SESSIONS[sid_busy]; br_busy = s_busy["bridge"]
+        s_busy["last"] = 1.0                 # ép CŨ NHẤT -> ứng viên LRU số 1
+        s_busy["lock"].acquire()             # giả lập /ask ĐANG CHẠY (giữ lock)
+        try:
+            c3 = A.app.test_client()
+            _upload(c3, "new1.dxf"); upl.add("new1.dxf")   # cap đầy -> evict, nhưng LRU đang BẬN
+            ok("phiên BẬN (LRU, giữ lock) KHÔNG bị đóng giữa request", (not br_busy.closed) and sid_busy in A.SESSIONS)
+            ok("phiên KHÁC (rảnh) bị đóng thay -> evict NÉ phiên bận", sum(b.closed for b in MADE) == 1)
+        finally:
+            s_busy["lock"].release()
+        with A._SESS_LOCK:                    # nhả lock rồi -> đóng được bình thường
+            _done = A._try_close_session(sid_busy)
+        ok("sau khi request xong (nhả lock) -> _try_close_session đóng được (bridge.close)", _done is True and br_busy.closed)
+
         print("[K.6] hằng số MAX_SESSIONS/SESSION_TTL_MIN là int")
         ok("MAX_SESSIONS int", isinstance(A.MAX_SESSIONS, int))
         ok("SESSION_TTL_MIN int", isinstance(A.SESSION_TTL_MIN, int))

@@ -54,13 +54,40 @@ def _make_bridge():               # tách ra để test monkeypatch FakeBridge (
     return mcp_bridge.MCPBridge(["mcp_server.py"], cwd=BASE)
 
 
-def _close_session(sid):          # GỌI TRONG _SESS_LOCK: bỏ phiên + đóng bridge (giải phóng subprocess/RAM)
+def _close_session(sid):          # GỌI TRONG _SESS_LOCK: bỏ phiên + đóng bridge (giải phóng subprocess/RAM). ÉP đóng.
     s = SESSIONS.pop(sid, None)
     if s and s.get("bridge"):
         try:
             s["bridge"].close()
         except Exception:
             pass
+
+
+def _try_close_session(sid):      # F-A — GỌI TRONG _SESS_LOCK: đóng phiên CHỈ KHI không đang phục vụ request (lock rảnh).
+    """Bận (đang /upload hoặc /ask, giữ s['lock']) -> trả False, KHÔNG đóng — chống đóng subprocess GIỮA request đang
+    chạy (cold-start 30-60s / .dwg-ODA tới 600s). acquire(blocking=False): rảnh -> đóng an toàn; bận -> bỏ qua."""
+    s = SESSIONS.get(sid)
+    if s is None:
+        return True
+    if not s["lock"].acquire(blocking=False):
+        return False
+    try:
+        SESSIONS.pop(sid, None)
+        if s.get("bridge"):
+            try:
+                s["bridge"].close()
+            except Exception:
+                pass
+    finally:
+        s["lock"].release()
+    return True
+
+
+def _evict_one_lru():             # F-A — đóng 1 phiên CŨ NHẤT KHÔNG bận (nhường chỗ). MỌI phiên bận -> False (cho vượt cap tạm).
+    for k in sorted(SESSIONS, key=lambda k: SESSIONS[k]["last"]):
+        if _try_close_session(k):
+            return True
+    return False
 
 
 def get_session():
@@ -72,13 +99,14 @@ def get_session():
         if SESSION_TTL_MIN > 0:                        # đóng phiên quá hạn (giải phóng subprocess nhàn rỗi)
             cutoff = now - SESSION_TTL_MIN * 60
             for k in [k for k, v in SESSIONS.items() if v["last"] < cutoff]:
-                _close_session(k)
+                _try_close_session(k)                  # F-A: bận -> BỎ QUA (quét lần sau), KHÔNG giết request đang chạy
         s = SESSIONS.get(sid)
         if s is None:
             sid = uuid.uuid4().hex
-            while SESSIONS and len(SESSIONS) >= MAX_SESSIONS:   # cap đầy -> đóng phiên CŨ NHẤT (LRU)
-                _close_session(min(SESSIONS, key=lambda k: SESSIONS[k]["last"]))
-            s = {"bridge": None, "summary": "", "history": [], "lock": threading.Lock(), "last": now}
+            while len(SESSIONS) >= MAX_SESSIONS:        # cap đầy -> đóng phiên CŨ NHẤT KHÔNG BẬN (LRU)
+                if not _evict_one_lru():               # F-A: MỌI phiên đang bận -> cho vượt cap TẠM (không giết request)
+                    break
+            s = {"bridge": None, "summary": "", "history": [], "lock": threading.Lock(), "last": now, "artifacts": set()}
             SESSIONS[sid] = s
         s["last"] = now
     g.sid = sid
@@ -216,6 +244,9 @@ def ask():
     try:
         with s["lock"]:             # tuần tự hoá request cùng phiên (tránh 2 lượt đạp history/bridge)
             r = mcp_bridge.tra_loi_ai(s["bridge"], q, s["summary"], history=s["history"])
+            for _k in ("anh_id", "file_id"):   # R11: ghi nhận artifact CỦA phiên -> /image//file chỉ phục vụ id thuộc phiên này (chống IDOR)
+                _v = r.get(_k) if isinstance(r, dict) else None
+                if _v: s["artifacts"].add(os.path.basename(str(_v)))
             # Ghi lại lượt này vào lịch sử (chỉ hỏi + đáp cuối) + cắt giữ N lượt gần nhất.
             s["history"].append({"role": "user", "text": q})
             s["history"].append({"role": "model", "text": r.get("answer", "")})
@@ -228,8 +259,25 @@ def ask():
         return jsonify({"answer": "⚠ Lỗi khi hỏi AI: %s" % e, "evidence": [], "ai": True})
 
 
+def _artifact_owned(art_id):
+    """R11 — chống IDOR: True nếu artifact-id (basename) THUỘC phiên hiện tại (cookie sid). KHÔNG tạo phiên mới cho
+    asset request; refresh 'last' để phiên không TTL-hết trong lúc tải asset. Phiên khác/không cookie -> False -> 404."""
+    base = os.path.basename(art_id or "")
+    if not base:
+        return False
+    sid = request.cookies.get("sid") or ""
+    with _SESS_LOCK:
+        s = SESSIONS.get(sid)
+        if s is None:
+            return False
+        s["last"] = time.time()
+        return base in s.get("artifacts", ())
+
+
 @app.route("/image/<anh_id>")
 def image(anh_id):
+    if not _artifact_owned(anh_id):   # R11: chỉ phục vụ ảnh CỦA phiên (chống IDOR cross-session)
+        return jsonify({"error": "Không có ảnh."}), 404
     p = os.path.join(RENDER_DIR, os.path.basename(anh_id))
     if not os.path.isfile(p):
         return jsonify({"error": "Không có ảnh."}), 404
@@ -238,6 +286,8 @@ def image(anh_id):
 
 @app.route("/file/<file_id>")
 def download_file(file_id):
+    if not _artifact_owned(file_id):   # R11: chỉ phục vụ file CỦA phiên (chống IDOR cross-session)
+        return jsonify({"error": "Không có file."}), 404
     p = os.path.join(RENDER_DIR, os.path.basename(file_id))
     if not os.path.isfile(p):
         return jsonify({"error": "Không có file."}), 404
