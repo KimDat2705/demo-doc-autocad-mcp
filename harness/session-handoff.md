@@ -1,10 +1,10 @@
 # Session Handoff — demo 2
 
-## Trạng thái hiện tại (2026-07-13 — P-1.1 vá R1 + **P3 MỞ KÊNH HỌC** đã CODE + red-team 2 vòng | ⚠ CHƯA COMMIT)
+## Trạng thái hiện tại (2026-07-13 — P-1.1 vá R1 + **P3 MỞ KÊNH HỌC** ✅ LIVE | red-team 2 vòng)
 > Mỗi tuyên bố "xong" kèm BẰNG CHỨNG (commit + số test) truy được. Nhật ký chi tiết hơn: `GHI_CHU_HOAN_THIEN.md`.
-> **Code LIVE = `b94da21`**; HEAD `79c1947` (docs-only). **Working tree CÓ P-1.1 + P3 CHƯA COMMIT** — user chốt "chưa commit, làm P3 luôn, commit cả cụm sau". takeoff **236/236** · qa 129/129 · check.sh **[10/10]** (25 tool).
+> **Code LIVE = `6933643`** (`/version` commit khớp + `/health` ok). takeoff **236/236** · qa 129/129 · check.sh **[10/10]** (25 tool). Working tree TRACKED sạch, push hết.
 
-- **⚠ CHƯA COMMIT — P-1.1 (vá R1) + P3 MỞ KÊNH HỌC [2026-07-13 phiên nối]:** đã CODE + test + red-team 2 vòng, GIỮ working tree chờ user duyệt commit/deploy cả cụm.
+- **✅ P-1.1 (vá R1) + P3 MỞ KÊNH HỌC — LIVE [2026-07-13 phiên nối, commit `6933643`]:** CODE + test + red-team 2 vòng, **push+deploy+verify LIVE** (`/version` = `6933643` khớp + `/health` ok).
   - **P-1.1 (vá R1, lỗ E2 ĐANG TỒN TẠI):** `tinh_dai_luong` ([tools_core.py] ~1871-1920) — input `chua_chac` nguồn ≠ `gan_vi_tri` (E2 xác-nhận-handle) bị `ghi_chu` dán "đọc trực tiếp từ file (đáng tin)" mà `ghi_chu` là thứ Gemini thuật. Vá: `_gan_cc` gắn cờ MÁY-ĐỌC `resp['chua_chac']`/`can_doi_chieu` ở MỌI đường-ra (kể cả nhánh lỗi trình `gross`); nhánh ghi_chu chỉ nói 'đáng tin' khi KHÔNG có input chua_chac. Test `[Z0]` 3 ca (fix + positive-control + nhánh-lỗi).
   - **P3 (Lát 1-4):** `hoc_quy_uoc`/`thu_hoi_quy_uoc` (MCP tool #24-25) — đối tác dạy "đọc HANDLE THẬT này như <template> cho mã X". ENUM `_TEMPLATE_ENUM` {KG_PER_UNIT, KICH_THUOC_MM}, học CÁCH ĐỌC theo PHIÊN, **KHÔNG lưu số** (re-parse tươi). Cổng fail-closed: template∈ENUM · anchor∈residual · KHÔNG ô-thép · NGỮ CẢNH anchor chứa MỌI token mã · không chỉ-thị · token-nguyên-vẹn + biên. **§2.6 BACKSTOP** (tools_core `co_hoc`): input học → `co_ket_qua=False` + `uoc_luong_hoc`, **KHÔNG BAO GIỜ số chốt / KHÔNG vào tổng-Excel** (P3 giao TRƯỚC P4 nên tự chặn). LLM KHÔNG gọi tool ghi (`gemini_tools` loại; luật 17). `content_hash` (định danh theo bytes). Log WORM wiring.
   - **RED-TEAM THIẾT KẾ (119 agent):** 36→24 finding sống sót; phán quyết CONDITIONAL GO (Lát 0 backstop chặn-ship); doc `KET_QUA_REDTEAM_P3.md`.
