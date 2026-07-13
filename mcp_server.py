@@ -197,7 +197,7 @@ def hoi_de_hoc(ma_cau_kien: str = "") -> dict:
     if err: return err
     r = DRAWING.phan_loai_tin_hieu(ma_cau_kien)
     try:                          # P2: ghi log WORM (best-effort — KHÔNG hồi-tiếp vào inference, KHÔNG chặn luồng)
-        hoclog.ghi("hoi_de_hoc", file_id=getattr(DRAWING, "path", ""), ma=ma_cau_kien,
+        hoclog.ghi("hoi_de_hoc", file_id=getattr(DRAWING, "content_hash", ""), ma=ma_cau_kien,
                    tin_hieu=r.get("tin_hieu", ""),
                    them={"so_ung_vien": len(r.get("ung_vien", [])),
                          "nhan": [(u.get("vn_verbatim") or "")[:40] for u in r.get("ung_vien", [])[:8]],
@@ -216,9 +216,42 @@ def doi_chieu_nghi_ngo(ma_cau_kien: str = "") -> dict:
     if err: return err
     r = DRAWING.doi_chieu_nghi_ngo(ma_cau_kien)
     try:                          # P2: ghi log WORM (best-effort)
-        hoclog.ghi("doi_chieu_nghi_ngo", file_id=getattr(DRAWING, "path", ""), ma=ma_cau_kien,
+        hoclog.ghi("doi_chieu_nghi_ngo", file_id=getattr(DRAWING, "content_hash", ""), ma=ma_cau_kien,
                    tin_hieu="③" if r.get("co_nghi_ngo") else "",
                    them={"so_nghi": r.get("so_nghi", 0), "loai": [n.get("loai") for n in r.get("nghi_ngo", [])[:6]]})
+    except Exception:
+        pass
+    return r
+
+
+@mcp.tool()
+def hoc_quy_uoc(anchor_handle: str, template_id: str, ma_cau_kien: str) -> dict:
+    """AI TỰ HỌC — MỞ KÊNH HỌC (CHỈ đối tác CHỦ ĐỘNG dạy; KHÔNG suy từ chữ file): dạy hệ 'đọc HANDLE THẬT này như
+    <template> cho mã X'. template_id ∈ {'KG_PER_UNIT' (kg/bộ), 'KICH_THUOC_MM' (1 số đo mm)}. Học CÁCH ĐỌC theo PHIÊN,
+    KHÔNG lưu SỐ (re-parse tươi mỗi lần dùng). Cổng fail-closed: anchor phải là 'chỗ bí' (chưa đọc) + CHỨA mã + không
+    chỉ-thị + số trong biên. Số học LUÔN 'chưa chắc', CHỈ hiện dạng ỨNG VIÊN khi tính (đối tác 1-click xác nhận),
+    TUYỆT ĐỐI KHÔNG vào tổng/Excel/số chốt tới khi dev codify với ≥3 nguồn khác nhau. Trả {ok, rule_id, ung_vien_xem_truoc}."""
+    err = _need()
+    if err: return err
+    r = DRAWING.hoc_quy_uoc(anchor_handle, template_id, ma_cau_kien)
+    try:                          # WORM log (best-effort) — dùng content_hash (R9), KHÔNG path uuid
+        hoclog.ghi("hoc_quy_uoc", file_id=getattr(DRAWING, "content_hash", ""), ma=ma_cau_kien,
+                   handle=str(anchor_handle), tin_hieu="learn",
+                   them={"template_id": str(template_id), "ok": bool(r.get("ok")), "tu_choi": r.get("tu_choi", "")})
+    except Exception:
+        pass
+    return r
+
+
+@mcp.tool()
+def thu_hoi_quy_uoc(rule_id: str = "") -> dict:
+    """AI TỰ HỌC — THU HỒI quy ước đã dạy (rule_id RỖNG -> thu hồi TẤT CẢ). Xoá khỏi phiên; ứng viên sinh từ quy ước biến mất."""
+    err = _need()
+    if err: return err
+    r = DRAWING.thu_hoi_quy_uoc(rule_id)
+    try:
+        hoclog.ghi("thu_hoi", file_id=getattr(DRAWING, "content_hash", ""),
+                   them={"rule_id": str(rule_id), "da_thu_hoi": r.get("da_thu_hoi", 0)})
     except Exception:
         pass
     return r

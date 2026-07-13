@@ -4,6 +4,24 @@
 > Mới nhất ở TRÊN CÙNG. Bàn giao đầy đủ: `session-handoff.md`. Nhật ký chi tiết hơn nữa: `../GHI_CHU_HOAN_THIEN.md`.
 
 ---
+## Session 2026-07-13 (nối) — P-1.1 vá R1 + **P3 MỞ KÊNH HỌC** (code + red-team 2 vòng) — ⚠ CHƯA COMMIT
+**Mục tiêu:** user chốt "khởi động P3, chạy red-team đa-agent TRƯỚC". Rồi "chọn phương án tối ưu và làm" (giao tôi quyết sắp xếp). Rồi "chưa commit, tiếp P3 luôn, commit cả cụm sau".
+
+**Đã làm (theo quy trình chuẩn: red-team thiết kế → chọn phương án → code từng lát → test → red-team implementation → vá → test):**
+- **Baseline đầu phiên** xác nhận (KHÔNG pytest/KHÔNG backend — dùng check.sh): trước phiên takeoff 214, qa 129, gate [9/9].
+- **RED-TEAM THIẾT KẾ P3 (workflow 119 agent):** 9 hướng tấn công thiết kế × 3 giám định mặc-định-refute → 36 finding → **24 sống sót** (5 CAO). Phán quyết **CONDITIONAL GO** — Lát 0 (backstop provenance §2.6 + nhãn trung thực R1) là điều kiện CHẶN-SHIP, KHÔNG lùi sang P4. Doc `KET_QUA_REDTEAM_P3.md`. TỰ xác minh R1/R2 trên code thật (co_gan_dim :1871 chỉ whitelist gan_vi_tri → E2 chua_chac bị dán 'đáng tin').
+- **QUYẾT ĐỊNH sắp xếp (tôi chọn):** tách **P-1.1** = vá R1 (lỗ E2 ĐANG TỒN TẠI, độc lập P3) làm TRƯỚC như đơn vị riêng — đúng tiền lệ P-1 (vá lỗ trước khi xây bộ khuếch đại) + kỷ luật commit + bền trước rủi ro G6.
+- **P-1.1 (vá R1):** `_gan_cc` gắn cờ MÁY-ĐỌC `resp['chua_chac']`/`can_doi_chieu` ở MỌI đường-ra; nhánh ghi_chu chỉ 'đáng tin' khi 0 input chua_chac. Adversarial review 1-agent trên diff: AN TOÀN + tìm 1 lỗ phụ (cờ vắng ở 5 nhánh lỗi) → vá luôn. Test `[Z0]` 3 ca.
+- **P3 Lát 1-4:** primitives (used_handles+thép, `_text_by_handle`, `_quy_tac_hieu_luc`) → `hoc_quy_uoc`/`thu_hoi_quy_uoc` + ENUM parser token-nguyên-vẹn 7 cổng → wiring `_ung_vien_hoc` + **§2.6 backstop `co_hoc`** → tool-layer (2 MCP tool, loại khỏi gemini_tools, luật 17, content_hash). Test nhóm `[Z]` + file mới `test_hoc_quy_uoc.py`.
+- **RED-TEAM IMPLEMENTATION (workflow 19 agent, tự-repro chạy engine THẬT):** **INV-A/B/C/D lõi KHÔNG phá được** (số học không vào ket_qua/tổng/Excel, không mutate, cô lập, backstop vững) — kết quả tích cực. Vá **5 bug chất-lượng-cổng INV-E** (đều tự-repro trước khi vá): **F1** `_HOC_NUM_TOK_RE` lookbehind `\d`→`\w` (mác 'B25'→25mm số vô chủ) · **F2** đơn vị cm/m ghi rõ (250cm→250mm lệch 10×) fail-closed · **F3** Đ↔D chéo-mã (unaccent gộp Đ→D) → `_norm_ma` giữ đ/d · **F4** đa-mã any→all · **F5** copy `la_hoc` xuống da_co (backstop 2 lớp). Dọn rác repro agent (`_repro_f1.py`…) khỏi repo.
+
+**Kết quả test (clean cuối phiên, 0 FAIL):** `test_takeoff_chong_bia.py` **236/236** (nhóm A-Y + `[Z0]` R1 3 ca + `[Z]` P3 20 ca) · `test_qa_data.py` **129/129** · `check.sh` **[10/10] PASS** (25 tool · +hoc_quy_uoc 2). **⚠ CHƯA COMMIT/push/deploy** — user chốt commit cả cụm P-1.1+P3 sau khi duyệt.
+
+**Bài học:** (1) red-team THIẾT KẾ bắt lỗ tồn tại (R1 khuếch đại) + backstop-phải-ở-P3-không-chờ-P4; red-team IMPLEMENTATION (tự chạy engine) bắt lỗ mà thiết kế không thấy — cổng token-nguyên-vẹn regex phải loại chữ-số DÍNH chữ cái (B25), unaccent gộp Đ→D là bẫy chéo-mã. (2) 2 tầng red-team (thiết kế trước code, implementation sau code) đều cần. (3) INV-A (số học không thành số bàn giao) giữ được nhờ backstop provenance là chốt an toàn thực sự — các lỗ INV-E chỉ hạ CHẤT LƯỢNG gợi ý, không rò số.
+
+**Đang chờ / bước tiếp:** user chốt **commit cả cụm P-1.1+P3** (rồi push+deploy+verify LIVE như nhịp cũ). Sau đó: **P4** (rào Excel learned_handles fail-closed — nay §2.6 đã chặn tối thiểu ở tinh_dai_luong, P4 củng cố tầng tổng) · **P5** (codify — CHẶN tới khi có corpus ≥3 firm; G6: red-team P3 mới chạy 1-domain kết cấu VN, cần bản vẽ đa-domain chống overfit). Dự toán chi phí vẫn HOÃN.
+
+---
 ## Session 2026-07-13 (CHỐT SỔ) — Khởi động vòng AI TỰ HỌC: Kế hoạch + P-1 + P0-P1 + P2 (đều LIVE)
 **Tóm tắt phiên (DÀI, nhiều commit, mỗi phase theo quy trình chuẩn: implement → adversarial review → vá finding → test giữ baseline → commit → push/deploy/verify LIVE):**
 - **Baseline đầu phiên** xác nhận (lưu ý user gõ `pytest`/`backend/` generic — dự án KHÔNG có, dùng script+check.sh).

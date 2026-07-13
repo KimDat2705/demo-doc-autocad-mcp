@@ -189,6 +189,51 @@ def _la_notation_chuan(vn, tok):
     return bool(_NOTATION_CHUAN_TOK_RE.match((tok or "").strip()))
 
 
+# ---- P3 (AI tự học — MỞ KÊNH HỌC): ENUM template + parser CỐ ĐỊNH cho hoc_quy_uoc (dev cấp; đối tác/LLM KHÔNG đưa regex thô) ----
+_KG_PU_LO, _KG_PU_MAX = 0.01, 5000.0     # biên kg/bộ HỢP LÝ (R5; TẠM — hiệu chỉnh theo corpus P5)
+_HOC_PHIEN_CAP = 200                      # R7: cap quy tắc/phiên (chống spam phình RAM)
+# template_id CỐ ĐỊNH -> (y_nghia, đơn vị). NGOÀI tập -> hoc_quy_uoc FAIL-CLOSED (R3/G2 red-team P3). BẮT ĐẦU 2 template
+# khớp ĐÚNG slot input thiếu ĐÃ có kênh ứng-viên (kg_moi_bo; dim chieu_*); tiet_dien/so_luong = MỞ SAU khi có wiring riêng.
+_TEMPLATE_ENUM = {
+    "KG_PER_UNIT":   {"y_nghia": "kg_moi_bo",  "don_vi": "kg"},
+    "KICH_THUOC_MM": {"y_nghia": "kich_thuoc", "don_vi": "mm"},
+}
+_HOC_NUM_TOK_RE = re.compile(r"(?<![\w.,])\d+(?:[.,]\d+)?(?![\d.,])")   # TOKEN SỐ ĐỘC LẬP: lookbehind \w chống chữ-số DÍNH chữ cái ('B25'/'CB300'/'C50' -> KHÔNG nhả 25/300/50); cho phép hậu tố đơn vị ('3600mm')
+_DIM_UNIT_KHAC_MM_RE = re.compile(r"\s*(cm|dm|m)\b", re.I)   # F2: đơn vị ghi RÕ KHÁC mm ngay sau số -> template KICH_THUOC_MM fail-closed (chống lệch 10×/1000×)
+def _p_kg_per_unit(vn):
+    """RE-PARSE kg/bộ từ anchor.vn: đòi dấu PER-UNIT '(1…)'/'/bộ', DUY NHẤT 1 trị 'X kg' trong biên. Token nguyên vẹn (R3/R5)."""
+    nv = unaccent(vn or "").lower()
+    if "tong" in nv or not _KG_PU_RE.search(nv): return None
+    vals = [v for v in (_to_num(m) for m in _KG_UV_RE.findall(vn or "")) if v is not None and math.isfinite(v) and v > 0]
+    if len(vals) != 1: return None                          # R5: 0 hoặc ≥2 trị 'kg' -> MƠ HỒ, từ chối
+    if not (_KG_PU_LO <= vals[0] <= _KG_PU_MAX): return None
+    return {"gia_tri": vals[0], "don_vi": "kg", "suy_doan_don_vi": False}
+def _p_dim_mm(vn, ma=""):
+    """RE-PARSE 1 số đo (mm) từ anchor.vn: DUY NHẤT 1 token số ĐỘC LẬP trong dải hợp lý (20..100000). Token nguyên vẹn (R3).
+    LOẠI token là CHỮ-SỐ CỦA MÃ ('50' trong 'C50') + chữ-số DÍNH chữ ('25' trong 'B25' — regex \\w). F2: đơn vị cm/dm/m ghi
+    RÕ ngay sau số -> KHÔNG phải mm -> fail-closed (chống lệch 10×/1000×)."""
+    vn = vn or ""
+    code_digits = set(re.findall(r"\d+", ma or ""))
+    cand = [(m.group(0), m.end()) for m in _HOC_NUM_TOK_RE.finditer(vn) if m.group(0) not in code_digits]
+    plaus = [(t, _to_num(t), end) for (t, end) in cand
+             if _to_num(t) is not None and math.isfinite(_to_num(t)) and _DIM_UV_LO <= _to_num(t) <= _DIM_UV_HI]
+    if len(plaus) != 1: return None                         # 0 hoặc ≥2 -> MƠ HỒ, từ chối
+    tok, val, end = plaus[0]
+    if _DIM_UNIT_KHAC_MM_RE.match(vn[end:]):                 # F2: 'cm'/'dm'/'m' ngay sau số -> KHÔNG phải mm -> từ chối (fail-closed)
+        return None
+    return {"gia_tri": val, "don_vi": "mm", "suy_doan_don_vi": False}   # uncertainty đã lo bằng chua_chac + do_tin_cay 'thap'
+def _hoc_reparse(template_id, anchor_vn, ma=""):
+    """Áp ENUM parser CỐ ĐỊNH -> re-parse số TƯƠI từ anchor_vn. Trả {gia_tri, don_vi, suy_doan_don_vi} hoặc None.
+    Số LUÔN là 1 TOKEN NGUYÊN VẸN của anchor_vn -> không nhả hằng-số/cắt-ghép (đóng parser-laundering, R3)."""
+    if template_id == "KG_PER_UNIT": return _p_kg_per_unit(anchor_vn)
+    if template_id == "KICH_THUOC_MM": return _p_dim_mm(anchor_vn, ma)
+    return None
+def _norm_ma(s):
+    """F3 (KÊNH HỌC) — chuẩn hoá MÃ nhưng GIỮ phân biệt đ/d: Đ (đài/cọc) ≠ D (dầm), mà _norm_label (unaccent) gộp Đ→D.
+    Map Đ/đ -> 'dj' TRƯỚC khi _norm_label (distinct, ASCII, an toàn _tok_bound). Dùng RIÊNG cho khớp mã ở hoc_quy_uoc/_ung_vien_hoc."""
+    return _norm_label((s or "").replace("Đ", "dj").replace("đ", "dj"))
+
+
 def _plausible_door_size(w, h):
     """Loại gạch (600x600 max<1200), thép hộp (50x100). Cửa/cửa sổ thực: cạnh lớn ≥1200mm."""
     return _DOOR_SIZE_MIN <= w <= _DOOR_SIZE_MAX and _DOOR_SIZE_MIN <= h <= _DOOR_SIZE_MAX and max(w, h) >= 1200
@@ -703,11 +748,25 @@ class Drawing:
         self.doc = ezdxf.readfile(path)          # GIỮ trong RAM để render
         self.dxfversion = self.doc.dxfversion
         self._extract()
+        self.content_hash = self._tinh_content_hash()   # R9 (P3): định danh file THEO NỘI DUNG (không path uuid) -> log/gate P5 đếm domain THẬT
+
+    def _tinh_content_hash(self):
+        """SHA1 nội dung file (chunk) — 2 upload cùng bytes -> cùng hash (khác uuid path). best-effort ('' nếu lỗi)."""
+        try:
+            import hashlib
+            h = hashlib.sha1()
+            with open(self.path, "rb") as f:
+                for chunk in iter(lambda: f.read(1 << 20), b""):
+                    h.update(chunk)
+            return h.hexdigest()
+        except Exception:
+            return ""
 
     # ---------------- trích xuất (port _collect_entities + parse) ----------------
     def _extract(self):
         counts, texts, dims, dim_items = Counter(), [], [], []
         blocks, used_layers, thep, thep_hinh = Counter(), set(), {}, {}
+        thep_att_handles = set()   # R4 (P3): handle các ô ATTRIB thuộc bảng thép -> đăng ký used_handles (không lọt residual)
         for e in self.doc.modelspace():
             t = e.dxftype(); counts[t] += 1
             try: used_layers.add(e.dxf.get("layer"))
@@ -722,16 +781,18 @@ class Drawing:
                 try: bname = e.dxf.get("name") or ""
                 except Exception: bname = ""
                 if bname and not bname.startswith("*"): blocks[bname] += 1
-                attmap = {}
+                attmap = {}; att_handles = []
                 for att in e.attribs:
                     raw = att.dxf.text
                     try: ins = att.dxf.insert; xx, yy = float(ins.x), float(ins.y)
                     except Exception: xx = yy = 0.0
                     texts.append({"handle": att.dxf.handle, "layer": att.dxf.get("layer"),
                                   "text": raw, "vn": to_unicode(raw), "x": xx, "y": yy, "in_block": True})
+                    if att.dxf.handle: att_handles.append(str(att.dxf.handle))
                     try: attmap[att.dxf.tag] = raw
                     except Exception: pass
                 if _to_num(attmap.get("TL")) is not None and any(k in attmap for k in ("SLA", "DAI", "DT")):
+                    thep_att_handles.update(att_handles)   # R4: ô bảng thép đã ĐỌC CHẮC -> không cho học đè (không lọt residual)
                     if "DK" in attmap: _acc_thep(thep, attmap)
                     elif "SHOW" in attmap: _acc_thep_hinh(thep_hinh, attmap)
             elif t == "DIMENSION":
@@ -761,6 +822,8 @@ class Drawing:
                 except Exception: pass
 
         self.texts = texts
+        self._text_by_handle = {str(t["handle"]): t for t in texts}   # R4/P3: map handle->text cho RE-PARSE (KHÔNG cache SỐ)
+        self.thep_att_handles = thep_att_handles                      # R4/P3: ô bảng thép đã đọc CHẮC (chống học-đè)
         self.counts = dict(counts)
         self.blocks = dict(blocks)
         self.total = sum(counts.values())
@@ -790,13 +853,15 @@ class Drawing:
         self.stated_vol = _build_stated_volumes(texts)         # GĐ2d: m³ ghi sẵn trên bản vẽ
         self.stated_area = _build_stated_areas(texts)          # Task C: m² ghi sẵn (nhãn diện tích, verbatim)
         self.used_handles = self._build_used_handles()         # P0: SỔ handle đã hấp thụ (nền tín hiệu ① residual)
-        self.hoc_phien = []                                    # P0: quy ước ĐỌC học theo PHIÊN (P3 mới ghi; giờ khởi tạo rỗng)
+        self.hoc_phien = []                                    # P0/P3: quy ước ĐỌC học theo PHIÊN (chết theo phiên/nạp file mới)
+        self._hoc_seq = 0                                      # P3 (R7): counter rule_id TẤT ĐỊNH (không trùng sau thu_hoi; không dùng time/random)
 
     # ---------------- P0 (AI tự học): sổ handle đã hấp thụ + residual (nền tín hiệu ① "có text mà không hiểu") ----------------
     def _build_used_handles(self):
-        """HỢP mọi handle đã được BỘ NHẬN-DIỆN hấp thụ: qty/section/door/stated_vol/stated_area/dim/sheet + text CAO ĐỘ.
-        Phần BÙ với self.texts = RESIDUAL (text chưa bộ nào hiểu). ⚠ Giới hạn: bảng thép (self.thep) KHÔNG lưu handle
-        per-ô -> ô thép có thể lọt residual; P1 lọc theo DẤU-HIỆU-CẤU-TRÚC + CHỈ quanh mã được hỏi nên nhiễu bị chặn."""
+        """HỢP mọi handle đã được BỘ NHẬN-DIỆN hấp thụ: qty/section/door/stated_vol/stated_area/dim/sheet + text CAO ĐỘ
+        + Ô BẢNG THÉP (R4). Phần BÙ với self.texts = RESIDUAL (text chưa bộ nào hiểu). ⚠ Vẫn CẬN DƯỚI (attribute bảng
+        khác chưa đăng ký có thể lọt) nên P1 lọc theo DẤU-HIỆU-CẤU-TRÚC + CHỈ quanh mã được hỏi để chặn nhiễu; P3
+        `hoc_quy_uoc` thêm cổng NGỮ-CẢNH (anchor phải neo mã) + từ chối anchor∈bảng thép (thép_att_handles)."""
         used = set()
         def _add(h):
             if h is not None and h != "": used.add(str(h))
@@ -808,6 +873,8 @@ class Drawing:
         for t in self.texts:                                   # levels KHÔNG lưu handle -> gom text CAO ĐỘ (CHỈ text TOÀN là marker
             ss = (t.get("vn") or "").strip().replace(" ", "")   # +d.ddd) — KHÔNG dùng _ELEV_IN_RE.search kẻo nuốt handle text HỖN HỢP (che nhãn lạ thật)
             if _ELEV_RE.match(ss): _add(t.get("handle"))
+        for h in getattr(self, "thep_att_handles", ()):        # R4 (P3): ô bảng thép đã đọc CHẮC -> KHÔNG lọt residual
+            _add(h)
         return used
 
     def _residual_texts(self):
@@ -815,6 +882,12 @@ class Drawing:
         hiểu'. THUẦN ĐỌC, tất định (dẫn xuất từ self.texts + self.used_handles, KHÔNG state, KHÔNG thể bị đầu độc)."""
         used = self.used_handles
         return [t for t in self.texts if str(t.get("handle")) not in used]
+
+    def _quy_tac_hieu_luc(self):
+        """P3 (R7): ĐIỂM ĐỌC DUY NHẤT của self.hoc_phien (quy tắc học CÒN hiệu lực). thu_hoi_quy_uoc XÓA phần tử
+        khỏi list (không đánh cờ) nên list này luôn 'sạch'. Grep-guard (INV-12) khẳng định KHÔNG nơi nào khác truy
+        `self.hoc_phien[` ngoài hoc_quy_uoc / thu_hoi_quy_uoc / _quy_tac_hieu_luc -> chống đọc rải rác/quên lọc thu_hoi."""
+        return list(getattr(self, "hoc_phien", []) or [])
 
     def phan_loai_tin_hieu(self, ma_cau_kien, limit=8):
         """P1 (AI tự học) — phân loại TÍN HIỆU cho 1 mã, THUẦN ĐỌC + tất định, KHÔNG bịa nghĩa, KHÔNG tự học:
@@ -898,6 +971,79 @@ class Drawing:
                     "ghi_chu": "CÓ điểm CẦN ĐỐI CHIẾU — nêu cả các phương án + handle cho đối tác, TUYỆT ĐỐI KHÔNG tự chọn bên/không tự sửa số."}
         return {"co_nghi_ngo": False, "ma": ma_cau_kien, "nghi_ngo": [],
                 "ghi_chu": "Không phát hiện mâu thuẫn/nghi ngờ ở dữ liệu đọc được cho mã này (không đảm bảo mọi thứ đúng — chỉ không thấy mâu thuẫn)."}
+
+    # ---------------- P3 (AI tự học — MỞ KÊNH HỌC): hoc_quy_uoc / thu_hoi_quy_uoc ----------------
+    def hoc_quy_uoc(self, anchor_handle, template_id, ma_cau_kien, y_nghia=""):
+        """P3 — MỞ KÊNH HỌC: đối tác dạy 'đọc HANDLE THẬT này như <y_nghia> cho mã X'. Học CÁCH ĐỌC (ánh xạ
+        handle->diễn giải), **KHÔNG lưu SỐ** (re-parse tươi mỗi lần dùng — verify lại được). Cổng fail-closed nhiều
+        tầng (red-team P3): (1) ENUM template; (2) NEO handle∈texts & đang RESIDUAL; (3) NGỮ CẢNH anchor phải neo mã;
+        (4) không câu chỉ-thị-đáng-ngờ; (5) không thuộc bảng thép; (6) RE-PARSE token-nguyên-vẹn + BIÊN theo y_nghia;
+        (7) dedupe+cap. TUYỆT ĐỐI KHÔNG mutate self.texts / 8 index. Số sinh ra LUÔN chua_chac + KHÔNG vào tổng/Excel."""
+        ah = str(anchor_handle or "").strip()
+        if not ah:
+            return {"ok": False, "tu_choi": "thieu_anchor", "ly_do": "Thiếu anchor_handle (handle của đoạn chữ cần học)."}
+        tpl = _TEMPLATE_ENUM.get(str(template_id or "").strip())
+        if tpl is None:   # (1) R3/G2: template ngoài ENUM -> FAIL-CLOSED
+            return {"ok": False, "tu_choi": "template_la",
+                    "ly_do": "template_id '%s' KHÔNG thuộc bộ ENUM cố định %s (chỉ dev mở template mới)." % (template_id, sorted(_TEMPLATE_ENUM))}
+        yn = tpl["y_nghia"]
+        if y_nghia and y_nghia != yn:
+            return {"ok": False, "tu_choi": "y_nghia_lech", "ly_do": "y_nghia '%s' không khớp template %s (%s)." % (y_nghia, template_id, yn)}
+        code_toks = [w for w in _norm_ma(ma_cau_kien).split() if any(c.isdigit() for c in w)]   # F3: _norm_ma giữ đ/d
+        if not code_toks:
+            return {"ok": False, "tu_choi": "thieu_ma", "ly_do": "Cần MÃ cấu kiện (có chữ số) để neo quy ước (vd 'C1', 'D2')."}
+        t = self._text_by_handle.get(ah)
+        if t is None:   # (2a) NEO: handle phải TỒN TẠI trong bản vẽ
+            return {"ok": False, "tu_choi": "anchor_khong_ton_tai", "ly_do": "Handle '%s' KHÔNG có trong bản vẽ." % ah}
+        if ah in getattr(self, "thep_att_handles", set()):   # (5) R4: ô bảng thép -> thông điệp RÕ (xét trước residual)
+            return {"ok": False, "tu_choi": "thuoc_bang_thep", "ly_do": "Handle '%s' là ô BẢNG THÉP đã thống kê — dùng thong_ke_thep, không học đè." % ah}
+        if ah not in {str(x.get("handle")) for x in self._residual_texts()}:   # (2b) NEO: phải đang RESIDUAL (chưa bộ nào đọc)
+            return {"ok": False, "tu_choi": "anchor_da_doc",
+                    "ly_do": "Handle '%s' ĐÃ được hệ đọc/nhận diện (không phải 'chỗ bí') — KHÔNG học đè lên số đã đọc chắc." % ah}
+        vn = (t.get("vn") or "").strip()
+        if not all(_tok_bound(tk, _norm_ma(vn)) for tk in code_toks):   # (3) NGỮ CẢNH R4/F4: anchor phải chứa MỌI token mã (F3: _norm_ma giữ đ/d)
+            return {"ok": False, "tu_choi": "khong_neo_ma",
+                    "ly_do": "Nội dung handle ('%s') KHÔNG chứa (đủ) mã '%s' — KHÔNG gán quy ước cho số không thuộc mã (chống gán chéo-mã/số vô chủ)." % (vn[:50], ma_cau_kien)}
+        if _co_chi_thi_dang_ngo(vn):   # (4) R8/E4: câu chứa chỉ thị hướng tới AI -> từ chối (không học từ text thao túng)
+            return {"ok": False, "tu_choi": "chi_thi_dang_ngo",
+                    "ly_do": "Nội dung handle chứa CHỈ THỊ đáng ngờ hướng tới AI — KHÔNG học. Đối tác kiểm nguyên văn: '%s'." % vn[:60]}
+        parsed = _hoc_reparse(template_id, vn, ma_cau_kien)   # (6) RE-PARSE token-nguyên-vẹn + biên (R3/R5)
+        if parsed is None:
+            return {"ok": False, "tu_choi": "khong_doc_duoc",
+                    "ly_do": "KHÔNG đọc được số %s hợp lệ (duy nhất, trong biên) từ '%s' theo template %s." % (yn, vn[:50], template_id)}
+        key = (ah, yn, template_id)   # (7) dedupe theo (handle, y_nghia, template)
+        for r in self.hoc_phien:
+            if (r["anchor_handle"], r["y_nghia"], r["template_id"]) == key:
+                return {"ok": True, "rule_id": r["rule_id"], "trung_lap": True,
+                        "ung_vien_xem_truoc": {"gia_tri": parsed["gia_tri"], "don_vi": parsed["don_vi"], "handle": ah, "chua_chac": True},
+                        "ghi_chu": "Quy ước ĐÃ tồn tại (không thêm bản trùng)."}
+        if len(self.hoc_phien) >= _HOC_PHIEN_CAP:   # (7) cap RAM
+            return {"ok": False, "tu_choi": "qua_nhieu", "ly_do": "Đã đạt trần %d quy ước/phiên — thu hồi bớt trước khi thêm." % _HOC_PHIEN_CAP}
+        self._hoc_seq += 1
+        rid = "R%d" % self._hoc_seq
+        self.hoc_phien.append({
+            "rule_id": rid, "anchor_handle": ah, "y_nghia": yn, "template_id": template_id, "ma_ap_dung": ma_cau_kien,
+            "suy_doan_don_vi": bool(parsed.get("suy_doan_don_vi")), "nhan": "theo đối tác, chưa xác nhận",
+            "nguon": "doi_tac_day", "scope": "PHIEN", "so_file_da_kiem": 0})
+        return {"ok": True, "rule_id": rid,
+                "ung_vien_xem_truoc": {"gia_tri": parsed["gia_tri"], "don_vi": parsed["don_vi"], "handle": ah, "chua_chac": True},
+                "ghi_chu": "ĐÃ GHI quy ước ĐỌC theo PHIÊN (nhãn 'CHƯA XÁC NHẬN'). Số RE-PARSE tươi mỗi lần dùng (không lưu số); "
+                           "CHỈ hiện dạng ỨNG VIÊN khi tính (đối tác 1-click xác nhận), TUYỆT ĐỐI KHÔNG vào tổng/Excel, KHÔNG "
+                           "là số chốt tới khi dev codify với ≥3 nguồn/file khác nhau. Thu hồi bằng thu_hoi_quy_uoc('%s')." % rid}
+
+    def thu_hoi_quy_uoc(self, rule_id=""):
+        """P3 (R7): THU HỒI quy ước học — XÓA khỏi self.hoc_phien (không đánh cờ, không để rác). rule_id rỗng -> thu hồi
+        TẤT CẢ. Sau thu hồi, ứng viên sinh từ rule biến mất ở MỌI đường (kênh xác nhận re-derive từ _quy_tac_hieu_luc)."""
+        rid = str(rule_id or "").strip()
+        truoc = len(self.hoc_phien)
+        if not rid:
+            self.hoc_phien = []
+        else:
+            self.hoc_phien = [r for r in self.hoc_phien if r["rule_id"] != rid]
+        da_go = truoc - len(self.hoc_phien)
+        return {"ok": True, "da_thu_hoi": da_go, "con_lai": len(self.hoc_phien),
+                "ghi_chu": ("Đã thu hồi TẤT CẢ %d quy ước học." % da_go) if not rid
+                           else ("Đã thu hồi quy ước %s." % rid if da_go else "Không tìm thấy quy ước '%s' (có thể đã thu hồi)." % rid)}
 
     # ---------------- qty index (port) ----------------
     def _find_title_for_qty(self, info, i):
@@ -1376,13 +1522,45 @@ class Drawing:
         out.sort(key=lambda e: (e["khoang_cach"], e["gia_tri"], e["handle"] or ""))
         return out[:limit]
 
+    def _ung_vien_hoc(self, ma_cau_kien, ten):
+        """P3: ứng viên TỪ QUY ƯỚC ĐÃ HỌC (self.hoc_phien) cho (ma, ten). RE-PARSE TƯƠI mỗi lần (KHÔNG cache số);
+        G5 (TOCTOU): tái kiểm anchor còn residual TẠI THỜI ĐIỂM DÙNG. nguồn 'doc_lai_theo_quy_uoc_doi_tac',
+        chua_chac=True, la_goi_y=True, do_tin_cay='thap', handle=anchor -> kênh xác-nhận-theo-handle giữ provenance."""
+        code_toks = [w for w in _norm_ma(ma_cau_kien).split() if any(c.isdigit() for c in w)]   # F3: _norm_ma giữ đ/d
+        if not code_toks: return []
+        if ten == "kg_moi_bo": yn_want = "kg_moi_bo"
+        elif ten in ("chieu_dai", "chieu_cao", "chieu_rong", "chieu_sau"): yn_want = "kich_thuoc"
+        else: return []
+        residual_h = {str(x.get("handle")) for x in self._residual_texts()}
+        lab = _norm_ma(ma_cau_kien)
+        out, seen = [], set()
+        for r in self._quy_tac_hieu_luc():
+            if r["y_nghia"] != yn_want: continue
+            r_toks = [w for w in _norm_ma(r.get("ma_ap_dung")).split() if any(c.isdigit() for c in w)]
+            if not any(_tok_bound(rt, lab) for rt in r_toks): continue   # rule áp ĐÚNG mã đang hỏi (ranh giới token; F3 giữ đ/d)
+            ah = str(r["anchor_handle"])
+            if ah in seen or ah not in residual_h: continue              # G5: anchor phải CÒN residual lúc dùng
+            t = self._text_by_handle.get(ah)
+            if t is None: continue
+            parsed = _hoc_reparse(r["template_id"], (t.get("vn") or "").strip(), r.get("ma_ap_dung"))   # RE-PARSE tươi
+            if parsed is None: continue
+            seen.add(ah)
+            out.append({"nguyen_van": (t.get("vn") or "").strip()[:80], "gia_tri": parsed["gia_tri"],
+                        "don_vi": parsed["don_vi"], "handle": ah, "nguon": "doc_lai_theo_quy_uoc_doi_tac",
+                        "khoang_cach": None, "la_goi_y": True, "do_tin_cay": "thap", "rule_id": r["rule_id"],
+                        "suy_doan_don_vi": bool(parsed.get("suy_doan_don_vi")),
+                        "tin_hieu": "ĐỌC THEO QUY ƯỚC đối tác dạy (rule %s, handle %s) — CHƯA CHẮC, cần đối tác xác nhận + đối chiếu"
+                                    % (r["rule_id"], ah)})
+        return out
+
     def _ung_vien_cho_input(self, ma_cau_kien, ten, rs_name):
         """Dispatch ỨNG VIÊN theo (RESOLVER, tên) — KHÔNG theo 'ten' đơn (vì 'chieu_cao' dùng cả _rs_chieu_cao_cot
-        [chênh cao độ, KHÔNG gợi] lẫn _rs_bs_only [tường, gợi được]). so_mat (chọn 1/2) & cao cột KHÔNG gợi (không nguồn)."""
+        [chênh cao độ, KHÔNG gợi] lẫn _rs_bs_only [tường, gợi được]). so_mat (chọn 1/2) & cao cột KHÔNG gợi (không nguồn).
+        P3: ứng viên TỪ QUY ƯỚC HỌC nêu TRƯỚC (nếu có) — cùng slot kg_moi_bo/dim, chua_chac=True."""
         if rs_name == "_rs_bs_only" and ten == "kg_moi_bo":
-            return self._ung_vien_kg_moi_bo(ma_cau_kien)
+            return self._ung_vien_hoc(ma_cau_kien, ten) + self._ung_vien_kg_moi_bo(ma_cau_kien)
         if rs_name == "_rs_bs_only" and ten in ("chieu_dai", "chieu_cao", "chieu_rong", "chieu_sau"):
-            return self._ung_vien_dim(ma_cau_kien, "ngang" if ten in ("chieu_dai", "chieu_rong") else "doc")
+            return self._ung_vien_hoc(ma_cau_kien, ten) + self._ung_vien_dim(ma_cau_kien, "ngang" if ten in ("chieu_dai", "chieu_rong") else "doc")
         return []
 
     def _xac_nhan_ung_vien_theo_handle(self, ma_cau_kien, ten, rs_name, handle):
@@ -1393,10 +1571,15 @@ class Drawing:
         if not handle: return None
         for uv in self._ung_vien_cho_input(ma_cau_kien, ten, rs_name):
             if str(uv.get("handle")) == str(handle):
-                return {"gia_tri": uv["gia_tri"], "nguon": "doi_tac_xac_nhan_ung_vien", "handle": uv["handle"],
-                        "chua_chac": True, "do_tin_cay": uv.get("do_tin_cay") or "thap", "can_doi_chieu": True,
-                        "giai_thich": "đối tác XÁC NHẬN ứng viên [%s]: %s"
-                                      % (uv["handle"], (uv.get("nguyen_van") or uv.get("tin_hieu") or "")[:60])}
+                la_hoc = uv.get("nguon") == "doc_lai_theo_quy_uoc_doi_tac"   # P3: GIỮ provenance HỌC (không tẩy thành 'xác nhận ứng viên' thường)
+                res = {"gia_tri": uv["gia_tri"],
+                       "nguon": "doi_tac_xac_nhan_learned" if la_hoc else "doi_tac_xac_nhan_ung_vien", "handle": uv["handle"],
+                       "chua_chac": True, "do_tin_cay": uv.get("do_tin_cay") or "thap", "can_doi_chieu": True,
+                       "giai_thich": "đối tác XÁC NHẬN %s [%s]: %s"
+                                     % ("QUY ƯỚC HỌC" if la_hoc else "ứng viên", uv["handle"],
+                                        (uv.get("nguyen_van") or uv.get("tin_hieu") or "")[:60])}
+                if la_hoc: res["la_hoc"] = True; res["rule_id"] = uv.get("rule_id")
+                return res
         return None
 
     def _doc_tiet_dien(self, ma_cau_kien):
@@ -1782,9 +1965,21 @@ class Drawing:
                               "handle": res.get("handle"), "do_tin_cay": res.get("do_tin_cay"),
                               "chua_chac": res.get("chua_chac", False), "suy_doan_don_vi": res.get("suy_doan_don_vi", False),
                               "gia_dinh_cao_tang": res.get("gia_dinh_cao_tang", False),
+                              "la_hoc": res.get("la_hoc", False),   # F5: giữ cờ HỌC xuống da_co -> backstop §2.6 2 lớp (la_hoc OR nguon)
                               "giai_thich": res.get("giai_thich", "")})
                 if res.get("nghi_ngo"): nghi_ngo_all.extend(res["nghi_ngo"])   # E3: gom cờ đối chiếu số đối-tác vs số đọc
                 if res.get("can_doi_chieu"): da_co[-1]["can_doi_chieu"] = True   # E2: xác nhận theo handle -> cần đối chiếu (LỘ)
+        # R1 (red-team P3, P-1.1): cờ MÁY-ĐỌC chua_chac/can_doi_chieu tính 1 LẦN từ da_co, gắn ở MỌI đường-ra qua
+        # _gan_cc — kể cả nhánh LỖI co_ket_qua=False vẫn trình số 'gross'/'gross_tham_khao' (đối xứng nghi_ngo của E3,
+        # "thất bại phải lộ"). Dùng da_co ĐẦY ĐỦ (bảo thủ: thà LỘ cờ trên nhánh lỗi hơn im lặng).
+        co_chua_chac = any(x.get("chua_chac") for x in da_co)
+        co_xac_nhan_uv = any(x.get("can_doi_chieu") for x in da_co)   # E2/learned: đối tác xác nhận ứng viên theo handle
+        co_hoc = any(x.get("la_hoc") or str(x.get("nguon", "")).startswith("doc_lai_theo_quy_uoc")
+                     or x.get("nguon") == "doi_tac_xac_nhan_learned" for x in da_co)   # §2.6 R2: input từ QUY ƯỚC HỌC
+        def _gan_cc(d):
+            if co_chua_chac: d["chua_chac"] = True
+            if co_xac_nhan_uv: d["can_doi_chieu"] = True
+            return d
         ten_dl = ("%s %s" % (F["ten"], ma_cau_kien)).strip()
         if thieu:
             # Cấu kiện tồn tại (đã qua cửa kiểm tra ở đầu hàm) nhưng THIẾU số liệu -> mời đối tác cấp.
@@ -1814,7 +2009,7 @@ class Drawing:
                        "GỢI Ý — hệ TUYỆT ĐỐI KHÔNG tự cắm; CHỈ khi đối tác XÁC NHẬN (nhập qua inputs_bo_sung) mới tính.")
             r["ghi_chu"] = gc
             if nghi_ngo_all: r["nghi_ngo"] = nghi_ngo_all   # E3: LỘ đối chiếu cả khi còn input khác thiếu
-            return r
+            return _gan_cc(r)
         # CHỐNG CRASH + SỐ VÔ LÝ: đối tác có thể nhập 'abc' / số âm / 0 qua chat. Mọi input phải là SỐ DƯƠNG hợp lệ;
         # nếu không -> KHÔNG tính (báo số liệu không hợp lệ, mời nhập lại) — tránh TypeError và đại lượng ÂM.
         xau = [x["ten"] for x in da_co
@@ -1827,15 +2022,15 @@ class Drawing:
                    "ghi_chu": "Số liệu KHÔNG HỢP LỆ (phải là SỐ DƯƠNG > 0, đơn vị mm): %s. Đề nghị đối tác nhập lại đúng số."
                               % ", ".join(xau)}
             if nghi_ngo_all: _rx["nghi_ngo"] = nghi_ngo_all   # E3: LỘ đối chiếu kể cả khi input khác không hợp lệ
-            return _rx
+            return _gan_cc(_rx)
         kq = F["compute"](vals)
         # CHỐNG BỊA (kết quả): input hữu hạn vẫn có thể TRÀN SỐ khi nhân (vd 16 × 1e308 = inf). Không bao giờ
         # trả 'kết quả' vô cực/NaN -> báo không hợp lệ (đối kháng: 4 giám định độc lập bắt lỗ hổng này).
         if not (isinstance(kq, (int, float)) and not isinstance(kq, bool) and math.isfinite(kq)):
-            return {"dai_luong": ten_dl, "co_ket_qua": False, "can_bo_sung": True, "so_lieu_khong_hop_le": ["ket_qua"],
+            return _gan_cc({"dai_luong": ten_dl, "co_ket_qua": False, "can_bo_sung": True, "so_lieu_khong_hop_le": ["ket_qua"],
                     "cach_tinh": F["cach_tinh"], "inputs_da_co": da_co, "inputs_thieu": [],
                     "ghi_chu": "Kết quả tính ra KHÔNG hợp lệ (vô cực/tràn số) — số liệu đầu vào quá lớn/bất thường. "
-                               "Đề nghị đối tác kiểm lại các số đã nhập (KHÔNG trả số vô nghĩa)."}
+                               "Đề nghị đối tác kiểm lại các số đã nhập (KHÔNG trả số vô nghĩa)."})
         # Task B — TRỪ LỖ cửa/cửa sổ: kq ở trên là GROSS (số cũ). Chỉ khi đối tác khai 'lo_cua' cho xay_tuong/
         # dien_tich_trat mới trừ; KHÔNG có lo_cua -> tru_extra=None -> giữ NGUYÊN kq cũ + KHÔNG thêm field (76 test không đổi).
         tru_extra = None
@@ -1845,7 +2040,7 @@ class Drawing:
                 r = {"dai_luong": ten_dl, "co_ket_qua": False, "can_bo_sung": True, "don_vi": F["don_vi"],
                      "cach_tinh": F["cach_tinh"], "gross_tham_khao": kq, "inputs_da_co": da_co, "inputs_thieu": []}
                 r.update(data_lo)     # gắn cờ lỗi CỤ THỂ (khong_tim_thay/khong_tra_duoc_size/lo_vuot_so_luong/... + ghi_chu)
-                return r
+                return _gan_cc(r)
             if st_lo == "ok":
                 if key == "xay_tuong":
                     prec, mul = 3, vals["be_day"] / 1e9
@@ -1859,18 +2054,18 @@ class Drawing:
                 # LỘ khi lỗ ≥ tường: kiểm SAU làm tròn (net<=0) — chặn CẢ ca net_raw>0 nhưng làm tròn về 0.0
                 # (lỗ ≈ tường). TUYỆT ĐỐI không trả số 0/âm như 'kết quả hợp lệ'.
                 if not math.isfinite(net_raw) or net <= 0:
-                    return {"dai_luong": ten_dl, "co_ket_qua": False, "can_bo_sung": True, "don_vi": F["don_vi"],
+                    return _gan_cc({"dai_luong": ten_dl, "co_ket_qua": False, "can_bo_sung": True, "don_vi": F["don_vi"],
                             "cach_tinh": F["cach_tinh"], "lo_lon_hon_tuong": True, "gross": kq,
                             "khau_tru_lo": round(ded_raw, prec), "so_lo": data_lo["so_lo"], "chi_tiet_lo": data_lo["chi_tiet"],
                             "ghi_chu": "TỔNG lỗ khấu trừ (%s %s) ≥ gross (%s %s) sau làm tròn — lỗ ≥ (hoặc ≈) tường, KHÔNG "
                                        "trả số 0/âm. Kiểm lại kích thước/số lượng lỗ hoặc kích thước tường."
-                                       % (round(ded_raw, prec), F["don_vi"], kq, F["don_vi"])}
+                                       % (round(ded_raw, prec), F["don_vi"], kq, F["don_vi"])})
                 tru_extra = {"gross": kq, "khau_tru_lo": round(ded_raw, prec),
                              "so_lo": data_lo["so_lo"], "chi_tiet_lo": data_lo["chi_tiet"]}
                 kq = net   # ket_qua = NET (đã trừ lỗ)
         co_gan_dim = any(x["chua_chac"] and x.get("nguon") == "gan_vi_tri" for x in da_co)
         co_gia_dinh_cao = any(x.get("gia_dinh_cao_tang") for x in da_co)   # Task F: ước cao cột theo cao độ
-        suy_dv = any(x.get("suy_doan_don_vi") for x in da_co)
+        suy_dv = any(x.get("suy_doan_don_vi") for x in da_co)   # co_chua_chac/co_xac_nhan_uv đã tính ở trên (dùng chung mọi đường-ra)
         so_do = ["%s = %s %s (%s%s)" % (x["ten"], (round(x["gia_tri"], 2)), x["don_vi"], x["nguon"],
                                         ((", GIẢ ĐỊNH 1 tầng" if x.get("gia_dinh_cao_tang") else ", CHƯA CHẮC") if x["chua_chac"] else "")) for x in da_co]
         if tru_extra:
@@ -1885,8 +2080,12 @@ class Drawing:
         gc = "Đây là SỐ DO HỆ THỐNG TÍNH (không phải số ghi sẵn trong file). "
         if co_gan_dim:
             gc += "Có input lấy theo GÁN VỊ TRÍ (đường kích thước gần cấu kiện) → CHƯA CHẮC đúng 100%; đối tác nên xác nhận. "
-        elif not co_gia_dinh_cao:
+        elif co_xac_nhan_uv:   # R1: E2/learned xác-nhận-theo-handle -> nêu CHƯA CHẮC, KHÔNG dán 'đáng tin'
+            gc += "Có input đối tác XÁC NHẬN theo ỨNG VIÊN (handle) → CHƯA CHẮC, CẦN ĐỐI CHIẾU; KHÔNG coi là số chắc chắn. "
+        elif not co_chua_chac:   # R1: chỉ khẳng định 'đáng tin' khi KHÔNG có input chua_chac nào
             gc += "Mọi input đọc trực tiếp từ file (đáng tin). "
+        elif not co_gia_dinh_cao and not suy_dv:   # R1: còn chua_chac khác (chưa có msg riêng) -> LỘ, không im lặng
+            gc += "Có input CHƯA CHẮC (suy đoán/gán) → đối tác nên xác nhận, KHÔNG coi là số chắc chắn. "
         if co_gia_dinh_cao:
             _typ = (getattr(self, "levels", None) or {}).get("typical_floor_h")
             gc += ("⚠ CHIỀU CAO CỘT là GIẢ ĐỊNH 1 tầng ≈ %.2fm (hệ thống SUY từ CAO ĐỘ, KHÔNG đo trực tiếp) — đối tác "
@@ -1899,6 +2098,16 @@ class Drawing:
             gc += (" ĐÃ TRỪ %d lỗ cửa/cửa sổ (khấu trừ %s %s; gross %s %s). SỐ LƯỢNG lỗ do ĐỐI TÁC khai, KÍCH THƯỚC lỗ "
                    "do CODE (bảng thống kê)/đối tác cấp — hệ KHÔNG tự đoán cửa nào thuộc tường nào. Reveal/bệ cửa (mặt bên "
                    "lỗ) CHƯA cộng." % (tru_extra["so_lo"], tru_extra["khau_tru_lo"], F["don_vi"], tru_extra["gross"], F["don_vi"]))
+        # §2.6 (R2/G4 red-team P3) — BACKSTOP PROVENANCE: input lấy theo QUY ƯỚC HỌC (chưa xác nhận ≥3 nguồn) KHÔNG được
+        # ra SỐ CHỐT. P3 giao TRƯỚC P4 (chưa có learned_handles fail-closed ở tong_hop/Excel) -> đây là LƯỚI CHẶN THỨ HAI
+        # BẮT BUỘC (không lùi sang P4): trả 'uoc_luong_hoc' (co_ket_qua=False) — learned-value KHÔNG BAO GIỜ thành số bàn giao.
+        if co_hoc:
+            return _gan_cc({"dai_luong": ten_dl, "co_ket_qua": False, "can_bo_sung": True, "uoc_luong_hoc": kq,
+                            "don_vi": F["don_vi"], "cach_tinh": F["cach_tinh"], "inputs_da_co": da_co, "inputs_thieu": [],
+                            "so_do_he_thong_tinh": so_do,
+                            "ghi_chu": ("Có input lấy theo QUY ƯỚC ĐỐI TÁC DẠY (chưa xác nhận ≥3 nguồn/file) → đây là ƯỚC LƯỢNG "
+                                        "theo cách đọc đối tác (uoc_luong_hoc = %s %s), KHÔNG PHẢI SỐ CHỐT: TUYỆT ĐỐI không vào "
+                                        "tổng/Excel, cần đối tác đối chiếu + dev codify trước khi dùng. " % (kq, F["don_vi"])) + gc})
         resp = {"dai_luong": ten_dl, "co_ket_qua": True, "ket_qua": kq, "don_vi": F["don_vi"], "can_bo_sung": False,
                 "cach_tinh": F["cach_tinh"], "inputs_da_co": da_co, "inputs_thieu": [],
                 "so_do_he_thong_tinh": so_do, "ghi_chu": gc}
@@ -1906,7 +2115,7 @@ class Drawing:
             resp["gross"] = tru_extra["gross"]; resp["khau_tru_lo"] = tru_extra["khau_tru_lo"]
             resp["so_lo"] = tru_extra["so_lo"]; resp["chi_tiet_lo"] = tru_extra["chi_tiet_lo"]
         if nghi_ngo_all: resp["nghi_ngo"] = nghi_ngo_all   # E3: LỘ đối chiếu số đối-tác vs số đọc file (không tự chọn bên)
-        return resp
+        return _gan_cc(resp)
 
     # ---- GĐ2d: BẢNG TỔNG HỢP khối lượng sơ bộ (gộp mọi số ĐỌC/TÍNH được, minh bạch NGUỒN) ----
     def _door_qty_for(self, code):
