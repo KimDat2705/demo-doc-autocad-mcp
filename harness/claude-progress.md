@@ -4,7 +4,7 @@
 > Mới nhất ở TRÊN CÙNG. Bàn giao đầy đủ: `session-handoff.md`. Nhật ký chi tiết hơn nữa: `../GHI_CHU_HOAN_THIEN.md`.
 
 ---
-## Session 2026-07-13 (nối 5) — VÁ FINDING id84 (đài cọc 142→59) — ⚠ CHƯA COMMIT
+## Session 2026-07-13 (nối 5) — VÁ FINDING id84 (đài cọc 142→59) — ✅ LIVE `c0b85af`
 **Mục tiêu:** user "nghiên cứu đầu mục nào tiếp theo hợp lý/đúng logic nhất → triển khai". Chọn qua workflow đa-agent, KHÔNG tự ý làm đầu mục cần quyết-định-user hay corpus ngoài.
 
 **Chọn đầu mục (workflow: research 3-agent song song → synthesize → vet overfit):**
@@ -17,9 +17,9 @@
 - **VET OVERFIT (adversarial, TRƯỚC code) bắt 3 lỗi:** ① TYPE_WORDS chưa qua _norm_ma ('đài'→'djai') → nếu dùng first-token key thì 'ĐÀI CỌC ĐC-1' cho ma_key='djai' gộp mọi đài → **đổi sang key BẢO THỦ (so nhãn) né hẳn**; ② fail-loud chỉ ở entry nội bộ → **wire ra output**; ③ claim 'mã không-đ 0 đổi' sai ở tầng dedup → **thêm positive-control**. Verdict GO_WITH_ADJUSTMENTS.
 - **VÁ REGRESS [E]:** lần đầu dùng key strip-type-word → over-merge 'DẦM D1'(dầm)+'CỬA D1'(cửa) → test [E] (4 biến thể 'diện tích cửa D1' → 1 giá trị) VỠ (3.51 vs 84.24). Đổi sang `_ma_key` bảo thủ (chỉ bỏ annotation) → door/beam TÁCH lại → [E] ổn định 84.24. (Bài học: dedup đụng mọi consumer; type-word là DISCRIMINATOR khi mã trần trùng.)
 
-**Kết quả test (0 FAIL):** `tong_so_luong('ĐC')` **142→59**/6 mã, chỉ đài cọc · DC(dầm) chỉ dầm · door/beam D1 giữ nguyên. Test **[id84] 12 ca** → `test_takeoff_chong_bia.py` **252/252** · `check.sh` **[18/18] PASS** (excel-content 17, misc-tools 84 không regress) · `test_qa_data.py` **129/129**. **⚠ CHƯA push/deploy — chờ user chốt commit.**
+**Kết quả test (0 FAIL):** `tong_so_luong('ĐC')` **142→59**/6 mã, chỉ đài cọc · DC(dầm) chỉ dầm · door/beam D1 giữ nguyên. Test **[id84] 12 ca** → `test_takeoff_chong_bia.py` **252/252** · `check.sh` **[18/18] PASS** (excel-content 17, misc-tools 84 không regress) · `test_qa_data.py` **129/129**. **✅ COMMIT `c0b85af` + push + deploy + verify LIVE** (`/version`=c0b85af khớp + `/health` ok).
 
-**Đang chờ:** commit id84 (rồi push+deploy+verify LIVE theo quy trình). **id135** vá khi có file hạ tầng (refuse-guard + recall cao-độ-text). **F-B** user quyết. **GĐ4/P5** chặn corpus ≥3 firm.
+**Đang chờ:** **id135** vá khi có file hạ tầng (refuse-guard + recall cao-độ-text). **F-B** user quyết (nối UI web cho kênh học P3 hay MCP-only). **GĐ4/P5** chặn corpus ≥3 firm. Dự toán chi phí HOÃN.
 
 ---
 ## Session 2026-07-13 (CHỐT SỔ) — P3+P4 AI tự học LIVE + KIỂM THỬ TỔNG THỂ GĐ0-3 (5 commit code, 3 bug vá, đều LIVE)
