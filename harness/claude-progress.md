@@ -4,7 +4,7 @@
 > Mới nhất ở TRÊN CÙNG. Bàn giao đầy đủ: `session-handoff.md`. Nhật ký chi tiết hơn nữa: `../GHI_CHU_HOAN_THIEN.md`.
 
 ---
-## Session 2026-07-13 (nối 6) — VÁ id135 REFUSE-GUARD (grounding, an toàn recall) — ⚠ CHƯA COMMIT
+## Session 2026-07-13 (nối 6) — VÁ id135 REFUSE-GUARD (grounding, an toàn recall) — ✅ LIVE `3ca5102`
 **Mục tiêu:** user "vá tiếp id135 với refuse-guard khi n_evidence=0", rồi delegate "nghiên cứu chi tiết + chọn phương án tối ưu".
 
 **PHÁT HIỆN then chốt (probe battery THẬT trước khi thiết kế):** `n_evidence=0` KHÔNG phải tín hiệu bịa — **60/198 câu (30%) có n_ev=0 + có số + ĐÚNG** (id1 '8024 đối tượng', id2 '141 layer', id16 '15/58800mm', id17 '298.4 kg') vì tool trả số tổng-hợp (đếm/bảng thép/min-max/mốc cao độ) KHÔNG gắn handle per-item. Guard `n_evidence=0 → từ chối` thô sẽ **SẬP recall 30%** (recall là điểm yếu THẬT của demo). → hỏi user, user delegate.
@@ -18,7 +18,7 @@
 
 **⚠ GIỚI HẠN E2E (trung thực):** KHÔNG chạy được câu id135 THẬT — file hạ tầng KHÔNG có trong corpus + cần API. Xác minh bằng **mock-E2E qua `tra_loi_ai` (đúng code path) + unit + phân tích battery**, KHÔNG phải E2E-thật. Rủi ro deploy thấp vì thứ verify = AN-TOÀN-RECALL (câu đúng được bảo vệ, FP=0); worst-case guard vô hiệu → id135 không tệ hơn cũ.
 
-**Kết quả test:** `test_grounding_guard.py` **32/32** (8 unit trích-số/grounding + mock BAN id135 + GIỮ đếm/thép/đổi-đơn-vị/any-grounded/từ-chối-sẵn). check.sh **[18/18]→[19/19] PASS** · takeoff **252** · qa **129** · 0 regress. **⚠ CHƯA push/deploy — theo quy trình sẽ commit+push+deploy+verify.**
+**Kết quả test:** `test_grounding_guard.py` **32/32** (8 unit trích-số/grounding + mock BAN id135 + GIỮ đếm/thép/đổi-đơn-vị/any-grounded/từ-chối-sẵn). check.sh **[18/18]→[19/19] PASS** · takeoff **252** · qa **129** · 0 regress. **✅ COMMIT `3ca5102` + push + deploy + verify LIVE** (`/version`=3ca5102 khớp + `/health` ok).
 
 **Đang chờ / bước tiếp:** **id135 RECALL** — thêm recall-tool `cao_do_min_max` (đọc TEXT cao độ min/max kèm handle) để trả ĐÚNG -14.26 (guard chỉ chặn bịa, không giúp đọc đúng) — làm khi có file hạ tầng verify. **F-B** user quyết. **GĐ4/P5** chặn corpus ≥3 firm.
 
