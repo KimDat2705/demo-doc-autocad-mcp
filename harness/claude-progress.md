@@ -14,7 +14,7 @@
 - **VÁ R11 (IDOR):** `s["artifacts"]` + `_artifact_owned` → `/file` `/image` cross-session 404 + traversal 404. Test `[K.7]` (5 ca).
 - **VÁ F-A (race):** `_try_close_session` acquire-non-blocking (bận→bỏ qua) + `_evict_one_lru` né phiên bận. Test `[K.8]` (3 ca).
 
-**Kết quả test:** check.sh **[18/18] PASS** · takeoff 240 · qa 129 · session **25** (+K.7 R11 +K.8 F-A) · **0 FAIL**. 0 bug SẢN PHẨM (lõi đọc-số vững; 2 bug ở tầng session/route đã vá). ⚠ CHƯA COMMIT lúc viết entry (commit cuối phiên).
+**Kết quả test:** check.sh **[18/18] PASS** · takeoff 240 · qa 129 · session **25** (+K.7 R11 +K.8 F-A) · **0 FAIL**. 0 bug SẢN PHẨM (lõi đọc-số vững; 2 bug ở tầng session/route đã vá). **✅ COMMIT `5b13ba0` + push + deploy + verify LIVE** (`/version` khớp + `/health` ok).
 
 **Bài học:** đóng-vai-tester + workflow phản biện KẾ HOẠCH (không chỉ code) bắt 2 bug hạ tầng mà 380+ test cũ (dùng FakeBridge tuần tự) KHÔNG lộ (race concurrency + IDOR). Test tầng transport THẬT (spawn subprocess) khác test method trực tiếp — phải có. 0-bug-sản-phẩm sau khi bịt gap = tín hiệu lõi cứng.
 
