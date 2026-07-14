@@ -515,6 +515,16 @@ _ELEV_RE = re.compile(r"^[+\-±]\s*\d{1,2}[.,]\d{2,3}$")                        
 _ELEV_IN_RE = re.compile(r"(?:([+±])|(?<![\w.])(-))\s*(\d{1,2}[.,]\d{3})(?![\d])")  # trong đoạn dài hơn
 _FLOOR_H_LO, _FLOOR_H_HI = 2.5, 5.0   # chiều cao 1 TẦNG hợp lý (loại chiếu nghỉ/tầng lửng ~1.8, móng ~0.6)
 
+# id135-recall: MIN/MAX cao độ RAW (KHÔNG lọc tần suất ≥4 như _build_levels — đó là lý do id135 miss mốc sâu thưa).
+# Mở rộng 1-3 chữ số nguyên (công trình >99m) + 2-3 thập phân (id135 -14.26 = 2; Gia Lộc -1.850 = 3). BẮT BUỘC dấu +/-/±.
+_CD_STD = re.compile(r"^([+\-±])\s*(\d{1,3})[.,](\d{2,3})$")                              # marker đứng riêng
+_CD_INL = re.compile(r"(?:^|[\s(=:,])([+±]|(?<![\w.])-)\s*(\d{1,3})[.,](\d{2,3})(?![\d])")  # trong đoạn dài (biên trái sạch)
+_CD_STEEL_LAYER = re.compile(r"thep|sothep|rebar", re.I)   # G3: layer thép -> giá trị thép, KHÔNG phải cao độ (semantic)
+
+def _cd_val(sign, intp, decp):
+    v = float("%s.%s" % (intp, decp))
+    return round(-v if sign == "-" else v, 3)   # '±'/'+' -> dương
+
 
 def _parse_elev(sign, num):
     try: v = float(num.replace(",", "."))
@@ -1390,6 +1400,54 @@ class Drawing:
                 "ghi_chu": "Cao độ là số ĐỌC trên bản vẽ. Chiều cao tầng = HIỆU cao độ liền kề (hệ thống tính). "
                            "Số tầng là ƯỚC TÍNH (cao độ cao nhất ÷ chiều cao tầng); tầng lửng/chiếu nghỉ có thể khác. "
                            "Muốn TÍNH thể tích cột theo chiều cao tầng, đối tác xác nhận rồi nhập (vd 'cột C1 cao 3.6m')."}
+
+    def cao_do_min_max(self, **_):
+        """id135-recall: CAO ĐỘ THẤP/SÂU NHẤT + CAO NHẤT đọc RAW từ marker cao độ text, KÈM handle + nguyên văn.
+        KHÁC thong_tin_tang: KHÔNG lọc tần suất ≥4 / KHÔNG cluster (nếu lọc sẽ BỎ mốc sâu/cao thưa thớt = lỗi id135).
+        Chống bịa: 0 marker -> co_cao_do=False (LỘ thất bại); loại marker trên layer THÉP khỏi min/max (giá trị thép,
+        không phải cao độ) nhưng LỘ ở 'canh_bao'; 'nghi_ngo'=true cho extreme outlier cô lập / dạng inline."""
+        found = []
+        for t in self.texts:
+            vn = (t.get("vn") or "").strip()
+            ss = vn.replace(" ", "")
+            m = _CD_STD.match(ss)
+            if m:
+                found.append({"v": _cd_val(m.group(1), m.group(2), m.group(3)), "handle": t["handle"],
+                              "layer": t.get("layer") or "", "nguyen_van": vn, "dang": "standalone"})
+                continue
+            for mi in _CD_INL.finditer(vn):
+                found.append({"v": _cd_val(mi.group(1), mi.group(2), mi.group(3)), "handle": t["handle"],
+                              "layer": t.get("layer") or "", "nguyen_van": vn, "dang": "inline"})
+        if not found:
+            return {"co_cao_do": False, "so_marker": 0,
+                    "ghi_chu": "Bản vẽ KHÔNG có marker cao độ (dấu +/-/± kèm 2-3 số thập phân) đọc được → "
+                               "KHÔNG đọc được cao độ thấp/cao nhất CÓ CĂN CỨ. Đừng ước/đoán một con số."}
+        thep = [f for f in found if _CD_STEEL_LAYER.search(f["layer"])]     # G3
+        pool = [f for f in found if not _CD_STEEL_LAYER.search(f["layer"])] or found
+        vals = sorted(set(f["v"] for f in pool))
+        gaps = [round(vals[i + 1] - vals[i], 3) for i in range(len(vals) - 1)]
+        med = sorted(gaps)[len(gaps) // 2] if gaps else 0.0
+
+        def _nghi(f):   # G4 range + G5 outlier-gap (chỉ FLAG, KHÔNG âm thầm loại)
+            if f["dang"] == "inline": return True
+            if f["v"] < -60 or f["v"] > 600: return True
+            others = [x for x in vals if x != f["v"]]
+            if others and min(abs(f["v"] - x) for x in others) > max(3 * med, 5.0): return True
+            return False
+
+        def _item(f):
+            return {"gia_tri_m": f["v"], "handle": f["handle"], "layer": f["layer"],
+                    "nguyen_van": f["nguyen_van"], "dang": f["dang"], "nghi_ngo": _nghi(f)}
+        lo = min(pool, key=lambda f: f["v"]); hi = max(pool, key=lambda f: f["v"])
+        canh_bao = [dict(_item(f), ly_do="trên layer thép/số-thép → nghi là GIÁ TRỊ THÉP, không phải cao độ (đã loại khỏi min/max)")
+                    for f in thep]
+        return {"co_cao_do": True, "so_marker": len(pool),
+                "cao_do_thap_nhat_m": lo["v"], "thap_nhat": _item(lo),
+                "cao_do_cao_nhat_m": hi["v"], "cao_nhat": _item(hi),
+                "tat_ca_cao_do_m": vals[:60], "canh_bao": canh_bao,
+                "ghi_chu": "Số là ĐỌC từ marker cao độ trên text bản vẽ (KHÔNG suy hình học). Trả lời phải trích "
+                           "nguyên_văn + handle của 'thap_nhat'/'cao_nhat'; ĐỪNG lấy số trong 'canh_bao' (đã loại). "
+                           "'nghi_ngo'=true → extreme cô lập/inline, nói rõ 'cần đối chiếu'."}
 
     def boc_tach_kich_thuoc(self, tu_khoa=None, gioi_han=30, **_):
         """BÓC TÁCH số đo từ GHI CHÚ tự do (vd 'thảm đá (6x2x0.3)m L=56m', 'gạch 190x190x65mm'):

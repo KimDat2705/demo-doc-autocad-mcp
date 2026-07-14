@@ -144,6 +144,15 @@ def thong_tin_tang() -> dict:
 
 
 @mcp.tool()
+def cao_do_min_max() -> dict:
+    """CAO ĐỘ THẤP/SÂU NHẤT + CAO NHẤT đọc RAW từ marker cao độ (+3.600/-1.850/±0.000) trên bản vẽ, kèm
+    handle + nguyên văn. DÙNG cho 'cao độ thấp/sâu/cao nhất là bao nhiêu', 'đáy móng/đỉnh mái cao độ bao nhiêu'
+    (KHÁC thong_tin_tang dùng cho chiều-cao-TẦNG). Đọc text, KHÔNG suy hình học; đã loại marker layer thép khỏi
+    min/max (xem canh_bao); 0 marker -> co_cao_do=False (nói KHÔNG đọc được, đừng đoán)."""
+    return _need() or DRAWING.cao_do_min_max()
+
+
+@mcp.tool()
 def tong_hop_khoi_luong() -> dict:
     """⭐ GĐ2d — BẢNG TỔNG HỢP khối lượng SƠ BỘ: gộp số lượng + diện tích cửa + thể tích cột/dầm + thép +
     m³ ghi sẵn + tầng vào 1 bảng, mỗi hàng ghi NGUỒN. DÙNG cho 'tổng hợp khối lượng', 'bảng dự toán sơ bộ',

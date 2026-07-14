@@ -4,6 +4,21 @@
 > Mới nhất ở TRÊN CÙNG. Bàn giao đầy đủ: `session-handoff.md`. Nhật ký chi tiết hơn nữa: `../GHI_CHU_HOAN_THIEN.md`.
 
 ---
+## Session 2026-07-13 (nối 8) — THÊM cao_do_min_max (recall id135) — ⚠ CHƯA COMMIT
+**Mục tiêu:** user "làm tiếp cao_do_min_max". Thiết kế đã vet ở phiên nối 7 (workflow design cao_do + red-team, GO_WITH_ADJUSTMENTS).
+
+**Đã làm (implement từ design đã vet):** MCP tool #26 `cao_do_min_max` (recall id135 — đọc ĐÚNG cao độ thấp/cao nhất, bù cho guard chỉ chặn bịa).
+- `tools_core.py`: `_CD_STD`/`_CD_INL` (dấu +/-/± + 1-3 nguyên + **2-3 thập phân**) + `_cd_val` + method `Drawing.cao_do_min_max`. Đọc RAW marker, min/max — **KHÔNG lọc ≥4/cluster** (lý do id135 miss). RIÊNG khỏi thong_tin_tang (giữ cho chiều-cao-tầng).
+- Precision: G1 bắt buộc dấu; G3 loại layer THÉP (`thep|sothep|rebar`) khỏi min/max → LỘ ở canh_bao; G4/G5 flag nghi_ngo (extreme cô lập/inline, chỉ FLAG). Trả handle+nguyên_văn (grounded → guard giữ).
+- `mcp_server.py`: @mcp.tool. `mcp_bridge.py` SYSTEM_PROMPT rule 8: 'cao độ thấp/sâu/cao nhất' → cao_do_min_max, trích thap_nhat/cao_nhat, ĐỪNG lấy canh_bao (bù điểm yếu guard không phân biệt giá-trị-đã-loại trong raw).
+
+**Verify engine THẬT:** Gia Lộc KC min=**-1.85**(FEF03)/max=**+10.8**(11FA7D); KT -2.1(A51A7)/+10.8(40ABE); 9T KC min=**-3.0** (loại -44.1 thép qua G3)/max=+33.7 (18 canh_bao thép); demo cửa co_cao_do=false. id135 shape '-14.26' (2 thập phân) → đọc đúng.
+
+**Kết quả test:** `test_cao_do_min_max.py` **12 ca** (4 real+handle · G1/G3/G4-5 synthetic · -14.26 · guard-interaction) → check.sh **[19/19]→[20/20]** (26 MCP tool) · takeoff 258 · qa 129 · MCP-stdio 14 · 0 regress. **⚠ GIỚI HẠN overfit:** 2 firm, chưa có file hạ tầng/cầu-đường (ly trình K0+500 có thể FP) → cần ≥3 firm. **⚠ CHƯA push/deploy.**
+
+**Đang chờ / bước tiếp:** **id135 E2E-thật** (chờ file hạ tầng + API). **F-B** user quyết. **GĐ4/P5** chặn corpus ≥3 firm (giờ là nút thắt chính — nhiều finding chờ verify đa-firm).
+
+---
 ## Session 2026-07-13 (nối 7) — VÁ DẦM DOUBLE-COUNT (over-count ~2×, residual id84) — ✅ LIVE `95f4282`
 **Mục tiêu:** user "nghiên cứu đầu mục tối ưu rồi làm". Workflow (design cao_do_min_max + RE-HUNT battery in-corpus) → **đổi khuyến nghị**: re-hunt (2 agent, engine-verified) tìm bug OUTRANK cao_do.
 
