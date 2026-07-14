@@ -245,6 +245,45 @@ def _ma_key(label):
     m = _MA_LEN_RE.sub(" ", _QTY_STRIP.sub(" ", _MA_PAREN_RE.sub(" ", m)))
     return " ".join(m.split())
 
+# id-dầm: GỘP callout inline có tiền tố LOẠI ('DẦM DR-6') với nhãn spatial trần ('DR-6') = CÙNG 1 dầm,
+# NHƯNG KHÔNG gộp 2 loại KHÁC nhau cùng mã trần ('DẦM D1' ≠ 'CỬA D1'). Danh-pháp LOẠI chuẩn (chuẩn hoá qua _norm_ma):
+_MA_TYPE_WORDS = frozenset(_norm_ma(w) for w in
+    "dầm đài cọc cột móng giằng sàn dàn vách tường thang bể mái nền".split())
+
+def _ma_type(label):
+    """Tiền tố LOẠI cấu kiện dẫn đầu nhãn ('DẦM DR-6' -> 'dam'; 'DR-6' -> ''). Nhiều từ-loại liền -> ghép ('dam mong')."""
+    lead = []
+    for t in _ma_key(label).split():
+        if t in _MA_TYPE_WORDS: lead.append(t)
+        else: break
+    return " ".join(lead)
+
+def _ma_code(label):
+    """MÃ sau khi bỏ tiền tố LOẠI ('DẦM DR-6' -> 'dr-6'; 'DR-6' -> 'dr-6'; 'ĐC-3 (SL-25)' -> 'djc-3').
+    Nhãn TOÀN từ-loại (không còn mã) -> fallback cả nhãn (không mất)."""
+    toks = _ma_key(label).split()
+    i = 0
+    while i < len(toks) and toks[i] in _MA_TYPE_WORDS: i += 1
+    return " ".join(toks[i:]) or _ma_key(label)
+
+def _types_of(entries):
+    """mã -> tập LOẠI non-empty xuất hiện; để bare-code GỘP với type-code khi loại DUY NHẤT, TÁCH khi ≥2 loại."""
+    m = {}
+    for e in entries:
+        t = _ma_type(e["label"])
+        if t: m.setdefault(_ma_code(e["label"]), set()).add(t)
+    return m
+
+def _ma_group_key(label, types_of):
+    """KHOÁ DEDUP có-loại: (mã, loại). Bare-code (không tiền tố) GỘP vào loại DUY NHẤT của mã đó
+    (vd 'DR-6' theo 'DẦM DR-6' -> hết đếm trùng dầm); mã có ≥2 loại ('DẦM D1'+'CỬA D1') hoặc 0 loại
+    -> bare đứng RIÊNG (giữ id84: đài 'ĐC-3'/'ĐC-3 (SL-25)' đều bare cùng mã -> vẫn gộp)."""
+    c = _ma_code(label); t = _ma_type(label)
+    if t: return c + "\x00" + t
+    ts = types_of.get(c)
+    if ts and len(ts) == 1: return c + "\x00" + next(iter(ts))
+    return c + "\x00"
+
 
 def _plausible_door_size(w, h):
     """Loại gạch (600x600 max<1200), thép hộp (50x100). Cửa/cửa sổ thực: cạnh lớn ≥1200mm."""
@@ -1128,9 +1167,10 @@ class Drawing:
             code = any(_tok_bound(c, lab) for c in codes) if codes else False
             if full or code: out.append(dict(e, _score=2 if full else 1))
         out.sort(key=lambda x: -x["_score"])   # score-desc, ỔN ĐỊNH (giữ thứ tự qty_index) -> KHÔNG phá consumer phụ thuộc thứ tự
+        tof = _types_of(out)      # id-dầm: bare-code gộp với type-code cùng loại DUY NHẤT (DR-6 theo DẦM DR-6)
         seen, res = {}, []
         for e in out:
-            k = _ma_key(e["label"])   # id84: dedup theo NHÃN CHUẨN (gộp inline+spatial CÙNG nhãn) -> hết đếm trùng 'ĐC-3' 2 lần
+            k = _ma_group_key(e["label"], tof)   # id84+dầm: dedup có-loại -> gộp inline/spatial CÙNG mã (kể cả tiền tố 'DẦM'), giữ 'DẦM D1'≠'CỬA D1'
             if k not in seen:
                 seen[k] = e; res.append(e); continue
             p = seen[k]               # trùng nhãn: THẤT BẠI PHẢI LỘ nếu SL lệch -> KHÔNG cộng dồn; ưu tiên nguồn 'inline' (callout tự-chứa)
@@ -1205,10 +1245,11 @@ class Drawing:
     def tong_so_luong(self, loc=None, **_):
         co_loc = bool((loc or "").strip())
         items = self.tra_so_luong(loc) if co_loc else (self.qty_index or [])
+        tof = _types_of(items)               # id-dầm: gộp bare-code với type-code (DR-6 theo DẦM DR-6) -> hết đếm trùng dầm
         seen, muc = {}, []
         for e in items:
             if e.get("is_total"): continue   # M5 — KHÔNG cộng TỔNG toàn cục vào tổng số lượng (tránh gộp/đếm trùng)
-            code = _ma_key(e["label"])       # id84: gộp theo MÃ CHUẨN (đ/d-aware) thay cs[-1] (vốn nhặt nhầm annotation 'sl-25')
+            code = _ma_group_key(e["label"], tof)   # id84+dầm: dedup có-loại (gộp 'DẦM DR-6'='DR-6', giữ 'DẦM D1'≠'CỬA D1')
             if code in seen:
                 p = muc[seen[code]]          # THẤT BẠI PHẢI LỘ: SL lệch cùng mã -> KHÔNG cộng dồn, LỘ cảnh báo
                 if e["so_luong"] != p["so_luong"] and "canh_bao" not in p:
@@ -2195,8 +2236,9 @@ class Drawing:
         mỗi hàng ghi NGUỒN (đọc sẵn / hệ thống tính / tạm tính) + liệt kê 'cần bổ sung' + 'giả định'. Chống bịa."""
         rows, can_bs, gia_dinh = [], [], []
         seen = set()
+        _tof = _types_of(self.qty_index or [])           # id-dầm: gộp bare-code với type-code cùng loại
         for e in (self.qty_index or []):                 # 1) SỐ LƯỢNG (đọc sẵn nhãn SL)
-            k = (_ma_key(e["label"]), e["so_luong"])     # id84: gộp inline+spatial CÙNG mã+SL ('ĐC-3' hết 2 dòng) thay (label_norm,SL)
+            k = (_ma_group_key(e["label"], _tof), e["so_luong"])   # id84+dầm: dedup có-loại ('DẦM DM-1'='DM-1' hết 2 dòng), giữ 'DẦM D1'≠'CỬA D1'
             if k in seen: continue
             seen.add(k)
             rows.append({"hang_muc": e["label"].strip()[:44], "loai": "Số lượng", "gia_tri": e["so_luong"],

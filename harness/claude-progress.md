@@ -4,6 +4,18 @@
 > Mới nhất ở TRÊN CÙNG. Bàn giao đầy đủ: `session-handoff.md`. Nhật ký chi tiết hơn nữa: `../GHI_CHU_HOAN_THIEN.md`.
 
 ---
+## Session 2026-07-13 (nối 7) — VÁ DẦM DOUBLE-COUNT (over-count ~2×, residual id84) — ⚠ CHƯA COMMIT
+**Mục tiêu:** user "nghiên cứu đầu mục tối ưu rồi làm". Workflow (design cao_do_min_max + RE-HUNT battery in-corpus) → **đổi khuyến nghị**: re-hunt (2 agent, engine-verified) tìm bug OUTRANK cao_do.
+
+**BUG (mới, DA REPRO engine thật, in-corpus):** `tong_so_luong('DM')` trên Gia Lộc KC = **40** nhưng đúng **20** (mỗi dầm đếm 2 lần: 'DẦM DM-1 (SL=02)' + 'DM-1'); DR/D2=40 (đúng 30); DC=34 (đúng 16). **Over-count ~2×** = sai-tự-tin (đặt thừa vật tư), nguy hiểm hơn recall-miss của cao_do (đã có guard chống bịa) → outrank. **Là RESIDUAL id84:** `_ma_key` bảo thủ (giữ cả nhãn để 'DẦM D1'≠'CỬA D1') vô tình KHÔNG gộp 'DẦM DR-6' (inline, có tiền tố loại) với 'DR-6' (spatial trần) = cùng 1 dầm. Đài id84 hết trùng vì 2 bản đều trần; dầm lọt vì inline có 'DẦM'.
+
+**Vá CẤU TRÚC — dedup CÓ-LOẠI** (`tools_core.py`): `_ma_type` (tiền-tố-loại dẫn đầu), `_ma_code` (mã sau khi bỏ loại), `_types_of` (mã→tập loại), `_ma_group_key` (mã,loại). Bare-code GỘP vào loại DUY NHẤT của mã ('DR-6'→'DẦM DR-6'); mã ≥2 loại ('DẦM D1'+'CỬA D1') hoặc 0 loại → bare RIÊNG. Áp cả 3 site dedup (tra_so_luong:1173, tong_so_luong:1252, tong_hop_khoi_luong:2241). Giữ `_ma_key` làm helper tokenize.
+
+**Kết quả (0 FAIL):** DM/DR/D2/DC = 20/30/30/16 · **id84 ĐC vẫn 59/6** · door D1 giữ ([E] 84.24 ổn định) · 'DẦM D1'≠'CỬA D1' · **KHÔI PHỤC DC=16 + cảnh báo SL-lệch DCN 6-vs-8** (key bảo thủ đã mất). Test **[id84]+6 dầm** → takeoff **252→258** · check.sh **[19/19] PASS** (excel-content 17, misc-tools 84 không regress) · qa **129**. **⚠ CHƯA push/deploy.**
+
+**Đang chờ / bước tiếp:** **cao_do_min_max** (recall id135, thiết kế đã vet đầy đủ ở workflow phiên này — regex marker 2-3 thập phân, guard layer-thép G3, RIÊNG khỏi thong_tin_tang; verify Gia Lộc KC min=-1.85/max=+10.8) — làm TIẾP. **F-B** user quyết. **GĐ4/P5** chặn corpus ≥3 firm.
+
+---
 ## Session 2026-07-13 (nối 6) — VÁ id135 REFUSE-GUARD (grounding, an toàn recall) — ✅ LIVE `3ca5102`
 **Mục tiêu:** user "vá tiếp id135 với refuse-guard khi n_evidence=0", rồi delegate "nghiên cứu chi tiết + chọn phương án tối ưu".
 

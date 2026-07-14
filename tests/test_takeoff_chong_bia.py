@@ -868,9 +868,23 @@ def main():
     _emit("ĐC-3 chỉ 1 dòng, SL=25 (không double 50)",
           [m["so_luong"] for m in _rdc["cac_muc"] if m["noi_dung"].startswith("ĐC-3 ")] == [25])
     _rd = kc.tong_so_luong(loc="DC")   # dầm (không dấu) — tách sạch khỏi đài cọc
-    _emit("tong_so_luong('DC'=dầm) CHỈ gồm dầm, KHÔNG lẫn đài cọc ĐC-*",
-          _rd.get("so_muc", 0) >= 1 and not any("ĐC-" in m["noi_dung"] for m in _rd["cac_muc"]),
-          "-> so_muc=%s" % _rd.get("so_muc"))
+    _emit("tong_so_luong('DC'=dầm) = 16, so_muc=4, KHÔNG lẫn đài cọc ĐC-* (gộp 'DẦM DCN'='DCN')",
+          _rd.get("tong") == 16 and _rd.get("so_muc") == 4 and not any("ĐC-" in m["noi_dung"] for m in _rd["cac_muc"]),
+          "-> tong=%s so_muc=%s" % (_rd.get("tong"), _rd.get("so_muc")))
+    _emit("DCN xung đột SL (inline 6 vs spatial 8) -> chọn 6 + LỘ canh_bao (id84 conflict khôi phục)",
+          any("DCN" in m["noi_dung"] and m["so_luong"] == 6 and m.get("canh_bao") for m in _rd["cac_muc"]))
+    # DẦM double-count (bug residual id84): callout inline 'DẦM DR-6 (SL=02)' + spatial 'DR-6' = CÙNG 1 dầm -> gộp
+    for _loc, _exp in [("DM", 20), ("DR", 30), ("D2", 30)]:
+        _r = kc.tong_so_luong(loc=_loc)
+        _emit("tong_so_luong('%s'=dầm) = %d (was 40 — hết đếm trùng 'DẦM %s-n'='%s-n')" % (_loc, _exp, _loc, _loc),
+              _r.get("tong") == _exp, "-> tong=%s so_muc=%s" % (_r.get("tong"), _r.get("so_muc")))
+    # _ma_group_key: GỘP type-code với bare-code CÙNG loại; KHÔNG gộp 2 loại KHÁC (giữ id84)
+    _tof1 = _tc._types_of([{"label": "DẦM DR-6 (SL=02)"}, {"label": "DR-6"}])
+    _emit("'DẦM DR-6'='DR-6' gộp (bare theo loại dầm DUY NHẤT)",
+          _tc._ma_group_key("DẦM DR-6 (SL=02)", _tof1) == _tc._ma_group_key("DR-6", _tof1))
+    _tof2 = _tc._types_of([{"label": "DẦM D1"}, {"label": "CỬA D1"}])
+    _emit("'DẦM D1' ≠ 'CỬA D1' KHÔNG gộp (2 loại khác cùng mã trần)",
+          _tc._ma_group_key("DẦM D1", _tof2) != _tc._ma_group_key("CỬA D1", _tof2))
     _emit("liet_ke_so_luong('ĐC') so_muc=6, sum=59",
           kc.liet_ke_so_luong(loc="ĐC").get("so_muc") == 6
           and sum(x["so_luong"] for x in kc.liet_ke_so_luong(loc="ĐC")["danh_sach"]) == 59)
