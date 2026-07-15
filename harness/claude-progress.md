@@ -4,6 +4,30 @@
 > Mới nhất ở TRÊN CÙNG. Bàn giao đầy đủ: `session-handoff.md`. Nhật ký chi tiết hơn nữa: `../GHI_CHU_HOAN_THIEN.md`.
 
 ---
+## Session 2026-07-16 (CHỐT SỔ) — 4 FIX ĐỌC-SỐ LIVE + quyết định RAM/chi-phí + hướng corpus/remote
+> ⚠ Đính chính ngày: các entry "(nối 5-8)" bên dưới THỰC TẾ làm **2026-07-16** (ghi nhầm 2026-07-13 theo header phiên trước). Commit git có timestamp thật.
+
+**Đã làm (4 fix code + docs, TẤT CẢ deploy+verify LIVE):**
+- **id84** `c0b85af` — đài cọc `tong_so_luong('ĐC')` 142→59 (unaccent gộp đ→d nên ĐC≡DC; vá label_ma=_norm_ma + dedup _ma_key). Chọn qua workflow (research repro + decision matrix + vet overfit).
+- **id135 grounding-guard** `3ca5102` — chống bịa số đo-lường không nguồn (KHÔNG dùng n_evidence=0 vì 60/198 câu đúng có n_ev=0 → sập recall 30%; dùng grounding: số answer truy được về số RAW-result tool). Vet chạy 198 câu → FP=0. + luật SYSTEM_PROMPT.
+- **dầm double-count** `95f4282` (residual id84) — 'DẦM DR-6'+'DR-6'=cùng 1 dầm nhưng không dedup → over-count 2x (DM 40→20); vá dedup CÓ-LOẠI _ma_type/_ma_code/_ma_group_key (giữ 'DẦM D1'≠'CỬA D1'). Phát hiện qua workflow re-hunt.
+- **cao_do_min_max** `97ffc60` — MCP tool #26 (id135-recall): đọc RAW min/max cao độ KHÔNG lọc ≥4 như _build_levels. G1 dấu/G3 layer-thép/G4-5 nghi_ngo. Gia Lộc KC -1.85/+10.8; 9T KC -3.0 (loại -44.1 thép).
+
+**Kết quả test (CHỐT SỔ, 0 FAIL):** `check.sh` **HARNESS GATE PASS [20/20]** (26 MCP tool · takeoff **258** · qa 129 · grounding-guard 32 · cao_do 12 · fallback 22 · session 25 · +…) · working tree TRACKED sạch. **KHÔNG pytest** (crash I/O closed file — dùng script-runner + check.sh). feature_list: **29 done / 1 deferred** (+cao_do vào floor-levels).
+
+**Quyết định dài hạn (đã lưu memory [[project-chiu-tai-va-chi-phi]]):**
+- **Chịu tải file lớn = ràng buộc RAM cloud, KHÔNG phải logic.** ĐO THẬT: DXF/RAM ~5.8x → 512MB→45MB, 2GB→200MB. Render Free hiện chỉ đọc ≤45MB.
+- **Chiến lược chống lỗ:** trả tiền nâng RAM ở **BƯỚC CUỐI** (sau khi chốt deal); dev/validate = đọc file **LOCAL free**. Render cost ≠ Gemini API key (2 hoá đơn riêng).
+- **Config nâng RAM sẵn** `079c91c` (plan standard 2GB + READFILE 200 + UPLOAD 220) — **GIỮ CHƯA PUSH**, chờ user bật billing Render.
+- **Remote-work (điện thoại):** độ tin từ quy trình kiểm được (git commit + test gate + LIVE verify) reviewable trên GitHub — không cần đọc lại chat.
+
+**Đang chờ / bước tiếp:**
+- **Corpus ≥3 firm (nút thắt chính):** user xin đối tác 3–5 bản vẽ (.dwg/.dxf, nhiều nguồn, có bảng thống kê) → mở khoá GĐ4/P5/id135-E2E + lộ nốt lỗi biên ẩn. Tôi soi từng file khi có.
+- **Nâng RAM Render:** khi user bật billing → push `079c91c` + verify.
+- **F-B** (nối kênh học P3 vào web) — user quyết web-UI vs MCP-only.
+- **Dự toán chi phí** — HOÃN.
+
+---
 ## Session 2026-07-13 (nối 8) — THÊM cao_do_min_max (recall id135) — ✅ LIVE `97ffc60`
 **Mục tiêu:** user "làm tiếp cao_do_min_max". Thiết kế đã vet ở phiên nối 7 (workflow design cao_do + red-team, GO_WITH_ADJUSTMENTS).
 
