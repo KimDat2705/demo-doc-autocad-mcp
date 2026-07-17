@@ -518,7 +518,11 @@ _FLOOR_H_LO, _FLOOR_H_HI = 2.5, 5.0   # chiều cao 1 TẦNG hợp lý (loại c
 # id135-recall: MIN/MAX cao độ RAW (KHÔNG lọc tần suất ≥4 như _build_levels — đó là lý do id135 miss mốc sâu thưa).
 # Mở rộng 1-3 chữ số nguyên (công trình >99m) + 2-3 thập phân (id135 -14.26 = 2; Gia Lộc -1.850 = 3). BẮT BUỘC dấu +/-/±.
 _CD_STD = re.compile(r"^([+\-±])\s*(\d{1,3})[.,](\d{2,3})$")                              # marker đứng riêng
-_CD_INL = re.compile(r"(?:^|[\s(=:,])([+±]|(?<![\w.])-)\s*(\d{1,3})[.,](\d{2,3})(?![\d])")  # trong đoạn dài (biên trái sạch)
+# FIX (GĐ4): BỎ `\s*` giữa dấu và số ở nhánh INLINE. Ký hiệu cao độ luôn viết dấu DÍNH LIỀN ('-2.700');
+# '- ' có khoảng trắng là GẠCH PHÂN CÁCH -> 'CH - 2.700' (CHIỀU CAO 2.7m, 9T KT, layer 'Net Text') từng bị
+# đọc thành cao độ -2.7 (FP parser). Lọc theo HÌNH THỨC KÝ HIỆU, KHÔNG theo tần suất/cô lập -> id135
+# (-14.26 viết dấu dính liền) KHÔNG bị ảnh hưởng. Standalone (_CD_STD) giữ nguyên vì đã là marker rõ ràng.
+_CD_INL = re.compile(r"(?:^|[\s(=:,])([+±]|(?<![\w.])-)(\d{1,3})[.,](\d{2,3})(?![\d])")  # trong đoạn dài (biên trái sạch)
 _CD_STEEL_LAYER = re.compile(r"thep|sothep|rebar", re.I)   # G3: layer thép -> giá trị thép, KHÔNG phải cao độ (semantic)
 
 def _cd_val(sign, intp, decp):
@@ -829,10 +833,14 @@ class Drawing:
         counts, texts, dims, dim_items = Counter(), [], [], []
         blocks, used_layers, thep, thep_hinh = Counter(), set(), {}, {}
         thep_att_handles = set()   # R4 (P3): handle các ô ATTRIB thuộc bảng thép -> đăng ký used_handles (không lọt residual)
+        ole = []                   # C (GĐ4): đối tượng NHÚNG (OLE/Excel) — nội dung KHÔNG đọc được -> phải LỘ
         for e in self.doc.modelspace():
             t = e.dxftype(); counts[t] += 1
             try: used_layers.add(e.dxf.get("layer"))
             except Exception: pass
+            if t == "OLE2FRAME":
+                try: ole.append({"handle": e.dxf.handle, "layer": e.dxf.get("layer")})
+                except Exception: ole.append({"handle": None, "layer": None})
             if t in ("TEXT", "MTEXT"):
                 raw = e.dxf.text if t == "TEXT" else e.text
                 try: ins = e.dxf.insert; xx, yy = float(ins.x), float(ins.y)
@@ -883,6 +891,7 @@ class Drawing:
                                       "layer": e.dxf.get("layer"), "huong": huong, "khong_toa_do": not co_td})
                 except Exception: pass
 
+        self.ole_nhung = ole       # C (GĐ4): list {handle, layer} của OLE2FRAME (bảng Excel dán vào bản vẽ)
         self.texts = texts
         self._text_by_handle = {str(t["handle"]): t for t in texts}   # R4/P3: map handle->text cho RE-PARSE (KHÔNG cache SỐ)
         self.thep_att_handles = thep_att_handles                      # R4/P3: ô bảng thép đã đọc CHẮC (chống học-đè)
@@ -1283,11 +1292,44 @@ class Drawing:
                 "tong": (sum(m["so_luong"] for m in muc) if co_loc else None),
                 "cac_muc": muc[:50], "ghi_chu": gc}
 
+    def _canh_bao_nhung(self):
+        """C (GĐ4) — LỘ đối tượng NHÚNG (OLE2FRAME = bảng Excel dán vào bản vẽ). ezdxf KHÔNG đọc được nội dung
+        bên trong blob OLE → mọi số rút từ bản vẽ có thể THIẾU phần nằm trong đó. CHỈ CẢNH BÁO, KHÔNG đổi số.
+
+        Vì sao cần: GĐ4 (corpus 8 firm) đo được **19/65 file có OLE**. Ca nặng: '4. Thong ke thep SUA.dwg'
+        (Ninh Hải) — cả bảng thống kê thép nằm trong 8 OLE → engine đọc 0 thanh thép và trả 'bản vẽ KHÔNG có
+        bảng thống kê thép', trong khi file TÊN LÀ 'thống kê thép'. Câu đó khiến đối tác hiểu SAI (tưởng
+        bản vẽ thiếu bảng) → phải nói rõ 'có bảng nhưng máy không đọc được'. (Thất bại phải lộ.)"""
+        ole = getattr(self, "ole_nhung", None) or []
+        if not ole:
+            return None
+        return {
+            "so_doi_tuong_nhung": len(ole),
+            "handles": [o["handle"] for o in ole[:20] if o.get("handle")],
+            "canh_bao": ("Bản vẽ có %d đối tượng NHÚNG (OLE — thường là bảng Excel dán vào). Máy KHÔNG đọc được "
+                         "nội dung bên trong → nếu bảng thống kê/khối lượng nằm trong đó thì số đọc được là "
+                         "THIẾU, KHÔNG phải 'bản vẽ không có'. Cần đối chiếu thủ công, hoặc xin đối tác gửi bảng "
+                         "dạng bảng CAD/Excel rời." % len(ole)),
+        }
+
+    def _gan_canh_bao_nhung(self, r):
+        """Gắn cảnh báo OLE vào 1 kết quả tool: thêm key MÁY-ĐỌC `canh_bao_nhung` + nối vào `ghi_chu` cho
+        LLM chắc chắn thấy. ADDITIVE — không đụng số nào; không có OLE thì trả nguyên xi (0 thay đổi)."""
+        if not isinstance(r, dict):
+            return r
+        cb = self._canh_bao_nhung()
+        if not cb:
+            return r
+        r["canh_bao_nhung"] = cb
+        r["ghi_chu"] = (r.get("ghi_chu") or "") + " ⚠ " + cb["canh_bao"]
+        return r
+
     def thong_ke_thep(self, duong_kinh=None, **_):
         th = self.thep or {}; by = th.get("by_dk") or {}
         if not by:
-            return {"co_bang_thong_ke": False,
-                    "ghi_chu": "Bản vẽ không có bảng thống kê thép đọc được (block TK_*)."}
+            r = {"co_bang_thong_ke": False,
+                 "ghi_chu": "Bản vẽ không có bảng thống kê thép đọc được (block TK_*)."}
+            return self._gan_canh_bao_nhung(r)   # C: có OLE -> 'máy không đọc được' KHÁC 'bản vẽ không có'
         dk = (str(duong_kinh) if duong_kinh is not None else "").strip()
         for ch in ("Ø", "ø", "φ", "phi", "D", "d"): dk = dk.replace(ch, "")
         dk = dk.strip()
@@ -1298,29 +1340,33 @@ class Drawing:
             if not row:
                 return {"co_bang_thong_ke": True, "duong_kinh": key, "co_trong_bang": False,
                         "ghi_chu": "Không có thép %s. Các cỡ có: %s" % (key, ", ".join(by.keys()))}
-            return {"co_bang_thong_ke": True, "duong_kinh": key, "co_trong_bang": True,
+            return self._gan_canh_bao_nhung({
+                    "co_bang_thong_ke": True, "duong_kinh": key, "co_trong_bang": True,
                     "so_thanh": row["so_thanh"], "tong_chieu_dai_m": round(row["dai_m"], 1),
                     "khoi_luong_kg": round(row["kg"], 1),
-                    "ghi_chu": "Số từ BẢNG THỐNG KÊ THÉP trong file (kỹ sư lập) — số THẬT, không đếm chữ."}
+                    "ghi_chu": "Số từ BẢNG THỐNG KÊ THÉP trong file (kỹ sư lập) — số THẬT, không đếm chữ."})
         theo = {k: {"so_thanh": v["so_thanh"], "tong_chieu_dai_m": round(v["dai_m"], 1),
                     "khoi_luong_kg": round(v["kg"], 1)} for k, v in sorted(by.items(), key=lambda x: -x[1]["kg"])}
         th_hinh = self.thep_hinh or {}; canh_bao = ""
         if th_hinh.get("co_bang"):
             canh_bao = (" Ngoài ra còn bảng thép hình/inox ~%.1f kg (gọi thong_ke_thep_hinh) — CHƯA cộng vào."
                         % th_hinh.get("tong_kg", 0))
-        return {"co_bang_thong_ke": True, "tong_khoi_luong_kg": round(th.get("tong_kg", 0), 1),
+        return self._gan_canh_bao_nhung({
+                "co_bang_thong_ke": True, "tong_khoi_luong_kg": round(th.get("tong_kg", 0), 1),
                 "so_dong_thong_ke": th.get("so_dong", 0), "theo_duong_kinh": theo,
-                "ghi_chu": "Tổng CỐT THÉP TRÒN theo bảng thống kê — số THẬT. CHỈ gồm cốt thép tròn." + canh_bao}
+                "ghi_chu": "Tổng CỐT THÉP TRÒN theo bảng thống kê — số THẬT. CHỈ gồm cốt thép tròn." + canh_bao})
 
     def thong_ke_thep_hinh(self, **_):
         th = self.thep_hinh or {}; by = th.get("by_show") or {}
         if not by:
-            return {"co_bang": False, "ghi_chu": "Bản vẽ không có bảng thép hình/inox đọc được."}
+            return self._gan_canh_bao_nhung(
+                {"co_bang": False, "ghi_chu": "Bản vẽ không có bảng thép hình/inox đọc được."})
         theo = {k: {"so_luong": v["so"], "khoi_luong_kg": round(v["kg"], 1)}
                 for k, v in sorted(by.items(), key=lambda x: -x[1]["kg"])}
-        return {"co_bang": True, "tong_khoi_luong_kg": round(th.get("tong_kg", 0), 1),
+        return self._gan_canh_bao_nhung({
+                "co_bang": True, "tong_khoi_luong_kg": round(th.get("tong_kg", 0), 1),
                 "so_dong": th.get("so_dong", 0), "theo_tiet_dien": theo,
-                "ghi_chu": "Tổng THÉP HÌNH/INOX/xà gồ theo bảng (số THẬT). RIÊNG với cốt thép tròn."}
+                "ghi_chu": "Tổng THÉP HÌNH/INOX/xà gồ theo bảng (số THẬT). RIÊNG với cốt thép tròn."})
 
     def liet_ke_chu_theo_layer(self, layer=None, gioi_han=60, **_):
         ly = (layer or "").strip()
@@ -1423,17 +1469,42 @@ class Drawing:
                     "ghi_chu": "Bản vẽ KHÔNG có marker cao độ (dấu +/-/± kèm 2-3 số thập phân) đọc được → "
                                "KHÔNG đọc được cao độ thấp/cao nhất CÓ CĂN CỨ. Đừng ước/đoán một con số."}
         thep = [f for f in found if _CD_STEEL_LAYER.search(f["layer"])]     # G3
-        pool = [f for f in found if not _CD_STEEL_LAYER.search(f["layer"])] or found
+        pool = [f for f in found if not _CD_STEEL_LAYER.search(f["layer"])]
+        if not pool:
+            # FIX G3-fallback: TRƯỚC là `... or found` — khi MỌI marker nằm trên layer thép thì giá trị THÉP
+            # quay lại làm ĐÁP ÁN với nghi_ngo=false, ĐỒNG THỜI vẫn nằm trong 'canh_bao' kèm câu "đã loại khỏi
+            # min/max" => output TỰ MÂU THUẪN (repro: min=-44.1 layer KCS_SOTHEP) và prompt rule 8 dặn "đừng lấy
+            # số trong canh_bao" -> AI hết số hợp lệ. Thà LỘ THẤT BẠI còn hơn phong chiều-dài-thanh-thép làm cao độ.
+            return {"co_cao_do": False, "so_marker": 0,
+                    "canh_bao": [{"gia_tri_m": f["v"], "handle": f["handle"], "layer": f["layer"],
+                                  "nguyen_van": f["nguyen_van"], "dang": f["dang"],
+                                  "ly_do": "trên layer thép/số-thép → nghi là GIÁ TRỊ THÉP, không phải cao độ"}
+                                 for f in thep],
+                    "ghi_chu": "MỌI marker đọc được đều nằm trên layer THÉP (là giá trị thép, KHÔNG phải cao độ) "
+                               "→ KHÔNG đọc được cao độ CÓ CĂN CỨ. Xem 'canh_bao' để đối chiếu. "
+                               "⛔ Đừng lấy số trong 'canh_bao' làm cao độ; đừng ước/đoán một con số."}
         vals = sorted(set(f["v"] for f in pool))
-        gaps = [round(vals[i + 1] - vals[i], 3) for i in range(len(vals) - 1)]
-        med = sorted(gaps)[len(gaps) // 2] if gaps else 0.0
+
+        def _median(xs):
+            """Median THẬT (chẵn -> trung bình 2 giá trị giữa). TRƯỚC dùng sorted(g)[len(g)//2] = median-TRÊN,
+            với 2 gap [0.05, 22.7] nó chọn 22.7 (gap LỚN) -> ngưỡng nổ lên 68.1 -> outlier thoát cờ."""
+            if not xs: return 0.0
+            s = sorted(xs); n = len(s)
+            return s[n // 2] if n % 2 else round((s[n // 2 - 1] + s[n // 2]) / 2.0, 3)
 
         def _nghi(f):   # G4 range + G5 outlier-gap (chỉ FLAG, KHÔNG âm thầm loại)
             if f["dang"] == "inline": return True
             if f["v"] < -60 or f["v"] > 600: return True
             others = [x for x in vals if x != f["v"]]
-            if others and min(abs(f["v"] - x) for x in others) > max(3 * med, 5.0): return True
-            return False
+            if not others: return False
+            kc = min(abs(f["v"] - x) for x in others)
+            # FIX: med tính trên gap GIỮA CÁC MỐC KHÁC (đã loại chính f) -> outlier KHÔNG còn TỰ THỔI ngưỡng
+            # của chính nó. TRƯỚC: med gồm cả gap của f nên (a) 2 giá trị duy nhất thì thr=max(3g,5)>=3g>g =>
+            # KHÔNG BAO GIỜ cờ được (chứng minh + repro '0/-22.75' -> nghi=False); (b) thêm/bớt 1 marker vô can
+            # cũng LẬT cờ. Nay 2 giá trị -> others 1 phần tử -> gap rỗng -> med=0 -> thr=5.0 -> cờ được.
+            og = sorted(others)
+            gaps_khac = [round(og[i + 1] - og[i], 3) for i in range(len(og) - 1)]
+            return kc > max(3.0 * _median(gaps_khac), 5.0)
 
         def _item(f):
             return {"gia_tri_m": f["v"], "handle": f["handle"], "layer": f["layer"],
@@ -1447,7 +1518,10 @@ class Drawing:
                 "tat_ca_cao_do_m": vals[:60], "canh_bao": canh_bao,
                 "ghi_chu": "Số là ĐỌC từ marker cao độ trên text bản vẽ (KHÔNG suy hình học). Trả lời phải trích "
                            "nguyên_văn + handle của 'thap_nhat'/'cao_nhat'; ĐỪNG lấy số trong 'canh_bao' (đã loại). "
-                           "'nghi_ngo'=true → extreme cô lập/inline, nói rõ 'cần đối chiếu'."}
+                           "'nghi_ngo'=true → extreme cô lập/inline, nói rõ 'cần đối chiếu'. "
+                           "⚠ ĐÂY LÀ MỐC THẤP/CAO NHẤT XUẤT HIỆN TRÊN BẢN VẼ — KHÔNG mặc định là 'đáy móng': bản vẽ "
+                           "MÓNG CỌC thì mốc thấp nhất thường là MŨI CỌC, còn ĐÁY ĐÀI nông hơn cả chục mét. Hỏi "
+                           "'đáy móng' mà bản vẽ là móng cọc → nêu rõ đây là mốc thấp nhất trên bản vẽ và HỎI LẠI."}
 
     def boc_tach_kich_thuoc(self, tu_khoa=None, gioi_han=30, **_):
         """BÓC TÁCH số đo từ GHI CHÚ tự do (vd 'thảm đá (6x2x0.3)m L=56m', 'gạch 190x190x65mm'):
@@ -2385,8 +2459,11 @@ class Drawing:
         if quy_uoc_chua_xn:
             _gc += (" ⚠ 'quy_uoc_chua_xac_nhan' = %d cách đọc ĐỐI TÁC DẠY (P3) — hệ ĐÃ re-parse nhưng TUYỆT ĐỐI KHÔNG "
                     "cộng vào tổng/Excel: nêu cho đối tác đối chiếu, KHÔNG dùng làm số chốt tới khi dev codify ≥3 nguồn." % len(quy_uoc_chua_xn))
-        return {"co_du_lieu": bool(rows), "so_hang": len(rows), "bang": rows, "tong_phu": tong_phu,
-                "can_bo_sung": can_bs, "gia_dinh": gia_dinh, "quy_uoc_chua_xac_nhan": quy_uoc_chua_xn, "ghi_chu": _gc}
+        # C (GĐ4): bảng tổng đi thẳng ra Excel bàn giao -> nếu bản vẽ có OLE (bảng Excel nhúng) thì tổng này
+        # có thể THIẾU hẳn một bảng khối lượng. Phải LỘ ngay tại đây, không để đối tác tưởng đã đủ.
+        return self._gan_canh_bao_nhung(
+               {"co_du_lieu": bool(rows), "so_hang": len(rows), "bang": rows, "tong_phu": tong_phu,
+                "can_bo_sung": can_bs, "gia_dinh": gia_dinh, "quy_uoc_chua_xac_nhan": quy_uoc_chua_xn, "ghi_chu": _gc})
 
     def xuat_excel(self, **_):
         """GĐ2d: ghi BẢNG TỔNG HỢP ra file .xlsx trong _renders/, trả file_id (host cho tải qua /file/<id>).

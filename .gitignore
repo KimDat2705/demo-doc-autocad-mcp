@@ -4,6 +4,9 @@ __pycache__/
 _uploads/
 _renders/
 _hoc_log/
+# khao_sat_corpus.py: .dxf convert ra + bao_cao.json (dan xuat, tai tao duoc)
+# LUU Y: .gitignore KHONG co comment cuoi dong -> comment phai o DONG RIENG.
+_khao_sat/
 spikes/out_*.png
 spikes/spike_bridge_out.txt
 .env

@@ -95,6 +95,62 @@ def main():
     r = tc.Drawing.cao_do_min_max(_Fake([_txt("-14.26", "H1"), _txt("±0.000", "H2"), _txt("+3.60", "H3")]))
     ok("'-14.26' (2 thập phân) -> MIN=-14.26 handle H1", r["cao_do_thap_nhat_m"] == -14.26 and r["thap_nhat"]["handle"] == "H1")
 
+    print("[COC] HỢP ĐỒNG NGỮ NGHĨA: 'thấp nhất trên bản vẽ' ≠ 'đáy móng' (GĐ4 — móng cọc Kẻ Sặt)")
+    # GĐ4 tưởng -22.75 (mầm non 3T) là RÁC → suýt vá. Red-team + tự kiểm chứng BÁC BỎ: file là MÓNG CỌC
+    # (TCVN 10304, nhãn 'ĐẦU CỌC', sơ đồ cọc tỷ lệ 1:1 khớp 0.996, marker lặp 2 lần) ⇒ -22.75 = MŨI CỌC THẬT,
+    # -1.85 = ĐÁY ĐÀI. Tool trả ĐÚNG. Rủi ro thật nằm ở MÔ TẢ (hứa 'đáy móng' mà trả min mọi marker).
+    # Test này KHOÁ: (a) KHÔNG được lọc mốc sâu cô lập; (b) mô tả phải cảnh báo mũi-cọc-≠-đáy-đài.
+    r = tc.Drawing.cao_do_min_max(_Fake([
+        _txt("-1.850", "A", "KC-CHUNG-KYHIEU"), _txt("-1.150", "B", "KC-CHUNG-KYHIEU"),
+        _txt("±0.000", "C", "KC-CHUNG-KYHIEU"), _txt("+3.600", "D", "KC-CHUNG-KYHIEU"),
+        _txt("-22.750", "E", "KC-CHUNG-KYHIEU")]))
+    ok("mốc cọc sâu cô lập -22.75 VẪN được trả (KHÔNG lọc — lọc = tái sinh id135)",
+       r["cao_do_thap_nhat_m"] == -22.75 and r["thap_nhat"]["handle"] == "E", r.get("thap_nhat"))
+    ok("ghi_chu CẢNH BÁO 'mũi cọc' ≠ 'đáy móng' (vá hợp đồng ngữ nghĩa, KHÔNG vá số)",
+       "MŨI CỌC" in r["ghi_chu"] and "đáy móng" in r["ghi_chu"], r["ghi_chu"][-120:])
+    import mcp_bridge as _B
+    ok("SYSTEM_PROMPT: bỏ 'đáy móng' khỏi mô tả tool + dặn HỎI LẠI khi hỏi đáy móng",
+       "MŨI CỌC" in _B.SYSTEM_PROMPT and "HỎI LẠI" in _B.SYSTEM_PROMPT)
+
+    print("[F1] G3-fallback: MỌI marker ở layer thép -> LỘ THẤT BẠI, KHÔNG phong số thép làm cao độ")
+    # TRƯỚC: `pool = [...] or found` -> -44.1 (thép) vừa là đáp án (nghi_ngo=false) VỪA nằm trong canh_bao
+    # ghi 'đã loại khỏi min/max' => output tự mâu thuẫn + prompt cấm lấy số canh_bao -> AI hết số hợp lệ.
+    r = tc.Drawing.cao_do_min_max(_Fake([_txt("-44.100", "S1", "KCS_SOTHEP"), _txt("+33.700", "S2", "rebar_note")]))
+    ok("co_cao_do=False (KHÔNG trả -44.1 làm cao độ)", r.get("co_cao_do") is False, r.get("cao_do_thap_nhat_m"))
+    ok("KHÔNG có cao_do_thap_nhat_m (không mâu thuẫn với canh_bao)", "cao_do_thap_nhat_m" not in r, sorted(r.keys()))
+    ok("2 giá trị thép VẪN lộ ở canh_bao (không giấu)", {-44.1, 33.7} == {c["gia_tri_m"] for c in r["canh_bao"]})
+    ok("ghi_chu nói rõ vì sao + cấm ước đoán", "layer THÉP" in r["ghi_chu"] and "đừng ước" in r["ghi_chu"].lower())
+
+    print("[F2] _nghi(): 2 giá trị duy nhất PHẢI cờ được (trước: thr=max(3g,5)>=3g>g -> không bao giờ cờ)")
+    r = tc.Drawing.cao_do_min_max(_Fake([_txt("±0.000", "A"), _txt("-22.750", "B")]))
+    ok("2 giá trị, gap 22.75 -> MIN=-22.75 nghi_ngo=TRUE (trước là False)",
+       r["cao_do_thap_nhat_m"] == -22.75 and r["thap_nhat"]["nghi_ngo"] is True, r.get("thap_nhat"))
+    r = tc.Drawing.cao_do_min_max(_Fake([_txt("±0.000", "A"), _txt("-0.050", "B"), _txt("-22.750", "C")]))
+    ok("3 giá trị 0/-0.05/-22.75 -> cờ (trước: median-TRÊN chọn gap 22.7 -> thr=68.1 -> thoát)",
+       r["thap_nhat"]["nghi_ngo"] is True, r.get("thap_nhat"))
+    # outlier KHÔNG còn tự thổi ngưỡng: thêm/bớt 1 marker vô can KHÔNG được lật cờ
+    a = tc.Drawing.cao_do_min_max(_Fake([_txt("±0.000", "A"), _txt("+3.600", "B"), _txt("+7.200", "C"), _txt("-22.750", "D")]))
+    b = tc.Drawing.cao_do_min_max(_Fake([_txt("±0.000", "A"), _txt("+3.600", "B"), _txt("-22.750", "D")]))
+    ok("bớt 1 marker vô can (+7.2) KHÔNG lật cờ của -22.75 (ổn định)",
+       a["thap_nhat"]["nghi_ngo"] is True and b["thap_nhat"]["nghi_ngo"] is True,
+       (a["thap_nhat"]["nghi_ngo"], b["thap_nhat"]["nghi_ngo"]))
+    r = tc.Drawing.cao_do_min_max(_Fake([_txt("-1.850", "A")]))
+    ok("1 giá trị duy nhất -> KHÔNG cờ (không có gì để so, không bịa nghi ngờ)",
+       r["thap_nhat"]["nghi_ngo"] is False, r.get("thap_nhat"))
+
+    print("[F3] _CD_INL: 'CH - 2.700' (CHIỀU CAO) KHÔNG còn bị đọc thành cao độ -2.7")
+    r = tc.Drawing.cao_do_min_max(_Fake([_txt("-1.600", "A"), _txt("±0.000", "B"), _txt("CH - 2.700", "C", "Net Text")]))
+    ok("'CH - 2.700' (dấu CÓ khoảng trắng = gạch nối) -> KHÔNG thành marker",
+       -2.7 not in r["tat_ca_cao_do_m"] and r["cao_do_thap_nhat_m"] == -1.6, r["tat_ca_cao_do_m"])
+    ok("so_marker chỉ đếm 2 marker thật", r["so_marker"] == 2, r["so_marker"])
+    # CHỐNG QUÁ TAY: inline dấu DÍNH LIỀN vẫn phải đọc được (đây là recall id135)
+    r = tc.Drawing.cao_do_min_max(_Fake([_txt("±0.000", "A"), _txt("CỐT NỀN HOÀN THIỆN -2.700 (mặt cắt)", "B", "Net Text")]))
+    ok("inline dấu DÍNH LIỀN '-2.700' VẪN đọc được (không cắt nhầm recall)",
+       -2.7 in r["tat_ca_cao_do_m"], r["tat_ca_cao_do_m"])
+    r = tc.Drawing.cao_do_min_max(_Fake([_txt("ĐÁY CỐNG -14.26 (hạ tầng)", "H1"), _txt("±0.000", "H2")]))
+    ok("id135 inline '-14.26' dính liền VẪN đọc được (fix KHÔNG đụng id135)",
+       r["cao_do_thap_nhat_m"] == -14.26, r["tat_ca_cao_do_m"])
+
     print("[guard] tương tác grounding-guard (mcp_bridge)")
     import mcp_bridge as B
     nums = B._collect_numbers({"cao_do_thap_nhat_m": -1.85, "cao_do_cao_nhat_m": 10.8, "canh_bao": [{"gia_tri_m": -44.1}]})

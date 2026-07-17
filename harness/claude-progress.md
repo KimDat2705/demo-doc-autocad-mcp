@@ -4,6 +4,45 @@
 > Mới nhất ở TRÊN CÙNG. Bàn giao đầy đủ: `session-handoff.md`. Nhật ký chi tiết hơn nữa: `../GHI_CHU_HOAN_THIEN.md`.
 
 ---
+## Session 2026-07-17 — GĐ4 ĐA-DOMAIN (corpus 8 firm VỀ): vá bug C (OLE) + BÁC BỎ 2 "bug" tự nghĩ ra (⚠ CHƯA COMMIT)
+**Corpus ĐÃ VỀ** `input_files\` (8 công trình mới, 62 dwg/168MB, không nén) → **66 file / 10 nhóm**. Chạy `tests/khao_sat_corpus.py` (~45'/lượt; 1 file ODA không convert nổi: ĐIỆN Nhị Chiểu). **NÚT THẮT ≥3 FIRM MỞ.**
+
+**Kết quả GĐ4 (quan trọng nhất: LÕI KHÔNG OVERFIT):** bộ đọc số lượng ăn **9/10 nhóm** (qty 1617). `qty=0` chủ yếu điện/nước/TMB/phá-dỡ = vô hại. Bộ đọc bảng-TK chỉ ăn 2/10 nhóm.
+
+**✅ VÁ BUG C — OLE2FRAME (bảng Excel nhúng) [gate 22/22]:** GĐ4 đo **19/65 file có OLE** (THPT KC có 67 khung!). Ca nặng `4. Thong ke thep SUA.dwg` (Ninh Hải, DXF 67.9MB nhưng msp chỉ 27 entity): cả bảng thép nằm trong 8 OLE → engine đọc 0 và trả *"bản vẽ KHÔNG có bảng thống kê thép"* trên file TÊN LÀ "thống kê thép" ⇒ đối tác hiểu SAI. **Vá = CHỈ LỘ, KHÔNG đổi số:** `tools_core` gom `self.ole_nhung` (handle+layer) + `_canh_bao_nhung()`/`_gan_canh_bao_nhung()` (ADDITIVE) cắm vào `thong_ke_thep` (cả 3 nhánh) · `thong_ke_thep_hinh` · `tong_hop_khoi_luong` (nguồn Excel bàn giao) + SYSTEM_PROMPT **rule 8c** (cấm nói "bản vẽ không có"/"0 kg" khi có `canh_bao_nhung`). Verify engine thật: file 8-OLE lộ cảnh báo; Gia Lộc KC (0 OLE) **số y nguyên 67370.7**, không cảnh báo oan. Test `test_ole_canh_bao.py` **25 ca** → check.sh **[21/21]→[22/22]** · takeoff 258 · qa 129 · 0 regress.
+
+**❌ TỰ BÁC BỎ "BUG B" (text trong block không đọc):** tưởng lỗ recall (file thép đọc 17/1095 text). Kiểm chứng: text trong block là **KHUNG TÊN** (`'công trình:'`, `'ks. Bùi văn mạnh'`) + block thư viện không dùng ⇒ bỏ qua là **TÍNH NĂNG**. Dấu hiệu lẽ ra phải thấy sớm: heuristic của tôi gắn cờ cả **Gia Lộc** — file mà 129 test QA xác thực đọc ĐÚNG. Nội dung thật của file thép nằm ở OLE (bug C), không ở block.
+
+**❌ TỰ BÁC BỎ "BUG A" (cao độ -22.75 'lệch 21m') — TOOL ĐANG TRẢ ĐÚNG, SUÝT VÁ HỎNG:** tôi cáo buộc `-22.75` là text rác (vì "mầm non 3 tầng không thể sâu 22m"). **Red-team (1 agent, tự chạy engine) + tôi tự kiểm chứng BÁC BỎ:** file ghi `'GIẢI PHÁP KẾT CẤU MÓNG: MÓNG CỌC BTCT'` + `'TCVN 10304:2014'` + `'SỐ LƯỢNG CỌC ĐẠI TRÀ: 157'`, có nhãn `'ĐẦU CỌC'` cách 412 đv, sơ đồ cọc **tỷ lệ 1:1 khớp 0.996**, marker lặp **2 lần** (tôi báo nhầm "1 lần"). ⇒ **-22.75 = MŨI CỌC THẬT, -1.85 = ĐÁY ĐÀI** — 2 đại lượng khác nhau. **Rủi ro THẬT = hợp đồng ngữ nghĩa:** prompt hứa "đáy móng" mà tool trả min mọi marker → lệch 21m trên bản vẽ móng cọc. **Vá MÔ TẢ, không vá số** (rule 8 bỏ "đáy móng" + dặn HỎI LẠI; `ghi_chu` cảnh báo mũi-cọc≠đáy-đài). Test `[COC]` 3 ca khoá cả 2 chiều (không được lọc mốc sâu + phải cảnh báo) → cao_do 12→**15**.
+
+**⛔ RED-TEAM CHẶN `thap_nhat_dang_tin` (thiết kế tôi định làm) — NO_GO có bằng chứng:** tiêm mốc id135 `-14.26` vào phân bố THẬT của **7/7 file kết cấu** → `_nghi()` cờ cả 7, `dang_tin` trả số **nông hơn 11.26–13.23m** = đúng con số sai id135, đóng nhãn "đáng tin" ⇒ **TÁI SINH id135**. Trường này là *phán quyết* đội lốt *dữ liệu*. BỎ HẲN.
+
+**✅ VÁ 3 BUG RED-TEAM [gate 22/22 · cao_do 12→27 · takeoff 258 · qa 129 · 0 regress]:** (a) **G3 fallback** `pool = ... or found` → bỏ hẳn; mọi marker ở layer thép ⇒ `co_cao_do=False` + thép vẫn LỘ ở `canh_bao` (hết cảnh "-44.1 vừa là đáp án vừa bị ghi 'đã loại'"). (b) **`_nghi()` toán sai** → `med` nay tính trên gap GIỮA CÁC MỐC KHÁC (loại chính điểm xét) nên outlier hết tự thổi ngưỡng; thêm `_median` THẬT thay median-TRÊN. Repro trước/sau: `0/-22.75` False→**True**; `0/-0.05/-22.75` thoát→**cờ**; bớt 1 marker vô can hết LẬT cờ; 1 giá trị → không cờ. (c) **`_CD_INL`** bỏ `\s*` → `'CH - 2.700'` (CHIỀU CAO 2.7m, 9T KT, 1 lần, layer 'Net Text') hết thành cao độ -2.7. **An toàn id135:** lọc theo HÌNH THỨC KÝ HIỆU (dấu dính liền), KHÔNG theo tần suất/cô lập; test khoá inline `-2.700`/`-14.26` dính liền VẪN đọc được. **Verify corpus thật:** mọi số đã verify GIỮ NGUYÊN (Gia Lộc KC -1.85/FEF03 · KT -2.1/A51A7 · 9T KC -3.0 · Kẻ Sặt -22.75 vẫn trả + nghi=True); chỉ 9T KT -2.7→**-1.6** đúng chủ đích (marker 689→688). Test `[F1][F2][F3]` 12 ca.
+
+**Bài học:** **2 lần tôi tự nghĩ ra bug từ suy đoán cảm tính rồi suýt vá hỏng** (block-text; -22.75 móng cọc). Cả 2 lần cứu bởi ĐỌC DỮ LIỆU THẬT + red-team. Dấu hiệu vàng: **khi phép đo bắt lỗi cả thứ ĐÃ BIẾT là đúng (Gia Lộc/129 test) thì phép đo sai, không phải đối tượng.** Red-team-trước-code (quy ước dự án) lần này chặn được một fix sẽ tái sinh chính bug nó định vá.
+
+---
+## Session 2026-07-16 (nối) — CÔNG CỤ KHẢO SÁT CORPUS + ĐÍNH CHÍNH hệ số RAM (⚠ CHƯA COMMIT)
+**Bối cảnh:** đối tác gửi 7 thư mục bản vẽ qua Zalo (ảnh chụp điện thoại). **TÌM KỸ TRÊN MÁY → KHÔNG CÓ FILE NÀO.**
+Đã quét: `input_files/` (chỉ corpus CŨ 2 firm) · Downloads/Documents/Desktop · `Documents\Zalo Received Files` (chỉ file học 2025) · `D:\Zalo Data\...\ZaloDownloads\file` (chỉ cache/DB Zalo) · TOÀN ổ D: mọi `.dwg/.dxf` sửa sau 2026-07-10 = **0 file** · toàn D: file >5MB sau 2026-07-14 = chỉ DB Zalo · C: quét tên đặc trưng = 0 hit · chỉ có ổ C:/D:. ⇒ File còn ở ĐIỆN THOẠI, chưa chép về PC. Đã báo user danh sách cần chép vào `input_files\`.
+
+**Đã làm (user chốt: dựng sẵn công cụ trong lúc chờ file):** `tests/khao_sat_corpus.py` — quét đệ quy corpus, convert `.dwg→.dxf` qua ODA (có CACHE, khỏi convert lại 600s), đo RAM/kích thước, đếm layer/text/block/dim/sheet + **qty THEO NGUỒN** (bảng-thống-kê vs inline vs spatial = tín hiệu overfit đa-firm), `cao_do_min_max` từng file (tìm ứng viên id135), `so_residual` (gap recall). Nhóm theo THƯ MỤC GỐC.
+- **Thiết kế:** mỗi file 1 **SUBPROCESS** — (a) đỉnh RSS là monotonic, nạp nhiều file 1 tiến trình thì số đo per-file SAI; (b) file lớn/hỏng OOM/treo không giết cả phiên (timeout + fail-soft, lỗi LỘ + đếm).
+- **Ethos:** thất-bại-phải-lộ (file lỗi/timeout/thiếu-ODA liệt kê riêng, in TRƯỚC) · không-bịa (nhóm = THƯ MỤC, KHÔNG suy ra "đơn vị thiết kế" — người xác nhận) · read-only với `--root` (dxf ghi ra `_khao_sat/`).
+
+**3 BUG TỰ BẮT khi chạy thật (đều tái hiện trước khi vá):**
+- **Đo RAM im lặng hỏng:** `_peak_rss_mb` trả None (báo `RAM=None`). Gốc: thiếu `argtypes/restype` → ctypes coi `GetCurrentProcess()` là int 32-bit, pseudo-handle `(HANDLE)-1` bị CẮT khi vào tham số HANDLE 64-bit → API trả 0. Vá + khoá test `[B]`.
+- **Chính công cụ đo làm hỏng số đo:** bật `tracemalloc` thổi RSS **~2.1x** (ĐO: cùng file tắt=241MB/6.9x · bật=510MB/17.6x) → báo cáo sẽ khiến **mua thừa RAM ~2.5x**. Vá: tracemalloc MẶC ĐỊNH TẮT, thành cờ opt-in có cảnh báo. Khoá test `[D]`.
+- **Hệ số rác ở file nhỏ:** DXF 0.02MB → in "75x" (baseline lấn át). Vá: `MIN_MB_HE_SO=5.0`, dưới ngưỡng KHÔNG ngoại suy mà NÓI THIẾU. Khoá test `[K2]`.
+- **(+ .gitignore)** `_khao_sat/ # comment` KHÔNG ăn — .gitignore không có comment cuối dòng → 276MB DXF suýt vào repo. Vá: comment ra dòng riêng, verify `git check-ignore`.
+
+**⚠ ĐÍNH CHÍNH LOAD-BEARING — hệ số RAM (ảnh hưởng quyết định TIỀN):** memory/render.yaml ghi **5.8x** nhưng đó là số **tracemalloc = Python-heap**; Render chặn theo **RSS**. Mô hình đúng (đo 4 file thật): **RSS ≈ 68MB baseline + 6.9–8.1x × DXF** (Gia Lộc KT 25.2→241MB/6.9x · KC 23.3→256MB · 9T KT 112.2→902MB/7.4x · 9T KC 114.4→934MB/8.1x). ⇒ ngưỡng theo 5.8x **hụt 25-40%**: với 2GB biên 0.7 → an toàn ~**170MB**, KHÔNG phải 200MB như commit HELD `969822a`. **Thêm:** `MAX_SESSIONS=4` × 1 Drawing/subprocess ⇒ RAM tệ nhất ≈ 4×(68+k×size), không phải 1×. **CHƯA đối chiếu Linux** (đo trên Windows) → phải chạy lại trên Render trước khi chốt gói. Đã cập nhật memory [[project-chiu-tai-va-chi-phi]].
+
+**Kết quả test:** `tests/test_khao_sat_corpus.py` **61 ca** (helper/nhóm · đo RAM thật · tracemalloc-tắt · baseline+delta · DXF hỏng LỘ lỗi · thiếu ODA LỘ lỗi · parent fail-soft subprocess thật · ngưỡng Render · tổng-hợp tách file lỗi · KHÔNG mutate corpus gốc · JSON · root sai exit 1 · chặn hệ-số-rác) — KHÔNG cần corpus thật (DXF tổng hợp). check.sh **[20/20]→[21/21] PASS** · takeoff **258** · qa **129** · **0 regress**. Chạy thật corpus cũ: 4 file/2 nhóm, số khớp giá trị đã verify (Gia Lộc KC min=-1.85/FEF03 · KT -2.1/A51A7 · 9T KC -3.0 · 9T KT có BẢNG-TK).
+
+**Đang chờ / bước tiếp:** **user chép 7 thư mục vào `input_files\`** → chạy `python tests/khao_sat_corpus.py` là ra hồ sơ ngay → mở GĐ4/P5/id135-E2E. **CHƯA COMMIT** (HEAD đang là commit HELD `969822a` — commit chồng lên rồi push sẽ đẩy luôn config RAM đang cố ý giữ; chờ user chốt cách tách). **Xem lại ngưỡng 200→~170** trong render.yaml HELD trước khi push.
+
+---
 ## Session 2026-07-16 (CHỐT SỔ) — 4 FIX ĐỌC-SỐ LIVE + quyết định RAM/chi-phí + hướng corpus/remote
 > ⚠ Đính chính ngày: các entry "(nối 5-8)" bên dưới THỰC TẾ làm **2026-07-16** (ghi nhầm 2026-07-13 theo header phiên trước). Commit git có timestamp thật.
 
