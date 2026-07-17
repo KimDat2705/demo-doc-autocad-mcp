@@ -2,7 +2,8 @@
 
 ## Trạng thái hiện tại (2026-07-16 nối — công cụ khảo sát corpus + đính chính hệ số RAM | trước: 4 fix đọc-số LIVE)
 > Mỗi tuyên bố "xong" kèm BẰNG CHỨNG (commit + số test) truy được. Nhật ký chi tiết hơn: `GHI_CHU_HOAN_THIEN.md`. (Ngày: các entry "nối 5-8" làm 2026-07-16, ghi nhầm 2026-07-13.)
-> **Code LIVE = `97ffc60`** (`/version` khớp + `/health` ok). check.sh **[21/21] PASS** (26 MCP tool) · takeoff 258 · qa 129 · grounding-guard 32 · cao_do 12 · session 25 · khảo-sát-corpus 61. Kế hoạch: `KE_HOACH_KIEM_THU_TONG_THE.md`.
+> **Code LIVE = `7188c3c`** (`/version` khớp + `/health` ok, verify 2026-07-17). check.sh **[22/22] PASS** (26 MCP tool) · takeoff 258 · qa 129 · grounding-guard 32 · **cao_do 27** · session 25 · khảo-sát-corpus 61 · **OLE 25**. Kế hoạch: `KE_HOACH_KIEM_THU_TONG_THE.md`.
+> **⚠ GIT:** local `main` ahead 1 = commit **HELD `f025ad7`** (render.yaml nâng RAM) — **hash ĐÃ ĐỔI từ `079c91c`/`969822a` do rebase đảo thứ tự 2026-07-17**; vẫn CỐ Ý chưa push, chờ user bật billing Render. Nhánh cứu hộ: `backup-truoc-rebase-20260717` (local).
 
 - **🔥 GĐ4 ĐÃ CHẠY — CORPUS VỀ ĐỦ, TÌM ĐƯỢC 3 BUG THẬT (2026-07-17, ⚠ CHƯA VÁ, CHƯA COMMIT):** corpus đối tác **ĐÃ VỀ** `input_files\` (8 công trình mới + 2 cũ = **66 file / 10 nhóm**, 62 dwg mới/168MB, không nén). Khảo sát bằng `tests/khao_sat_corpus.py` (1 lỗi: ĐIỆN Nhị Chiểu ODA không convert nổi). **NÚT THẮT ≥3 FIRM ĐÃ MỞ.** Bộ môn mới: điện · cấp-thoát-nước · hạ-tầng/rãnh · phá-dỡ · TMB · bảng-thống-kê-thép riêng.
   - **TIN TỐT (không overfit hệ thống):** bộ đọc số lượng ăn **9/10 nhóm** (qty tổng 1617). `qty=0` chủ yếu ở điện/nước/TMB/phá-dỡ = vô hại.

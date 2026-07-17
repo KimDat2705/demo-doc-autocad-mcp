@@ -4,7 +4,8 @@
 > Mới nhất ở TRÊN CÙNG. Bàn giao đầy đủ: `session-handoff.md`. Nhật ký chi tiết hơn nữa: `../GHI_CHU_HOAN_THIEN.md`.
 
 ---
-## Session 2026-07-17 — GĐ4 ĐA-DOMAIN (corpus 8 firm VỀ): vá bug C (OLE) + BÁC BỎ 2 "bug" tự nghĩ ra (⚠ CHƯA COMMIT)
+## Session 2026-07-17 — GĐ4 ĐA-DOMAIN (corpus 8 firm VỀ): vá OLE + 3 bug red-team + BÁC BỎ 2 "bug" tự nghĩ ra — ✅ LIVE `7188c3c`
+> **✅ COMMIT `7188c3c` + REBASE đảo thứ tự + PUSH + DEPLOY + VERIFY LIVE** (`/version`=7188c3c khớp + `/health` ok=true). HELD (render.yaml nâng RAM) đảo lên TRÊN, **hash mới `f025ad7`** (cũ `969822a`), vẫn CỐ Ý chưa push. Backup: `backup-truoc-rebase-20260717`. Commit fix KHÔNG chạm render.yaml → deploy giữ `plan: free`, không dính billing.
 **Corpus ĐÃ VỀ** `input_files\` (8 công trình mới, 62 dwg/168MB, không nén) → **66 file / 10 nhóm**. Chạy `tests/khao_sat_corpus.py` (~45'/lượt; 1 file ODA không convert nổi: ĐIỆN Nhị Chiểu). **NÚT THẮT ≥3 FIRM MỞ.**
 
 **Kết quả GĐ4 (quan trọng nhất: LÕI KHÔNG OVERFIT):** bộ đọc số lượng ăn **9/10 nhóm** (qty 1617). `qty=0` chủ yếu điện/nước/TMB/phá-dỡ = vô hại. Bộ đọc bảng-TK chỉ ăn 2/10 nhóm.
