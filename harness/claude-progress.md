@@ -1,5 +1,10 @@
 # Claude Progress — demo 2 (nhật ký tiến độ theo phiên)
 
+> **🔁 2026-07-17 — THỬ MỞ PUBLIC RỒI HOÀN TÁC (repo GIỮ PRIVATE):** user đổi ý giữa chừng. Đã **khôi phục main về `130afae`** từ mirror backup + force-push → demo NGUYÊN TRẠNG (verify: `/version`=130afae, `/health` ok, **upload .dwg thật lên cloud CHẠY LẠI** — ODA convert ok, 102 layer/1555 text khớp local). **Mọi hash cũ trong tài liệu này CÒN HIỆU LỰC** (c0b85af/97ffc60/7188c3c/130afae…).
+> **⚠ VÌ SAO REPO PHẢI PRIVATE:** `vendor/ODAFileConverter.deb` (53.6MB) là phần mềm **ĐỘC QUYỀN của Open Design Alliance**, phải commit để Render build Docker → **public = phân phối lại binary bên thứ ba**. Đây là ràng buộc LICENSE, không phải tuỳ chọn.
+> **Muốn public thật sau này — ĐỪNG LÀM LẠI TỪ ĐẦU:** nhánh local **`public-ready`** đã có sẵn trọn gói (history sạch không .deb qua `git filter-repo` · Dockerfile tải ODA tuỳ chọn qua `ODA_DEB_URL` · thông báo .dxf-only thân thiện · .gitignore chặn .deb). Đánh đổi: cloud chỉ đọc .dxf tới khi đặt `ODA_DEB_URL`. Mirror backup: `D:/Dat-Antigravity/_backup_repo_truoc_khi_public_20260717/repo-mirror.git`.
+
+
 > Continuity Artifact (chuẩn Harness): lưu "đã làm gì / kết quả test / quyết định / đang chờ" để phiên sau không mất ngữ cảnh.
 > Mới nhất ở TRÊN CÙNG. Bàn giao đầy đủ: `session-handoff.md`. Nhật ký chi tiết hơn nữa: `../GHI_CHU_HOAN_THIEN.md`.
 

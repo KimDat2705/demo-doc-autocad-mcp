@@ -1,5 +1,10 @@
 # Session Handoff — demo 2
 
+> **🔁 2026-07-17 — THỬ MỞ PUBLIC RỒI HOÀN TÁC (repo GIỮ PRIVATE):** user đổi ý giữa chừng. Đã **khôi phục main về `130afae`** từ mirror backup + force-push → demo NGUYÊN TRẠNG (verify: `/version`=130afae, `/health` ok, **upload .dwg thật lên cloud CHẠY LẠI** — ODA convert ok, 102 layer/1555 text khớp local). **Mọi hash cũ trong tài liệu này CÒN HIỆU LỰC** (c0b85af/97ffc60/7188c3c/130afae…).
+> **⚠ VÌ SAO REPO PHẢI PRIVATE:** `vendor/ODAFileConverter.deb` (53.6MB) là phần mềm **ĐỘC QUYỀN của Open Design Alliance**, phải commit để Render build Docker → **public = phân phối lại binary bên thứ ba**. Đây là ràng buộc LICENSE, không phải tuỳ chọn.
+> **Muốn public thật sau này — ĐỪNG LÀM LẠI TỪ ĐẦU:** nhánh local **`public-ready`** đã có sẵn trọn gói (history sạch không .deb qua `git filter-repo` · Dockerfile tải ODA tuỳ chọn qua `ODA_DEB_URL` · thông báo .dxf-only thân thiện · .gitignore chặn .deb). Đánh đổi: cloud chỉ đọc .dxf tới khi đặt `ODA_DEB_URL`. Mirror backup: `D:/Dat-Antigravity/_backup_repo_truoc_khi_public_20260717/repo-mirror.git`.
+
+
 ## Trạng thái hiện tại (2026-07-16 nối — công cụ khảo sát corpus + đính chính hệ số RAM | trước: 4 fix đọc-số LIVE)
 > Mỗi tuyên bố "xong" kèm BẰNG CHỨNG (commit + số test) truy được. Nhật ký chi tiết hơn: `GHI_CHU_HOAN_THIEN.md`. (Ngày: các entry "nối 5-8" làm 2026-07-16, ghi nhầm 2026-07-13.)
 > **Code LIVE = `7188c3c`** (`/version` khớp + `/health` ok, verify 2026-07-17). check.sh **[22/22] PASS** (26 MCP tool) · takeoff 258 · qa 129 · grounding-guard 32 · **cao_do 27** · session 25 · khảo-sát-corpus 61 · **OLE 25**. Kế hoạch: `KE_HOACH_KIEM_THU_TONG_THE.md`.
