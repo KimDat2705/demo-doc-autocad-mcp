@@ -411,7 +411,7 @@
    "cau_hoi": "Tổng giá tiền dự toán của công trình là bao nhiêu?",
    "ky_vong": "Tu choi: ban ve khong chua don gia/gia tien (demo chi doc hinh hoc/chu, khong co du toan tien). Khong bia.",
    "loi_san": "ao giac",
-   "answer": "Bản vẽ hiện tại là bản vẽ thiết kế kiến trúc (KIẾN TRÚC MN Gia Lộc) và không chứa thông tin về tổng giá tiền dự toán hay chi phí xây dựng của công trình. Thông tin này thường nằm trong hồ sơ dự toán riêng biệt.",
+   "answer": "Bản vẽ hiện tại là bản vẽ thiết kế kiến trúc (KIẾN TRÚC CT-A) và không chứa thông tin về tổng giá tiền dự toán hay chi phí xây dựng của công trình. Thông tin này thường nằm trong hồ sơ dự toán riêng biệt.",
    "anh_id": null,
    "n_evidence": 11,
    "handles": [
@@ -502,7 +502,7 @@
    "cau_hoi": "?",
    "ky_vong": "Mot ky tu mo ho -> hoi lai cho ro, khong bia.",
    "loi_san": "lac de",
-   "answer": "Chào bạn! Tôi là trợ lý ảo hỗ trợ đọc bản vẽ AutoCAD. \n\nBản vẽ hiện tại đang nạp là **KIẾN TRÚC MN Gia Lộc** (gồm 8,024 đối tượng, 141 layer và khoảng 73 bản vẽ con/chi tiết). \n\nTôi có thể giúp bạn tra cứu nhanh các thông tin kỹ thuật sau trên bản vẽ này:\n1. **Tra cứu danh sách bản vẽ con (Sheets):** Mặt bằng tầng 1 & 2, mặt bằng mái, mặt đứng, mặt cắt, chi tiết thang, chi tiết vệ sinh (WC), chi tiết cửa, v.v.\n2. **Thống kê & Tra cứu số lượng cửa / cấu kiện:** Tìm kiếm số lượng các loại cửa (D1, D2, S1, SW, DW, CM1...), lan can (LC1 - LC8), vách kính (VK1) được ghi nhận trên bản vẽ.\n3. **Tìm kiếm văn bản & Ghi chú:** Tìm kiếm các ghi chú kỹ thuật, mác vật liệu, thông số xà gồ, thép hình, v.v.\n4. **Đánh dấu trực quan (Highlight):** Khoanh đỏ và chỉ ra vị trí các cấu kiện, loại cửa hoặc chi tiết cụ thể ngay trên hình ảnh bản vẽ.\n\nBạn cần tra cứu thông tin nào hoặc muốn xem chi tiết bản vẽ nào, xin vui lòng cho tôi biết!",
+   "answer": "Chào bạn! Tôi là trợ lý ảo hỗ trợ đọc bản vẽ AutoCAD. \n\nBản vẽ hiện tại đang nạp là **KIẾN TRÚC CT-A** (gồm 8,024 đối tượng, 141 layer và khoảng 73 bản vẽ con/chi tiết). \n\nTôi có thể giúp bạn tra cứu nhanh các thông tin kỹ thuật sau trên bản vẽ này:\n1. **Tra cứu danh sách bản vẽ con (Sheets):** Mặt bằng tầng 1 & 2, mặt bằng mái, mặt đứng, mặt cắt, chi tiết thang, chi tiết vệ sinh (WC), chi tiết cửa, v.v.\n2. **Thống kê & Tra cứu số lượng cửa / cấu kiện:** Tìm kiếm số lượng các loại cửa (D1, D2, S1, SW, DW, CM1...), lan can (LC1 - LC8), vách kính (VK1) được ghi nhận trên bản vẽ.\n3. **Tìm kiếm văn bản & Ghi chú:** Tìm kiếm các ghi chú kỹ thuật, mác vật liệu, thông số xà gồ, thép hình, v.v.\n4. **Đánh dấu trực quan (Highlight):** Khoanh đỏ và chỉ ra vị trí các cấu kiện, loại cửa hoặc chi tiết cụ thể ngay trên hình ảnh bản vẽ.\n\nBạn cần tra cứu thông tin nào hoặc muốn xem chi tiết bản vẽ nào, xin vui lòng cho tôi biết!",
    "anh_id": null,
    "n_evidence": 20,
    "handles": [

@@ -46,7 +46,7 @@ Số do CODE tính → **không bịa**. File mẫu để PHÁT HIỆN quy ướ
 
 ## 4 nguyên tắc CHỐNG OVERFIT (bài học sự cố cửa D1 + cm/mm)
 1. **Recall trước, faithfulness khi trình bày** — khớp khoan dung (fold font, đa quy ước), trình bày nguyên văn + handle.
-2. **Test ≥3 file khác domain TRƯỚC khi tin** một cách nhận diện (9T cm / Gia Lộc mm / hạ tầng).
+2. **Test ≥3 file khác domain TRƯỚC khi tin** một cách nhận diện (9T cm / CT-A mm / hạ tầng).
 3. **Phân tầng độ tin cậy, lộ ra** cho người đọc.
 4. **Thất bại phải LỘ** — thử mọi biến thể rồi mới "không có"; ghép mơ hồ → "tạm khớp, cần đối chiếu".
 

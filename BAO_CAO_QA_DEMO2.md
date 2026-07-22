@@ -5,7 +5,7 @@
 > Bối cảnh: demo 1 từng "pass test nội bộ" nhưng đối tác vẫn chê → lần này test triệt để.
 
 ## Phạm vi test
-- **3 file thật, 3 domain:** Kiến trúc MN Gia Lộc (8024 đối tượng), Kết cấu MN Gia Lộc (21077, thép 67 tấn), Hạ tầng rachmop (khảo sát địa hình + biển báo giao thông).
+- **3 file thật, 3 domain:** Kiến trúc CT-A (8024 đối tượng), Kết cấu CT-A (21077, thép 67 tấn), Hạ tầng CT-K (khảo sát địa hình + biển báo giao thông).
 - **Tầng A — Dữ liệu (tất định, không AI):** 129 kiểm tra.
 - **Tầng B — AI (Gemini):** 198 câu hỏi thiết kế tự động (grounded vào nội dung thật), chấm đối kháng 159 câu hợp lệ.
 

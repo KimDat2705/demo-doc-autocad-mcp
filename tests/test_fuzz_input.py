@@ -17,7 +17,11 @@ import tools_core
 from tools_core import Drawing
 
 BASE = os.path.normpath(os.path.join(HERE, "..", "..", "input_files", "_dxf"))
-KC = os.path.join(BASE, "BV+DT MN Gia Loc", "2. KetCau MN GiaLoc.dxf")
+# Ten thu muc/file that giu NGOAI repo (gitignored) — xem corpus_local.example.py
+try:
+    from corpus_local import KC
+except Exception:
+    KC = ""
 
 PASS = FAIL = SKIP = 0
 _TMP = tempfile.mkdtemp(prefix="fuzz_dxf_")   # nơi chứa MỌI file tạm; dọn ở finally

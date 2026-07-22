@@ -3,7 +3,7 @@
 KHÁC thong_tin_tang: KHÔNG lọc tần suất ≥4 (đó là lý do id135 miss mốc sâu). TẤT ĐỊNH, OFFLINE.
 Chạy:  python tests/test_cao_do_min_max.py
 
-Kiểm: real Gia Lộc KC/KT (min/max + HANDLE + nguyên văn) · file rỗng -> co_cao_do=False (LỘ) ·
+Kiểm: real CT-A KC/KT (min/max + HANDLE + nguyên văn) · file rỗng -> co_cao_do=False (LỘ) ·
 synthetic: G1 bắt buộc dấu · G3 loại layer thép khỏi min/max (LỘ ở canh_bao) · inline/outlier -> nghi_ngo ·
 2 thập phân (id135 -14.26) · tương tác grounding-guard.  (9T KC min=-3.0 đã verify thủ công — không nạp 120MB ở đây.)"""
 import os, sys, io
@@ -14,8 +14,11 @@ sys.path.insert(0, os.path.normpath(os.path.join(HERE, "..")))
 import tools_core as tc
 
 BASE = os.path.normpath(os.path.join(HERE, "..", "..", "input_files", "_dxf"))
-KC = os.path.join(BASE, "BV+DT MN Gia Loc", "2. KetCau MN GiaLoc.dxf")
-KT = os.path.join(BASE, "BV+DT MN Gia Loc", "1. Kien truc MN Gia Loc.dxf")
+# Ten thu muc/file that giu NGOAI repo (gitignored) — xem corpus_local.example.py
+try:
+    from corpus_local import KT, KC
+except Exception:
+    KT = KC = ""
 CUA = os.path.join(BASE, "0. Demo - Bang thong ke cua.dxf")
 
 PASS = FAIL = SKIP = 0
@@ -43,7 +46,7 @@ def _txt(vn, handle="H", layer="0"):
 
 
 def main():
-    print("[R] REAL Gia Lộc — min/max + HANDLE + nguyên văn (chống regress khi engine đổi thứ tự)")
+    print("[R] REAL CT-A — min/max + HANDLE + nguyên văn (chống regress khi engine đổi thứ tự)")
     if os.path.isfile(KC):
         r = tc.Drawing(KC).cao_do_min_max()
         ok("KC: co_cao_do + MIN=-1.85 handle FEF03 '-1.850'",
@@ -95,7 +98,7 @@ def main():
     r = tc.Drawing.cao_do_min_max(_Fake([_txt("-14.26", "H1"), _txt("±0.000", "H2"), _txt("+3.60", "H3")]))
     ok("'-14.26' (2 thập phân) -> MIN=-14.26 handle H1", r["cao_do_thap_nhat_m"] == -14.26 and r["thap_nhat"]["handle"] == "H1")
 
-    print("[COC] HỢP ĐỒNG NGỮ NGHĨA: 'thấp nhất trên bản vẽ' ≠ 'đáy móng' (GĐ4 — móng cọc Kẻ Sặt)")
+    print("[COC] HỢP ĐỒNG NGỮ NGHĨA: 'thấp nhất trên bản vẽ' ≠ 'đáy móng' (GĐ4 — móng cọc CT-C)")
     # GĐ4 tưởng -22.75 (mầm non 3T) là RÁC → suýt vá. Red-team + tự kiểm chứng BÁC BỎ: file là MÓNG CỌC
     # (TCVN 10304, nhãn 'ĐẦU CỌC', sơ đồ cọc tỷ lệ 1:1 khớp 0.996, marker lặp 2 lần) ⇒ -22.75 = MŨI CỌC THẬT,
     # -1.85 = ĐÁY ĐÀI. Tool trả ĐÚNG. Rủi ro thật nằm ở MÔ TẢ (hứa 'đáy móng' mà trả min mọi marker).
@@ -138,18 +141,33 @@ def main():
     ok("1 giá trị duy nhất -> KHÔNG cờ (không có gì để so, không bịa nghi ngờ)",
        r["thap_nhat"]["nghi_ngo"] is False, r.get("thap_nhat"))
 
-    print("[F3] _CD_INL: 'CH - 2.700' (CHIỀU CAO) KHÔNG còn bị đọc thành cao độ -2.7")
+    print("[F3] _CD_INL v2 (sau red-team): '-' dạng CÁCH -> canh_bao (LỘ); '+/±' dạng cách -> THU LẠI vào min/max")
+    # FP 'CH - 2.700': KHÔNG bịa thành min, NHƯNG cũng KHÔNG biến mất -> LỘ ở canh_bao (đối chiếu tay).
     r = tc.Drawing.cao_do_min_max(_Fake([_txt("-1.600", "A"), _txt("±0.000", "B"), _txt("CH - 2.700", "C", "Net Text")]))
-    ok("'CH - 2.700' (dấu CÓ khoảng trắng = gạch nối) -> KHÔNG thành marker",
-       -2.7 not in r["tat_ca_cao_do_m"] and r["cao_do_thap_nhat_m"] == -1.6, r["tat_ca_cao_do_m"])
-    ok("so_marker chỉ đếm 2 marker thật", r["so_marker"] == 2, r["so_marker"])
-    # CHỐNG QUÁ TAY: inline dấu DÍNH LIỀN vẫn phải đọc được (đây là recall id135)
+    cb = {c["gia_tri_m"] for c in r.get("canh_bao", [])}
+    ok("'CH - 2.700' KHÔNG vào min/max (min=-1.6, -2.7 ngoài tat_ca)",
+       r["cao_do_thap_nhat_m"] == -1.6 and -2.7 not in r["tat_ca_cao_do_m"], r["tat_ca_cao_do_m"])
+    ok("'CH - 2.700' LỘ ở canh_bao (không mất âm thầm)", -2.7 in cb, cb)
+    # RED-TEAM ADJUSTMENT (bắt buộc): id135 'cốt - 14.260' dạng CÁCH inline PHẢI nằm trong canh_bao, KHÔNG vắng
+    r = tc.Drawing.cao_do_min_max(_Fake([_txt("cọc cốt - 14.260 (mặt cắt)", "H1"), _txt("±0.000", "H2"), _txt("+3.600", "H3")]))
+    cb = {c["gia_tri_m"] for c in r.get("canh_bao", [])}
+    ok("id135 'cốt - 14.260' dạng CÁCH -> LỘ ở canh_bao (thất bại phải lộ, KHÔNG mất âm thầm)", -14.26 in cb, cb)
+    ok("... và KHÔNG tự bịa thành min (min không phải -14.26)", r.get("cao_do_thap_nhat_m") != -14.26)
+    # THU LẠI mốc THẬT dạng cách +/±: audit bác tiền đề 'cao độ luôn dính liền'
+    r = tc.Drawing.cao_do_min_max(_Fake([_txt("±0.000", "A"), _txt("mặt bằng cốt + 7.690", "B"),
+                                          _txt("sàn mái + 8.500", "C"), _txt("CÈT + 9.800", "D")]))
+    ok("mốc THẬT dạng cách '+ 7.690'/'+ 8.500'/'+ 9.800' THU LẠI vào min/max (max=9.8)",
+       {7.69, 8.5, 9.8} <= set(r["tat_ca_cao_do_m"]) and r["cao_do_cao_nhat_m"] == 9.8, r["tat_ca_cao_do_m"])
+    # CHỐNG QUÁ TAY: inline dấu DÍNH LIỀN vẫn phải đọc được (recall id135)
     r = tc.Drawing.cao_do_min_max(_Fake([_txt("±0.000", "A"), _txt("CỐT NỀN HOÀN THIỆN -2.700 (mặt cắt)", "B", "Net Text")]))
-    ok("inline dấu DÍNH LIỀN '-2.700' VẪN đọc được (không cắt nhầm recall)",
+    ok("inline dấu DÍNH LIỀN '-2.700' VẪN vào min/max (không cắt nhầm recall)",
        -2.7 in r["tat_ca_cao_do_m"], r["tat_ca_cao_do_m"])
     r = tc.Drawing.cao_do_min_max(_Fake([_txt("ĐÁY CỐNG -14.26 (hạ tầng)", "H1"), _txt("±0.000", "H2")]))
-    ok("id135 inline '-14.26' dính liền VẪN đọc được (fix KHÔNG đụng id135)",
-       r["cao_do_thap_nhat_m"] == -14.26, r["tat_ca_cao_do_m"])
+    ok("id135 inline '-14.26' dính liền VẪN vào min/max", r["cao_do_thap_nhat_m"] == -14.26, r["tat_ca_cao_do_m"])
+    # standalone '- 14.260' (cả ô) VẪN vào min/max (không phải 'WORD - n', không mập mờ)
+    r = tc.Drawing.cao_do_min_max(_Fake([_txt("- 14.260", "A"), _txt("±0.000", "B")]))
+    ok("standalone '- 14.260' (cả ô) -> vào min/max (rõ ràng, không đẩy canh_bao)",
+       r["cao_do_thap_nhat_m"] == -14.26 and r["thap_nhat"]["dang"] == "standalone", r.get("thap_nhat"))
 
     print("[guard] tương tác grounding-guard (mcp_bridge)")
     import mcp_bridge as B

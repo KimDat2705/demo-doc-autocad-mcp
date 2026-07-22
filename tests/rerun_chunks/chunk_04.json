@@ -224,7 +224,7 @@
    "cau_hoi": "Dầm D2-2 dài bao nhiêu và bao nhiêu cấu kiện?",
    "ky_vong": "File ketcau: 'D2-2 (SL= 02, L= 59.02m)' chia 2 doan -> tra_cuu_so_luong ra SL=2; chieu dai L=59.02m la do bang ghi (chieu dai TRIEN KHAI thep ghi trong nhan, KHONG phai do tool do khoang cach). Phan biet so luong (2) va trich L tu nhan, khong tu do.",
    "loi_san": "doc thieu/ky thuat vs thuc te",
-   "answer": "Bản vẽ hiện tại là bản vẽ **KIẾN TRÚC MN Gia Lộc**, do đó không chứa thông tin thiết kế chi tiết của cấu kiện kết cấu như dầm **D2-2** (chiều dài và số lượng cấu kiện). \n\nThông tin này thường nằm trong bộ bản vẽ **KẾT CẤU** của công trình.",
+   "answer": "Bản vẽ hiện tại là bản vẽ **KIẾN TRÚC CT-A**, do đó không chứa thông tin thiết kế chi tiết của cấu kiện kết cấu như dầm **D2-2** (chiều dài và số lượng cấu kiện). \n\nThông tin này thường nằm trong bộ bản vẽ **KẾT CẤU** của công trình.",
    "anh_id": null,
    "n_evidence": 15,
    "handles": [

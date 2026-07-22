@@ -17,7 +17,7 @@
 | 4 | **Chống bịa / ảo giác** | bẫy: "thang máy?" file không có; mã giả "GHOSTINOX"; input inf/âm | "không có"/"không tìm thấy"/"không hợp lệ"; KHÔNG chế số/handle |
 | 5 | **Trả đúng trọng tâm + TÍNH được** | "tổng diện tích cửa D1?", "thể tích cột C1 cao 3.6m?", "kg inox cửa S1?" | TÍNH ra số + sơ đồ + handle; thiếu → hỏi; KHÔNG trả lạc |
 | 6 | **Truy nguồn (handle)** | mọi câu nội dung cụ thể | Kèm handle có thật trong file |
-| 7 | **Tổng quát đa-file (chống overfit)** | cùng câu trên file khác domain (9T cm / Gia Lộc mm / hạ tầng) | Đúng theo TỪNG file (cm/mm tự nhận, không học vẹt) |
+| 7 | **Tổng quát đa-file (chống overfit)** | cùng câu trên file khác domain (9T cm / CT-A mm / hạ tầng) | Đúng theo TỪNG file (cm/mm tự nhận, không học vẹt) |
 | 8 | **Phân tầng độ tin cậy** | câu cần suy luận/tính | Rõ: đọc-verbatim / ghép-vị-trí ("chưa chắc") / suy-đoán-đơn-vị (cảnh báo) / phải-tính |
 | 9 | **Tốc độ & độ bền** | hỏi 10 câu liên tiếp | Không treo (retry/ép-trả-lời); nhanh (2.5-flash 2–8s) |
 
@@ -30,7 +30,7 @@
 | 4 | Chống bịa | **5** | mã giả→không tìm thấy; inf/tràn số/bool→chặn (test [K][L]); hardening đối kháng workflow |
 | 5 | Trọng tâm + tính | **5** | diện tích cửa D1=84.24 m²; cột C1=4.704 m³; **inox S1=137.92 kg**; 9T C-3=23.04 m³ — takeoff ĐÃ làm |
 | 6 | Truy nguồn handle | **5** | mọi số kèm handle; test khoá handle∈file |
-| 7 | Tổng quát đa-file | **5** | 9T (cm) vs Gia Lộc (mm) tự nhận đúng đơn vị (ngưỡng 130); test [I] đa-domain |
+| 7 | Tổng quát đa-file | **5** | 9T (cm) vs CT-A (mm) tự nhận đúng đơn vị (ngưỡng 130); test [I] đa-domain |
 | 8 | Phân tầng tin cậy | **4** | cờ verbatim/gán-vị-trí/suy_doan_don_vi/tạm-tính; gán-dim vẫn còn tinh chỉnh được |
 | 9 | Tốc độ & độ bền | **4** | 2.5-flash nhanh + ép-trả-lời chống bỏ-cuộc; model fallback (429/503) CHƯA có (roadmap H) → chưa 5 |
 

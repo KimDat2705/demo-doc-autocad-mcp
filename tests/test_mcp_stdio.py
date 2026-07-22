@@ -11,7 +11,11 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.normpath(os.path.join(HERE, ".."))
 sys.path.insert(0, ROOT)
 BASE = os.path.normpath(os.path.join(ROOT, "..", "input_files", "_dxf"))
-KT = os.path.join(BASE, "BV+DT MN Gia Loc", "1. Kien truc MN Gia Loc.dxf")
+# Ten thu muc/file that giu NGOAI repo (gitignored) — xem corpus_local.example.py
+try:
+    from corpus_local import KT
+except Exception:
+    KT = ""
 
 PASS = FAIL = SKIP = 0
 

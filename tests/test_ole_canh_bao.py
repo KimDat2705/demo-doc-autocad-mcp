@@ -2,12 +2,12 @@
 """BUG C (GĐ4) — LỘ đối tượng NHÚNG (OLE2FRAME = bảng Excel dán vào bản vẽ).
 TẤT ĐỊNH, OFFLINE, KHÔNG tốn API.  Chạy:  python tests/test_ole_canh_bao.py
 
-BỐI CẢNH: GĐ4 trên corpus 8 firm đo được 19/65 file có OLE. Ca nặng '4. Thong ke thep SUA.dwg' (Ninh Hải):
+BỐI CẢNH: GĐ4 trên corpus 8 firm đo được 19/65 file có OLE. Ca nặng '4. Thong ke thep SUA.dwg' (CT-D):
 cả bảng thống kê thép nằm trong 8 OLE -> engine đọc 0 thanh và trả 'bản vẽ KHÔNG có bảng thống kê thép',
 trong khi file TÊN LÀ 'thống kê thép' => đối tác hiểu SAI. Vá = CHỈ LỘ cảnh báo, KHÔNG đổi số nào.
 
 Kiểm: helper (không OLE -> None) · gắn cờ ADDITIVE (không OLE -> dict Y HỆT) · non-dict không vỡ ·
-REAL Gia Lộc KT (2 OLE) lộ cảnh báo + KC (0 OLE) KHÔNG đổi số (chống hồi quy) · thép/thép-hình/tổng-hợp
+REAL CT-A KT (2 OLE) lộ cảnh báo + KC (0 OLE) KHÔNG đổi số (chống hồi quy) · thép/thép-hình/tổng-hợp
 đều mang cảnh báo · luật prompt 8c tồn tại · guard grounding không bị cảnh báo làm hỏng."""
 import os
 import sys
@@ -21,8 +21,11 @@ sys.path.insert(0, os.path.normpath(os.path.join(HERE, "..")))
 import tools_core as tc
 
 BASE = os.path.normpath(os.path.join(HERE, "..", "..", "input_files", "_dxf"))
-KT = os.path.join(BASE, "BV+DT MN Gia Loc", "1. Kien truc MN Gia Loc.dxf")   # CÓ 2 OLE
-KC = os.path.join(BASE, "BV+DT MN Gia Loc", "2. KetCau MN GiaLoc.dxf")       # KHÔNG có OLE
+# Ten thu muc/file that giu NGOAI repo (gitignored) — xem corpus_local.example.py
+try:
+    from corpus_local import KT, KC   # KT: CO 2 OLE · KC: KHONG co OLE
+except Exception:
+    KT = KC = ""
 
 PASS = FAIL = SKIP = 0
 
@@ -71,7 +74,30 @@ def main():
        ra2["ghi_chu"].startswith("so THAT") and "⚠" in ra2["ghi_chu"], ra2["ghi_chu"])
     ok("non-dict -> tra nguyen xi, KHONG vo", _Fake([{"handle": "H"}])._gan_canh_bao_nhung("abc") == "abc")
 
-    print("[C4] REAL Gia Loc KT (2 OLE) — thep/thep-hinh/tong-hop deu LO canh bao")
+    print("[C3b] CA MOTIVATING (synthetic, KHONG can corpus) — bang thep NAM TRONG OLE -> co_bang=False + CANH BAO")
+    # Audit D5: ca that '4. Thong ke thep SUA.dwg' (bang thep trong 8 OLE -> thep=0) CHI test duoc khi co corpus
+    # -> neu corpus mat, mutation song. Dung _FakeThep tai hien KHONG can file: thep rong + co OLE.
+    class _FakeThep:
+        _canh_bao_nhung = tc.Drawing._canh_bao_nhung
+        _gan_canh_bao_nhung = tc.Drawing._gan_canh_bao_nhung
+        thong_ke_thep = tc.Drawing.thong_ke_thep
+        thong_ke_thep_hinh = tc.Drawing.thong_ke_thep_hinh
+        def __init__(self, ole):
+            self.ole_nhung = ole
+            self.thep = {"by_dk": {}}       # KHONG doc duoc thanh thep nao (vi no nam trong OLE)
+            self.thep_hinh = {"by_show": {}}
+    fk = _FakeThep([{"handle": "BC7020", "layer": "0"}] * 8)   # 8 OLE nhu file that
+    r = fk.thong_ke_thep()
+    ok("bang thep trong OLE -> co_bang_thong_ke=False", r.get("co_bang_thong_ke") is False, r)
+    ok("... NHUNG co canh_bao_nhung (8 doi tuong) -> KHONG khang dinh 'ban ve khong co'",
+       "canh_bao_nhung" in r and r["canh_bao_nhung"]["so_doi_tuong_nhung"] == 8, r.get("canh_bao_nhung"))
+    ok("... ghi_chu co ⚠ (LLM chac chan thay)", "⚠" in (r.get("ghi_chu") or ""))
+    # doi chung: cung code NHUNG 0 OLE -> KHONG canh bao (chan mutation 'luon canh bao')
+    r0 = _FakeThep([]).thong_ke_thep()
+    ok("doi chung: thep rong + 0 OLE -> co_bang=False NHUNG KHONG canh bao (khong bia)",
+       r0.get("co_bang_thong_ke") is False and "canh_bao_nhung" not in r0)
+
+    print("[C4] REAL CT-A KT (2 OLE) — thep/thep-hinh/tong-hop deu LO canh bao")
     if os.path.isfile(KT):
         d = tc.Drawing(KT)
         ok("doc duoc dung 2 OLE tu file that", len(d.ole_nhung) == 2, len(d.ole_nhung))
@@ -85,9 +111,9 @@ def main():
         ok("tong_hop_khoi_luong (nguon Excel ban giao): co canh_bao_nhung", "canh_bao_nhung" in rt)
         ok("tong_hop: so_hang KHONG bi doi boi canh bao", isinstance(rt.get("so_hang"), int))
     else:
-        skip("Gia Loc KT")
+        skip("CT-A KT")
 
-    print("[C5] REAL Gia Loc KC (0 OLE) — CHONG HOI QUY: khong canh bao, so y nguyen")
+    print("[C5] REAL CT-A KC (0 OLE) — CHONG HOI QUY: khong canh bao, so y nguyen")
     if os.path.isfile(KC):
         d2 = tc.Drawing(KC)
         ok("KC khong co OLE", len(d2.ole_nhung) == 0, len(d2.ole_nhung))
@@ -99,7 +125,7 @@ def main():
         r3 = d2.tong_hop_khoi_luong()
         ok("tong_hop: KHONG co canh_bao_nhung", "canh_bao_nhung" not in r3)
     else:
-        skip("Gia Loc KC")
+        skip("CT-A KC")
 
     print("[C6] SYSTEM_PROMPT rule 8c — bat buoc LO, cam noi 'ban ve khong co'")
     import mcp_bridge as B
@@ -108,6 +134,51 @@ def main():
     ok("cam khang dinh 'khong co bang thong ke' khi co canh_bao_nhung",
        "KHÔNG ĐỌC" in sp or "không đọc được nội dung nhúng" in sp.lower(), None)
     ok("cam khang dinh '0 kg' khi co canh bao", "0 kg" in sp)
+
+    print("[F1] Canh bao OLE cam vao TUYEN SO-LUONG/KICH-THUOC khi ket qua RONG (audit GD4)")
+    # Truoc: chi tuyen thep co canh bao -> hoi so luong tren file 8-OLE tra 'khong ghi so luong'
+    # ma KHONG lo OLE = dung failure mode rule 8c dinh chong. Nay cam them 3 tuyen, CHI khi RONG.
+    if os.path.isfile(KT):
+        d = tc.Drawing(KT)  # CT-A KT co 2 OLE + CO qty (38 muc)
+        ok("KT co OLE (2)", len(d.ole_nhung) == 2, len(d.ole_nhung))
+        # Ma KHONG ton tai -> ket qua am -> PHAI canh bao
+        r = d.tra_cuu_so_luong("MA_KHONG_CO_XYZ")
+        ok("tra_cuu ket qua AM tren file OLE -> co canh_bao_nhung", "canh_bao_nhung" in r and r.get("co_ghi_so_luong") is False, sorted(r.keys()))
+        r = d.liet_ke_so_luong("MA_KHONG_CO_XYZ")
+        ok("liet_ke loc-khong-khop tren file OLE -> co canh_bao_nhung", "canh_bao_nhung" in r and r.get("so_muc") == 0)
+        # CHONG NHIEU: liet_ke KHONG loc -> co 38 muc -> KHONG canh bao (tranh alarm fatigue)
+        r = d.liet_ke_so_luong()
+        ok("liet_ke TIM THAY (>0 muc) tren file OLE -> KHONG canh bao (chong nhieu)",
+           r.get("so_muc") > 0 and "canh_bao_nhung" not in r, (r.get("so_muc"), "canh_bao_nhung" in r))
+    else:
+        skip("F1 real KT")
+    # File 0-OLE: 3 tuyen KHONG bao gio canh bao oan + so KHONG doi
+    if os.path.isfile(KC):
+        d = tc.Drawing(KC)
+        ok("KC (0 OLE): tra_cuu am KHONG canh bao", "canh_bao_nhung" not in d.tra_cuu_so_luong("ZZZ"))
+        r = d.thong_tin_kich_thuoc()
+        ok("KC (0 OLE): thong_tin_kich_thuoc KHONG canh bao + so_duong>0 giu nguyen",
+           "canh_bao_nhung" not in r and r.get("so_duong_kich_thuoc") > 0)
+    else:
+        skip("F1 real KC")
+    # Synthetic: thong_tin_kich_thuoc voi 0 dim tren file OLE -> canh bao
+    class _FakeDim:
+        _canh_bao_nhung = tc.Drawing._canh_bao_nhung
+        _gan_canh_bao_nhung = tc.Drawing._gan_canh_bao_nhung
+        def __init__(self, ole):
+            self.ole_nhung = ole
+            self.dims = []
+            self.dim_vals = []
+            self.dim_top = []
+            class _D:
+                class header:
+                    @staticmethod
+                    def get(k, d=0): return 0
+            self.doc = _D()
+    r = tc.Drawing.thong_tin_kich_thuoc(_FakeDim([{"handle": "H", "layer": "L"}]))
+    ok("thong_tin_kich_thuoc 0-dim + OLE -> canh bao", "canh_bao_nhung" in r, sorted(r.keys()))
+    r = tc.Drawing.thong_tin_kich_thuoc(_FakeDim([]))
+    ok("thong_tin_kich_thuoc 0-dim + 0-OLE -> KHONG canh bao", "canh_bao_nhung" not in r)
 
     print("[C7] Tuong tac grounding-guard: canh bao KHONG lam vo guard")
     nums = B._collect_numbers({"co_bang_thong_ke": False,

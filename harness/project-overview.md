@@ -35,7 +35,7 @@ File chính: xem `harness/AGENTS.md`. Công nghệ + LƯU TRỮ: xem `harness/te
 ## ④ XÁC MINH THẾ NÀO? (chống bịa = KPI cốt lõi)
 - Mỗi số kèm **handle** truy nguồn; thiếu → **hỏi** (không bịa); suy đoán/gán → **gắn cờ "chưa chắc"**.
 - Test tất định khoá: existence (mã giả → không tìm thấy), hardening (inf/nan/bool/tràn số → chặn), đơn vị cm/mm, inox, tổng phụ.
-- Nhận-diện-quy-ước test **≥3 file khác domain** (9T / Gia Lộc KT / Gia Lộc KC / hạ tầng) — chống overfit.
+- Nhận-diện-quy-ước test **≥3 file khác domain** (9T / CT-A KT / CT-A KC / hạ tầng) — chống overfit.
 - **KPI đúng: "tỷ lệ BỊA ≈ 0%"** (KHÔNG phải "trả lời 100%"). Xem `KE_HOACH_TONG_QUAT_HOA.md`.
 
 ## ⑤ TIẾN ĐỘ TỚI ĐÂU? (giai đoạn + đầu mục)

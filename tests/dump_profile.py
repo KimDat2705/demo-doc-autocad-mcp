@@ -9,11 +9,8 @@ from tools_core import Drawing
 from collections import Counter
 
 OUT = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "_renders"))  # scratch chung
-FILES = {
-    "kientruc": r"D:/Dat-Antigravity/HeThongThiCongXayDung-AnhTu/input_files/_dxf/BV+DT MN Gia Loc/1. Kien truc MN Gia Loc.dxf",
-    "ketcau":   r"D:/Dat-Antigravity/HeThongThiCongXayDung-AnhTu/input_files/_dxf/BV+DT MN Gia Loc/2. KetCau MN GiaLoc.dxf",
-    "hatang":   r"D:/Dat-Antigravity/HeThongThiCongXayDung-AnhTu/demo_doc_autocad/_uploads/rachmop.dxf",
-}
+from corpus_local import KT, KC, HT   # corpus THAT giu ngoai repo (gitignored)
+FILES = {"kientruc": KT, "ketcau": KC, "hatang": HT}
 
 for key, path in FILES.items():
     d = Drawing(path)

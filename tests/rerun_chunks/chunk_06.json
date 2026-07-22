@@ -256,9 +256,9 @@
    "id": 107,
    "loai": "tong_quat",
    "cau_hoi": "Ten file goc va phien ban DXF la gi?",
-   "ky_vong": "File: '2. KetCau MN GiaLoc.dxf', dxfversion AC1032.",
+   "ky_vong": "File: '2. KetCau CT-A.dxf', dxfversion AC1032.",
    "loi_san": "doc sai",
-   "answer": "Dựa trên thông tin hệ thống của bản vẽ đang nạp:\n\n* **Tên file gốc:** `KẾT CẤU MN Gia Lộc`\n* **Phiên bản AutoCAD (mã định dạng):** `AC1032` (tương ứng với phiên bản **AutoCAD 2018** trở lên).",
+   "answer": "Dựa trên thông tin hệ thống của bản vẽ đang nạp:\n\n* **Tên file gốc:** `KẾT CẤU CT-A`\n* **Phiên bản AutoCAD (mã định dạng):** `AC1032` (tương ứng với phiên bản **AutoCAD 2018** trở lên).",
    "anh_id": null,
    "n_evidence": 20,
    "handles": [

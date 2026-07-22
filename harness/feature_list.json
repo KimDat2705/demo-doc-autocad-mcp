@@ -63,7 +63,7 @@
    "id": "floor-levels",
    "name": "Thông tin tầng (cao độ->chiều cao tầng) + cao độ min/max (id135-recall)",
    "status": "done",
-   "evidence": "thong_tin_tang + _build_levels; test [D] KC cao độ 3.6m/~3 tầng, 9T 3.3m/~10 tầng. + TOOL MỚI cao_do_min_max [2026-07-16, LIVE 97ffc60] (MCP #26, id135-recall): đọc RAW min/max marker cao độ (regex dấu +/-/± + 2-3 thập phân) KHÔNG lọc tần suất ≥4 như _build_levels (đó là lý do id135 bỏ sót mốc sâu). RIÊNG tool. G1 bắt buộc dấu; G3 loại layer thép khỏi min/max (LỘ canh_bao); G4/G5 flag nghi_ngo. Verify Gia Lộc KC min=-1.85/max=+10.8; 9T KC min=-3.0 (loại -44.1 thép); -14.26 (2 thập phân) đọc đúng. Test test_cao_do_min_max.py 12 ca. ⚠ overfit: 2 firm, cần ≥3 firm."
+   "evidence": "thong_tin_tang + _build_levels; test [D] KC cao độ 3.6m/~3 tầng, 9T 3.3m/~10 tầng. + TOOL MỚI cao_do_min_max [2026-07-16, LIVE 97ffc60] (MCP #26, id135-recall): đọc RAW min/max marker cao độ (regex dấu +/-/± + 2-3 thập phân) KHÔNG lọc tần suất ≥4 như _build_levels (đó là lý do id135 bỏ sót mốc sâu). RIÊNG tool. G1 bắt buộc dấu; G3 loại layer thép khỏi min/max (LỘ canh_bao); G4/G5 flag nghi_ngo. Verify CT-A KC min=-1.85/max=+10.8; 9T KC min=-3.0 (loại -44.1 thép); -14.26 (2 thập phân) đọc đúng. Test test_cao_do_min_max.py 12 ca. ⚠ overfit: 2 firm, cần ≥3 firm."
   },
   {
    "id": "takeoff-engine",
@@ -75,7 +75,7 @@
    "id": "unit-cm-mm",
    "name": "Suy đoán đơn vị cm/mm (ngưỡng 130) + ghép mã<->tiết diện theo toạ độ",
    "status": "done",
-   "evidence": "_SECT_CM_MAX=130, _sect_to_mm, _build_section_index (ghép tọa độ, đọc BẢNG cột nhà 9T mà cách cùng-text bỏ sót). Test [I]: 9T C-3=80x80cm->23.04 m3 (KHỚP demo 1); Gia Lộc mm 4.704 m3 không đổi; gắn cờ suy_doan_don_vi."
+   "evidence": "_SECT_CM_MAX=130, _sect_to_mm, _build_section_index (ghép tọa độ, đọc BẢNG cột nhà 9T mà cách cùng-text bỏ sót). Test [I]: 9T C-3=80x80cm->23.04 m3 (KHỚP demo 1); CT-A mm 4.704 m3 không đổi; gắn cờ suy_doan_don_vi."
   },
   {
    "id": "inox-mass",
@@ -171,7 +171,7 @@
    "id": "cung-co-G",
    "name": "Củng cố treo: mở rộng test đối kháng đa-domain (G)",
    "status": "done",
-   "evidence": "Workflow probe 6-agent (KC/KT 9T + hạ tầng rachmop + gap-check Gia Lộc + overfit-hunter) chạy engine THẬT offline -> phát hiện + TỰ KIỂM CHỨNG (repro độc lập) 3 BUG THẬT ở tầng tổng hợp/đọc: (A cao) tong_hop_khoi_luong.tong_phu GỘP thép tròn+thép hình thành 1 số kg (KC 67759.7=67370.7+389.0, KT 4110.7=564.8+3545.9) — vi phạm rule 8b (mcp_bridge:164); (C) gộp 'Số lượng' dị loại thành 835/191 bộ/cái vô nghĩa; (B latent) _rs_dien_tich_ghi_san dùng regex thô đọc mật độ '16 cọc/1m2' thành diện tích=1 (parity gap với _build_stated_areas — cơ chế thật, live-scan 0/4 file). VÁ (tools_core.py): tách loai thép tròn/hình + thêm 'Số lượng' vào _khong_cong + dùng _STATED_M2_RE (lookbehind) trong resolver. Test [R][S][T][U] + I.5/I.6 (9T KC F ước 10 tầng=21.12 + existence C999 vàng + typical 3.3m; 9T KT 193k obj recall 16 nhãn diện tích đủ handle + mã cửa giả vàng). Hoist 9T KC nạp 1 lần (trước nạp 2 lần, phí ~53s). check.sh PASS: takeoff 167/167 (was 149) + qa 129/129. RESIDUAL [2026-07-11(b)]: #1 recall SL 9T KT = BUG THẬT đã vá -> _build_schedule_qty_index đọc SL bảng thống kê theo cột TỔNG (ghép mã<->số theo hàng+cột, gated fail-silent: >=5 cặp duy nhất/|dy| chặt/mã sát trái, block bẩn -> bỏ; validate âm KC/KT GiaLộc+rachmop=0 bịa), liet_ke_so_luong 9T KT 6->28 mục, test [V] -> takeoff 177/177; #2 cờ suy_doan_don_vi cạnh <40 = BY-DESIGN no-fix (mm-interp <4cm phi thực). Còn: window S-code |dy| lỏng hơn -> đối chiếu thêm layout khác; concurrency (1 Drawing global) thuộc robustness K."
+   "evidence": "Workflow probe 6-agent (KC/KT 9T + hạ tầng CT-K + gap-check CT-A + overfit-hunter) chạy engine THẬT offline -> phát hiện + TỰ KIỂM CHỨNG (repro độc lập) 3 BUG THẬT ở tầng tổng hợp/đọc: (A cao) tong_hop_khoi_luong.tong_phu GỘP thép tròn+thép hình thành 1 số kg (KC 67759.7=67370.7+389.0, KT 4110.7=564.8+3545.9) — vi phạm rule 8b (mcp_bridge:164); (C) gộp 'Số lượng' dị loại thành 835/191 bộ/cái vô nghĩa; (B latent) _rs_dien_tich_ghi_san dùng regex thô đọc mật độ '16 cọc/1m2' thành diện tích=1 (parity gap với _build_stated_areas — cơ chế thật, live-scan 0/4 file). VÁ (tools_core.py): tách loai thép tròn/hình + thêm 'Số lượng' vào _khong_cong + dùng _STATED_M2_RE (lookbehind) trong resolver. Test [R][S][T][U] + I.5/I.6 (9T KC F ước 10 tầng=21.12 + existence C999 vàng + typical 3.3m; 9T KT 193k obj recall 16 nhãn diện tích đủ handle + mã cửa giả vàng). Hoist 9T KC nạp 1 lần (trước nạp 2 lần, phí ~53s). check.sh PASS: takeoff 167/167 (was 149) + qa 129/129. RESIDUAL [2026-07-11(b)]: #1 recall SL 9T KT = BUG THẬT đã vá -> _build_schedule_qty_index đọc SL bảng thống kê theo cột TỔNG (ghép mã<->số theo hàng+cột, gated fail-silent: >=5 cặp duy nhất/|dy| chặt/mã sát trái, block bẩn -> bỏ; validate âm KC/KT CT-A+CT-K=0 bịa), liet_ke_so_luong 9T KT 6->28 mục, test [V] -> takeoff 177/177; #2 cờ suy_doan_don_vi cạnh <40 = BY-DESIGN no-fix (mm-interp <4cm phi thực). Còn: window S-code |dy| lỏng hơn -> đối chiếu thêm layout khác; concurrency (1 Drawing global) thuộc robustness K."
   },
   {
    "id": "du-toan-chi-phi",

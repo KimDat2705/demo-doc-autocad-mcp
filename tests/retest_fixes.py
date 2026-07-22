@@ -8,10 +8,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.normpath(os.path.join(HERE, "..")))
 import mcp_bridge
 
-FILES = {
-    "kientruc": r"D:/Dat-Antigravity/HeThongThiCongXayDung-AnhTu/input_files/_dxf/BV+DT MN Gia Loc/1. Kien truc MN Gia Loc.dxf",
-    "ketcau":   r"D:/Dat-Antigravity/HeThongThiCongXayDung-AnhTu/input_files/_dxf/BV+DT MN Gia Loc/2. KetCau MN GiaLoc.dxf",
-}
+from corpus_local import KT, KC   # corpus THAT giu ngoai repo (gitignored)
+FILES = {"kientruc": KT, "ketcau": KC}
 # id -> (file chay, loai loi cu, ky vong tom tat)
 RETEST = {
     181: ("kientruc", "MAX_TURNS", "phai tra: 2 tang 8 phong (khong bo cuoc)"),

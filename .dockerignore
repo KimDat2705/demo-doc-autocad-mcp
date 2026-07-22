@@ -6,3 +6,20 @@ _renders/
 .git/
 spikes/out_*.png
 spikes/spike_bridge_out.txt
+
+# AN DANH / RIENG TU: KHONG nuong du lieu mau THAT hay ket qua eval vao Docker image.
+# (Tren Render an toan vi build tu git clone; nhung build/chia se image LOCAL thi day la be mat ro ri.)
+_khao_sat/
+_hoc_log/
+input_files/
+tests/corpus_local.py
+tests/battery_results*.jsonl
+tests/battery.json
+tests/*.log
+tests/verify*_chunks/
+tests/rerun_chunks/
+tests/rerun_results.jsonl
+tests/rerun2_results.jsonl
+
+# App runtime khong can bo test -> loai luon cho image gon + kin.
+tests/

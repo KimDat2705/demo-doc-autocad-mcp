@@ -15,9 +15,12 @@ sys.path.insert(0, os.path.normpath(os.path.join(HERE, "..")))
 from tools_core import Drawing
 
 BASE = os.path.normpath(os.path.join(HERE, "..", "..", "input_files", "_dxf"))
-KT = os.path.join(BASE, "BV+DT MN Gia Loc", "1. Kien truc MN Gia Loc.dxf")
-KC = os.path.join(BASE, "BV+DT MN Gia Loc", "2. KetCau MN GiaLoc.dxf")
-CUA = os.path.join(BASE, "0. Demo - Bang thong ke cua.dxf")
+CUA = os.path.join(BASE, "0. Demo - Bang thong ke cua.dxf")   # file DEMO (khong phai ten khach hang)
+# Ten thu muc/file ban ve THAT giu NGOAI repo (gitignored) — xem corpus_local.example.py
+try:
+    from corpus_local import KT, KC, P9, P9KT
+except Exception:
+    KT = KC = P9 = P9KT = ""
 
 PASS = FAIL = SKIP = 0
 
@@ -53,10 +56,8 @@ def main():
     global PASS, FAIL, SKIP
     kt, kc = Drawing(KT), Drawing(KC)
     cua = Drawing(CUA) if os.path.isfile(CUA) else None
-    # 9T (đa-domain) — nạp 1 LẦN, tái dùng ở [I]/[O]/[U] (trước đây 9T KC nạp 2 lần, phí ~53s):
-    P9 = os.path.join(BASE, "BV+DT nha 9 tang", "2. Ket Cau_NHA 9T.dxf")       # 9T KẾT CẤU (quy ước cm)
+    # 9T (đa-domain) — P9/P9KT nạp từ corpus_local (đầu file); nạp 1 LẦN, tái dùng ở [I]/[O]/[U]:
     n9 = Drawing(P9) if os.path.isfile(P9) else None
-    P9KT = os.path.join(BASE, "BV+DT nha 9 tang", "1. Kien truc nha 9T.dxf")   # 9T KIẾN TRÚC (193k obj — recall diện tích)
     n9kt = Drawing(P9KT) if os.path.isfile(P9KT) else None
 
     print("[A] EXISTENCE — cấu kiện thật vs giả (đa-domain)")
@@ -178,23 +179,23 @@ def main():
         okg = r.get("co_ket_qua") and abs((r.get("ket_qua") or 0) - 21.12) < 0.01 and "GIẢ ĐỊNH" in r.get("ghi_chu", "")
         PASS, FAIL = PASS + int(bool(okg)), FAIL + int(not okg)
         print("  [%s] 9T C-3 (chưa cấp cao) -> F ước 1 tầng 3.3m = %s m³ (mong 21.12, cờ GIẢ ĐỊNH lộ)" % ("OK" if okg else "FAIL", r.get("ket_qua")))
-        # I.6 existence trên 9T: mã cột GIẢ -> vàng (không bịa số cho thứ không có trên domain lạ) + tầng khác Gia Lộc
+        # I.6 existence trên 9T: mã cột GIẢ -> vàng (không bịa số cho thứ không có trên domain lạ) + tầng khác CT-A
         ck(n9, "thể tích bê tông cột", "C999", "", "vang", "9T: mã cột giả phải vàng")
         tt = n9.thong_tin_tang()
         okt = tt.get("co_cao_do") and abs((tt.get("chieu_cao_tang_dien_hinh_m") or 0) - 3.3) < 0.3
         PASS, FAIL = PASS + int(bool(okt)), FAIL + int(not okt)
-        print("  [%s] 9T thong_tin_tang: typical≈3.3m — cross-domain khác Gia Lộc 3.6m" % ("OK" if okt else "FAIL"))
+        print("  [%s] 9T thong_tin_tang: typical≈3.3m — cross-domain khác CT-A 3.6m" % ("OK" if okt else "FAIL"))
     else:
         skip("I.2", "khong thay file 9T (%s)" % P9)
-    # I.3 Gia Lộc (quy ước mm): KHÔNG regression — vẫn đọc mm, KHÔNG cảnh báo nhiễu, thể tích C1 giữ nguyên.
+    # I.3 CT-A (quy ước mm): KHÔNG regression — vẫn đọc mm, KHÔNG cảnh báo nhiễu, thể tích C1 giữ nguyên.
     c1 = kc._doc_tiet_dien("C1")
     ok = c1 and c1["a"] == 220 and c1["don_vi"] == "mm" and not c1.get("suy_doan_don_vi")
     PASS, FAIL = PASS + int(bool(ok)), FAIL + int(not ok)
-    print("  [%s] Gia Lộc C1 = 220×220 mm, KHÔNG cảnh báo suy đoán (file mm sạch)" % ("OK" if ok else "FAIL"))
+    print("  [%s] CT-A C1 = 220×220 mm, KHÔNG cảnh báo suy đoán (file mm sạch)" % ("OK" if ok else "FAIL"))
     r = kc.tinh_dai_luong("thể tích bê tông cột", "C1", '{"chieu_cao":3600}')
     ok = r.get("co_ket_qua") and abs(r["ket_qua"] - 4.704) < 0.01
     PASS, FAIL = PASS + int(bool(ok)), FAIL + int(not ok)
-    print("  [%s] Gia Lộc C1 thể tích = %s m³ (mong 4.704 — không đổi sau fix)" % ("OK" if ok else "FAIL", r.get("ket_qua")))
+    print("  [%s] CT-A C1 thể tích = %s m³ (mong 4.704 — không đổi sau fix)" % ("OK" if ok else "FAIL", r.get("ket_qua")))
 
     print("[J] KHỐI LƯỢNG INOX/THÉP HÌNH = SL(đọc) × kg/bộ(đối tác cấp) — vá theo feedback đối tác")
     import tools_core as _TCj
@@ -204,7 +205,7 @@ def main():
         got = _TCj._chuan_hoa_ten_dai_luong(q); ok = (got == exp)
         PASS, FAIL = PASS + int(ok), FAIL + int(not ok)
         print("  [%s] map %r -> %s (mong %s)" % ("OK" if ok else "FAIL", q[:26], got, exp))
-    # J.2 KT Gia Lộc: S1 = 16 bộ (ĐỌC) × 8.62 kg/bộ (đối tác cấp) = 137.92 kg — đúng câu hỏi đối tác
+    # J.2 KT CT-A: S1 = 16 bộ (ĐỌC) × 8.62 kg/bộ (đối tác cấp) = 137.92 kg — đúng câu hỏi đối tác
     r = kt.tinh_dai_luong("khối lượng inox", "S1", '{"kg_moi_bo":8.62}')
     ok = r.get("co_ket_qua") and abs(r["ket_qua"] - 137.92) < 0.01
     PASS, FAIL = PASS + int(bool(ok)), FAIL + int(not ok)
@@ -508,10 +509,10 @@ def main():
         _emit("tra_cuu_so_luong('d3') -> co_ghi_so_luong=True, có so_luong=20", r.get("co_ghi_so_luong") and any(m["so_luong"] == 20 for m in r.get("danh_sach_so_luong", [])))
     else:
         skip("V", "khong thay file 9T KT")
-    # NEGATIVE (chống bịa): KC Gia Lộc (kết cấu, KHÔNG bảng cửa) -> resolver KHÔNG sinh entry nào
-    _emit("KC Gia Lộc: 0 entry 'bảng thống kê' (fail-silent — không bịa SL trên file không có bảng cửa)",
+    # NEGATIVE (chống bịa): KC CT-A (kết cấu, KHÔNG bảng cửa) -> resolver KHÔNG sinh entry nào
+    _emit("KC CT-A: 0 entry 'bảng thống kê' (fail-silent — không bịa SL trên file không có bảng cửa)",
           not any(e.get("nguon", "").startswith("bảng thống kê") for e in kc.qty_index))
-    _emit("KC Gia Lộc: qty_index giữ 94 mục (port demo 1 KHÔNG đổi)", len(kc.qty_index) == 94)
+    _emit("KC CT-A: qty_index giữ 94 mục (port demo 1 KHÔNG đổi)", len(kc.qty_index) == 94)
 
     print("[W] AUDIT AN TOÀN đa-agent — vá 9 lỗ hổng bịa/crash/mislabel (đã tự tái hiện trên file thật)")
     import tools_core as _TCw
@@ -849,7 +850,7 @@ def main():
     kt.thu_hoi_quy_uoc("")
 
     # ---- [id84] ĐÀI CỌC (Đ) ≠ DẦM (D): hết gộp nhầm loại + hết đếm trùng inline/spatial; xung đột SL LỘ ra ----
-    print("[id84] Đài cọc ĐC vs dầm DC — phân biệt đ/d + dedup mã chuẩn (engine THẬT, Gia Lộc KC)")
+    print("[id84] Đài cọc ĐC vs dầm DC — phân biệt đ/d + dedup mã chuẩn (engine THẬT, CT-A KC)")
     import tools_core as _tc
     # _ma_key (bảo thủ, GIỮ đ/d): gộp inline/spatial CÙNG nhãn (khử annotation) NHƯNG KHÔNG gộp 2 loại khác cùng mã trần
     _emit("_ma_key: 'ĐC-3 (SL-25)' == 'ĐC-3' (khử annotation -> gộp inline/spatial)",

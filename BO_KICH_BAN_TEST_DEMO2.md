@@ -1,6 +1,6 @@
-# BỘ KỊCH BẢN TEST DEMO 2 (kèm đáp án) — file "1. Kien truc MN Gia Loc.dwg"
+# BỘ KỊCH BẢN TEST DEMO 2 (kèm đáp án) — file "1. Kien truc CT-A.dwg"
 
-> **Cách dùng:** mở demo 2 → tải file `1. TKBVTC kien truc MN Gia Loc 091124.dwg` (file cửa đối tác hay dùng)
+> **Cách dùng:** mở demo 2 → tải file `1. TKBVTC kien truc CT-A 091124.dwg` (file cửa đối tác hay dùng)
 > → hỏi từng câu ở cột **Câu hỏi** → so câu trả lời của demo với cột **Đáp án chuẩn**.
 > Đáp án chuẩn = số THẬT đọc từ chính file (mình đã kiểm chứng độc lập). Bạn không cần mở AutoCAD.
 
@@ -116,7 +116,7 @@ Bạn lo đúng: demo 1 test xong hết nhưng đối tác hỏi câu lạ vẫn
 ---
 ---
 
-# PHẦN 2 — BỘ TEST FILE KẾT CẤU ("2. KetCau MN GiaLoc.dwg")
+# PHẦN 2 — BỘ TEST FILE KẾT CẤU ("2. KetCau CT-A.dwg")
 
 > Tải file kết cấu lên demo 2 rồi hỏi. Đây là file **thép 67 tấn, cột/dầm/đài/cọc** — kiểm đa dạng domain khác kiến trúc.
 

@@ -37,7 +37,7 @@ ODA File Converter chuyển .dwg→.dxf. **KHÔNG cần AutoCAD → deploy cloud
 - ✅ **TODO #1 — Cấu kiện KHÔNG tồn tại:** `tinh_dai_luong` giờ kiểm tra TẤT ĐỊNH mã cấu kiện có xuất hiện trong
   bản vẽ không (helper `_cau_kien_hien_dien`, dựa token mã có chữ số + `_tok_bound`). Vắng mặt hoàn toàn → trả
   `khong_tim_thay=true` (đối tác chưa cấp số) thay vì mời nhập thông số. SYSTEM_PROMPT luật 10 + docstring tool cập nhật.
-  Test tất định 14/14 PASS trên 3 domain (KT/KC MN Gia Lộc + Bảng TK cửa): cấu kiện thật KHÔNG báo nhầm, giả bắt đúng.
+  Test tất định 14/14 PASS trên 3 domain (KT/KC CT-A + Bảng TK cửa): cấu kiện thật KHÔNG báo nhầm, giả bắt đúng.
   End-to-end 3/3 PASS (GL9→không tìm thấy; D1→84.24m²; C1→hỏi chiều cao).
 - 📋 **Rà soát parity demo 1 ↔ demo 2:** phát hiện 2 điểm LỆCH — (1) demo 1 CHƯA có xử lý "cấu kiện không tồn tại", còn
   trả NHẦM ("cột GL9"→9 cấu kiện, `tinh_duoc=True`); (2) diện tích cửa D1 demo 2 tính được (gán dim) còn demo 1 chưa.
@@ -97,7 +97,7 @@ ODA File Converter chuyển .dwg→.dxf. **KHÔNG cần AutoCAD → deploy cloud
 - ✅ **Phát hiện dữ liệu thật:** tiết diện cột 9T dùng **chữ X HOA** `(80X80)` → regex cũ `[x×*]` (x thường) không bắt →
   đổi `[xX×*]`. Đã flag cho demo 1 tự kiểm ở `../BAN_GIAO_DEMO1_9T_XHOA_PARITY.md`.
 - ✅ **Kết quả (probe + test tất định):** 9T đọc **9 cột** (C-1..C-9) quy ước cm; **C-3 = 80×80cm → 23.04 m³ KHỚP demo 1**
-  (cross-consistency). Gia Lộc KHÔNG đổi: C1 = 220×220mm → 4.704 m³, không cảnh báo nhiễu (file mm sạch). `mcp_bridge.py`
+  (cross-consistency). CT-A KHÔNG đổi: C1 = 220×220mm → 4.704 m³, không cảnh báo nhiễu (file mm sạch). `mcp_bridge.py`
   SYSTEM_PROMPT thêm luật cảnh báo đơn vị suy đoán. Test `test_takeoff_chong_bia.py` thêm nhóm **[I]** → **50/50 PASS**; QA đọc **129/129** giữ nguyên.
 
 ## Vừa xong (2026-07-09) — CHỐT demo 2 + tính năng INOX (feedback đối tác) + hardening đối kháng

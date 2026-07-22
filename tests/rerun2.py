@@ -9,10 +9,11 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.normpath(os.path.join(HERE, "..")))
 import mcp_bridge
 
+from corpus_local import KT, KC, HT   # corpus THAT giu ngoai repo (gitignored)
 FILES = {
-    "kientruc": (r"D:/Dat-Antigravity/HeThongThiCongXayDung-AnhTu/input_files/_dxf/BV+DT MN Gia Loc/1. Kien truc MN Gia Loc.dxf", "KIẾN TRÚC"),
-    "ketcau":   (r"D:/Dat-Antigravity/HeThongThiCongXayDung-AnhTu/input_files/_dxf/BV+DT MN Gia Loc/2. KetCau MN GiaLoc.dxf", "KẾT CẤU"),
-    "hatang":   (r"D:/Dat-Antigravity/HeThongThiCongXayDung-AnhTu/demo_doc_autocad/_uploads/rachmop.dxf", "HẠ TẦNG"),
+    "kientruc": (KT, "KIẾN TRÚC"),
+    "ketcau":   (KC, "KẾT CẤU"),
+    "hatang":   (HT, "HẠ TẦNG"),
 }
 TRAP_ON = "kientruc"
 

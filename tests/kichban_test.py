@@ -1,13 +1,13 @@
 # -*- coding: utf-8 -*-
 """Chạy BỘ KỊCH BẢN TEST (tổng quát -> chi tiết -> phức tạp -> bẫy) trên demo 2 (2.5-flash)
-để lấy ĐÁP ÁN THẬT + đối chiếu ground truth. File: KIẾN TRÚC MN Gia Lộc (file cửa đối tác dùng)."""
+để lấy ĐÁP ÁN THẬT + đối chiếu ground truth. File: KIẾN TRÚC CT-A (file cửa đối tác dùng)."""
 import os, sys, io, json, time
 os.environ["READFILE_MAX_MB"] = "300"; os.environ["GEMINI_MODEL"] = "gemini-2.5-flash"
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 sys.path.insert(0, os.path.normpath(os.path.join(os.path.dirname(__file__), "..")))
 import mcp_bridge
 
-F = r"D:/Dat-Antigravity/HeThongThiCongXayDung-AnhTu/input_files/_dxf/BV+DT MN Gia Loc/1. Kien truc MN Gia Loc.dxf"
+from corpus_local import KT as F   # corpus THAT giu ngoai repo (gitignored)
 # (câu hỏi, nhóm, đáp án chuẩn từ ground truth)
 QS = [
  ("Có bao nhiêu layer trong bản vẽ?", "TỔNG QUÁT", "141 layer"),

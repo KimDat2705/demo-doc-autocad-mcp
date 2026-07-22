@@ -18,4 +18,8 @@ tests/verify*_chunks/
 tests/battery.json
 tests/kichban*_ketqua.*
 
+# AN DANH DU LIEU MAU: duong dan corpus THAT (ten thu muc/file khach hang) — KHONG commit.
+# Chi commit corpus_local.example.py (mau, khong co ten that). Xem harness/QUY_TRINH_AN_DANH_DU_LIEU_MAU.md
+tests/corpus_local.py
+
 # LƯU Ý: vendor/ODAFileConverter.deb PHẢI commit lên repo (Render build Docker cần) -> dùng repo PRIVATE.

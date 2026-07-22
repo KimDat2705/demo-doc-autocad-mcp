@@ -159,7 +159,7 @@
    "cau_hoi": "Co bao nhieu cua di (door) D1 trong ban ve?",
    "ky_vong": "Day la file ha tang khao sat dia hinh + bien bao giao thong, KHONG co cua/bang cua. Co layer DOOR/A-DOOR nhung khong co text/bang cua D1. Phai tra loi khong co du lieu cua, khong bia.",
    "loi_san": "lac de",
-   "answer": "Không có thông tin về cửa đi (door) D1 trong bản vẽ này. \n\nBản vẽ hiện tại là bản vẽ **HẠ TẦNG rachmop** (chủ yếu thể hiện các hạng mục hạ tầng, kênh dẫn, cọc, v.v.), không chứa các cấu kiện kiến trúc như cửa đi D1.",
+   "answer": "Không có thông tin về cửa đi (door) D1 trong bản vẽ này. \n\nBản vẽ hiện tại là bản vẽ **HẠ TẦNG CT-K** (chủ yếu thể hiện các hạng mục hạ tầng, kênh dẫn, cọc, v.v.), không chứa các cấu kiện kiến trúc như cửa đi D1.",
    "anh_id": null,
    "n_evidence": 9,
    "handles": [

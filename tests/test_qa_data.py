@@ -28,10 +28,11 @@ def _load_demo1():
     spec.loader.exec_module(m)
     return m
 
+from corpus_local import KT, KC, HT   # corpus THAT giu ngoai repo (gitignored)
 FILES = [
-    ("KIẾN TRÚC", r"D:/Dat-Antigravity/HeThongThiCongXayDung-AnhTu/input_files/_dxf/BV+DT MN Gia Loc/1. Kien truc MN Gia Loc.dxf"),
-    ("KẾT CẤU",  r"D:/Dat-Antigravity/HeThongThiCongXayDung-AnhTu/input_files/_dxf/BV+DT MN Gia Loc/2. KetCau MN GiaLoc.dxf"),
-    ("HẠ TẦNG",  r"D:/Dat-Antigravity/HeThongThiCongXayDung-AnhTu/demo_doc_autocad/_uploads/rachmop.dxf"),
+    ("KIẾN TRÚC", KT),
+    ("KẾT CẤU",  KC),
+    ("HẠ TẦNG",  HT),
 ]
 KEYWORDS = ["bê tông", "thép", "Ø16", "cửa", "móng", "cột", "dầm", "cống", "rãnh", "mương", "BTCT", "mác"]
 

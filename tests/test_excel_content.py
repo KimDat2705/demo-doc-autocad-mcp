@@ -16,8 +16,11 @@ sys.path.insert(0, os.path.normpath(os.path.join(HERE, "..")))
 from tools_core import Drawing, RENDER_DIR
 
 BASE = os.path.normpath(os.path.join(HERE, "..", "..", "input_files", "_dxf"))
-KT = os.path.join(BASE, "BV+DT MN Gia Loc", "1. Kien truc MN Gia Loc.dxf")
-KC = os.path.join(BASE, "BV+DT MN Gia Loc", "2. KetCau MN GiaLoc.dxf")
+# Ten thu muc/file that giu NGOAI repo (gitignored) — xem corpus_local.example.py
+try:
+    from corpus_local import KT, KC
+except Exception:
+    KT = KC = ""
 
 PASS = FAIL = SKIP = 0
 

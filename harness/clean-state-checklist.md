@@ -38,7 +38,7 @@ Chạy TRƯỚC mỗi commit và cuối mỗi phiên (một phiên = một "tran
 - [ ] **E2E-AI (TỐN API, NGOÀI cổng):** `tests/run_battery.py` 198 câu + `tests/kichban_gd2.py` 12 lượt (đối chiếu engine-truth) — KPI ~0% bịa (đã đo ~1.1% bịa cứng 2026-07-13, đều edge-case)
 
 ## Tổng quát (chống overfit)
-- [ ] Quy ước mới nhận diện → test trên **≥3 file khác domain** (9T cm / Gia Lộc mm / hạ tầng)
+- [ ] Quy ước mới nhận diện → test trên **≥3 file khác domain** (9T cm / CT-A mm / hạ tầng)
 - [ ] Mỗi quy ước/fix mới → thêm 1 ca vào `tests/test_takeoff_chong_bia.py` (đặc biệt ca ĐỐI KHÁNG "gặp lạ → không bịa")
 
 ## Repo / Bảo mật

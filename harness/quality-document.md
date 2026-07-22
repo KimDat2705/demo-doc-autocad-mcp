@@ -14,7 +14,7 @@
 | Chống bịa / ảo giác | **A** | mã giả→không tìm thấy; inf/tràn/bool→chặn; **workflow đối kháng bắt+vá lỗ inf + 3 lỗ bịa số** |
 | **Takeoff / TÍNH khối lượng** | **A** | 12 công thức; cửa 84.24 m²; cột 4.704 m³; inox S1 137.92 kg; 9T C-3 23.04 m³ (cm) |
 | Trực quan (khoanh đỏ ảnh) | **A** | render_region + highlight + largest_cluster; điểm khác biệt cốt lõi demo 2 |
-| Tổng quát / chống overfit | **A** | 9T(cm)/Gia Lộc(mm)/hạ tầng — cm/mm tự nhận ngưỡng 130; test đa-domain |
+| Tổng quát / chống overfit | **A** | 9T(cm)/CT-A(mm)/hạ tầng — cm/mm tự nhận ngưỡng 130; test đa-domain |
 | Phân tầng độ tin cậy | **B+** | cờ verbatim/gán-vị-trí/suy_doan_don_vi/tạm-tính; gán-dim còn tinh chỉnh |
 | Test hồi quy | **A** | test_takeoff_chong_bia 76/76 (13 nhóm A-M) + đọc 129/129, offline |
 | Deploy + verify cloud | **A** | Render live + `/version` (commit + sect_cm_max=130); nhiều lần commit→push→verify |

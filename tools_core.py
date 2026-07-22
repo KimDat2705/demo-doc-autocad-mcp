@@ -129,7 +129,7 @@ _TIETDIEN_RE = re.compile(r"(\d{2,4})\s*[xX×*]\s*(\d{2,4})")  # '220x220', '(22
 
 # ---- ĐƠN VỊ tiết diện cm/mm (port demo 1: DATA-DRIVEN + ngưỡng 130 + cờ mơ hồ; KHÔNG 'mặc định mm') ----
 # Bản vẽ VN thật tồn tại CẢ HAI quy ước và 0 file ghi rõ đơn vị: file cm cạnh ≤110 (nhà 9T: 22x40..80x80 cm),
-# file mm cạnh ≥220 (Gia Lộc/fixture: 220x400 mm) -> KHOẢNG TRỐNG [111,219]; 130 nằm giữa + trên cạnh-cm lớn
+# file mm cạnh ≥220 (CT-A/fixture: 220x400 mm) -> KHOẢNG TRỐNG [111,219]; 130 nằm giữa + trên cạnh-cm lớn
 # nhất quan sát (110) + dưới ngưỡng cần (140 phải ra mm). 'Mặc định mm' sẽ đọc sai 12 cột 9T (cm) thành 1/100.
 _SECT_CM_MAX = 130
 _SECT_PAIR_R = 1500   # bán kính ghép MÃ↔TIẾT DIỆN theo tọa độ (bảng cột: mã và 'AxB' ở text riêng)
@@ -516,13 +516,14 @@ _ELEV_IN_RE = re.compile(r"(?:([+±])|(?<![\w.])(-))\s*(\d{1,2}[.,]\d{3})(?![\d]
 _FLOOR_H_LO, _FLOOR_H_HI = 2.5, 5.0   # chiều cao 1 TẦNG hợp lý (loại chiếu nghỉ/tầng lửng ~1.8, móng ~0.6)
 
 # id135-recall: MIN/MAX cao độ RAW (KHÔNG lọc tần suất ≥4 như _build_levels — đó là lý do id135 miss mốc sâu thưa).
-# Mở rộng 1-3 chữ số nguyên (công trình >99m) + 2-3 thập phân (id135 -14.26 = 2; Gia Lộc -1.850 = 3). BẮT BUỘC dấu +/-/±.
+# Mở rộng 1-3 chữ số nguyên (công trình >99m) + 2-3 thập phân (id135 -14.26 = 2; CT-A -1.850 = 3). BẮT BUỘC dấu +/-/±.
 _CD_STD = re.compile(r"^([+\-±])\s*(\d{1,3})[.,](\d{2,3})$")                              # marker đứng riêng
-# FIX (GĐ4): BỎ `\s*` giữa dấu và số ở nhánh INLINE. Ký hiệu cao độ luôn viết dấu DÍNH LIỀN ('-2.700');
-# '- ' có khoảng trắng là GẠCH PHÂN CÁCH -> 'CH - 2.700' (CHIỀU CAO 2.7m, 9T KT, layer 'Net Text') từng bị
-# đọc thành cao độ -2.7 (FP parser). Lọc theo HÌNH THỨC KÝ HIỆU, KHÔNG theo tần suất/cô lập -> id135
-# (-14.26 viết dấu dính liền) KHÔNG bị ảnh hưởng. Standalone (_CD_STD) giữ nguyên vì đã là marker rõ ràng.
-_CD_INL = re.compile(r"(?:^|[\s(=:,])([+±]|(?<![\w.])-)(\d{1,3})[.,](\d{2,3})(?![\d])")  # trong đoạn dài (biên trái sạch)
+# FIX (GĐ4 v2 — sau red-team): _CD_INL KHÔI PHỤC \s* (nhóm 2 = gap) để thu lại mốc THẬT viết DẤU CÁCH
+# ('cốt + 7.690','+ 8.500','CÈT + 9.800' — audit bác tiền đề "cao độ luôn dính liền"). NHƯNG '-' DẤU CÁCH
+# ('CH - 2.700' FP ≡ 'cốt - 14.260' id135 — ĐỒNG DẠNG HÌNH THỨC 'WORD - n.nnn', KHÔNG luật hình-thức nào
+# tách được, mà nhãn thì VỠ GARBLE) -> KHÔNG nạp min/max, ĐẨY canh_bao ở cao_do_min_max (LỘ, không bịa,
+# miễn nhiễm garble). '+'/'±' dấu cách -> nạp bình thường (bền, không FP). Nhóm: 1=dấu 2=gap 3=nguyên 4=thập.
+_CD_INL = re.compile(r"(?:^|[\s(=:,])([+±]|(?<![\w.])-)(\s*)(\d{1,3})[.,](\d{2,3})(?![\d])")  # trong đoạn dài (biên trái sạch)
 _CD_STEEL_LAYER = re.compile(r"thep|sothep|rebar", re.I)   # G3: layer thép -> giá trị thép, KHÔNG phải cao độ (semantic)
 
 def _cd_val(sign, intp, decp):
@@ -1241,9 +1242,12 @@ class Drawing:
                 gc += " ⚠ Có mã SL KHÁC NHAU giữa 2 nguồn (xem 'canh_bao') — cần đối chiếu, KHÔNG cộng dồn."
             return {"tu_khoa": tk, "co_ghi_so_luong": True, "so_muc_co_ghi": len(stated),
                     "danh_sach_so_luong": stated[:40], "ghi_chu": gc}
-        return {"tu_khoa": tk, "co_ghi_so_luong": False, "so_muc_co_ghi": 0, "danh_sach_so_luong": [],
+        # F1 (GĐ4): kết quả ÂM ('không ghi số lượng') trên file có OLE -> phải LỘ 'máy không đọc được bảng nhúng'
+        # thay vì để đối tác hiểu 'bản vẽ không có' (đúng failure mode rule 8c, trước chỉ cắm ở tuyến thép).
+        return self._gan_canh_bao_nhung(
+               {"tu_khoa": tk, "co_ghi_so_luong": False, "so_muc_co_ghi": 0, "danh_sach_so_luong": [],
                 "ghi_chu": ("Bản vẽ KHÔNG ghi sẵn số lượng cho '%s'. KHÔNG lấy số lần xuất hiện làm số lượng. "
-                            "Thử mã cấu kiện ngắn (vd 'D1'). Nếu thật sự không ghi -> cần bóc tách." % tk)}
+                            "Thử mã cấu kiện ngắn (vd 'D1'). Nếu thật sự không ghi -> cần bóc tách." % tk)})
 
     def liet_ke_so_luong(self, loc=None, **_):
         idx = self.qty_index or []
@@ -1253,13 +1257,15 @@ class Drawing:
                     "handle": e.get("qty_handle", e["handle"])},
                    **({"canh_bao": e["canh_bao_sl"]} if e.get("canh_bao_sl") else {})) for e in items]
         if co_loc and not ds:   # M6 — LỘ thất bại: lọc KHÔNG khớp -> báo rõ, KHÔNG âm thầm trả CẢ bảng (đối tác tưởng đã lọc)
-            return {"so_muc": 0, "danh_sach": [],
-                    "ghi_chu": "KHÔNG có mục số lượng nào khớp '%s'. Bỏ tham số lọc để xem TẤT CẢ, hoặc thử mã ngắn (vd 'D1')." % loc}
+            return self._gan_canh_bao_nhung(   # F1: lọc-không-khớp trên file OLE -> LỘ bảng nhúng máy không đọc
+                   {"so_muc": 0, "danh_sach": [],
+                    "ghi_chu": "KHÔNG có mục số lượng nào khớp '%s'. Bỏ tham số lọc để xem TẤT CẢ, hoặc thử mã ngắn (vd 'D1')." % loc})
         gc = ("Các mục CÓ GHI SỐ LƯỢNG (nhãn 'số lượng: N bộ'/'SL='). Tên có thể lỗi font "
               "('cöa'='cửa'). Số THẬT ghi trên bản vẽ, không phải đếm chữ.")
         if any("canh_bao" in d for d in ds):   # id84: LỘ xung đột SL (không im lặng)
             gc += " ⚠ Có mã SL KHÁC NHAU giữa 2 nguồn (xem 'canh_bao') — cần đối chiếu, KHÔNG cộng dồn."
-        return {"so_muc": len(ds), "danh_sach": ds[:60], "ghi_chu": gc}
+        r = {"so_muc": len(ds), "danh_sach": ds[:60], "ghi_chu": gc}
+        return self._gan_canh_bao_nhung(r) if not ds else r   # F1: danh sách RỖNG (không mã nào có SL) trên file OLE -> LỘ
 
     def tong_so_luong(self, loc=None, **_):
         co_loc = bool((loc or "").strip())
@@ -1297,7 +1303,7 @@ class Drawing:
         bên trong blob OLE → mọi số rút từ bản vẽ có thể THIẾU phần nằm trong đó. CHỈ CẢNH BÁO, KHÔNG đổi số.
 
         Vì sao cần: GĐ4 (corpus 8 firm) đo được **19/65 file có OLE**. Ca nặng: '4. Thong ke thep SUA.dwg'
-        (Ninh Hải) — cả bảng thống kê thép nằm trong 8 OLE → engine đọc 0 thanh thép và trả 'bản vẽ KHÔNG có
+        (CT-D) — cả bảng thống kê thép nằm trong 8 OLE → engine đọc 0 thanh thép và trả 'bản vẽ KHÔNG có
         bảng thống kê thép', trong khi file TÊN LÀ 'thống kê thép'. Câu đó khiến đối tác hiểu SAI (tưởng
         bản vẽ thiếu bảng) → phải nói rõ 'có bảng nhưng máy không đọc được'. (Thất bại phải lộ.)"""
         ole = getattr(self, "ole_nhung", None) or []
@@ -1427,11 +1433,13 @@ class Drawing:
         don_vi = {4: "mm", 5: "cm", 6: "m"}.get(insunits)
         ct = ("bản vẽ khai $INSUNITS=%d (%s)" % (insunits, don_vi) if don_vi
               else "bản vẽ KHÔNG khai $INSUNITS -> đơn vị CHƯA CHẮC mm; giá trị RẤT LỚN có thể là toạ độ/khoảng, không phải kích thước cấu kiện")
-        return {"so_duong_kich_thuoc": len(self.dims),
-                "nho_nhat_mm": dv[0] if dv else None, "lon_nhat_mm": dv[-1] if dv else None,
-                "gia_tri_pho_bien_mm": pho_bien, "don_vi_khai_bao": don_vi,
-                "ghi_chu": "Đường kích thước (DIMENSION); trường '_mm' theo GIẢ ĐỊNH mm (%s). gia_tri_pho_bien = giá trị "
-                           "NHIỀU NHẤT (thường bước cột/nhịp); lớn nhất KHÔNG chắc là kích thước tổng công trình." % ct}
+        r = {"so_duong_kich_thuoc": len(self.dims),
+             "nho_nhat_mm": dv[0] if dv else None, "lon_nhat_mm": dv[-1] if dv else None,
+             "gia_tri_pho_bien_mm": pho_bien, "don_vi_khai_bao": don_vi,
+             "ghi_chu": "Đường kích thước (DIMENSION); trường '_mm' theo GIẢ ĐỊNH mm (%s). gia_tri_pho_bien = giá trị "
+                        "NHIỀU NHẤT (thường bước cột/nhịp); lớn nhất KHÔNG chắc là kích thước tổng công trình." % ct}
+        # F1 (GĐ4): 0 đường kích thước trên file có OLE -> LỘ 'kích thước có thể nằm trong bảng nhúng máy không đọc'
+        return self._gan_canh_bao_nhung(r) if not self.dims else r
 
     def thong_tin_tang(self, **_):
         """GĐ2c: BÁO cao độ + chiều cao tầng điển hình + số tầng ƯỚC TÍNH. KHÔNG tự bơm vào tính toán (an toàn)."""
@@ -1452,22 +1460,39 @@ class Drawing:
         KHÁC thong_tin_tang: KHÔNG lọc tần suất ≥4 / KHÔNG cluster (nếu lọc sẽ BỎ mốc sâu/cao thưa thớt = lỗi id135).
         Chống bịa: 0 marker -> co_cao_do=False (LỘ thất bại); loại marker trên layer THÉP khỏi min/max (giá trị thép,
         không phải cao độ) nhưng LỘ ở 'canh_bao'; 'nghi_ngo'=true cho extreme outlier cô lập / dạng inline."""
-        found = []
-        for t in self.texts:
+        found, am_cach = [], []   # am_cach: '-' dạng CÁCH inline ('WORD - n.nnn') — đồng dạng id135 'cốt - 14.260',
+        for t in self.texts:      #          KHÔNG nạp min/max (không bịa), LỘ ở canh_bao (không mất âm thầm).
             vn = (t.get("vn") or "").strip()
             ss = vn.replace(" ", "")
             m = _CD_STD.match(ss)
-            if m:
+            if m:   # marker ĐỨNG RIÊNG (cả ô chỉ là dấu+số, kể cả '- 14.260') -> rõ ràng, nạp min/max
                 found.append({"v": _cd_val(m.group(1), m.group(2), m.group(3)), "handle": t["handle"],
                               "layer": t.get("layer") or "", "nguyen_van": vn, "dang": "standalone"})
                 continue
             for mi in _CD_INL.finditer(vn):
-                found.append({"v": _cd_val(mi.group(1), mi.group(2), mi.group(3)), "handle": t["handle"],
-                              "layer": t.get("layer") or "", "nguyen_van": vn, "dang": "inline"})
+                sign, gap = mi.group(1), mi.group(2)
+                rec = {"v": _cd_val(sign, mi.group(3), mi.group(4)), "handle": t["handle"],
+                       "layer": t.get("layer") or "", "nguyen_van": vn, "dang": "inline"}
+                if sign == "-" and gap:   # '-' CÓ dấu cách trong đoạn dài -> mập mờ (FP chiều-cao vs id135) -> canh_bao
+                    am_cach.append(rec)
+                else:                     # '+'/'±' (mọi gap) + '-' dính liền -> nạp min/max như thường
+                    found.append(rec)
+
+        def _cb_am_cach(f):   # item canh_bao cho '-' dạng cách: LỘ để đối chiếu tay, KHÔNG vào min/max
+            return {"gia_tri_m": f["v"], "handle": f["handle"], "layer": f["layer"], "nguyen_van": f["nguyen_van"],
+                    "dang": "inline_cach", "ly_do": "cao độ ÂM dạng CÁCH ('X - n.nnn') — đồng dạng nhãn chiều-cao/"
+                    "kích-thước (vd 'CH - 2.700') VÀ mốc sâu thật (vd 'cốt - 14.260'); KHÔNG tách được theo hình thức "
+                    "→ loại khỏi min/max, đối chiếu TAY nếu là cao độ."}
+        cb_am = [_cb_am_cach(f) for f in am_cach]
         if not found:
-            return {"co_cao_do": False, "so_marker": 0,
-                    "ghi_chu": "Bản vẽ KHÔNG có marker cao độ (dấu +/-/± kèm 2-3 số thập phân) đọc được → "
-                               "KHÔNG đọc được cao độ thấp/cao nhất CÓ CĂN CỨ. Đừng ước/đoán một con số."}
+            r = {"co_cao_do": False, "so_marker": 0,
+                 "ghi_chu": "Bản vẽ KHÔNG có marker cao độ (dấu +/-/± kèm 2-3 số thập phân) đọc được → "
+                            "KHÔNG đọc được cao độ thấp/cao nhất CÓ CĂN CỨ. Đừng ước/đoán một con số."}
+            if cb_am:   # có '-' dạng cách nhưng không marker rõ nào -> LỘ ở canh_bao thay vì im lặng bỏ
+                r["canh_bao"] = cb_am
+                r["ghi_chu"] += (" ⚠ Có %d marker ÂM dạng CÁCH (xem canh_bao) — không đủ căn cứ nạp min/max, "
+                                 "đối chiếu tay." % len(cb_am))
+            return r
         thep = [f for f in found if _CD_STEEL_LAYER.search(f["layer"])]     # G3
         pool = [f for f in found if not _CD_STEEL_LAYER.search(f["layer"])]
         if not pool:
@@ -1479,7 +1504,7 @@ class Drawing:
                     "canh_bao": [{"gia_tri_m": f["v"], "handle": f["handle"], "layer": f["layer"],
                                   "nguyen_van": f["nguyen_van"], "dang": f["dang"],
                                   "ly_do": "trên layer thép/số-thép → nghi là GIÁ TRỊ THÉP, không phải cao độ"}
-                                 for f in thep],
+                                 for f in thep] + cb_am,   # F4: gộp cả marker ÂM dạng cách (LỘ)
                     "ghi_chu": "MỌI marker đọc được đều nằm trên layer THÉP (là giá trị thép, KHÔNG phải cao độ) "
                                "→ KHÔNG đọc được cao độ CÓ CĂN CỨ. Xem 'canh_bao' để đối chiếu. "
                                "⛔ Đừng lấy số trong 'canh_bao' làm cao độ; đừng ước/đoán một con số."}
@@ -1511,7 +1536,7 @@ class Drawing:
                     "nguyen_van": f["nguyen_van"], "dang": f["dang"], "nghi_ngo": _nghi(f)}
         lo = min(pool, key=lambda f: f["v"]); hi = max(pool, key=lambda f: f["v"])
         canh_bao = [dict(_item(f), ly_do="trên layer thép/số-thép → nghi là GIÁ TRỊ THÉP, không phải cao độ (đã loại khỏi min/max)")
-                    for f in thep]
+                    for f in thep] + cb_am   # F4: marker ÂM dạng cách LỘ ở đây (không nạp min/max, không mất âm thầm)
         return {"co_cao_do": True, "so_marker": len(pool),
                 "cao_do_thap_nhat_m": lo["v"], "thap_nhat": _item(lo),
                 "cao_do_cao_nhat_m": hi["v"], "cao_nhat": _item(hi),

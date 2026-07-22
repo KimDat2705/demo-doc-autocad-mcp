@@ -6,9 +6,7 @@ sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 sys.path.insert(0, os.path.normpath(os.path.join(os.path.dirname(__file__), "..")))
 from tools_core import Drawing
 
-KT = r"D:/Dat-Antigravity/HeThongThiCongXayDung-AnhTu/input_files/_dxf/BV+DT MN Gia Loc/1. Kien truc MN Gia Loc.dxf"
-KC = r"D:/Dat-Antigravity/HeThongThiCongXayDung-AnhTu/input_files/_dxf/BV+DT MN Gia Loc/2. KetCau MN GiaLoc.dxf"
-HT = r"D:/Dat-Antigravity/HeThongThiCongXayDung-AnhTu/demo_doc_autocad/_uploads/rachmop.dxf"
+from corpus_local import KT, KC, HT   # corpus THAT giu ngoai repo (gitignored)
 
 
 def show(title, val):

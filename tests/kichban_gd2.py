@@ -10,8 +10,7 @@ sys.path.insert(0, os.path.normpath(os.path.join(HERE, "..")))
 import mcp_bridge
 from tools_core import Drawing
 
-KT = r"D:/Dat-Antigravity/HeThongThiCongXayDung-AnhTu/input_files/_dxf/BV+DT MN Gia Loc/1. Kien truc MN Gia Loc.dxf"
-KC = r"D:/Dat-Antigravity/HeThongThiCongXayDung-AnhTu/input_files/_dxf/BV+DT MN Gia Loc/2. KetCau MN GiaLoc.dxf"
+from corpus_local import KT, KC   # corpus THAT giu ngoai repo (gitignored)
 
 # Mỗi scenario: (nhom, file, [turns]); mỗi turn = (cau_hoi, engine_call|None). engine_call=(ten,ma,bs).
 SCEN = [

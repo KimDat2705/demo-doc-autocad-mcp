@@ -4,7 +4,7 @@ Chạy:  python tests/test_misc_tools.py
 
 Kiểm SHAPE + BẤT BIẾN (không bịa số kỳ vọng) của:
   dem_so_luong, tong_so_luong (có/không lọc), thong_ke_thep_hinh,
-  liet_ke_block, liet_ke_sheet, liet_ke_layer  — trên KT/KC Gia Lộc.
+  liet_ke_block, liet_ke_sheet, liet_ke_layer  — trên KT/KC CT-A.
 Bất biến dùng: tong == Σ breakdown; tập con; nhất quán đếm; kiểu dữ liệu.
 Fixture thiếu -> BO QUA (không crash)."""
 import os, sys, io
@@ -15,8 +15,11 @@ sys.path.insert(0, os.path.normpath(os.path.join(HERE, "..")))
 from tools_core import Drawing
 
 BASE = os.path.normpath(os.path.join(HERE, "..", "..", "input_files", "_dxf"))
-KT = os.path.join(BASE, "BV+DT MN Gia Loc", "1. Kien truc MN Gia Loc.dxf")
-KC = os.path.join(BASE, "BV+DT MN Gia Loc", "2. KetCau MN GiaLoc.dxf")
+# Ten thu muc/file that giu NGOAI repo (gitignored) — xem corpus_local.example.py
+try:
+    from corpus_local import KT, KC
+except Exception:
+    KT = KC = ""
 
 PASS = FAIL = SKIP = 0
 
@@ -169,7 +172,7 @@ def chay(dwg, ten):
 
 
 def main():
-    for path, ten in [(KT, "KT Gia Lộc"), (KC, "KC Gia Lộc")]:
+    for path, ten in [(KT, "KT CT-A"), (KC, "KC CT-A")]:
         if not os.path.isfile(path):
             skip(ten, "khong thay fixture (%s)" % path)
             continue
