@@ -9,6 +9,20 @@
 > Mới nhất ở TRÊN CÙNG. Bàn giao đầy đủ: `session-handoff.md`. Nhật ký chi tiết hơn nữa: `../GHI_CHU_HOAN_THIEN.md`.
 
 ---
+## Session 2026-07-22 — AUDIT phiên GĐ4 (34-agent) + vá bó F1/F4/test (đối kháng, tự-repro)
+**User yêu cầu:** rà soát tester chuyên nghiệp mọi thay đổi phiên GĐ4 TRƯỚC khi đi tiếp, rồi triển khai bó vá (red-team F4 trước khi code).
+
+**AUDIT (workflow 34-agent: 6 mảng review → skeptic-verify từng finding → synth):** 23 CONFIRMED/1 xác-minh-dương · 4 BÁC BỎ · **0 bug lớp nghiêm trọng** (không đổi số/crash/mất code). Git toàn vẹn sau rebase+filter-repo+restore (5/5 CONFIRMED tốt: main có đủ fix, .deb tracked, Dockerfile private, public-ready sạch, origin==local). id135 an toàn. Tôi TỰ kiểm chứng lại 2 finding chính (không tin judge mù) → cả 2 CONFIRM.
+- **F1 (TB) — cảnh báo OLE cắm THIẾU chỗ:** `tra_cuu_so_luong`/`liet_ke_so_luong`/`thong_tin_kich_thuoc` trả kết-quả-âm trên file 8-OLE mà KHÔNG mang `canh_bao_nhung` = đúng failure mode rule 8c định chống, tôi chỉ cắm ở tuyến thép.
+- **F4 (tiền đề SAI) — `_CD_INL` bỏ `\s*`:** comment "cao độ luôn dính liền" bị corpus bác — có mốc THẬT dạng cách `'cốt + 7.690'`,`'+ 8.500'`,`'± 0.000'`,`'CÈT + 9.800'`; fix cũ bỏ hết (min/max chưa đổi nhưng cơ chế sai trục + latent id135-loss).
+- **D6 — tôi tự rút lại claim RAM:** "45MB×11.3=577MB→OOM" SAI (11.3x đo ở file 26.5MB, không phải ≤45MB = ngoại suy sai). Rủi ro OOM thật ở cơ chế khác: bỏ quên `MAX_SESSIONS=4`.
+
+**VÁ (gate [22/22] · takeoff 258 · qa 129 · cao_do 27→31 · ole 25→37 · 0 regress):**
+- **F1:** `_gan_canh_bao_nhung` cắm vào 3 tuyến CHỈ KHI kết quả RỖNG (gate-on-empty chống nhiễu: file OLE-khung-tên vẫn tra thấy số → KHÔNG cảnh báo). Verify: Gia Lộc KT 2-OLE tra thấy 38 mục → không cảnh báo.
+- **F4 (RED-TEAM TRƯỚC KHI CODE, workflow 4-agent → GO_WITH_ADJUSTMENTS):** red-team BÁC thiết kế blacklist-nhãn của tôi (vỡ garble 2 chiều) VÀ Design-B chỉ-+/± (drop id135 `cốt - 14.260`). **Thiết kế CHỐT:** `_CD_INL` khôi phục `\s*` (nhóm gap) → `+`/`±` mọi gap + `-` dính liền → min/max; **`-` DẤU CÁCH ('WORD - n.nnn', đồng dạng FP `CH-2.700` VÀ id135 `cốt-14.260`, KHÔNG tách được hình thức, nhãn vỡ garble) → đẩy `canh_bao` (LỘ, không bịa min, miễn nhiễm garble)**. Verify engine thật: id135 dạng cách → canh_bao; FP CH → canh_bao (min giữ -1.6); thu lại `+7.69/+8.5/+9.8`; standalone/dính-liền vẫn min/max; **số verify GIỮ NGUYÊN** (KC -1.85, KT -2.1, 9T -1.6). + prompt rule 8: hỏi độ sâu mà canh_bao có marker-âm-cách → PHẢI nêu "cần đối chiếu tay".
+- **Test (D5):** thêm ca motivating synthetic (bảng thép TRONG OLE → co_bang=False + cảnh báo, KHÔNG cần corpus) + test khoá id135 `cốt - 14.260` phải trong canh_bao (yêu cầu red-team).
+
+---
 ## Session 2026-07-17 — GĐ4 ĐA-DOMAIN (corpus 8 firm VỀ): vá OLE + 3 bug red-team + BÁC BỎ 2 "bug" tự nghĩ ra — ✅ LIVE `7188c3c`
 > **✅ COMMIT `7188c3c` + REBASE đảo thứ tự + PUSH + DEPLOY + VERIFY LIVE** (`/version`=7188c3c khớp + `/health` ok=true). HELD (render.yaml nâng RAM) đảo lên TRÊN, **hash mới `f025ad7`** (cũ `969822a`), vẫn CỐ Ý chưa push. Backup: `backup-truoc-rebase-20260717`. Commit fix KHÔNG chạm render.yaml → deploy giữ `plan: free`, không dính billing.
 **Corpus ĐÃ VỀ** `input_files\` (8 công trình mới, 62 dwg/168MB, không nén) → **66 file / 10 nhóm**. Chạy `tests/khao_sat_corpus.py` (~45'/lượt; 1 file ODA không convert nổi: ĐIỆN CT-E). **NÚT THẮT ≥3 FIRM MỞ.**
