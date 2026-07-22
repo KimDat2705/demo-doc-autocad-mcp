@@ -792,6 +792,31 @@ def _chuan_hoa_ten_dai_luong(ten):
     return None
 
 
+def _ole_ngoai_modelspace(doc):
+    """F2 (GĐ4) — gom OLE2FRAME ở MỌI paperspace layout (NGOÀI modelspace). Bảng Excel nhúng thường đặt ở
+    layout IN ẤN; trước chỉ quét modelspace nên bị bỏ sót -> tool báo 'bản vẽ không có' nhầm. Fail-soft
+    (nuốt lỗi API từng layout). ⚠ CÒN LATENT: OLE lồng trong ĐỊNH NGHĨA BLOCK vẫn có thể lọt (ezdxf không mở
+    INSERT); chưa quét vì rủi ro đếm nhầm OLE trong khung-tên/thư-viện chưa dùng (hardening sau)."""
+    out = []
+    try:
+        names = list(doc.layout_names())
+    except Exception:
+        return out
+    for lname in names:
+        if lname == "Model":
+            continue
+        try:
+            for e in doc.layout(lname):
+                if e.dxftype() == "OLE2FRAME":
+                    try:
+                        out.append({"handle": e.dxf.handle, "layer": e.dxf.get("layer"), "khong_gian": "paperspace"})
+                    except Exception:
+                        out.append({"handle": None, "layer": None, "khong_gian": "paperspace"})
+        except Exception:
+            continue
+    return out
+
+
 class Drawing:
     """Một bản vẽ đã nạp: GIỮ doc (render) + dữ liệu trích xuất (tra cứu). Chống bịa: số do CODE."""
 
@@ -892,7 +917,9 @@ class Drawing:
                                       "layer": e.dxf.get("layer"), "huong": huong, "khong_toa_do": not co_td})
                 except Exception: pass
 
-        self.ole_nhung = ole       # C (GĐ4): list {handle, layer} của OLE2FRAME (bảng Excel dán vào bản vẽ)
+        # C (GĐ4): OLE2FRAME (bảng Excel dán) ở modelspace + F2: quét thêm PAPERSPACE (layout in ấn) —
+        # trước chỉ modelspace nên bảng nhúng ở layout in bị bỏ sót -> báo 'không có' nhầm.
+        self.ole_nhung = ole + _ole_ngoai_modelspace(self.doc)
         self.texts = texts
         self._text_by_handle = {str(t["handle"]): t for t in texts}   # R4/P3: map handle->text cho RE-PARSE (KHÔNG cache SỐ)
         self.thep_att_handles = thep_att_handles                      # R4/P3: ô bảng thép đã đọc CHẮC (chống học-đè)
@@ -1344,8 +1371,11 @@ class Drawing:
         if dk:
             key = "Ø%s" % dk; row = by.get(key)
             if not row:
-                return {"co_bang_thong_ke": True, "duong_kinh": key, "co_trong_bang": False,
-                        "ghi_chu": "Không có thép %s. Các cỡ có: %s" % (key, ", ".join(by.keys()))}
+                # F3 (GĐ4): hỏi cỡ dk KHÔNG có trong bảng đọc-được, nhưng file có OLE -> cỡ đó CÓ THỂ nằm trong
+                # bảng nhúng máy không đọc -> LỘ (nhất quán với các nhánh khác; additive, không đổi số).
+                return self._gan_canh_bao_nhung(
+                       {"co_bang_thong_ke": True, "duong_kinh": key, "co_trong_bang": False,
+                        "ghi_chu": "Không có thép %s. Các cỡ có: %s" % (key, ", ".join(by.keys()))})
             return self._gan_canh_bao_nhung({
                     "co_bang_thong_ke": True, "duong_kinh": key, "co_trong_bang": True,
                     "so_thanh": row["so_thanh"], "tong_chieu_dai_m": round(row["dai_m"], 1),

@@ -180,6 +180,46 @@ def main():
     r = tc.Drawing.thong_tin_kich_thuoc(_FakeDim([]))
     ok("thong_tin_kich_thuoc 0-dim + 0-OLE -> KHONG canh bao", "canh_bao_nhung" not in r)
 
+    print("[F2] Quet OLE ca PAPERSPACE (layout in an), khong chi modelspace (audit hardening)")
+    class _FE:
+        def __init__(s, t, h="H", ly="0"):
+            s._t = t
+            s.dxf = type("d", (), {"handle": h, "get": lambda self, k, d=None: ly})()
+        def dxftype(s): return s._t
+    class _FakeDoc:
+        def __init__(s, layouts): s._l = layouts
+        def layout_names(s): return list(s._l.keys())
+        def layout(s, n): return s._l[n]
+    d = _FakeDoc({"Model": [_FE("LINE")], "Layout1": [_FE("OLE2FRAME", "PS1"), _FE("TEXT")],
+                  "Layout2": [_FE("OLE2FRAME", "PS2")]})
+    r = tc._ole_ngoai_modelspace(d)
+    ok("tim 2 OLE o paperspace (bo qua Model + TEXT)", len(r) == 2 and [x["handle"] for x in r] == ["PS1", "PS2"], r)
+    ok("danh dau khong_gian=paperspace", all(x.get("khong_gian") == "paperspace" for x in r))
+    class _BadDoc:
+        def layout_names(s): return ["Model", "Bad"]
+        def layout(s, n): raise RuntimeError("loi API")
+    ok("fail-soft: layout loi -> [] khong vo", tc._ole_ngoai_modelspace(_BadDoc()) == [])
+    ok("doc khong co layout_names -> []", tc._ole_ngoai_modelspace(object()) == [])
+    # corpus THAT: 0 paperspace-OLE -> so OLE KHONG doi (khong regress/canh bao oan)
+    if os.path.isfile(KT):
+        ok("real KT: ole_nhung van = 2 (0 paperspace, khong doi)", len(tc.Drawing(KT).ole_nhung) == 2, len(tc.Drawing(KT).ole_nhung))
+    else:
+        skip("F2 real KT")
+
+    print("[F3] thong_ke_thep nhanh co_trong_bang=False (hoi co dk vang) cung LO OLE")
+    class _FT:
+        _canh_bao_nhung = tc.Drawing._canh_bao_nhung
+        _gan_canh_bao_nhung = tc.Drawing._gan_canh_bao_nhung
+        thong_ke_thep = tc.Drawing.thong_ke_thep
+        def __init__(s, ole):
+            s.ole_nhung = ole
+            s.thep = {"by_dk": {"Ø16": {"so_thanh": 10, "dai_m": 50.0, "kg": 79.0}}}
+            s.thep_hinh = {"by_show": {}}
+    r = _FT([{"handle": "O", "layer": "0"}]).thong_ke_thep("22")   # hoi Ø22, bang chi co Ø16
+    ok("co_trong_bang=False + co OLE -> co canh_bao_nhung",
+       r.get("co_trong_bang") is False and "canh_bao_nhung" in r, r)
+    ok("cung nhanh + 0 OLE -> KHONG canh bao (khong bia)", "canh_bao_nhung" not in _FT([]).thong_ke_thep("22"))
+
     print("[C7] Tuong tac grounding-guard: canh bao KHONG lam vo guard")
     nums = B._collect_numbers({"co_bang_thong_ke": False,
                                "canh_bao_nhung": {"so_doi_tuong_nhung": 8, "handles": ["BC7020"]}})
