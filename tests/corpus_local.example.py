@@ -27,3 +27,7 @@ P9KT = os.path.join(_CT_B, "<CT-B - kien truc>.dxf")
 
 # --- Cong trinh ha tang (nam trong demo_doc_autocad/_uploads) ---
 HT = os.path.join(_UP, "<CT-K - ha tang>.dxf")
+
+# --- Fixture co BANG THEP nhung OLE cho test_oleexcel (tuy chon) ---
+_KS = os.path.normpath(os.path.join(_HERE, "..", "_khao_sat", "_dxf"))
+THEP_OLE = os.path.join(_KS, "<thu-muc>", "<file co bang thep OLE>.dxf")
