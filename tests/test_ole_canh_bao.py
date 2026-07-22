@@ -74,28 +74,46 @@ def main():
        ra2["ghi_chu"].startswith("so THAT") and "⚠" in ra2["ghi_chu"], ra2["ghi_chu"])
     ok("non-dict -> tra nguyen xi, KHONG vo", _Fake([{"handle": "H"}])._gan_canh_bao_nhung("abc") == "abc")
 
-    print("[C3b] CA MOTIVATING (synthetic, KHONG can corpus) — bang thep NAM TRONG OLE -> co_bang=False + CANH BAO")
-    # Audit D5: ca that '4. Thong ke thep SUA.dwg' (bang thep trong 8 OLE -> thep=0) CHI test duoc khi co corpus
-    # -> neu corpus mat, mutation song. Dung _FakeThep tai hien KHONG can file: thep rong + co OLE.
+    print("[C3b] CA MOTIVATING (synthetic) — bang thep trong OLE. Thiet ke U3: OLE loai='excel' -> DOC DUOC")
+    # Ca that '4. Thong ke thep SUA.dwg' = 8 OLE loai='excel' (probe U3). Native thep rong (nam trong OLE).
     class _FakeThep:
         _canh_bao_nhung = tc.Drawing._canh_bao_nhung
         _gan_canh_bao_nhung = tc.Drawing._gan_canh_bao_nhung
         thong_ke_thep = tc.Drawing.thong_ke_thep
         thong_ke_thep_hinh = tc.Drawing.thong_ke_thep_hinh
+        doc_bang_nhung = tc.Drawing.doc_bang_nhung
         def __init__(self, ole):
             self.ole_nhung = ole
-            self.thep = {"by_dk": {}}       # KHONG doc duoc thanh thep nao (vi no nam trong OLE)
+            self.thep = {"by_dk": {}}       # native thep rong (thep nam trong OLE)
             self.thep_hinh = {"by_show": {}}
-    fk = _FakeThep([{"handle": "BC7020", "layer": "0"}] * 8)   # 8 OLE nhu file that
+    # (a) OLE DOC DUOC (loai='excel' + rows) — thiet ke moi
+    ole_doc = [{"handle": "BC70%02X" % i, "layer": "0", "loai": "excel", "sheet": "Thep",
+                "nrows": 3, "ncols": 2, "rows": [["STT", "KL thep"], [1, 581.7], [2, 1963.9]]} for i in range(8)]
+    fk = _FakeThep(ole_doc)
     r = fk.thong_ke_thep()
-    ok("bang thep trong OLE -> co_bang_thong_ke=False", r.get("co_bang_thong_ke") is False, r)
-    ok("... NHUNG co canh_bao_nhung (8 doi tuong) -> KHONG khang dinh 'ban ve khong co'",
-       "canh_bao_nhung" in r and r["canh_bao_nhung"]["so_doi_tuong_nhung"] == 8, r.get("canh_bao_nhung"))
-    ok("... ghi_chu co ⚠ (LLM chac chan thay)", "⚠" in (r.get("ghi_chu") or ""))
-    # doi chung: cung code NHUNG 0 OLE -> KHONG canh bao (chan mutation 'luon canh bao')
+    ok("native thep rong -> co_bang_thong_ke=False", r.get("co_bang_thong_ke") is False)
+    cb = r.get("canh_bao_nhung") or {}
+    ok("canh_bao_nhung: so_bang_doc_duoc=8 + so_doi_tuong=8 (KHONG 'ban ve khong co')",
+       cb.get("so_bang_doc_duoc") == 8 and cb.get("so_doi_tuong_nhung") == 8, cb)
+    ok("canh bao TRO doc_bang_nhung + noi KHONG tu cong (khong tu bia tong)",
+       "doc_bang_nhung" in cb.get("canh_bao", "") and "TỔNG" in cb.get("canh_bao", ""))
+    ok("ghi_chu co ⚠", "⚠" in (r.get("ghi_chu") or ""))
+    bn = fk.doc_bang_nhung()
+    ok("doc_bang_nhung: so_bang=8, moi bang co nguon 'ole:...'",
+       bn["so_bang"] == 8 and all("ole:" in b["nguon"] for b in bn["bang"]))
+    ok("doc_bang_nhung ghi_chu TRUNG TINH (KHONG xac dinh o TONG, KHONG tu cong)",
+       "TỔNG" in bn["ghi_chu"] and "KHÔNG tự" in bn["ghi_chu"])
+    ok("doc_bang_nhung tra SO THAT trong hang (581.7 doc duoc)",
+       any(581.7 in row for b in bn["bang"] for row in b["cac_hang"]))
+    # (b) OLE la ANH (loai != excel) -> giu canh bao CU 'khong doc duoc/THIEU'
+    cb2 = _FakeThep([{"handle": "IMG1", "layer": "0", "loai": "anh"}] * 3).thong_ke_thep().get("canh_bao_nhung") or {}
+    ok("OLE anh -> so_bang_doc_duoc=0, canh bao co 'THIEU' (khong doc duoc)",
+       cb2.get("so_bang_doc_duoc") == 0 and "THIẾU" in cb2.get("canh_bao", ""), cb2)
+    # doi chung: 0 OLE -> KHONG canh bao (chan mutation 'luon canh bao')
     r0 = _FakeThep([]).thong_ke_thep()
     ok("doi chung: thep rong + 0 OLE -> co_bang=False NHUNG KHONG canh bao (khong bia)",
        r0.get("co_bang_thong_ke") is False and "canh_bao_nhung" not in r0)
+    ok("doi chung: 0 OLE -> doc_bang_nhung so_bang=0", _FakeThep([]).doc_bang_nhung()["so_bang"] == 0)
 
     print("[C4] REAL CT-A KT (2 OLE) — thep/thep-hinh/tong-hop deu LO canh bao")
     if os.path.isfile(KT):
@@ -132,7 +150,9 @@ def main():
     sp = B.SYSTEM_PROMPT
     ok("co rule 8c ve doi tuong nhung", "8c." in sp and "canh_bao_nhung" in sp)
     ok("cam khang dinh 'khong co bang thong ke' khi co canh_bao_nhung",
-       "KHÔNG ĐỌC" in sp or "không đọc được nội dung nhúng" in sp.lower(), None)
+       "canh_bao_nhung" in sp and "không đọc được" in sp.lower(), None)
+    ok("readable OLE -> huong dan goi doc_bang_nhung (khong tu cong tong)",
+       "doc_bang_nhung" in sp and "so_bang_doc_duoc" in sp)
     ok("cam khang dinh '0 kg' khi co canh bao", "0 kg" in sp)
 
     print("[F1] Canh bao OLE cam vao TUYEN SO-LUONG/KICH-THUOC khi ket qua RONG (audit GD4)")

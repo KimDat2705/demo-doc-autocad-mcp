@@ -859,14 +859,10 @@ class Drawing:
         counts, texts, dims, dim_items = Counter(), [], [], []
         blocks, used_layers, thep, thep_hinh = Counter(), set(), {}, {}
         thep_att_handles = set()   # R4 (P3): handle các ô ATTRIB thuộc bảng thép -> đăng ký used_handles (không lọt residual)
-        ole = []                   # C (GĐ4): đối tượng NHÚNG (OLE/Excel) — nội dung KHÔNG đọc được -> phải LỘ
         for e in self.doc.modelspace():
             t = e.dxftype(); counts[t] += 1
             try: used_layers.add(e.dxf.get("layer"))
             except Exception: pass
-            if t == "OLE2FRAME":
-                try: ole.append({"handle": e.dxf.handle, "layer": e.dxf.get("layer")})
-                except Exception: ole.append({"handle": None, "layer": None})
             if t in ("TEXT", "MTEXT"):
                 raw = e.dxf.text if t == "TEXT" else e.text
                 try: ins = e.dxf.insert; xx, yy = float(ins.x), float(ins.y)
@@ -917,9 +913,19 @@ class Drawing:
                                       "layer": e.dxf.get("layer"), "huong": huong, "khong_toa_do": not co_td})
                 except Exception: pass
 
-        # C (GĐ4): OLE2FRAME (bảng Excel dán) ở modelspace + F2: quét thêm PAPERSPACE (layout in ấn) —
-        # trước chỉ modelspace nên bảng nhúng ở layout in bị bỏ sót -> báo 'không có' nhầm.
-        self.ole_nhung = ole + _ole_ngoai_modelspace(self.doc)
+        # C (GĐ4)+U3: OLE2FRAME (bảng Excel dán) — ĐỌC nội dung qua oleexcel (binary, số CHÍNH XÁC);
+        # 1 lần quét modelspace + paperspace. Mỗi entry có 'loai' (excel/anh/khac). Chữ garble -> to_unicode.
+        # Fail-soft -> [] (thiếu olefile/xlrd hay lỗi thì hành vi cũ: không có bảng nhúng).
+        try:
+            import oleexcel
+            _ole = oleexcel.doc_bang_ole(self.doc)
+            for _b in _ole:
+                _rows = _b.get("rows")
+                if _rows:
+                    _b["rows"] = [[to_unicode(c) if isinstance(c, str) else c for c in _row] for _row in _rows]
+            self.ole_nhung = _ole
+        except Exception:
+            self.ole_nhung = []
         self.texts = texts
         self._text_by_handle = {str(t["handle"]): t for t in texts}   # R4/P3: map handle->text cho RE-PARSE (KHÔNG cache SỐ)
         self.thep_att_handles = thep_att_handles                      # R4/P3: ô bảng thép đã đọc CHẮC (chống học-đè)
@@ -1336,13 +1342,21 @@ class Drawing:
         ole = getattr(self, "ole_nhung", None) or []
         if not ole:
             return None
+        doc_duoc = [o for o in ole if o.get("loai") == "excel"]
+        opaque = [o for o in ole if o.get("loai") != "excel"]
+        phan = []
+        if doc_duoc:
+            phan.append("có %d bảng NHÚNG ĐỌC ĐƯỢC nội dung (gọi công cụ doc_bang_nhung để xem — để đối tác đối "
+                        "chiếu; máy KHÔNG tự xác định ô nào là TỔNG, KHÔNG tự cộng)" % len(doc_duoc))
+        if opaque:
+            phan.append("có %d đối tượng nhúng máy KHÔNG đọc được (ảnh/không rõ) → nếu bảng thống kê nằm trong đó "
+                        "thì số đọc được là THIẾU, KHÔNG phải 'bản vẽ không có'" % len(opaque))
+        # BẤT BIẾN (chống KeyError _gan_canh_bao_nhung + C7): LUÔN có 'canh_bao' (str) + 'so_doi_tuong_nhung' (TỔNG).
         return {
             "so_doi_tuong_nhung": len(ole),
+            "so_bang_doc_duoc": len(doc_duoc),
             "handles": [o["handle"] for o in ole[:20] if o.get("handle")],
-            "canh_bao": ("Bản vẽ có %d đối tượng NHÚNG (OLE — thường là bảng Excel dán vào). Máy KHÔNG đọc được "
-                         "nội dung bên trong → nếu bảng thống kê/khối lượng nằm trong đó thì số đọc được là "
-                         "THIẾU, KHÔNG phải 'bản vẽ không có'. Cần đối chiếu thủ công, hoặc xin đối tác gửi bảng "
-                         "dạng bảng CAD/Excel rời." % len(ole)),
+            "canh_bao": "Bản vẽ " + "; ".join(phan) + ".",
         }
 
     def _gan_canh_bao_nhung(self, r):
@@ -1356,6 +1370,38 @@ class Drawing:
         r["canh_bao_nhung"] = cb
         r["ghi_chu"] = (r.get("ghi_chu") or "") + " ⚠ " + cb["canh_bao"]
         return r
+
+    def doc_bang_nhung(self, tu_khoa="", **_):
+        """U3 — TRẢ NỘI DUNG bảng Excel NHÚNG (OLE) đã đọc được (binary, số CHÍNH XÁC), CHỈ ĐỌC.
+        Dữ liệu THÔ từng ô (chưa gán nhãn cột) — để đối tác ĐỐI CHIẾU. Máy KHÔNG xác định ô nào là TỔNG →
+        KHÔNG tự chọn ô/tự cộng/đưa vào tổng-Excel. (Số ô OLE KHÔNG vào rổ grounding chung — mcp_bridge loại —
+        nên AI mô tả được cấu trúc bảng nhưng KHÔNG khẳng định tổng: thà từ chối hơn đoán.)"""
+        _MAX_HANG, _MAX_BANG = 40, 15   # trần output/bảng + số bảng (bounded — chống phình tool result)
+        ole = getattr(self, "ole_nhung", None) or []
+        excel = [o for o in ole if o.get("loai") == "excel" and o.get("rows")]
+        opaque = [o for o in ole if o.get("loai") != "excel"]
+        bi_cat = [o for o in ole if o.get("rows_bi_cat")]
+        kw = (tu_khoa or "").strip().lower()
+        out = []
+        for o in excel:
+            rows = o.get("rows") or []
+            if kw:
+                rows = [r for r in rows if kw in " ".join(str(c) for c in r).lower()]
+            out.append({
+                "handle": o.get("handle"), "sheet": o.get("sheet"),
+                "so_hang": o.get("nrows"), "so_cot": o.get("ncols"),
+                "cac_hang": rows[:_MAX_HANG],
+                "nguon": "ole:%s:%s" % (o.get("handle"), o.get("sheet")),
+            })
+            if len(out) >= _MAX_BANG:
+                break
+        gc = ("Dữ liệu THÔ từng ô (chưa gán nhãn cột). Dùng để đối tác ĐỐI CHIẾU; máy KHÔNG xác định ô nào là "
+              "TỔNG → KHÔNG tự chọn ô/tự cộng, KHÔNG đưa vào tổng/Excel. Mỗi bảng kèm nguồn 'ole:<handle>:<sheet>'.")
+        if bi_cat:
+            gc += " ⚠ %d bảng bị cắt nội dung (quá lớn) — chỉ đếm, không hiện." % len(bi_cat)
+        if opaque:
+            gc += " ⚠ %d đối tượng nhúng KHÁC máy không đọc được (ảnh)." % len(opaque)
+        return {"so_bang": len(out), "co_bang_khong_doc_duoc": bool(opaque), "bang": out, "ghi_chu": gc}
 
     def thong_ke_thep(self, duong_kinh=None, **_):
         th = self.thep or {}; by = th.get("by_dk") or {}

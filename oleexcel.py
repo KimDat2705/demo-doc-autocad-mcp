@@ -161,13 +161,21 @@ def doc_tu_blob(blob):
         ole.close()
 
 
+_NGAN_SACH_O = 150000   # trần TỔNG số ô giữ 'rows' toàn bản vẽ (chống tràn RAM: file 67 bảng × 254×32)
+
+
 def doc_bang_ole(doc):
     """Duyệt MỌI OLE2FRAME (modelspace + paperspace), trả list dict CHỈ-ĐỌC.
     Mỗi phần tử: {handle, layer, khong_gian, loai, [sheet,nrows,ncols,rows,nguon_stream,progid]}.
-    Fail-soft từng entity. KHÔNG áp to_unicode (caller làm, để module standalone-test được)."""
+    Fail-soft từng entity. KHÔNG áp to_unicode (caller làm, để module standalone-test được).
+
+    TRẦN RAM TỔNG (`_NGAN_SACH_O`): sau khi tổng số ô 'rows' đã giữ vượt ngân sách, các bảng SAU vẫn
+    được PHÁT HIỆN + phân loại (loai/handle/sheet/nrows/ncols) NHƯNG BỎ 'rows' (cờ `rows_bi_cat=True`)
+    để không phình RAM (vd file 67 bảng). Cảnh báo/đếm vẫn đúng; chỉ nội dung ô bị cắt (thất bại phải lộ)."""
     out = []
     if doc is None:
         return out
+    dem_o = [0]   # tổng ô 'rows' đã giữ (list để đóng closure)
 
     def _quet(space, ten_kg):
         try:
@@ -194,6 +202,15 @@ def doc_bang_ole(doc):
                 rec.update(doc_tu_blob(blob))
             except Exception as ex:
                 rec.update({"loai": "khac", "ghi_chu": "doc_tu_blob loi: %s" % ex})
+            # TRẦN RAM TỔNG: nếu vượt ngân sách -> bỏ 'rows', GIỮ metadata (loai/nrows/ncols)
+            rows = rec.get("rows")
+            if rows:
+                so_o = sum(len(r) for r in rows)
+                if dem_o[0] + so_o > _NGAN_SACH_O:
+                    rec.pop("rows", None)
+                    rec["rows_bi_cat"] = True
+                else:
+                    dem_o[0] += so_o
             out.append(rec)
 
     try:

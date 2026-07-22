@@ -87,6 +87,16 @@ def main():
     ok("gom giá trị số + số trong chuỗi", 3.6 in nums and 7.2 in nums)
     ok("bool KHÔNG lọt thành 1/0", B._collect_numbers({"co_bang": True, "x": False}) == set())
 
+    print("[A.OLE] U3 — doc_bang_nhung KHÔNG vào rổ grounding (chống flooding sập guard)")
+    # Red-team: số ô bảng OLE THÔ (hàng trăm giá trị chưa gán nhãn cột) nếu vào tool_numbers -> số BỊA nào cũng
+    # khớp -> guard sập. Fix ở mcp_bridge (vòng tool-use): loại doc_bang_nhung khỏi union tool_numbers.
+    _src = open(B.__file__, encoding="utf-8").read()
+    ok("mcp_bridge LOẠI doc_bang_nhung khỏi tool_numbers (grep-guard)", 'fc.name != "doc_bang_nhung"' in _src)
+    # chứng minh vì sao phải loại: 1 bảng OLE nhỏ đã bơm nhiều số vào pool
+    _ole = {"so_bang": 1, "bang": [{"handle": "H1", "sheet": "Thep", "nguon": "ole:H1:Thep",
+            "cac_hang": [["STT", "KL"], [1, 581.7], [2, 1963.9], [3, 5039.4]]}]}
+    ok("_collect_numbers trên 1 bảng OLE bơm NHIỀU số (lý do phải loại)", len(B._collect_numbers(_ole)) >= 4)
+
     print("[A] UNIT — _guard_text quyết định (BAN chỉ khi mọi số vô căn cứ)")
     ok("BAN id135 (mốc dương, -10 vô căn cứ)", B._guard_text("Cao độ thấp nhất là -10m.", {0.0, 3.6, 7.2}) == R)
     ok("BAN id135 (tool rỗng)", B._guard_text("Cao độ thấp nhất là -10m.", set()) == R)

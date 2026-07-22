@@ -84,6 +84,14 @@ def thong_ke_thep_hinh() -> dict:
 
 
 @mcp.tool()
+def doc_bang_nhung(tu_khoa: str = "") -> dict:
+    """Đọc NỘI DUNG bảng Excel NHÚNG (OLE dán vào bản vẽ) — dữ liệu THÔ từng ô kèm nguồn 'ole:<handle>:<sheet>'.
+    DÙNG khi bảng thống kê THÉP/khối lượng nằm trong đối tượng nhúng (thong_ke_thep báo 'có N bảng nhúng đọc được').
+    CHỈ để đối tác ĐỐI CHIẾU: máy KHÔNG xác định ô nào là TỔNG → KHÔNG tự cộng/khẳng định tổng. tu_khoa lọc hàng (vd 'Ø16')."""
+    return _need() or DRAWING.doc_bang_nhung(tu_khoa=tu_khoa)
+
+
+@mcp.tool()
 def liet_ke_chu_theo_layer(layer: str, gioi_han: int = 60) -> dict:
     """Liệt kê các đoạn chữ trên một layer (lớp) cụ thể, kèm handle."""
     return _need() or DRAWING.liet_ke_chu_theo_layer(layer=layer, gioi_han=gioi_han)

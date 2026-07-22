@@ -221,10 +221,12 @@ SYSTEM_PROMPT = (
     "của các ĐƯỜNG KÍCH THƯỚC (kèm caveat 'là giá trị trên đường kích thước, không phải kích thước tổng công trình'). "
     "Với các câu này TUYỆT ĐỐI KHÔNG từ chối kiểu 'chưa hỗ trợ' — phải TÌM và trích nguyên văn kèm handle.\n"
     "8c. ĐỐI TƯỢNG NHÚNG (OLE/Excel dán vào bản vẽ) — nếu result có `canh_bao_nhung` thì BẮT BUỘC nêu ra. "
-    "⛔ TUYỆT ĐỐI KHÔNG nói 'bản vẽ KHÔNG có bảng thống kê/không có số liệu' khi có canh_bao_nhung: máy KHÔNG ĐỌC "
-    "ĐƯỢC nội dung nhúng ≠ bản vẽ không có. Phải nói rõ: 'bản vẽ có N đối tượng nhúng (OLE/Excel) mà máy không đọc "
-    "được nội dung → số này có thể THIẾU, cần đối chiếu thủ công hoặc xin bảng rời'. Nếu số trả về là 0/rỗng MÀ có "
-    "canh_bao_nhung -> KHÔNG được khẳng định '0 kg'/'không có', phải nói 'không đọc được (có bảng nhúng)'.\n"
+    "⛔ TUYỆT ĐỐI KHÔNG nói 'bản vẽ KHÔNG có bảng thống kê/số liệu' khi có canh_bao_nhung (máy không đọc được ≠ không có). "
+    "• `so_bang_doc_duoc > 0` (bảng nhúng ĐỌC ĐƯỢC): GỌI `doc_bang_nhung` để lấy nội dung, TRÌNH BÀY cho đối tác ĐỐI "
+    "CHIẾU (sheet + hàng + nguồn 'ole:<handle>:<sheet>'). ⛔ Máy KHÔNG xác định ô nào là TỔNG → KHÔNG tự chọn 1 ô làm "
+    "'tổng thép', KHÔNG tự cộng, KHÔNG khẳng định con số tổng; chỉ nói 'đây là bảng nhúng, đối tác đối chiếu'. "
+    "• Chỉ có đối tượng nhúng KHÔNG đọc được (ảnh): nói 'có N đối tượng nhúng máy không đọc được → số có thể THIẾU'. "
+    "Số 0/rỗng MÀ có canh_bao_nhung -> KHÔNG khẳng định '0 kg'/'không có'.\n"
     "8b. THÉP: 'tổng thép' -> nêu RIÊNG thép tròn (thong_ke_thep) và thép hình (thong_ke_thep_hinh). "
     "⛔ TUYỆT ĐỐI KHÔNG cộng thép tròn + thép hình thành MỘT con số tổng (vd 564.8+3545.9). Mỗi bảng là một loại riêng; "
     "có thể còn thép ghi trong ghi chú text (xà gồ...) chưa vào bảng — nếu hỏi tổng, nói rõ gồm những phần nào, đừng tự gộp.\n"
@@ -497,7 +499,11 @@ def tra_loi_ai(bridge, q, file_summary="", history=None):
                 grp = fc.name + (": " + str(args.get("tu_khoa") or args.get("layer") or args.get("loc") or "")
                                  if any(k in args for k in ("tu_khoa", "layer", "loc")) else "")
                 evidence.extend(_evidence_from(result, grp.strip(": ")))
-                if isinstance(result, dict): tool_numbers |= _collect_numbers(result)   # id135: gom số RAW result cho grounding-guard
+                # id135: gom số RAW result cho grounding-guard. U3: LOẠI doc_bang_nhung — số ô bảng OLE (hàng trăm
+                # giá trị THÔ chưa gán nhãn cột) sẽ làm phình rổ neo, khiến số BỊA nào cũng khớp → sập guard. Số OLE
+                # là hiển-thị-để-đối-chiếu, KHÔNG phải chứng cứ an toàn; AI mô tả bảng được nhưng KHÔNG khẳng định tổng.
+                if isinstance(result, dict) and fc.name != "doc_bang_nhung":
+                    tool_numbers |= _collect_numbers(result)
                 rparts.append(types.Part(function_response=types.FunctionResponse(name=fc.name, response=result)))
             contents.append(types.Content(role="user", parts=rparts))
             continue
