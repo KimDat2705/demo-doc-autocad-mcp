@@ -55,8 +55,10 @@ Code test/script **KHÔNG hardcode** tên thư mục/file thật. Thay vào đó
 
 ```bash
 cd demo_mcp_autocad
-git grep -nEi "bùi|văn mạnh|phùng|gia ?lộc|gia ?loc|gialoc|kẻ sặt|ke sat|ninh hải|ninh hai|nhị chiểu|nhi chiê?u|nhichieu|cộng hòa|cong hoa|hiệp cát|hiep cat|an lâm|an lam|tân phong|tan phong|rachmop" -- . ':(exclude)vendor/*'
+git grep -nEi "bùi|văn mạnh|phùng|gia ?lộc|gia ?loc|gialoc|kẻ sặt|ke sat|ninh hải|ninh hai|nhị chiểu|nhi chiê?u|nhichieu|cộng hòa|cong hoa|hiệp cát|hiep cat|an lâm|an lam|tân phong|tan phong|rachmop" -- . ':(exclude)vendor/*' ':(exclude)harness/QUY_TRINH_AN_DANH_DU_LIEU_MAU.md'
 ```
+
+Sạch → trả về **0**. ⚠ **Bắt buộc loại trừ chính file này** (`':(exclude)harness/QUY_TRINH_AN_DANH_DU_LIEU_MAU.md'`) — vì nó chứa danh sách token làm MẪU grep nên tự khớp chính nó; quên loại thì lệnh luôn ra ≥1 (báo động giả, KHÔNG phải rò rỉ).
 
 Thêm token cho công trình mới khi mở rộng corpus. `git grep` chỉ soi file **tracked** nên `corpus_local.py` (gitignored) không bị tính — đúng ý (tên thật được phép nằm ở đó).
 
