@@ -5,10 +5,18 @@
 > **Muốn public thật sau này — ĐỪNG LÀM LẠI TỪ ĐẦU:** nhánh local **`public-ready`** đã có sẵn trọn gói (history sạch không .deb qua `git filter-repo` · Dockerfile tải ODA tuỳ chọn qua `ODA_DEB_URL` · thông báo .dxf-only thân thiện · .gitignore chặn .deb). Đánh đổi: cloud chỉ đọc .dxf tới khi đặt `ODA_DEB_URL`. Mirror backup: `D:/Dat-Antigravity/_backup_repo_truoc_khi_public_20260717/repo-mirror.git`.
 
 
-## Trạng thái hiện tại (2026-07-16 nối — công cụ khảo sát corpus + đính chính hệ số RAM | trước: 4 fix đọc-số LIVE)
-> Mỗi tuyên bố "xong" kèm BẰNG CHỨNG (commit + số test) truy được. Nhật ký chi tiết hơn: `GHI_CHU_HOAN_THIEN.md`. (Ngày: các entry "nối 5-8" làm 2026-07-16, ghi nhầm 2026-07-13.)
-> **Code LIVE = `7188c3c`** (`/version` khớp + `/health` ok, verify 2026-07-17). check.sh **[22/22] PASS** (26 MCP tool) · takeoff 258 · qa 129 · grounding-guard 32 · **cao_do 27** · session 25 · khảo-sát-corpus 61 · **OLE 25**. Kế hoạch: `KE_HOACH_KIEM_THU_TONG_THE.md`.
-> **⚠ GIT:** local `main` ahead 1 = commit **HELD `f025ad7`** (render.yaml nâng RAM) — **hash ĐÃ ĐỔI từ `079c91c`/`969822a` do rebase đảo thứ tự 2026-07-17**; vẫn CỐ Ý chưa push, chờ user bật billing Render. Nhánh cứu hộ: `backup-truoc-rebase-20260717` (local).
+## Trạng thái hiện tại (2026-07-22 CHỐT SỔ — AUDIT GĐ4 34-agent + vá bó F1/F2/F3/F4 LIVE | trước: GĐ4 corpus 8 firm)
+> Mỗi tuyên bố "xong" kèm BẰNG CHỨNG (commit + số test) truy được. Nhật ký chi tiết hơn: `GHI_CHU_HOAN_THIEN.md`. Kế hoạch nâng cấp: `PHUONG_AN_NANG_CAP_DU_AN.md` (U1-U6).
+> **Code LIVE = `fd7019d`** (`/version` khớp + `/health` ok, verify 2026-07-22). check.sh **[22/22] PASS** · takeoff 258 · qa 129 · grounding-guard 32 · **cao_do 31** · session 25 · khảo-sát-corpus 61 · **OLE 44**. Kế hoạch kiểm thử: `KE_HOACH_KIEM_THU_TONG_THE.md`.
+> **⚠ GIT:** local có nhánh **HELD `held-ram-config` (`f025ad7`, render.yaml nâng RAM)** + `public-ready` (`a69502b`, mở public sẵn) + `backup-truoc-rebase-20260717` — ĐỀU local, CỐ Ý chưa push (`main` sạch + push hết). Chi tiết ở [[project-repo-private-vi-oda]] + [[project-chiu-tai-va-chi-phi]].
+> **✅ ẨN DANH SẠCH:** 0 tên địa danh/người thật trong file tracked (bí danh CT-A…CT-K; "9T"/"MN" là mô tả generic giữ có chủ đích). Quy trình: `harness/QUY_TRINH_AN_DANH_DU_LIEU_MAU.md`.
+
+- **✅ AUDIT GĐ4 (34-agent) + VÁ BÓ F1/F2/F3/F4 — LIVE [2026-07-22, `fd7019d`]:** user yêu cầu rà tester chuyên nghiệp TRƯỚC khi đi tiếp. Workflow 34-agent (6 mảng → skeptic-verify → synth): **0 bug nghiêm trọng** (git toàn vẹn sau rebase/filter-repo/restore, id135 an toàn, số verify giữ nguyên), tìm 2 gap thật trong CHÍNH bản vá phiên trước → vá hết:
+  - **F1** (`c…`→ nay): cảnh báo OLE cắm đủ 3 tuyến số-lượng/kích-thước (`tra_cuu_so_luong`/`liet_ke_so_luong`/`thong_tin_kich_thuoc`) CHỈ khi kết quả RỖNG (gate-on-empty chống nhiễu).
+  - **F4** (RED-TEAM trước code, workflow 4-agent → GO_WITH_ADJUSTMENTS): parser cao độ — bác blacklist-nhãn (vỡ garble) + Design-B (drop id135). CHỐT: `_CD_INL` khôi phục `\s*`; `+`/`±` mọi gap + `-` dính liền → min/max; **`-` DẤU CÁCH ('WORD - n.nnn', đồng dạng FP `CH-2.700` VÀ id135 `cốt-14.260`) → `canh_bao`** (LỘ, không bịa min, miễn nhiễm garble). Thu lại mốc thật dạng cách `+7.69/+8.5`. Verify engine thật: số verify GIỮ NGUYÊN.
+  - **F2/F3** (hardening THẤP): F2 quét OLE cả paperspace (helper `_ole_ngoai_modelspace`, corpus 0 paperspace-OLE nên không đổi số); F3 bọc nhánh `co_trong_bang=False`. **CÒN LATENT: OLE trong định-nghĩa-BLOCK** → xem **U3**.
+  - **D6 tự rút lại claim RAM:** "45MB×11.3=577MB→OOM" SAI (11.3x ở file 26.5MB = ngoại suy sai); rủi ro thật ở `MAX_SESSIONS=4` → xem **U6**.
+  - Test: cao_do 27→31 · OLE 25→44 · gate [22/22] · qa 129 · 0 regress. Deploy+verify LIVE `/version`=fd7019d + `/health` ok.
 
 - **🔥 GĐ4 ĐÃ CHẠY — CORPUS VỀ ĐỦ, TÌM ĐƯỢC 3 BUG THẬT (2026-07-17, ⚠ CHƯA VÁ, CHƯA COMMIT):** corpus đối tác **ĐÃ VỀ** `input_files\` (8 công trình mới + 2 cũ = **66 file / 10 nhóm**, 62 dwg mới/168MB, không nén). Khảo sát bằng `tests/khao_sat_corpus.py` (1 lỗi: ĐIỆN CT-E ODA không convert nổi). **NÚT THẮT ≥3 FIRM ĐÃ MỞ.** Bộ môn mới: điện · cấp-thoát-nước · hạ-tầng/rãnh · phá-dỡ · TMB · bảng-thống-kê-thép riêng.
   - **TIN TỐT (không overfit hệ thống):** bộ đọc số lượng ăn **9/10 nhóm** (qty tổng 1617). `qty=0` chủ yếu ở điện/nước/TMB/phá-dỡ = vô hại.
@@ -85,7 +93,12 @@
 - **Test (chốt sổ 2026-07-09):** `test_takeoff_chong_bia.py` **76/76** (nhóm A-M) + đọc **129/129** + `check.sh` PASS. Deploy live + `/version` verify mỗi commit. Working tree sạch.
 - **⚠ Lưu ý cấu trúc:** demo 2 KHÔNG có `specs/specs.json` (theo quy ước Harness đã ghi ở `AGENTS.md`) — `feature_list.json` thay cho specs/. Rà trạng thái tính năng ở `feature_list.json`, KHÔNG tìm specs/.
 
-## Còn lại / Bước tiếp (xem `feature_list.json` + `ROADMAP_DEMO2.md`)
+## Còn lại / Bước tiếp (xem `PHUONG_AN_NANG_CAP_DU_AN.md` U1-U6 + `feature_list.json` + `ROADMAP_DEMO2.md`)
+- **📌 3 MỤC "CÒN LẠI" NAY GỘP VÀO `PHUONG_AN_NANG_CAP_DU_AN.md` (khỏi kê trùng):**
+  - **OLE lồng trong định-nghĩa-BLOCK** (F2 latent — ezdxf không mở INSERT; chưa quét vì rủi ro đếm nhầm khung-tên) → **U3** (đọc bảng OLE nhúng, 3 tầng: binary OLE2FRAME → OCR → HITL).
+  - **Chịu tải RAM / OOM** (ngưỡng 45MB Free lỏng ở file đặc + `MAX_SESSIONS=4` × Drawing; đo lại Linux khi bật billing; HELD `held-ram-config` chờ) → **U6** (iterdxf streaming + lọc layer rác — nền gỡ quyết định RAM HELD).
+  - **P5 codify quy ước học** (đủ điều kiện ≥3 firm nay đã có corpus; feature AI-tự-học đã P-1→P4 LIVE, P5 là bước cuối) → **U1** (quy ước động + popup xác nhận web, gộp P3 LIVE + F-B). ⚠ P5/U1 vẫn cần red-team mạnh trước khi mở (rủi ro cao nhất vòng học).
+  - Thứ tự đề xuất trong phương án: **U3-probe (19 file OLE, ~30' offline) → I-items nền chống-bịa → U6**. id135 E2E-thật vẫn chờ file hạ tầng mốc sâu (U5 corpus).
 - **Củng cố treo:** ~~B (trừ lỗ cửa)~~ ✓ · ~~C (liệt kê diện tích ghi sẵn)~~ ✓ · ~~D (ứng viên kg/bộ 1-click)~~ ✓ · ~~E (gợi ý m³ ghi sẵn)~~ ✓ · ~~F (ước cao cột theo cao độ)~~ ✓ · ~~G (test đối kháng đa-domain)~~ ✓ [2026-07-11, +vá 3 bug tong_phu/diện tích] — **A–G XONG**; còn robustness H/I/J/K/L.
 - **Residual G:** ~~recall SL 9T KT~~ ✓ [2026-07-11(b): đọc bảng thống kê cột TỔNG, gated fail-silent, test [V]] · ~~cờ suy_doan_don_vi cạnh <40~~ ✓ (nghiên cứu → BY-DESIGN, no-fix) — **XONG**. Còn: window S-code |Δy| lỏng hơn → nên đối chiếu thêm bản vẽ KHÁC layout trước khi tin tuyệt đối; (concurrency thuộc robustness K).
 - **Robustness H–L HOÀN TẤT:** ~~H (model fallback)~~ ✓ [(c) 20/20] · ~~I (chặn file lớn sớm)~~ ✓ [(d) 9/9] · ~~J (dọn file TTL)~~ ✓ [(e) 12/12] · ~~K (tách session)~~ ✓ [(f) 17/17] · ~~L (keep-alive+giám sát)~~ ✓ [(g): /health + self-ping RENDER_EXTERNAL_URL + metrics, test 11/11].

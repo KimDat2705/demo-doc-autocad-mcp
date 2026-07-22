@@ -9,7 +9,9 @@
 > Mới nhất ở TRÊN CÙNG. Bàn giao đầy đủ: `session-handoff.md`. Nhật ký chi tiết hơn nữa: `../GHI_CHU_HOAN_THIEN.md`.
 
 ---
-## Session 2026-07-22 — AUDIT phiên GĐ4 (34-agent) + vá bó F1/F4/test (đối kháng, tự-repro)
+## Session 2026-07-22 (CHỐT SỔ) — AUDIT phiên GĐ4 (34-agent) + vá bó F1/F2/F3/F4 — ✅ LIVE `fd7019d`
+> **CHỐT SỔ:** check.sh **[22/22] PASS** · takeoff 258 · qa 129 · cao_do **31** · OLE **44** · working tree TRACKED sạch, push hết, **HEAD LIVE `fd7019d`** (`/version` khớp + `/health` ok). Ẩn danh SẠCH (0 tên địa danh/người; đã vá 1 rò tên-địa-danh→bí-danh `CT-A` do chính tôi lỡ viết ở entry F1). 3 mục "còn lại" (OLE-block/RAM/P5) trỏ sang **U3/U6/U1** trong `PHUONG_AN_NANG_CAP_DU_AN.md`. KHÔNG pytest. feature_list: 29 done / 1 deferred (không đổi — phiên chỉ audit+hardening). Commit code: `85d8a50` (F1+F4) · `fd7019d` (F2+F3).
+
 **User yêu cầu:** rà soát tester chuyên nghiệp mọi thay đổi phiên GĐ4 TRƯỚC khi đi tiếp, rồi triển khai bó vá (red-team F4 trước khi code).
 
 **AUDIT (workflow 34-agent: 6 mảng review → skeptic-verify từng finding → synth):** 23 CONFIRMED/1 xác-minh-dương · 4 BÁC BỎ · **0 bug lớp nghiêm trọng** (không đổi số/crash/mất code). Git toàn vẹn sau rebase+filter-repo+restore (5/5 CONFIRMED tốt: main có đủ fix, .deb tracked, Dockerfile private, public-ready sạch, origin==local). id135 an toàn. Tôi TỰ kiểm chứng lại 2 finding chính (không tin judge mù) → cả 2 CONFIRM.
@@ -18,7 +20,7 @@
 - **D6 — tôi tự rút lại claim RAM:** "45MB×11.3=577MB→OOM" SAI (11.3x đo ở file 26.5MB, không phải ≤45MB = ngoại suy sai). Rủi ro OOM thật ở cơ chế khác: bỏ quên `MAX_SESSIONS=4`.
 
 **VÁ (gate [22/22] · takeoff 258 · qa 129 · cao_do 27→31 · ole 25→37 · 0 regress):**
-- **F1:** `_gan_canh_bao_nhung` cắm vào 3 tuyến CHỈ KHI kết quả RỖNG (gate-on-empty chống nhiễu: file OLE-khung-tên vẫn tra thấy số → KHÔNG cảnh báo). Verify: Gia Lộc KT 2-OLE tra thấy 38 mục → không cảnh báo.
+- **F1:** `_gan_canh_bao_nhung` cắm vào 3 tuyến CHỈ KHI kết quả RỖNG (gate-on-empty chống nhiễu: file OLE-khung-tên vẫn tra thấy số → KHÔNG cảnh báo). Verify: CT-A KT 2-OLE tra thấy 38 mục → không cảnh báo.
 - **F4 (RED-TEAM TRƯỚC KHI CODE, workflow 4-agent → GO_WITH_ADJUSTMENTS):** red-team BÁC thiết kế blacklist-nhãn của tôi (vỡ garble 2 chiều) VÀ Design-B chỉ-+/± (drop id135 `cốt - 14.260`). **Thiết kế CHỐT:** `_CD_INL` khôi phục `\s*` (nhóm gap) → `+`/`±` mọi gap + `-` dính liền → min/max; **`-` DẤU CÁCH ('WORD - n.nnn', đồng dạng FP `CH-2.700` VÀ id135 `cốt-14.260`, KHÔNG tách được hình thức, nhãn vỡ garble) → đẩy `canh_bao` (LỘ, không bịa min, miễn nhiễm garble)**. Verify engine thật: id135 dạng cách → canh_bao; FP CH → canh_bao (min giữ -1.6); thu lại `+7.69/+8.5/+9.8`; standalone/dính-liền vẫn min/max; **số verify GIỮ NGUYÊN** (KC -1.85, KT -2.1, 9T -1.6). + prompt rule 8: hỏi độ sâu mà canh_bao có marker-âm-cách → PHẢI nêu "cần đối chiếu tay".
 - **Test (D5):** thêm ca motivating synthetic (bảng thép TRONG OLE → co_bang=False + cảnh báo, KHÔNG cần corpus) + test khoá id135 `cốt - 14.260` phải trong canh_bao (yêu cầu red-team).
 - **F2/F3 hardening nhẹ [tiếp theo, gate 22/22 · ole 37→44]:** **F2** — helper `_ole_ngoai_modelspace` quét thêm OLE ở **paperspace** (layout in ấn), trước chỉ modelspace nên bảng nhúng ở layout bị bỏ sót; fail-soft từng layout; testable (fake doc). Corpus xác nhận **0 paperspace-OLE** (108 modelspace) → hardening thuần, số OLE không đổi (KT=2, KC=0). ⚠ CÒN LATENT: OLE lồng trong định-nghĩa-BLOCK (ezdxf không mở INSERT) — chưa quét vì rủi ro đếm nhầm khung-tên/thư-viện. **F3** — nhánh `thong_ke_thep` `co_trong_bang=False` (hỏi cỡ dk vắng) nay cũng bọc `_gan_canh_bao_nhung` (nhất quán, additive). Test [F2][F3] +7 ca.
