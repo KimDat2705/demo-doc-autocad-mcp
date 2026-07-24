@@ -76,12 +76,23 @@ def _to_num_vn(s):
         return None
 
 # ---- Bảng thống kê thép (port) ----
+_DK_MM_MAX = 60   # I3-B: đường kính thép TRÒN tối đa hợp lý (mm). CODE-ONLY — KHÔNG BAO GIỜ in ra output/chuỗi
+                  # (nếu in sẽ rò biên vào rổ grounding-guard -> tái sinh vụ -22.75). Không siết cận DƯỚI: lưới hàn D3/D4/D5 hợp lệ.
+def _dk_bat_kha(dk_raw):
+    """I3-B: đường kính (ô DK bảng thống kê thép) có BẤT-KHẢ cho thép tròn không (<=0 hoặc >60mm)?
+    Dùng _to_num BARE — TUYỆT ĐỐI KHÔNG bóc Ø/d (strip-all biến '2Ø16'->216 = FP). Không parse được -> False
+    (không cờ oan). CHỈ trả bool để LỘ nghi_ngo; KHÔNG sửa/loại số. FP đã biết (soft, prose đúng): thanh PT/Dywidag
+    Ø65/75; bảng phi-thép (cống/cọc Ø800) reuse cột TL+DK — hiếm (đòi cột TL), cờ mềm 'có thể lẫn mã cấu kiện'."""
+    n = _to_num(dk_raw)
+    return False if n is None else (n <= 0 or n > _DK_MM_MAX)
+
 def _acc_thep(thep, att):
     tl = _to_num(att.get("TL"))
     if tl is None: return
     dk = str(att.get("DK") or "").strip()
     key = ("Ø%s" % dk) if dk else "Ø?"
     row = thep.setdefault(key, {"so_thanh": 0, "dai_m": 0.0, "kg": 0.0, "rows": 0})
+    if _dk_bat_kha(dk): row["nghi_dk"] = True   # I3-B: cờ đường kính bất-khả (KHÔNG đụng kg/so_thanh/dai_m -> tong_kg bất biến)
     row["kg"] += tl; row["rows"] += 1
     sla = _to_num(att.get("SLA"))
     if sla is not None: row["so_thanh"] += int(sla)
@@ -1470,21 +1481,32 @@ class Drawing:
                 return self._gan_canh_bao_nhung(
                        {"co_bang_thong_ke": True, "duong_kinh": key, "co_trong_bang": False,
                         "ghi_chu": "Không có thép %s. Các cỡ có: %s" % (key, ", ".join(by.keys()))})
-            return self._gan_canh_bao_nhung({
-                    "co_bang_thong_ke": True, "duong_kinh": key, "co_trong_bang": True,
-                    "so_thanh": row["so_thanh"], "tong_chieu_dai_m": round(row["dai_m"], 1),
-                    "khoi_luong_kg": round(row["kg"], 1),
-                    "ghi_chu": "Số từ BẢNG THỐNG KÊ THÉP trong file (kỹ sư lập) — số THẬT, không đếm chữ."})
-        theo = {k: {"so_thanh": v["so_thanh"], "tong_chieu_dai_m": round(v["dai_m"], 1),
-                    "khoi_luong_kg": round(v["kg"], 1)} for k, v in sorted(by.items(), key=lambda x: -x[1]["kg"])}
+            r1 = {"co_bang_thong_ke": True, "duong_kinh": key, "co_trong_bang": True,
+                  "so_thanh": row["so_thanh"], "tong_chieu_dai_m": round(row["dai_m"], 1),
+                  "khoi_luong_kg": round(row["kg"], 1),
+                  "ghi_chu": "Số từ BẢNG THỐNG KÊ THÉP trong file (kỹ sư lập) — số THẬT, không đếm chữ."}
+            if row.get("nghi_dk"):   # I3-B: cỡ được hỏi có đường kính bất-khả (prose KHÔNG số; 'duong_kinh' là giá trị TRUY VẤN có sẵn)
+                r1["nghi_ngo_duong_kinh"] = True
+                r1["ghi_chu"] += (" ⚠ Cỡ này BẤT THƯỜNG cho thép tròn — có thể lẫn mã cấu kiện/ghi chú hoặc sai "
+                                  "đơn vị; cần ĐỐI CHIẾU TAY, KHÔNG tự loại/tự đổi số.")
+            return self._gan_canh_bao_nhung(r1)
+        theo = {k: dict({"so_thanh": v["so_thanh"], "tong_chieu_dai_m": round(v["dai_m"], 1),
+                         "khoi_luong_kg": round(v["kg"], 1)},
+                        **({"nghi_ngo": True} if v.get("nghi_dk") else {}))   # I3-B: cờ cỡ bất-khả (bool, không lọt grounding)
+                for k, v in sorted(by.items(), key=lambda x: -x[1]["kg"])}
+        co_nghi_dk = any(v.get("nghi_dk") for v in by.values())   # I3-B
         th_hinh = self.thep_hinh or {}; canh_bao = ""
         if th_hinh.get("co_bang"):
             canh_bao = (" Ngoài ra còn bảng thép hình/inox ~%.1f kg (gọi thong_ke_thep_hinh) — CHƯA cộng vào."
                         % th_hinh.get("tong_kg", 0))
-        return self._gan_canh_bao_nhung({
-                "co_bang_thong_ke": True, "tong_khoi_luong_kg": round(th.get("tong_kg", 0), 1),
-                "so_dong_thong_ke": th.get("so_dong", 0), "theo_duong_kinh": theo,
-                "ghi_chu": "Tổng CỐT THÉP TRÒN theo bảng thống kê — số THẬT. CHỈ gồm cốt thép tròn." + canh_bao})
+        # I3-B: prose KHÔNG chứa chữ số (đường kính bất-khả chỉ ở KEY 'Ø...' của theo_duong_kinh) -> _collect_numbers không hút biên
+        cb_dk = (" ⚠ Có cỡ đường kính BẤT THƯỜNG cho thép tròn (xem cờ 'nghi_ngo' theo cỡ) — có thể lẫn mã cấu kiện/"
+                 "ghi chú hoặc sai đơn vị; cần ĐỐI CHIẾU TAY, KHÔNG tự loại và KHÔNG tự đổi số." if co_nghi_dk else "")
+        r = {"co_bang_thong_ke": True, "tong_khoi_luong_kg": round(th.get("tong_kg", 0), 1),
+             "so_dong_thong_ke": th.get("so_dong", 0), "theo_duong_kinh": theo,
+             "ghi_chu": "Tổng CỐT THÉP TRÒN theo bảng thống kê — số THẬT. CHỈ gồm cốt thép tròn." + canh_bao + cb_dk}
+        if co_nghi_dk: r["co_nghi_ngo_duong_kinh"] = True
+        return self._gan_canh_bao_nhung(r)
 
     def thong_ke_thep_hinh(self, **_):
         th = self.thep_hinh or {}; by = th.get("by_show") or {}

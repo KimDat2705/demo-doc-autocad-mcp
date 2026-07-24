@@ -124,10 +124,15 @@ out=$($PY tests/test_oleexcel.py 2>&1); rc=$?
 echo "$out" | tail -1
 [ "$rc" -eq 0 ] || { echo "FAIL: test oleexcel co FAIL"; fail=1; }
 
-echo "=== [24/24] Test HANDLE-GUARD (I1: doi chieu handle model trich dan vs tool phat/entitydb, offline) ==="
+echo "=== [24/25] Test HANDLE-GUARD (I1: doi chieu handle model trich dan vs tool phat/entitydb, offline) ==="
 out=$($PY tests/test_handle_guard.py 2>&1); rc=$?
 echo "$out" | tail -1
 [ "$rc" -eq 0 ] || { echo "FAIL: test handle guard co FAIL"; fail=1; }
+
+echo "=== [25/25] Test I3-B BOUNDS (duong kinh thep tron o DK bang -> LO nghi_ngo, khong lot grounding, offline) ==="
+out=$($PY tests/test_i3_bounds.py 2>&1); rc=$?
+echo "$out" | tail -1
+[ "$rc" -eq 0 ] || { echo "FAIL: test i3 bounds co FAIL"; fail=1; }
 
 echo "------------------------------------"
 if [ "$fail" -eq 0 ]; then echo "HARNESS GATE: PASS"; else echo "HARNESS GATE: FAIL"; fi

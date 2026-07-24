@@ -9,7 +9,9 @@
 > Mới nhất ở TRÊN CÙNG. Bàn giao đầy đủ: `session-handoff.md`. Nhật ký chi tiết hơn nữa: `../GHI_CHU_HOAN_THIEN.md`.
 
 ---
-## Session 2026-07-24 — I1 (GUARD VALIDATE HANDLE) ✅ + I3 (bounds-check) ⛔ NO_GO → thiết kế lại
+## Session 2026-07-24 — I1 (guard handle) ✅ LIVE + I3 thiết-kế-lại: I3-B (Ø thép) ✅ · I3-U (đơn-vị-1000×) ⏳ hoãn ≥3 firm
+> **BỔ SUNG (I3 thiết kế lại, sau khi plan cũ NO_GO):** workflow `wf_e507ad48` tách I3 làm 2. **✅ I3-B LIVE** (commit cụm I3-B): bound đường kính thép TRÒN trên ô DK bảng thống kê (`_dk_bat_kha` ≤0/>60mm, `_to_num` BARE) — LỘ nghi_ngo bool + prose KHÔNG số, cờ trong `_acc_thep` không đụng kg → tong_kg bất biến; surface ở `thong_ke_thep`. **KHÔNG-LỌT-GROUNDING verify thật:** biên 60 + bất-khả 1600 ∉ `_collect_numbers` (1600 chỉ ở KEY). Red-team 4/4 GO_WITH_ADJ. Test `test_i3_bounds.py` 24/24, gate **[25/25]**, misc/takeoff/qa KHÔNG đổi. **⏳ I3-U HOÃN tới ≥3 firm** (user chốt — chống overfit): red-team 4/4 GO_WITH_ADJ, cơ chế AN TOÀN (early-return trước compute → 0.005 KHÔNG phát; không lọt grounding), NHƯNG ngưỡng sàn + tiền đề 'mọi mm nguyên' rút n=1 file = overfit → FP sàn mỏng 30-49mm/dim lẻ; cần đa-firm calibrate. Hướng đã vet + memory `[[project-i3-bounds-check-nogo]]`.
+
 > **CHỐT:** check.sh **[24/24] PASS** · **28 tool** · takeoff 258 · qa 129 · **handle-guard 44** · grounding 34 (KHÔNG đổi — I1 không đụng `_guard_text`) · 0 regress. **I1 XONG & LIVE `de1ef47`** (code commit `de1ef47`; verify /version=de1ef47 + /health ok 2026-07-24, rebuild 49s). **I3 NO_GO** (red-team 4/4 lăng kính bác) → giữ đầu mục, thiết kế lại. feature_list: +i1(done) +i3(planned) = 33 mục.
 
 **User:** "làm I1 + I3 luôn". Theo quy trình dự án: probe → design → red-team-TRƯỚC-code → implement → red-team-implementation → gate.
