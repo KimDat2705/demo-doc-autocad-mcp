@@ -9,6 +9,22 @@
 > Mới nhất ở TRÊN CÙNG. Bàn giao đầy đủ: `session-handoff.md`. Nhật ký chi tiết hơn nữa: `../GHI_CHU_HOAN_THIEN.md`.
 
 ---
+## Session 2026-07-22 (nối, đêm) — U3: ĐỌC BẢNG EXCEL NHÚNG (OLE) — ✅ LIVE `fd48b19` · ⚠ ghi-bù 2026-07-23→24
+> **GHI-BÙ (baseline + soạn entry tối 2026-07-23; commit `0cee9b6` sáng 2026-07-24):** phiên đêm 2026-07-22 (chat `279bf2f9`, 14:44→23:22 giờ VN) làm xong U3 + **push + verify LIVE** RỒI máy CRASH khi đang chờ user → entry progress/handoff/feature_list chưa kịp ghi (bạn chưa ra lệnh "chốt sổ"). Nay ghi-bù: **code AN TOÀN** (committed+pushed+LIVE, transcript `279bf2f9.jsonl` còn nguyên, resume được), chỉ thiếu giấy tờ. **Baseline re-verify 2026-07-23:** `check.sh` **HARNESS GATE PASS** (27 tool · takeoff **258** · qa **129** · oleexcel **18** · cao_do 31 · ole-cảnh-báo 51 · grounding 34 · **0 FAIL**).
+
+**Mục tiêu:** U3 (`PHUONG_AN_NANG_CAP_DU_AN.md`) — đọc BẢNG Excel NHÚNG (OLE2Frame). Bug C GĐ4: file "Thong ke thep SUA" bảng thép nằm trong 8 OLE → engine đọc 0 thanh, TRƯỚC chỉ LỘ cảnh báo "không đọc được"; U3 = đọc THẬT nội dung bảng.
+
+**Đã làm (2 commit, LIVE, qua red-team 6 hướng / 26 finding / 8 CHẶN):**
+- **`1cc84ad`** — module `oleexcel.py` + probe + `test_oleexcel.py` 18 ca (CHƯA cắm engine). Cơ chế: `ezdxf OLE2Frame.binary_data()` → magic **CFBF offset≠0** (header thừa) → `olefile` → `xlrd` (**vá decode KHOAN DUNG** — vài .xls VN chết utf-16 surrogate) / `openpyxl`. Deps mới: **olefile, xlrd**. Probe corpus: **~89% OLE đọc được BINARY** (KHÔNG OCR); "Thong ke thep SUA" + THPT 67 bảng → đọc hết.
+- **`fd48b19`** — WIRING vào engine + verify LIVE (`/version`=fd48b19 + `/health` ok, 23:21). **Red-team đổi thiết kế an toàn hơn:** (a) **số ô OLE KHÔNG vào rổ grounding** — `mcp_bridge` LOẠI `doc_bang_nhung` khỏi rổ neo (nếu vào: số bịa nào cũng khớp → sập guard chống bịa); số OLE = hiển-thị-đối-chiếu, KHÔNG phải chứng cứ. (b) **giàu hoá `ole_nhung`** (1 nguồn quét) thay vì thêm field mới → fake test cũ không KeyError. (c) MCP tool #27 `doc_bang_nhung` chỉ trả **HÀNG bảng + nguồn `ole:<handle>:<sheet>`**, máy **KHÔNG tự chọn ô TỔNG / KHÔNG tự cộng** (chống overfit+bịa); `_canh_bao_nhung` tách đọc-được/ảnh; trần RAM **150k ô**.
+
+**Kết quả test:** `test_oleexcel.py` **18/18** + ole-cảnh-báo 51; check.sh **[22/22]→[23/23] PASS** · takeoff 258 · qa 129 · **0-OLE không đổi · 0 regress**. Fixture THEP_OLE ở `tests/corpus_local` (gitignored). Checklist cập nhật 27 tool. Memory design lưu `[[project-doi-sanh-kien-truc]]`.
+
+**⏳ CHƯA (v2):** OCR fallback tầng 2 cho **~11% OLE dạng ẢNH thật** (StaticDib/PBrush/EMF); **diễn giải bảng thép → tổng kg** (overfit — CHẶN tới khi có corpus ≥3 firm / P5).
+
+**Đang chờ / bước tiếp:** U-series còn **U1**(P5 codify) · **U2**(zone index) · **U4**(gói SME test) · **U5**(đối chiếu bóc tay) · **U6**(RAM iterdxf stream) + nhóm **I1-I9**. **id135 E2E-thật** chờ file hạ tầng mốc sâu thật. **F-B** (P3 vào web) chờ user quyết. **HELD RAM** push khi bật billing Render.
+
+---
 ## Session 2026-07-22 (CHỐT SỔ) — AUDIT phiên GĐ4 (34-agent) + vá bó F1/F2/F3/F4 — ✅ LIVE `fd7019d`
 > **CHỐT SỔ:** check.sh **[22/22] PASS** · takeoff 258 · qa 129 · cao_do **31** · OLE **44** · working tree TRACKED sạch, push hết, **HEAD LIVE `fd7019d`** (`/version` khớp + `/health` ok). Ẩn danh SẠCH (0 tên địa danh/người; đã vá 1 rò tên-địa-danh→bí-danh `CT-A` do chính tôi lỡ viết ở entry F1). 3 mục "còn lại" (OLE-block/RAM/P5) trỏ sang **U3/U6/U1** trong `PHUONG_AN_NANG_CAP_DU_AN.md`. KHÔNG pytest. feature_list: 29 done / 1 deferred (không đổi — phiên chỉ audit+hardening). Commit code: `85d8a50` (F1+F4) · `fd7019d` (F2+F3).
 

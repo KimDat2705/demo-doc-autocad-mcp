@@ -2,14 +2,14 @@
  "project": "demo-doc-autocad-mcp (demo 2 — SẢN PHẨM CHÍNH)",
  "description": "Web app đọc + tính toán bản vẽ AutoCAD (.dwg/.dxf) QUA MCP (Model Context Protocol). LLM = Google Gemini. Kiến trúc TOOL-USE (KHÔNG training): code Python tất định đọc/tính số THẬT kèm handle; Gemini hiểu câu hỏi + gọi tool + diễn đạt. Triết lý BẤT DI: CHỐNG BỊA (thiếu->hỏi, không bịa; suy đoán->gắn cờ; số do CODE).",
  "stack": "Python 3.10 + Flask 3.1.3 + MCP 1.27 (FastMCP) + google-genai 2.10 (gemini-2.5-flash) + ezdxf 1.4.4 + matplotlib(Agg) + openpyxl + gunicorn + ODA File Converter + Docker + Render",
- "testedAt": "2026-07-16",
+ "testedAt": "2026-07-23",
  "status_legend": "done = xong + có bằng chứng/test | partial = có phần, còn treo | planned = đã nghiên cứu/roadmap, chưa code | deferred = HOÃN chờ đối tác chốt",
  "features": [
   {
    "id": "mcp-server",
-   "name": "MCP server chuẩn (FastMCP stdio, 26 tool)",
+   "name": "MCP server chuẩn (FastMCP stdio, 27 tool)",
    "status": "done",
-   "evidence": "mcp_server.py FastMCP('doc-autocad'); 26 @mcp.tool() (đếm được; +hoc_quy_uoc/thu_hoi_quy_uoc P3 + cao_do_min_max id135-recall); chạy stdio JSON-RPC -> cắm được client MCP bất kỳ (Claude Desktop/Cursor/CLI). Điểm HƠN demo 1 (kiến trúc chuẩn tái dùng)."
+   "evidence": "mcp_server.py FastMCP('doc-autocad'); 27 @mcp.tool() (đếm được; +hoc_quy_uoc/thu_hoi_quy_uoc P3 + cao_do_min_max id135-recall + doc_bang_nhung U3 đọc bảng OLE nhúng); chạy stdio JSON-RPC -> cắm được client MCP bất kỳ (Claude Desktop/Cursor/CLI). Điểm HƠN demo 1 (kiến trúc chuẩn tái dùng)."
   },
   {
    "id": "gemini-bridge",
@@ -184,6 +184,12 @@
    "name": "AI tự học từ đối tác (hỏi-để-học + log ứng viên + đối chiếu chéo + cổng duyệt)",
    "status": "done",
    "evidence": "NGHIEN_CUU_AI_TU_HOC.md (nguyên tắc) + KE_HOACH_AI_TU_HOC_CHI_TIET.md (bản KỸ THUẬT 2026-07-12: workflow 17-agent design-panel + red-team; kiến trúc eng-minimal + grafts safety-first; lộ trình P-1..P5). ✅ P-1 XONG [2026-07-12(c), commit 73990de, LIVE 5ecaca1]: vá 6 lỗ tồn tại E1-E6. ✅ P0-P1 XONG [2026-07-12(d), commit 6608edf]: đọc-thuần (read-only, KHÔNG học) — used_handles/residual + phan_loai_tin_hieu ①②③ + tool hoi_de_hoc/doi_chieu_nghi_ngo (23 tool); red-team bắt+vá classifier ngập nhiễu (thép/mác chuẩn), 9T KC 336→2 ứng viên; test [Y] 11 ca. ✅ P2 XONG [2026-07-13, commit 787b1e6]: log WORM append-only (hoclog.py CHỈ GHI, redact, cap+xoay; grep-guard khoá bất biến không-hồi-tiếp-inference; wiring tool-layer giữ core thuần); adversarial review 0 CONFIRMED cao/TB; test_hoc_log 20 ca, check.sh [9/9]. Còn P3 (mở kênh học, rủi ro cao) → P4/P5; P5 codify chặn tới khi có corpus >=3 firm. ✅ P-1.1 (vá R1: nhãn 'đáng tin' cho input chua_chac) + P3 MỞ KÊNH HỌC (hoc_quy_uoc/thu_hoi_quy_uoc ENUM template, học CÁCH ĐỌC theo phiên KHÔNG lưu số, §2.6 backstop số-học-không-thành-số-chốt, LLM bị chặn tool ghi R8) + P4 (rào tổng/Excel learned_handles fail-closed + cột chua_chac + mục 'chưa xác nhận') XONG & LIVE [commit 6933643→e9c4f80]. Red-team 2 tầng (thiết kế 119-agent + implementation 19-agent tự-repro). Test [Z]/[Z0] + test_hoc_quy_uoc (INV-10/12). ⏳ P5 (codify quy ước lên _build_* toàn cục) CHẶN tới khi có corpus ≥3 FIRM khác nhau (bản vẽ VN thật). Kênh học P3 hiện CHỈ qua MCP-client (chưa nối UI web — F-B chờ quyết)."
+  },
+  {
+   "id": "u3-doc-bang-ole-nhung",
+   "name": "U3 — Đọc BẢNG EXCEL NHÚNG (OLE) qua binary (MCP tool #27 doc_bang_nhung)",
+   "status": "done",
+   "evidence": "LIVE fd48b19 (verify /version+/health 2026-07-22 23:21). Trước đây bảng thống kê nằm trong OLE2Frame (Excel nhúng) -> ezdxf không đọc blob -> engine trả 0 (chỉ cảnh báo, bug C GĐ4). U3 = module oleexcel.py: ezdxf OLE2Frame.binary_data() -> tìm magic CFBF offset≠0 (header thừa) -> olefile -> xlrd (vá decode KHOAN DUNG cho vài .xls VN chết utf-16 surrogate) / openpyxl. Deps mới: olefile, xlrd. Probe corpus: ~89% OLE đọc được BINARY (KHÔNG cần OCR); file động lực 'Thong ke thep SUA' (engine cũ đọc 0 thanh) + THPT 67 bảng -> đọc hết. AN TOÀN CHỐNG BỊA (qua RED-TEAM 6 hướng / 26 finding / 8 CHẶN): máy KHÔNG tự chọn ô TỔNG/tự cộng — MCP tool #27 doc_bang_nhung chỉ trả HÀNG bảng + nguồn ole:<handle>:<sheet>; số ô OLE KHÔNG vào rổ grounding (mcp_bridge LOẠI doc_bang_nhung — nếu vào sẽ flooding sập guard chống bịa [red-team CHẶN]); _canh_bao_nhung tách đọc-được/ảnh; trần RAM 150k ô; giàu hoá ole_nhung (1 nguồn quét) thay vì thêm field (fake test cũ vẫn chạy). Commit 1cc84ad (module+probe+test, chưa cắm) + fd48b19 (wiring LIVE). Test tests/test_oleexcel.py 18/18 + ole-canh-bao 51; check.sh [22/22]->[23/23] PASS, qa 129, 0-OLE không đổi, 0 regress (baseline RE-VERIFY 2026-07-23: HARNESS GATE PASS, takeoff 258/qa 129/oleexcel 18). Fixture THEP_OLE ở tests/corpus_local (gitignored). ⏳ v2 CHƯA làm: OCR fallback tầng 2 cho ~11% OLE dạng ẢNH thật (StaticDib/PBrush/EMF); diễn giải bảng thép -> tổng kg (overfit, CHẶN tới ≥3 firm/P5). = roadmap U3 trong PHUONG_AN_NANG_CAP_DU_AN.md. ⚠ Entry GHI-BÙ (baseline + soạn tối 2026-07-23, commit 0cee9b6 sáng 2026-07-24) — phiên đêm 2026-07-22 crash trước khi kịp cập nhật ledger; code+push+LIVE đã xong đêm đó."
   }
  ]
 }
