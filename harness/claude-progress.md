@@ -10,7 +10,7 @@
 
 ---
 ## Session 2026-07-24 — I1 (GUARD VALIDATE HANDLE) ✅ + I3 (bounds-check) ⛔ NO_GO → thiết kế lại
-> **CHỐT:** check.sh **[24/24] PASS** · **28 tool** · takeoff 258 · qa 129 · **handle-guard 44** · grounding 34 (KHÔNG đổi — I1 không đụng `_guard_text`) · 0 regress. **I1 XONG** (code+ledger trong COMMIT NÀY; chờ push+deploy+verify LIVE). **I3 NO_GO** (red-team 4/4 lăng kính bác) → giữ đầu mục, thiết kế lại. feature_list: +i1(done) +i3(planned) = 33 mục.
+> **CHỐT:** check.sh **[24/24] PASS** · **28 tool** · takeoff 258 · qa 129 · **handle-guard 44** · grounding 34 (KHÔNG đổi — I1 không đụng `_guard_text`) · 0 regress. **I1 XONG & LIVE `de1ef47`** (code commit `de1ef47`; verify /version=de1ef47 + /health ok 2026-07-24, rebuild 49s). **I3 NO_GO** (red-team 4/4 lăng kính bác) → giữ đầu mục, thiết kế lại. feature_list: +i1(done) +i3(planned) = 33 mục.
 
 **User:** "làm I1 + I3 luôn". Theo quy trình dự án: probe → design → red-team-TRƯỚC-code → implement → red-team-implementation → gate.
 
