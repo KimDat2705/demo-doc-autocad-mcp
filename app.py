@@ -249,7 +249,9 @@ def ask():
                 if _v: s["artifacts"].add(os.path.basename(str(_v)))
             # Ghi lại lượt này vào lịch sử (chỉ hỏi + đáp cuối) + cắt giữ N lượt gần nhất.
             s["history"].append({"role": "user", "text": q})
-            s["history"].append({"role": "model", "text": r.get("answer", "")})
+            # I1: LƯU answer_goc (SẠCH, chưa nối cảnh báo handle) vào history — nếu lưu answer đã-nối thì lượt sau
+            # model đọc lời tự-chê của chính nó -> có thể NGỪNG trích handle -> sập điểm bán hàng "trả lời kèm handle".
+            s["history"].append({"role": "model", "text": (r.get("answer_goc") or r.get("answer", ""))})
             del s["history"][:-2 * MAX_HISTORY_TURNS]
         _METRICS["asks"] += 1       # L — đếm giám sát (hiện ở /health)
         return jsonify(r)

@@ -169,7 +169,7 @@ def _schema(js):
 
 # R8 (red-team P3): TOOL KHÔNG phơi cho LLM — nap_ban_ve (host tự nạp) + hoc_quy_uoc/thu_hoi_quy_uoc (CHỈ đối tác chủ
 # động dạy qua UI/lệnh tường minh; KHÔNG để chữ-file lái LLM TỰ GHI/xoá quy ước = mở cổng người-thật, không auto).
-_TOOL_KHONG_CHO_LLM = {"nap_ban_ve", "hoc_quy_uoc", "thu_hoi_quy_uoc"}
+_TOOL_KHONG_CHO_LLM = {"nap_ban_ve", "hoc_quy_uoc", "thu_hoi_quy_uoc", "kiem_tra_handle"}
 def gemini_tools(mcp_tools):
     decls = []
     for t in mcp_tools:
@@ -339,6 +339,123 @@ def _flat_ev(evidence, per_group=20, total_cap=60):
 
 
 # ============================================================
+# I1 — GUARD VALIDATE HANDLE: đối chiếu handle model TRÍCH DẪN với handle tool ĐÃ phát / có trong file.
+# ADDITIVE THUẦN: chỉ NỐI THÊM cảnh báo ở CUỐI text, KHÔNG sửa/bỏ ký tự nào, KHÔNG từ chối. Bám HÌNH THỨC
+# trích dẫn (bài học _CD_INL) — KHÔNG ngưỡng độ dài / tần suất / 'trông lạ' (chống tái sinh vụ -22.75).
+# Handle DXF = hex 1-16 ký tự (đo thật: file demo 1-2, CT-A KT 5, KC 6, 9T 7).
+_I1_HEXTOK = re.compile(r"^[0-9A-Fa-f]{1,16}$")
+_I1_OLE_RE = re.compile(r"ole:([0-9A-Fa-f]{1,16}):", re.I)
+_I1_BRACKET_RE = re.compile(r"\\?\[([^\[\]]{1,400})\\?\]")
+_I1_LABEL_RE = re.compile(
+    r"handle\s*\*{0,2}\s*[:：]?\s*`?([0-9A-Fa-f]{1,16})`?((?:\s*,\s*`?[0-9A-Fa-f]{1,16}`?)*)", re.I)
+_I1_NUMBEFORE_RE = re.compile(r"(-?\d+(?:[.,]\d+)?)[^\d]*$")
+_I1_ALNUM_RE = re.compile(r"[0-9A-Za-z]+")
+
+
+def _collect_handles(obj):
+    """Thu MỌI handle THẬT tool đã phát: chuỗi hex dưới khoá CÓ CHỨA 'handle' (handle/qty_handle/anchor_handle/
+    handles[]/thep_att_handles/handle_khong_khop) + handle nhúng 'ole:<h>:'. Khác _evidence_from: nhận MỌI khoá
+    chứa 'handle' (không chỉ tên đúng 'handle'), KHÔNG có nhánh else loại trừ (không rơi handle lồng)."""
+    out = set()
+    def walk(v, keyhint=""):
+        if isinstance(v, str):
+            if "handle" in keyhint and _I1_HEXTOK.match(v): out.add(v.upper())
+            for m in _I1_OLE_RE.finditer(v): out.add(m.group(1).upper())
+        elif isinstance(v, dict):
+            for k, val in v.items(): walk(val, str(k).lower())
+        elif isinstance(v, (list, tuple)):
+            for x in v: walk(x, keyhint)
+    walk(obj)
+    return out
+
+
+def _handle_tokens(text):
+    """Trích token model TRÌNH BÀY như handle. [A] cả cặp [] CHỈ chứa hex (+nhãn 'handle:' tuỳ chọn, chịu
+    backtick/**/escape markdown); [B] nhãn 'handle' DÍNH SÁT hex; [C] 'ole:hex:'. Cờ echo = token toàn-số ==
+    số ngay TRƯỚC '[' (giá trị chép vào ô, KHÔNG phải handle). '[Lan can ... D42]' KHÔNG tách (ngoặc có chữ)."""
+    if not text: return []
+    out, seen = [], set()
+    def add(tok, dang, echo=False):
+        k = (tok.upper(), dang)
+        if k in seen: return
+        seen.add(k); out.append({"token": tok.upper(), "dang": dang, "echo": echo})
+    for m in _I1_BRACKET_RE.finditer(text):
+        cleaned = m.group(1).replace("`", "").replace("*", "").strip()
+        cleaned = re.sub(r"^handle\s*[:：]?\s*", "", cleaned, flags=re.I)
+        parts = [p.strip() for p in cleaned.split(",")]
+        parts = [p for p in parts if p and p not in ("...", "…")]
+        if not parts or not all(_I1_HEXTOK.match(p) for p in parts): continue
+        before = text[:m.start()].rsplit("\n", 1)[-1]
+        nm = _I1_NUMBEFORE_RE.search(before)
+        numb = _to_f(nm.group(1)) if nm else None
+        for p in parts:
+            add(p, "A", echo=(p.isdigit() and numb is not None and _to_f(p) == numb))
+    for m in _I1_LABEL_RE.finditer(text):
+        for h in re.findall(r"[0-9A-Fa-f]{1,16}", (m.group(1) or "") + (m.group(2) or "")):
+            add(h, "B")
+    for m in _I1_OLE_RE.finditer(text):
+        add(m.group(1), "C")
+    return out
+
+
+def _kiem_handle(text, tool_handles, tool_numbers, bridge, cau_hoi=""):
+    """Đối chiếu handle model trích với tool_handles (ĐÃ phát) + entitydb (có trong file). Trả (text_moi, bao_cao).
+    3 tầng: ∈tool_handles -> IM; ∉tool nhưng trong_file -> IM (vd handle lượt trước); không đâu có -> cảnh báo.
+    Chỉ NỐI THÊM ở CUỐI. Mọi lỗi/không kiểm được -> FAIL-OPEN (giữ nguyên text)."""
+    try:
+        toks = _handle_tokens(text)
+        if not toks: return text, {}
+        unknown, seen = [], set()
+        for tk in toks:
+            h = tk["token"]
+            if h in tool_handles: continue                                      # tầng 1: tool đã phát -> im
+            if tk.get("echo"): continue                                         # 'X kg [X]' -> giá trị, không cảnh báo
+            if h.isdigit() and _is_grounded(_to_f(h), tool_numbers): continue   # số đã truy nguồn -> không cảnh báo
+            if h in seen: continue
+            seen.add(h); unknown.append(h)
+        if not unknown: return text, {"ngoai_cong_cu": []}
+        info = {}
+        try:
+            r = bridge.call("kiem_tra_handle", {"handles": ",".join(unknown[:60])}, timeout=15)
+            if isinstance(r, dict) and not r.get("loi"):
+                for it in (r.get("ket_qua") or []): info[str(it.get("handle", "")).upper()] = it
+        except Exception as e:
+            return text, {"loi_kiem": str(e)[:120]}                             # FAIL-OPEN
+        cauhoi = set(m.upper() for m in _I1_ALNUM_RE.findall(cau_hoi or ""))
+        tang2, t3a, t3b = [], [], []
+        for h in unknown:
+            it = info.get(h)
+            if it is None: continue                                             # không kiểm được -> im (fail-open)
+            if it.get("trong_file"): tang2.append(h)                            # tầng 2: có trong file -> IM
+            elif it.get("co_trong_chu_ban_ve") or h in cauhoi: t3b.append(h)    # mã hiệu/ghi chú -> MỀM
+            else: t3a.append(h)                                                 # không đâu có -> cảnh báo
+        bao_cao = {"ngoai_cong_cu": tang2, "khong_trong_file": t3a, "co_the_ma_hieu": t3b}
+        phan = []
+        if t3a:
+            extra = (" và %d mã khác" % (len(t3a) - 8)) if len(t3a) > 8 else ""
+            phan.append("⚠ Mã tham chiếu " + ", ".join("[%s]" % x for x in t3a[:8]) + extra +
+                        " KHÔNG khớp đối tượng nào trong bản vẽ đang mở — nên kiểm tra lại trước khi dùng để tra ngược.")
+        if t3b:
+            phan.append("ℹ " + ", ".join("[%s]" % x for x in t3b[:8]) +
+                        " trông giống MÃ HIỆU/ghi chú trên bản vẽ, không phải mã tham chiếu (handle) của đối tượng.")
+        if phan: return text.rstrip() + "\n\n" + "\n".join(phan), bao_cao
+        return text, bao_cao
+    except Exception as e:
+        return text, {"loi_kiem": str(e)[:120]}
+
+
+def _apply_i1(guarded, tool_handles, tool_numbers, bridge, cau_hoi):
+    """Gate I1: tắt bằng env I1_KIEM_HANDLE=0; bỏ qua câu đã bị từ chối. FAIL-OPEN mọi lỗi."""
+    if os.environ.get("I1_KIEM_HANDLE", "1") == "0": return guarded, {}
+    if guarded == REFUSE_MESSAGE: return guarded, {}
+    if any(m in (guarded or "").lower() for m in _REFUSAL_MARKERS): return guarded, {}   # F2: câu TỪ CHỐI (ngôn ngữ tự nhiên) -> không nối cảnh báo
+    try:
+        return _kiem_handle(guarded, tool_handles, tool_numbers, bridge, cau_hoi)
+    except Exception:
+        return guarded, {}
+
+
+# ============================================================
 # GROUNDING-GUARD (id135) — chống bịa CON SỐ ĐO-LƯỜNG không nguồn.
 # Tín hiệu KHÔNG phải n_evidence=0 (60/198 câu ĐÚNG có n_ev=0 vì tool trả số tổng-hợp KHÔNG gắn handle:
 # đếm đối tượng, bảng thép, min/max dim, mốc cao độ). Tín hiệu ĐÚNG = GROUNDING: số ĐO-LƯỜNG trong câu
@@ -465,6 +582,7 @@ def tra_loi_ai(bridge, q, file_summary="", history=None):
     contents.append(types.Content(role="user", parts=[types.Part(text=q)]))
     evidence, anh_id, file_id = [], None, None
     tool_numbers = set()          # id135: MỌI số tool đã trả (RAW result) -> grounding-guard chống bịa số đo-lường
+    tool_handles = set()          # I1: MỌI handle THẬT tool đã phát -> validate handle model trích dẫn
     da_goi, da_nhac, da_nhac_rong = False, False, False
 
     for _ in range(MAX_TURNS):
@@ -499,6 +617,8 @@ def tra_loi_ai(bridge, q, file_summary="", history=None):
                 grp = fc.name + (": " + str(args.get("tu_khoa") or args.get("layer") or args.get("loc") or "")
                                  if any(k in args for k in ("tu_khoa", "layer", "loc")) else "")
                 evidence.extend(_evidence_from(result, grp.strip(": ")))
+                if isinstance(result, dict):
+                    tool_handles |= _collect_handles(result)   # I1: handle THẬT tool đã phát (MỌI tool, kể cả OLE — handle thật)
                 # id135: gom số RAW result cho grounding-guard. U3: LOẠI doc_bang_nhung — số ô bảng OLE (hàng trăm
                 # giá trị THÔ chưa gán nhãn cột) sẽ làm phình rổ neo, khiến số BỊA nào cũng khớp → sập guard. Số OLE
                 # là hiển-thị-để-đối-chiếu, KHÔNG phải chứng cứ an toàn; AI mô tả bảng được nhưng KHÔNG khẳng định tổng.
@@ -528,7 +648,9 @@ def tra_loi_ai(bridge, q, file_summary="", history=None):
                 continue
             return {"answer": "AI không đưa ra nội dung, vui lòng thử lại.",
                     "evidence": _flat_ev(evidence), "anh_id": anh_id, "file_id": file_id, "ai": True}
-        return {"answer": _guard_text(text, tool_numbers),   # id135: chặn bịa số đo-lường không nguồn
+        _goc = _guard_text(text, tool_numbers)               # id135: chặn bịa số đo-lường không nguồn
+        _ans, _hk = _apply_i1(_goc, tool_handles, tool_numbers, bridge, q)   # I1: đối chiếu handle trích dẫn (nối cảnh báo)
+        return {"answer": _ans, "answer_goc": _goc, "handle_kiem": _hk,
                 "evidence": _flat_ev(evidence), "anh_id": anh_id, "file_id": file_id, "ai": True}
 
     # Hết lượt tool mà chưa chốt (Flash hay LẶP gọi tool) -> ÉP trả lời NGAY từ dữ liệu ĐÃ thu,
@@ -546,7 +668,9 @@ def tra_loi_ai(bridge, q, file_summary="", history=None):
         parts = (cand.content.parts or []) if (cand and cand.content) else []
         text = "".join(getattr(p, "text", "") or "" for p in parts if not getattr(p, "thought", False)).strip()
         if text:
-            return {"answer": _guard_text(text, tool_numbers),   # id135: chặn bịa số đo-lường không nguồn
+            _goc = _guard_text(text, tool_numbers)               # id135: chặn bịa số đo-lường không nguồn
+            _ans, _hk = _apply_i1(_goc, tool_handles, tool_numbers, bridge, q)   # I1: đối chiếu handle trích dẫn
+            return {"answer": _ans, "answer_goc": _goc, "handle_kiem": _hk,
                     "evidence": _flat_ev(evidence), "anh_id": anh_id, "file_id": file_id, "ai": True}
     except Exception:
         pass

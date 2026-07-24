@@ -274,5 +274,13 @@ def thu_hoi_quy_uoc(rule_id: str = "") -> dict:
     return r
 
 
+@mcp.tool()
+def kiem_tra_handle(handles: str = "") -> dict:
+    """HOST-ONLY (I1, KHÔNG dành cho LLM — nằm trong _TOOL_KHONG_CHO_LLM ở mcp_bridge): đối chiếu 1 danh sách
+    handle (ngăn phẩy) với đối tượng THẬT trong file đang mở. CHỈ ĐỌC, trả DỮ KIỆN THÔ (trong_file/dxftype/
+    text/co_trong_chu_ban_ve) — KHÔNG phán quyết đúng-sai. Máy chủ dùng để kiểm handle model trích dẫn."""
+    return _need() or DRAWING.kiem_tra_handle(handles=handles)
+
+
 if __name__ == "__main__":
     mcp.run()

@@ -45,6 +45,8 @@ def unaccent(s):
     return s.replace("đ", "d").replace("Đ", "D").lower()
 
 _DIAM_RE = re.compile(r"(?:ø|φ|phi|d)\s*0*(\d+)")
+_I1_TOK_RE = re.compile(r"[0-9A-Za-z]+")   # I1: token chữ-số để build tập miễn-trừ (mã hiệu/ghi chú bản vẽ)
+_I1_DIGIT_RE = re.compile(r"\d+")          # I1 (F1): tách dãy SỐ trong token ghép ('900x2200' -> '900','2200')
 _GARBLE_FOLD = str.maketrans({"ö": "u", "Ö": "U", "ä": "o", "Ä": "O",
                               "æ": "o", "Æ": "O", "õ": "e", "Õ": "E"})
 def _garble_fold(s): return (s or "").translate(_GARBLE_FOLD)
@@ -1149,6 +1151,52 @@ class Drawing:
         return {"ok": True, "da_thu_hoi": da_go, "con_lai": len(self.hoc_phien),
                 "ghi_chu": ("Đã thu hồi TẤT CẢ %d quy ước học." % da_go) if not rid
                            else ("Đã thu hồi quy ước %s." % rid if da_go else "Không tìm thấy quy ước '%s' (có thể đã thu hồi)." % rid)}
+
+    def _build_tok_ban_ve(self):
+        """I1: tập token (HOA) xuất hiện trong CHỮ bản vẽ + tên BLOCK + tên LAYER — để phân biệt 'mã hiệu/ghi chú
+        của chính bản vẽ' (vd C1, CB300, nhãn trục A-F) với handle bịa. Build LƯỜI 1 lần. KHÔNG lưu số."""
+        s = set()
+        for t in getattr(self, "texts", []):
+            for src in (t.get("vn") or "", t.get("text") or ""):
+                for m in _I1_TOK_RE.findall(src):
+                    s.add(m.upper())
+                    for d in _I1_DIGIT_RE.findall(m): s.add(d)   # F1: '900x2200' -> +'900','2200' (kích thước ghép -> ℹ mềm, không ⚠ cứng)
+        for bn in (getattr(self, "blocks", {}) or {}):
+            s.add(str(bn).upper())
+            for m in _I1_TOK_RE.findall(str(bn)): s.add(m.upper())
+        for ly in (getattr(self, "layers", []) or []):
+            s.add(str(ly).upper())
+            for m in _I1_TOK_RE.findall(str(ly)): s.add(m.upper())
+        return s
+
+    def kiem_tra_handle(self, handles="", **_):
+        """I1 (HOST-ONLY, CHỈ ĐỌC): trả DỮ KIỆN THÔ cho từng handle — có trong entitydb file không, loại entity,
+        text kèm theo, và có xuất hiện như mã/chữ trong bản vẽ không. TUYỆT ĐỐI KHÔNG phán quyết (không trường
+        'đáng tin'/'bịa'/'hợp lệ'). Máy chủ dùng dữ kiện này để nối cảnh báo; đúng-sai KHÔNG do tool này quyết."""
+        db = getattr(self.doc, "entitydb", None)
+        toks, seen = [], set()
+        for h in str(handles or "").replace(";", ",").split(","):
+            H = h.strip().upper()
+            if H and H not in seen:
+                seen.add(H); toks.append(H)
+            if len(toks) >= 60: break
+        if getattr(self, "_tok_ban_ve", None) is None:
+            self._tok_ban_ve = self._build_tok_ban_ve()
+        tbh = getattr(self, "_text_by_handle", None) or {}
+        out = []
+        for H in toks:
+            ent = None
+            try: ent = db.get(H) if db is not None else None
+            except Exception: ent = None
+            dxft = None
+            if ent is not None:
+                try: dxft = ent.dxftype()
+                except Exception: dxft = None
+            td = tbh.get(H) or tbh.get(H.lower())
+            out.append({"handle": H, "trong_file": ent is not None, "dxftype": dxft,
+                        "text": (td.get("vn") if td else None),
+                        "co_trong_chu_ban_ve": (H in self._tok_ban_ve)})
+        return {"so_kiem": len(out), "ket_qua": out}
 
     # ---------------- qty index (port) ----------------
     def _find_title_for_qty(self, info, i):

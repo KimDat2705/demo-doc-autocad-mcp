@@ -9,6 +9,24 @@
 > Mới nhất ở TRÊN CÙNG. Bàn giao đầy đủ: `session-handoff.md`. Nhật ký chi tiết hơn nữa: `../GHI_CHU_HOAN_THIEN.md`.
 
 ---
+## Session 2026-07-24 — I1 (GUARD VALIDATE HANDLE) ✅ + I3 (bounds-check) ⛔ NO_GO → thiết kế lại
+> **CHỐT:** check.sh **[24/24] PASS** · **28 tool** · takeoff 258 · qa 129 · **handle-guard 44** · grounding 34 (KHÔNG đổi — I1 không đụng `_guard_text`) · 0 regress. **I1 XONG** (code+ledger trong COMMIT NÀY; chờ push+deploy+verify LIVE). **I3 NO_GO** (red-team 4/4 lăng kính bác) → giữ đầu mục, thiết kế lại. feature_list: +i1(done) +i3(planned) = 33 mục.
+
+**User:** "làm I1 + I3 luôn". Theo quy trình dự án: probe → design → red-team-TRƯỚC-code → implement → red-team-implementation → gate.
+
+**WORKFLOW 15-agent (probe 4 + design 2 + red-team 8 + synth 1) — bằng chứng chạy engine THẬT:**
+- **I1 = GO_WITH_ADJUSTMENTS.** Tự đo trên **854 câu trả lời thật** (5 file battery) đối chiếu entitydb thật 3 file corpus (80k/99k/177k handle): **FP=0/854**, TP=2/854 (ca giá trị nhất: model chép `44C4` trong khi tool trả `449C4` — RỚT 1 chữ số). Cạm bẫy đo được: nhãn trục VN A-F trùng khít bảng hex; 7 mã (C1-C5,D2,D6) đồng thời là handle thật.
+- **I3 = NO_GO (4/4 lăng kính, 16 finding CAO).** LỖI GỐC: gắn bound vào TÊN Ô `chieu_cao` (mm) — mà slot này mang **5 nghĩa vật lý** qua 8 công thức (cao cột ~3600 / cao tiết diện dầm / dày đế móng / cao tường / dày lớp đắp). Áp dải cao-cột cho tất cả → **FP 87.5%** (bê tông lót 100mm, đắp cát 200mm, móng đế 250mm bị cờ oan) = TÁI SINH vụ -22.75. Lan chuyền: hằng biên lọt rổ grounding qua chuỗi → câu bịa 'Móng sâu 100m' TRƯỚC chặn nay LỌT (5/6). 2/3 ví dụ đặc tả gốc sai sẵn ('Ø6-51' nổ vào mã dầm/cọc; 'kg thép/m³ BT' khác phạm vi). SỐNG SÓT: I3-B (Ø thép trên ô DK bảng — 0 FP/60 file) + gate provenance vững. BUG THẬT còn nguyên: `tinh_dai_luong(chieu_cao=3.6)` gõ mét → 0.005 m³ vẫn dán 'đáng tin' (lệch 1000×) — cần hướng khác.
+
+**I1 — ĐÃ CODE (7 lát, ADDITIVE THUẦN):** `_collect_handles` (gom handle THẬT mọi khoá chứa 'handle' + `ole:h:`) + `_handle_tokens` (detector FORM A/B/C bám HÌNH THỨC + echo) + `_kiem_handle`/`_apply_i1` (3 tầng: tool-phát→IM / trong-file→IM / không-đâu-có→⚠, mã-hiệu/câu-hỏi→ℹ mềm) cắm 2 điểm return; MCP tool #28 `kiem_tra_handle` (CHỈ ĐỌC, host-only, entitydb.get + `_build_tok_ban_ve`, trả dữ kiện THÔ, KHÔNG phán quyết); `app.py` lưu **answer_goc** (sạch) vào history.
+
+**RED-TEAM IMPLEMENTATION (tự-repro file 26MB) → GO_WITH_ADJUSTMENTS, vá 2:** **F1** kích thước `[900]`/`[2200]` (cửa 900x2200 số THẬT) bị ⚠ nhầm là handle → `_build_tok_ban_ve` tách dãy số ('900x2200'→+'900','2200') → ℹ mềm. **F2** câu từ chối tự nhiên bị nối ⚠ → `_apply_i1` bỏ qua `_REFUSAL_MARKERS`. Đã thử phá THẤT BẠI (I1 vững): perf ~0 (build 0.016s/26MB), fail-open thật (bridge raise/rác/None đều giữ text), 0 crash fuzz, `_collect_handles` không sót trên 16 tool thật, answer_goc luôn sạch.
+
+**BẤT BIẾN khoá test (chống tái sinh 3 tiền lệ):** KHÔNG ngưỡng độ dài/tần suất (handle 2 & 7 ký tự xử như nhau — chống -22.75); KHÔNG trường phán quyết `dang_tin`/`la_bia` (chống thap_nhat_dang_tin); ADDITIVE THUẦN — thân câu byte-identical, KHÔNG bao giờ từ chối; FAIL-OPEN mọi lỗi. Test `test_handle_guard.py` **44/44**.
+
+**Đang chờ / bước tiếp:** commit I1 (+push+deploy+verify LIVE). **I3 THIẾT KẾ LẠI** (user muốn giữ): khoá bound theo đại-lượng-vật-lý-THẬT do RESOLVER quyết (không theo ten_input) + luật 'chỉ cờ khi KHÔNG tồn tại cách đọc hợp lệ' + KHÔNG để biên lọt grounding + chỉ LỘ cờ. **I1b** (vá FN5 `_guard_text`) + đo LIVE calibrate tầng-2. U-series còn U1/U2/U4/U5/U6 + I2/I4-I9.
+
+---
 ## Session 2026-07-22 (nối, đêm) — U3: ĐỌC BẢNG EXCEL NHÚNG (OLE) — ✅ LIVE `fd48b19` · ⚠ ghi-bù 2026-07-23→24
 > **GHI-BÙ (baseline + soạn entry tối 2026-07-23; commit `0cee9b6` sáng 2026-07-24):** phiên đêm 2026-07-22 (chat `279bf2f9`, 14:44→23:22 giờ VN) làm xong U3 + **push + verify LIVE** RỒI máy CRASH khi đang chờ user → entry progress/handoff/feature_list chưa kịp ghi (bạn chưa ra lệnh "chốt sổ"). Nay ghi-bù: **code AN TOÀN** (committed+pushed+LIVE, transcript `279bf2f9.jsonl` còn nguyên, resume được), chỉ thiếu giấy tờ. **Baseline re-verify 2026-07-23:** `check.sh` **HARNESS GATE PASS** (27 tool · takeoff **258** · qa **129** · oleexcel **18** · cao_do 31 · ole-cảnh-báo 51 · grounding 34 · **0 FAIL**).
 

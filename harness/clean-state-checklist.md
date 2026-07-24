@@ -4,7 +4,7 @@ Chạy TRƯỚC mỗi commit và cuối mỗi phiên (một phiên = một "tran
 
 ## Build / Import
 - [ ] `python -c "import tools_core"` sạch (không lỗi import)
-- [ ] `grep -c "@mcp.tool" mcp_server.py` = **27** (24 + `hoc_quy_uoc` + `thu_hoi_quy_uoc` [P3, LOẠI khỏi gemini_tools = R8] + `cao_do_min_max` [id135-recall] + `doc_bang_nhung` [U3, đọc bảng OLE nhúng])
+- [ ] `grep -c "@mcp.tool" mcp_server.py` = **28** (24 + `hoc_quy_uoc` + `thu_hoi_quy_uoc` [P3, LOẠI khỏi gemini_tools = R8] + `cao_do_min_max` [id135-recall] + `doc_bang_nhung` [U3, đọc bảng OLE nhúng] + `kiem_tra_handle` [I1, đối chiếu handle — LOẠI khỏi gemini_tools, host-only])
 - [ ] ⚠ KHÔNG dùng `pytest` (test đổi `sys.stdout` lúc import → pytest crash `I/O operation on closed file`); chạy SCRIPT trực tiếp + `check.sh`. KHÔNG có `specs/specs.json` (dùng `feature_list.json`).
 - [ ] `requirements.txt` đủ (ezdxf, Flask, gunicorn, google-genai, mcp, matplotlib, pillow, openpyxl)
 
@@ -34,7 +34,7 @@ Chạy TRƯỚC mỗi commit và cuối mỗi phiên (một phiên = một "tran
 - [ ] `python tests/test_hoc_log.py` = **20/20** · `test_hoc_quy_uoc.py` = **2/2** (P2 log WORM + P3 INV-10 LLM-exclusion/INV-12 grep-guard)
 - [ ] **GĐ1-2 kiểm thử (offline):** `test_visual_highlight` 15 · `test_excel_content` 17 (mở lại .xlsx) · `test_misc_tools` 84 · `test_vntext` 28 · `test_fuzz_input` 36 · `test_dwgconv` 10 · `test_mcp_stdio` 14 (spawn mcp_server thật) · `test_app_routes` 8
 - [ ] `python tests/test_grounding_guard.py` = **32/32** (id135 grounding-guard chống bịa số đo-lường) · `python tests/test_cao_do_min_max.py` = **12/12** (id135 recall: đọc cao độ min/max + handle)
-- [ ] `bash harness/scripts/check.sh` = **HARNESS GATE: PASS** (**23 bước**: import+27tool · no-key · takeoff 258 · fallback 22 · size 9 · ttl 12 · session 25 · health 11 · hoc-log 20 · hoc-quy-uoc 2 · visual 15 · excel 17 · misc 84 · vntext 28 · fuzz 36 · dwgconv 10 · mcp-stdio 14 · app-routes 8 · grounding-guard 34 · cao-do 31 · khao-sat-corpus 61 · ole-canh-bao 51 · **oleexcel 18** [U3])
+- [ ] `bash harness/scripts/check.sh` = **HARNESS GATE: PASS** (**24 bước**: import+28tool · no-key · takeoff 258 · fallback 22 · size 9 · ttl 12 · session 25 · health 11 · hoc-log 20 · hoc-quy-uoc 2 · visual 15 · excel 17 · misc 84 · vntext 28 · fuzz 36 · dwgconv 10 · mcp-stdio 14 · app-routes 8 · grounding-guard 34 · cao-do 31 · khao-sat-corpus 61 · ole-canh-bao 51 · **oleexcel 18** [U3] · **handle-guard 44** [I1])
 - [ ] **E2E-AI (TỐN API, NGOÀI cổng):** `tests/run_battery.py` 198 câu + `tests/kichban_gd2.py` 12 lượt (đối chiếu engine-truth) — KPI ~0% bịa (đã đo ~1.1% bịa cứng 2026-07-13, đều edge-case)
 
 ## Tổng quát (chống overfit)
