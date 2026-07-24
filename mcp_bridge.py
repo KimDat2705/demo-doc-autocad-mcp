@@ -476,6 +476,8 @@ _MAHIEU_RES = [
     re.compile(r"\d+\s*#"),                                                                    # mác 250#
 ]
 _UNIT_NUM_RE = re.compile(r"(-?\d+(?:[.,]\d+)?)\s*(mm|cm|dm|km|m2|m²|m3|m³|kg|tấn|tan|mpa|m|%)(?![0-9A-Za-zÀ-ỹ])", re.I)
+_I1B_M2_RE = re.compile(r"(\d)\s*m2(?![0-9A-Za-z²³])")   # I1b: 'X m2' (đơn vị viết số) -> 'X m²' trước khi strip mã-hiệu
+_I1B_M3_RE = re.compile(r"(\d)\s*m3(?![0-9A-Za-z²³])")
 _DECIMAL_RE = re.compile(r"-?\d+[.,]\d+")
 _ANY_NUM_RE = re.compile(r"-?\d+(?:[.,]\d+)?")
 
@@ -514,6 +516,12 @@ def _answer_numbers(text):
     số nguyên trơn (đếm đối tượng/bộ/loại/tầng) KHÔNG tính là đo-lường. tat_ca = MỌI số ứng viên (đã loại
     mã-hiệu) dùng làm NEO grounding (kể cả số đếm đã truy được -> chống nuke câu đúng có phần đếm grounded)."""
     t = " " + (text or "") + " "
+    # I1b: chuẩn hoá đơn vị viết-SỐ 'm2'/'m3' (đứng NGAY sau chữ số) -> 'm²'/'m³' TRƯỚC khi strip mã-hiệu.
+    # Lý do: _MAHIEU_RES[4] ('[A-Za-z]+\d+...') ĂN NHẦM 'm2' -> do_luong rỗng -> guard MÙ với diện-tích/thể-tích
+    # bịa dạng 'X m2' (Gemini hay viết số thay vì mũ ²/³). CHỈ đổi khi 'm2/m3' liền sau CHỮ SỐ (là đơn vị) ->
+    # KHÔNG đụng nhãn trục 'M2'; và VẪN strip 'AxB mm' bình thường -> KHÔNG sinh do_luong nhầm từ số thứ 2 của
+    # tiết diện ('220x220 mm' -> [] chứ không phải [220], tránh false-refusal câu tiết diện ĐÚNG — bắt ở battery).
+    t = _I1B_M2_RE.sub(r"\1 m²", t); t = _I1B_M3_RE.sub(r"\1 m³", t)
     for rx in _MAHIEU_RES: t = rx.sub("  ", t)
     do_luong = [f for f in (_to_f(m.group(1)) for m in _UNIT_NUM_RE.finditer(t)) if f is not None]
     do_luong += [f for f in (_to_f(m.group(0)) for m in _DECIMAL_RE.finditer(t)) if f is not None]

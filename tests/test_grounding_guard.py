@@ -131,6 +131,32 @@ def main():
     ok("GIỮ: any-grounded (634 grounded + 1225 suy)",
        run_e2e({"dien_tich": [{"m2": 634}]}, "Diện tích mái 634 m2, ước tính sàn 1225 m2.") != R)
 
+    print("[I1b] VÁ LỖ: 'm2'/'m3' (viết SỐ, không mũ) trước bị _MAHIEU_RES ăn nhầm -> guard MÙ diện-tích/thể-tích bịa")
+    ok("do_luong bắt '500 m2' (đơn vị viết số) — TRƯỚC vá = []",
+       500.0 in B._answer_numbers("Diện tích sàn là 500 m2.")[1])
+    ok("do_luong bắt '12 m3'", 12.0 in B._answer_numbers("Thể tích bê tông 12 m3.")[1])
+    ok("do_luong bắt cả 'm2' lẫn 'm²' như nhau",
+       B._answer_numbers("500 m2")[1] == B._answer_numbers("500 m²")[1] == [500.0])
+    ok("BỊA 'Diện tích sàn 500 m2' (không grounded) -> CHẶN",
+       run_e2e({"dien_tich": [{"m2": 634}]}, "Diện tích sàn là 500 m2.") == R)
+    ok("BỊA 'thể tích 12 m3' (không grounded) -> CHẶN",
+       run_e2e({"thep": [{"kg": 300}]}, "Thể tích bê tông là 12 m3.") == R)
+    ok("BỊA 'm2' + handle [72721] KHÔNG che chở (bracket bị strip khỏi neo) -> CHẶN",
+       run_e2e({"dien_tich": [{"m2": 634}]}, "Diện tích 500 m2 [72721].") == R)
+    ok("GIỮ 'm2' ĐÚNG grounded (tool trả 634) -> KHÔNG chặn",
+       run_e2e({"dien_tich": [{"m2": 634}]}, "Diện tích mái là 634 m2.") != R)
+    ok("mã-hiệu vẫn KHÔNG lọt do_luong sau vá (B20/Ø22/250x186/1÷200)",
+       B._answer_numbers("Mác B20, Ø22, tiết diện 250x186, tỉ lệ 1/200.")[1] == [])
+    ok("số ĐẾM trơn '3 phòng' vẫn KHÔNG là đo-lường",
+       B._answer_numbers("Bản vẽ có 3 phòng, 5 cửa.")[1] == [])
+    # KHOÁ REGRESSION id77 (battery bắt): tiết diện 'AxB mm' KHÔNG được sinh do_luong nhầm từ số thứ 2 -> KHÔNG
+    # bị từ chối oan. (Bản vá đầu tiên trích do_luong từ text gốc đã nuke 'Cột 220x220 mm' — sai; đã sửa.)
+    ok("SECTION '220x220 mm' -> do_luong RỖNG (không nuke câu tiết diện đúng)",
+       B._answer_numbers("Cột C1 tiết diện 220x220 mm [3A044].")[1] == [])
+    ok("SECTION '900x2200 mm' -> do_luong RỖNG", B._answer_numbers("Cửa rộng 900x2200 mm.")[1] == [])
+    ok("SECTION '220x220 mm' grounded 220 -> GIỮ (không CHẶN)",
+       run_e2e({"tiet_dien": [{"a": 220, "b": 220}]}, "Cột C1 tiết diện 220x220 mm.") != R)
+
     if FAIL:
         print("\n%d PASS / %d FAIL" % (PASS, FAIL))
         return 1
