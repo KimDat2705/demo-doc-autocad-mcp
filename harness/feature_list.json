@@ -93,7 +93,7 @@
       "id": "excel",
       "name": "Xuất Excel bảng tổng hợp (.xlsx)",
       "status": "done",
-      "evidence": "xuat_excel (openpyxl) -> file_id + mục TỔNG PHỤ; route /file/<id>; test [D] file_id tồn tại."
+      "evidence": "xuat_excel (openpyxl) -> file_id + mục TỔNG PHỤ; route /file/<id>; test [D] file_id tồn tại. --- ✅ I2 MO RONG (LIVE 86776b9, 2026-07-25): them SHEET 2 \"Tien_luong\" (BOQ phang chuan du toan VN, copy-ready): [STT|Ma hieu(trong)|Ten cong tac|Don vi|Khoi luong|Dien giai(=nguon)|Ghi chu] nhom theo loai + subtotal, de QS cam thang vao phan mem du toan (G8/F1/Du toan GXD). AN TOAN: tai dung cung object th (2 sheet KHONG lech, verify subtotal khop tuyet doi tong_phu); create_sheet khong index + khong doi wb.active -> test_excel_content (doc wb.active) khong doi; subtotal lay truc tiep th[tong_phu] (khong double-count); LOAI quy_uoc_chua_xac_nhan (bat bien P4, verify 12.5 dang-day khong lot); return dict khong doi -> so Excel nam trong FILE khong vao grounding. PHAM VI: CHI khoi luong, KHONG don gia/thanh tien (du-toan-chi-phi VAN deferred). Test khoa +4 (khoi [C]) -> excel-content 17->21. Gate [25/25], qa 129, 0 regress. v2 HOAN: Dien-giai cong-thuc-song (can mo tong_hop mang toan hang), ma hieu dinh muc tu dong (can DB dinh muc)."
     },
     {
       "id": "visual-highlight",
