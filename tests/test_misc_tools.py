@@ -162,6 +162,31 @@ def kiem_liet_ke_layer(dwg, ten):
     _emit("có ghi_chu", bool(r.get("ghi_chu")))
 
 
+def kiem_tim_kiem_bicat(dwg, ten):
+    """I5 (2026-07-25): tim_kiem LỘ cờ bi_cat khi kết quả bị cắt (recall — thất bại phải lộ) + nudge sạch số."""
+    import re as _re
+    print("[tim_kiem I5 bi_cat] %s" % ten)
+    kw = None
+    for c in ("1", "a", "0", "m", "C", "e"):
+        if dwg.tim_kiem(tu_khoa=c).get("so_ket_qua", 0) >= 2:
+            kw = c; break
+    if kw is None:
+        _emit("tim_kiem-bicat: (bỏ qua) không có từ khoá >=2 kết quả", True); return
+    r1 = dwg.tim_kiem(tu_khoa=kw, gioi_han=1)   # ép cắt: 1 < so_ket_qua
+    _emit("gioi_han=1 (kết quả nhiều) -> bi_cat=True + hien_thi=1 + nudge 'BỊ CẮT' (thất bại phải lộ)",
+          r1.get("bi_cat") is True and r1.get("hien_thi") == 1 and "BỊ CẮT" in r1.get("ghi_chu", ""),
+          "-> so_ket_qua=%s" % r1.get("so_ket_qua"))
+    _emit("bi_cat là bool (không lọt grounding)", isinstance(r1.get("bi_cat"), bool))
+    _idx = r1.get("ghi_chu", "").find("BỊ CẮT")
+    _emit("đoạn nudge KHÔNG chứa chữ số (số ở field so_ket_qua/hien_thi, không lọt grounding)",
+          _idx >= 0 and not _re.search(r"\d", r1["ghi_chu"][_idx:]))
+    r2 = dwg.tim_kiem(tu_khoa=kw, gioi_han=200)   # lấy hết khi <=200 -> bi_cat theo tổng
+    _emit("gioi_han=200 -> bi_cat == (so_ket_qua>200) (lấy hết khi <=200)",
+          r2.get("bi_cat") == (r2.get("so_ket_qua", 0) > 200))
+    r3 = dwg.tim_kiem(tu_khoa=kw, gioi_han=-5)   # BẤT BIẾN cũ: giới hạn âm -> hien_thi=0
+    _emit("gioi_han=-5 -> hien_thi=0 (giữ hành vi cũ, không cắt cụt âm)", r3.get("hien_thi") == 0)
+
+
 def chay(dwg, ten):
     kiem_dem_so_luong(dwg, ten)
     kiem_tong_so_luong(dwg, ten)
@@ -169,6 +194,7 @@ def chay(dwg, ten):
     kiem_liet_ke_block(dwg, ten)
     kiem_liet_ke_sheet(dwg, ten)
     kiem_liet_ke_layer(dwg, ten)
+    kiem_tim_kiem_bicat(dwg, ten)
 
 
 def main():

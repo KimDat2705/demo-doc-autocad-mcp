@@ -1311,10 +1311,15 @@ class Drawing:
         hits = self.search_texts(tk, layer=ly or None)
         cap = max(0, min(int(gioi_han or 40), 200))   # gioi_han âm -> 0 (không cắt cụt bằng slice âm)
         ket = [{"handle": h["handle"], "layer": h.get("layer") or "", "text": h["vn"]} for h in hits[:cap]]
+        # I5 (recall, đo thật): default gioi_han=40 cắt truy vấn ngữ-nghĩa 76-123 kết quả. LỘ RÕ cờ BỊ CẮT + nudge
+        # gọi lại (thất-bại-phải-lộ; prose SẠCH SỐ — số đã ở so_ket_qua/hien_thi). bi_cat là BOOL (không lọt grounding).
+        bi_cat = len(hits) > len(ket)
         return {"tu_khoa": tk or None, "layer": ly or None, "so_ket_qua": len(hits),
-                "hien_thi": len(ket), "ket_qua": ket,
-                "ghi_chu": "so_ket_qua = số ĐOẠN CHỮ khớp từ khoá (có thể gồm khớp một phần); "
-                           "đọc nội dung để xác nhận, KHÔNG coi là số lượng cấu kiện."}
+                "hien_thi": len(ket), "bi_cat": bi_cat, "ket_qua": ket,
+                "ghi_chu": ("so_ket_qua = số ĐOẠN CHỮ khớp từ khoá (có thể gồm khớp một phần); "
+                            "đọc nội dung để xác nhận, KHÔNG coi là số lượng cấu kiện."
+                            + (" ⚠ Kết quả BỊ CẮT (hien_thi < so_ket_qua) — gọi lại tim_kiem với gioi_han cao hơn "
+                               "để xem hết, đừng kết luận thiếu." if bi_cat else ""))}
 
     def dem_so_luong(self, tu_khoa=None, **_):
         tk = (tu_khoa or "").strip()
@@ -1533,8 +1538,11 @@ class Drawing:
         hits = [tx for tx in self.texts if unaccent(tx.get("layer") or "") == lyn]
         cap = max(0, min(int(gioi_han or 60), 200))
         ket = [{"handle": h["handle"], "layer": h.get("layer") or "", "text": h["vn"]} for h in hits[:cap]]
-        return {"layer": ly, "so_doan_chu": len(hits), "hien_thi": len(ket), "ket_qua": ket,
-                "ghi_chu": "Chữ thuộc ĐÚNG layer '%s' (khớp CHÍNH XÁC tên). Tìm theo phần tên -> dùng tim_kiem(layer=...)." % ly}
+        bi_cat = len(hits) > len(ket)   # I5: LỘ cờ bị cắt + nudge (cùng khe recall với tim_kiem)
+        return {"layer": ly, "so_doan_chu": len(hits), "hien_thi": len(ket), "bi_cat": bi_cat, "ket_qua": ket,
+                "ghi_chu": ("Chữ thuộc ĐÚNG layer '%s' (khớp CHÍNH XÁC tên). Tìm theo phần tên -> dùng tim_kiem(layer=...)." % ly
+                            + (" ⚠ Kết quả BỊ CẮT (hien_thi < so_doan_chu) — gọi lại với gioi_han cao hơn "
+                               "để xem hết." if bi_cat else ""))}
 
     def liet_ke_sheet(self, **_):
         sh = self.sheets_sorted or self.sheets
