@@ -38,7 +38,7 @@ def skip(nhom, ly_do):
 
 
 def _rows_of(file_id):
-    """Mở .xlsx vừa xuất -> list[tuple] các dòng (values_only). None nếu thiếu file."""
+    """Mở .xlsx vừa xuất -> list[tuple] các dòng (values_only) của sheet ACTIVE. None nếu thiếu file."""
     from openpyxl import load_workbook
     fp = os.path.join(RENDER_DIR, file_id)
     if not os.path.isfile(fp):
@@ -46,6 +46,20 @@ def _rows_of(file_id):
     wb = load_workbook(fp, read_only=True, data_only=True)
     ws = wb.active
     rows = [tuple(r) for r in ws.iter_rows(values_only=True)]
+    wb.close()
+    return rows
+
+
+def _rows_of_sheet(file_id, sheet_name):
+    """Đọc 1 sheet CỤ THỂ theo tên (dùng cho sheet 'Tien_luong' I2). None nếu thiếu file/sheet."""
+    from openpyxl import load_workbook
+    fp = os.path.join(RENDER_DIR, file_id)
+    if not os.path.isfile(fp):
+        return None
+    wb = load_workbook(fp, read_only=True, data_only=True)
+    if sheet_name not in wb.sheetnames:
+        wb.close(); return None
+    rows = [tuple(r) for r in wb[sheet_name].iter_rows(values_only=True)]
     wb.close()
     return rows
 
@@ -164,6 +178,37 @@ def main():
             n125 = sum(1 for r in rows for c in r
                        if isinstance(c, (int, float)) and not isinstance(c, bool) and abs(c - 12.5) < 0.01)
             _emit("B5: 12.5 xuất hiện đúng 1 lần trên sheet (chỉ khối chưa-xác-nhận)", n125 == 1, "-> %d lần" % n125)
+
+    # ── [C] I2: sheet "Tien_luong" (BOQ phẳng copy-ready) — THÊM SHEET không cướp active, KHÔNG đơn giá, P4 số-học KHÔNG lọt,
+    # subtotal KHỚP bảng chính (cùng nguồn số). `fid` ở đây là bản xuất KHI ĐANG DẠY 12.5 (trước thu_hoi) -> test P4 mạnh nhất.
+    print("[C] I2 SHEET 'Tien_luong' — thêm sheet an toàn (không cướp active) + không đơn giá + P4 + subtotal khớp")
+    if fid:
+        from openpyxl import load_workbook
+        _wb = load_workbook(os.path.join(RENDER_DIR, fid), read_only=True, data_only=True)
+        _sheets, _active = _wb.sheetnames, _wb.active.title
+        _wb.close()
+        _emit("C1: có sheet 'Tien_luong' + wb.active VẪN 'Tong hop khoi luong' (không cướp active -> [A] an toàn)",
+              "Tien_luong" in _sheets and _active == "Tong hop khoi luong", "-> sheets=%s active=%s" % (_sheets, _active))
+        tl = _rows_of_sheet(fid, "Tien_luong") or []
+        _hdr = list(tl[0]) if tl else []
+        _emit("C2: header Tien_luong KHÔNG có cột Đơn giá/Thành tiền (phạm vi: CHỈ khối lượng)",
+              bool(_hdr) and not any(("đơn giá" in str(c).lower() or "thành tiền" in str(c).lower()) for c in _hdr),
+              "-> %s" % _hdr)
+        _n125_tl = sum(1 for r in tl for c in r
+                       if isinstance(c, (int, float)) and not isinstance(c, bool) and abs(c - 12.5) < 0.01)
+        _emit("C3 (P4): số học 12.5 (ĐANG DẠY) KHÔNG lọt vào Tien_luong (chỉ dùng th['bang'], không quy_uoc)",
+              _n125_tl == 0, "-> %d lần" % _n125_tl)
+        _main = _rows_of(fid) or []
+        _main_vals = sorted(round(float(r[3]), 3) for r in _main
+                            if len(r) > 3 and r[1] and str(r[1]).startswith("TỔNG ")
+                            and isinstance(r[3], (int, float)) and not isinstance(r[3], bool))
+        _tl_vals = sorted(round(float(r[4]), 3) for r in tl
+                          if len(r) > 4 and r[2] and str(r[2]).startswith("Cộng ")
+                          and isinstance(r[4], (int, float)) and not isinstance(r[4], bool))
+        _emit("C4: subtotal Tien_luong ('Cộng …') KHỚP TỔNG PHỤ bảng chính (cùng nguồn số, KHÔNG lệch 2 sheet)",
+              _tl_vals == _main_vals and len(_tl_vals) > 0, "-> tl=%s main=%s" % (_tl_vals, _main_vals))
+    else:
+        skip("C", "khong co fid de kiem sheet Tien_luong")
 
     kt.thu_hoi_quy_uoc("")
     # sau thu hồi: xuất lại -> KHÔNG còn khối chưa-xác-nhận, không còn 12.5

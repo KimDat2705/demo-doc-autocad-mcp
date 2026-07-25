@@ -2690,6 +2690,50 @@ class Drawing:
         ws.append([]); ws.append(["Ghi chú:", th["ghi_chu"]])
         for col, w in zip("ABCDEFGH", [5, 42, 16, 12, 8, 30, 12, 10]):
             ws.column_dimensions[col].width = w
+        # ── I2: SHEET "Tien_luong" (BOQ phẳng copy-ready cho phần mềm dự toán VN) — CHỈ TRÌNH BÀY LẠI số ĐÃ CÓ trong CÙNG
+        # object `th` (KHÔNG gọi lại tong_hop, KHÔNG tính lại số → 2 sheet không thể lệch nhau). THÊM Ở CUỐI (create_sheet
+        # KHÔNG index) + KHÔNG đổi wb.active → sheet chính vẫn active, test_excel_content (đọc wb.active) KHÔNG đổi.
+        # Phạm vi (user chốt 2026-07-09): CHỈ KHỐI LƯỢNG — KHÔNG cột đơn giá/thành tiền. LOẠI quy_uoc_chua_xac_nhan (bất biến P4:
+        # dùng th['bang'] không chứa số học P3). Subtotal LẤY TRỰC TIẾP th['tong_phu'] (không tự cộng → không double-count).
+        ws2 = wb.create_sheet("Tien_luong")
+        ws2.append(["STT", "Mã hiệu", "Tên công tác", "Đơn vị", "Khối lượng", "Diễn giải / Cách tính", "Ghi chú"])
+        for c in ws2[1]:
+            c.font = Font(bold=True, color="FFFFFF"); c.fill = PatternFill("solid", fgColor="2F5496")
+        _tp_map = {(tp["loai"], tp["don_vi"]): tp for tp in th.get("tong_phu", [])}
+        _loais = []
+        for r in th["bang"]:
+            if r["loai"] not in _loais: _loais.append(r["loai"])   # giữ THỨ TỰ xuất hiện
+        _stt = 0
+        for lo in _loais:
+            grp = [r for r in th["bang"] if r["loai"] == lo]
+            ws2.append(["", "", "CÔNG TÁC: %s" % lo, "", "", "", ""]); ws2["C%d" % ws2.max_row].font = Font(bold=True)
+            _dv_in_grp = []
+            for r in grp:
+                v = r.get("gia_tri")
+                is_num = isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v)
+                _stt += 1
+                gc_row = "⚠ CHƯA CHẮC" if r.get("chua_chac") else ""
+                if not is_num:   # KHÔNG chế số cho row thiếu (vd 'Tiết diện' gia_tri là chuỗi) — LỘ, để ô Khối lượng TRỐNG
+                    gc_row = (gc_row + " · cần thêm số (dài/SL) để tính KL").strip(" ·")
+                ws2.append([_stt, "", r["hang_muc"], r["don_vi"], (v if is_num else ""), r.get("nguon", ""), gc_row])
+                if r["don_vi"] not in _dv_in_grp: _dv_in_grp.append(r["don_vi"])
+            _co_sub = False   # subtotal chỉ khi (loai,don_vi) có trong tong_phu (4 nhóm số; code cố ý loại Số lượng/ghi-sẵn/tầng)
+            for dv in _dv_in_grp:
+                tp = _tp_map.get((lo, dv))
+                if tp:
+                    ws2.append(["", "", "Cộng %s" % lo, tp["don_vi"], tp["tong"], "%d dòng cộng lại" % tp["so_dong"], ""])
+                    for c in ws2[ws2.max_row]: c.font = Font(bold=True)
+                    _co_sub = True
+            if not _co_sub:
+                ws2.append(["", "", "  (nhóm này KHÔNG cộng gộp — nhãn dị loại / thiếu số / đọc verbatim)", "", "", "", ""])
+        ws2.append([])
+        ws2.append(["", "", "BẢNG TIÊN LƯỢNG (BOQ) SƠ BỘ — phẳng, để dán vào phần mềm dự toán VN (G8/F1/Dự toán GXD…). "
+                    "Cột 'Mã hiệu' và ĐƠN GIÁ/THÀNH TIỀN ĐỂ TRỐNG: QS tự áp mã định mức + giá. Khối lượng là SƠ BỘ đọc từ "
+                    "bản vẽ; dòng ⚠ CHƯA CHẮC là tạm tính/suy đoán cần đối chiếu. Cột 'Diễn giải' cho biết số ĐỌC SẴN / HỆ "
+                    "THỐNG TÍNH / TẠM TÍNH. KHÔNG phải dự toán chốt. Phạm vi demo: CHỈ khối lượng, KHÔNG đơn giá/thành tiền.",
+                    "", "", "", ""])
+        for col, w in zip("ABCDEFG", [5, 12, 46, 8, 12, 34, 28]):
+            ws2.column_dimensions[col].width = w
         fid = "th_%s.xlsx" % uuid.uuid4().hex[:10]
         _xp = os.path.join(RENDER_DIR, fid)
         wb.save(_xp)
