@@ -221,6 +221,15 @@ _P_R7 = (
     "7. Đường kính thép (Ø/D/phi) đã được công cụ tự quy 1 dạng. Mác bê tông ghi nhiều kiểu — nếu 1 từ khoá "
     "ra 0 kết quả, thử biến thể ('mác'/'B20'/'250#'/'M200') trước khi kết luận không có. Trích NGUYÊN VĂN chuỗi file ghi.\n"
 )
+_P_R7b = (
+    "7b. RECALL TRƯỚC KHI NÓI 'KHÔNG CÓ': nếu tool CHUYÊN DÙNG (thong_ke_thep/thong_ke_thep_hinh/tra_cuu_so_luong/"
+    "liet_ke_*/bảng) trả RỖNG hoặc không khớp cho câu hỏi về VẬT LIỆU / GHI CHÚ / THÔNG SỐ CỤ THỂ (xà gồ, mác thép "
+    "CB300/CB400, inox lan can, ống thoát/cấp nước, phụ kiện cửa (bản lề/khoá), màu mica, cấu tạo lớp, độ dốc 'i=', "
+    "tỉ lệ...) → BẮT BUỘC gọi `tim_kiem` theo TỪ-KHOÁ vật liệu/tên (thử vài biến thể) TRƯỚC KHI kết luận 'không có'; "
+    "CHỈ khi `tim_kiem` CŨNG rỗng mới nói 'không có'. Hỏi TÊN/PHIÊN BẢN/số layer của FILE → gọi `thong_tin_file`. "
+    "⛔ VẪN GIỮ chống bịa: chỉ trích NGUYÊN VĂN chuỗi file ghi + handle; KHÔNG suy diễn kích thước tổng thể (luật 8), "
+    "KHÔNG bịa số (mọi số phải truy được về kết quả tool).\n"
+)
 _P_R8 = (
     "8. Phân biệt 2 việc: (A) SUY DIỄN kích thước tổng thể từ hình học/toạ độ = KHÔNG làm được -> TỪ CHỐI; "
     "(B) ĐỌC một giá trị GHI SẴN trên bản vẽ = ĐƯỢC PHÉP (đó là đọc dữ liệu, không phải suy diễn).\n"
@@ -295,8 +304,9 @@ _P_R10 = (
     "trình bày `nguyen_van` + `gia_tri` + [handle] + `do_tin_cay` (trung_binh/thấp) + `tin_hieu`. VD kg/bộ: 'bản vẽ có ghi \"...= 8.62 kg\" "
     "(có \"bộ\") [handle] — đây có phải kg/bộ cho <mã> không?'. ⛔ Ứng viên CHỈ là GỢI Ý — hệ KHÔNG tự cắm; chỉ khi đối tác XÁC NHẬN "
     "(gọi lại với `inputs_bo_sung`) mới tính. Với kg/bộ: note KHÔNG khẳng định thuộc mã nào — hỏi đối tác xác nhận kg/bộ CHO mã (chống bịa liên kết).\n"
-    "  • Đối tác cấp số thiếu (vd 'chiều cao cột C1 = 3.6m') -> GỌI LẠI `tinh_dai_luong` với `inputs_bo_sung` JSON quy về mm "
-    "(vd '{\"chieu_cao\":3600}').\n"
+    "  • Đối tác cấp số thiếu (vd 'chiều cao cột C1 = 3.6m') -> GỌI LẠI `tinh_dai_luong` với `inputs_bo_sung` JSON, truyền "
+    "NGUYÊN giá-trị + ĐƠN VỊ đối tác nói (vd '{\"chieu_cao\":\"3.6m\"}' hoặc '{\"chieu_cao\":\"360cm\"}'); CODE tự quy "
+    "đổi sang mm — KHÔNG tự nhân/chia đơn vị. Số KHÔNG kèm đơn vị -> truyền số nguyên (vd '{\"chieu_cao\":3600}').\n"
     "  • TRỪ LỖ cửa/cửa sổ (CHỈ 'khối lượng xây tường' & 'diện tích trát'): mặc định tool tính CHƯA trừ lỗ (nói rõ điều này). "
     "Nếu đối tác nêu tường có cửa/cửa sổ cần trừ -> thêm \"lo_cua\" vào `inputs_bo_sung`: danh sách lỗ, mỗi lỗ "
     "{\"ma\":\"D2\",\"sl\":1} (kích thước lấy TỪ BẢNG THỐNG KÊ cửa) HOẶC {\"rong\":900,\"cao\":2200,\"sl\":1} (mm, đối tác cấp). "
@@ -356,20 +366,21 @@ _P_R9 = "9. Trả lời tiếng Việt, ngắn gọn, đúng vai kỹ sư."
 # Nhom bat bien (chong bia / chong thao tung — domain-agnostic)
 _INVARIANT = (_P_PHANBIET, _P_R1, _P_R2, _P_R5, _P_R6, _P_R15, _P_R9)
 # Nhom quy uoc VN + dinh tuyen tool (co the doi theo domain)
-_VN_CONVENTION = (_P_R3, _P_R4, _P_R7, _P_R8, _P_R8c_OLE, _P_R8d, _P_R8b, _P_R8c_INOX, _P_R10, _P_R11, _P_R12, _P_R13, _P_R14, _P_R16, _P_R17)
+_VN_CONVENTION = (_P_R3, _P_R4, _P_R7, _P_R7b, _P_R8, _P_R8c_OLE, _P_R8d, _P_R8b, _P_R8c_INOX, _P_R10, _P_R11, _P_R12, _P_R13, _P_R14, _P_R16, _P_R17)
 # Khung vai tro (khong phai luat, khong phai quy uoc)
 _HEADER_GROUP = (_P_HEADER,)
 
 # Thu tu PHAT = byte order HIEN TAI (giu nguyen ca nhan 8c trung + rule 9 cuoi)
 _EMIT_ORDER = (
     _P_HEADER, _P_PHANBIET, _P_R1, _P_R2, _P_R3, _P_R4,
-    _P_R5, _P_R6, _P_R7, _P_R8, _P_R8c_OLE, _P_R8d,
+    _P_R5, _P_R6, _P_R7, _P_R7b, _P_R8, _P_R8c_OLE, _P_R8d,
     _P_R8b, _P_R8c_INOX, _P_R10, _P_R11, _P_R12, _P_R13,
     _P_R14, _P_R15, _P_R16, _P_R17, _P_R9,
 )
 
 SYSTEM_PROMPT = "".join(_EMIT_ORDER)
-PROMPT_VERSION = "i9-2026.07.25"  # bump khi DOI text prompt (kem do LIVE)
+PROMPT_VERSION = "2026.07.26-routing-l2"  # ĐỔI TEXT (routing R7b + prompt-half R10) — đã đo LIVE A/B
+PROMPT_VERSION_PREV = "i9-2026.07.25"     # trước khi routing+prompt-half
 PROMPT_HASH = hashlib.sha256(SYSTEM_PROMPT.encode("utf-8")).hexdigest()
 
 

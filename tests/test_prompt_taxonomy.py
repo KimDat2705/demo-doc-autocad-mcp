@@ -12,7 +12,9 @@ sys.path.insert(0, os.path.normpath(os.path.join(HERE, "..")))
 import mcp_bridge as B  # noqa  (import offline = 1 phần điều kiện DoD)
 
 # sha256 ĐÓNG BĂNG của SYSTEM_PROMPT trước+sau I9 (byte-identical). ĐỔI = cố ý mới được sửa.
-FROZEN = "bea17c6eec564361f3c2fca21fb1cdd458078b3cda45be1d7f61827100a70e18"
+# 2026-07-26: ĐỔI CÓ CHỦ ĐÍCH (routing R7b + prompt-half R10) — ĐÃ đo LIVE A/B (recall↑, anti-bịa traps GIỮ,
+# prompt-half OK) + bump PROMPT_VERSION. Hash cũ (byte-identical I9) = bea17c6eec56…a70e18.
+FROZEN = "e5e05d7d487d31484f0428d8f2504866539e57c6bef6bd93f1602f3e0512ceaa"
 
 PASS = FAIL = 0
 
@@ -33,7 +35,7 @@ def main():
 
     print("[T.2] LẮP RÁP — SYSTEM_PROMPT = ''.join(_EMIT_ORDER)")
     ok("''.join(_EMIT_ORDER) == SYSTEM_PROMPT", "".join(B._EMIT_ORDER) == sp)
-    ok("_EMIT_ORDER có đúng 23 mảnh", len(B._EMIT_ORDER) == 23, len(B._EMIT_ORDER))
+    ok("_EMIT_ORDER có đúng 24 mảnh (+R7b routing 2026-07-26)", len(B._EMIT_ORDER) == 24, len(B._EMIT_ORDER))
 
     print("[T.3] VERSION + HASH")
     ok("PROMPT_VERSION là str không rỗng", isinstance(B.PROMPT_VERSION, str) and B.PROMPT_VERSION.strip(), B.PROMPT_VERSION)
@@ -42,14 +44,14 @@ def main():
 
     print("[T.4] PHÂN NHÓM — toàn phần + phân hoạch (không sót, không trùng, không lạc)")
     groups = tuple(B._HEADER_GROUP) + tuple(B._INVARIANT) + tuple(B._VN_CONVENTION)
-    ok("|_HEADER|+|_INVARIANT|+|_VN_CONVENTION| == 23 (mỗi mảnh 1 nhóm)", len(groups) == 23, len(groups))
+    ok("|_HEADER|+|_INVARIANT|+|_VN_CONVENTION| == 24 (mỗi mảnh 1 nhóm)", len(groups) == 24, len(groups))
     ok("multiset(3 nhóm) == multiset(_EMIT_ORDER) (phủ hết + không dư)", sorted(groups) == sorted(B._EMIT_ORDER))
     # phân hoạch chặt: không mảnh nào ở >1 nhóm (so theo id để không bị nhầm khi text trùng)
     inv_ids, vn_ids, hdr_ids = set(map(id, B._INVARIANT)), set(map(id, B._VN_CONVENTION)), set(map(id, B._HEADER_GROUP))
     ok("_INVARIANT ∩ _VN_CONVENTION == ∅", inv_ids.isdisjoint(vn_ids))
     ok("_HEADER_GROUP ∩ (_INVARIANT ∪ _VN_CONVENTION) == ∅", hdr_ids.isdisjoint(inv_ids | vn_ids))
     ok("_INVARIANT có 7 mảnh, _VN_CONVENTION có 15, _HEADER_GROUP có 1",
-       (len(B._INVARIANT), len(B._VN_CONVENTION), len(B._HEADER_GROUP)) == (7, 15, 1),
+       (len(B._INVARIANT), len(B._VN_CONVENTION), len(B._HEADER_GROUP)) == (7, 16, 1),
        (len(B._INVARIANT), len(B._VN_CONVENTION), len(B._HEADER_GROUP)))
 
     print("[T.5] VỊ TRÍ — header đầu, style (rule 9) cuối; đúng byte order hiện tại")
