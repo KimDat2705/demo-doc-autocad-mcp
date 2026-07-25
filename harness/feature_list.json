@@ -15,7 +15,7 @@
       "id": "gemini-bridge",
       "name": "Cầu nối Gemini<->MCP (phiên bền + vòng lặp chống bịa)",
       "status": "done",
-      "evidence": "mcp_bridge.py class MCPBridge (asyncio nền + threading, KHÔNG teardown/request); tra_loi_ai() MAX_TURNS=14; SYSTEM_PROMPT 13 luật; 2 chốt: ép-gọi-tool khi model nêu số chưa gọi, ép-trả-lời khi hết lượt (không bỏ cuộc). Tự viết bridge vì google-genai 2.10 deepcopy ClientSession lỗi."
+      "evidence": "mcp_bridge.py class MCPBridge (asyncio nền + threading, KHÔNG teardown/request); tra_loi_ai() MAX_TURNS=14; SYSTEM_PROMPT 21 luật (I9: tách mảnh _INVARIANT/_VN_CONVENTION + version/hash, byte-identical); 2 chốt: ép-gọi-tool khi model nêu số chưa gọi, ép-trả-lời khi hết lượt (không bỏ cuộc). Tự viết bridge vì google-genai 2.10 deepcopy ClientSession lỗi."
     },
     {
       "id": "read-ezdxf",
@@ -214,6 +214,12 @@
       "name": "I5 (thu gọn) — tim_kiem/liet_ke_chu_theo_layer lộ cờ bi_cat + nudge (recall)",
       "status": "done",
       "evidence": "LIVE 8f00510 (verify /version+/health 2026-07-25). Nghiên cứu PIVOT scope (probe chạy THẬT): pagination offset/cursor BỎ (ROI thấp — từ khoá ngữ-nghĩa max ~123 hits, không chạm trần 200, so_ket_qua luôn phơi tổng thật); dem_theo_block DEFER (value-probe: 2/3 file mọi block ngữ-nghĩa đã trong top-25 liet_ke_block, file thứ 3 block ngoài top-25 chủ yếu annotation + bẫy số-chèn≠số-cấu-kiện). CHỈ CÒN khe recall đo được: default gioi_han=40 < 76-123 cắt âm thầm. Vá: thêm cờ BOOL bi_cat (len(hits)>len(ket)) + nudge ghi_chu (gọi lại gioi_han cao hơn) cho tim_kiem VÀ liet_ke_chu_theo_layer; prose SẠCH SỐ (số ở field, không lọt grounding dù tim_kiem không bị loại tool_numbers); ADDITIVE (giữ default 40, giữ gioi_han âm->hien_thi=0). Red-team-impl chạy engine thật. Test khoá +8 (test_misc_tools kiem_tim_kiem_bicat KT/KC) -> misc 84->94. Gate [26/26], qa 129, 0 regress. Bài học: nghiên cứu-trước-code SAVE build 2 feature ROI thấp."
+    },
+    {
+      "id": "i9-tach-system-prompt",
+      "name": "I9 — Tách SYSTEM_PROMPT (luật bất-biến / quy-ước-VN) có version + hash",
+      "status": "done",
+      "evidence": "LIVE de69324 (verify /version: prompt_hash=bea17c6eec564361f3c2fca21fb1cdd458078b3cda45be1d7f61827100a70e18 + prompt_version=i9-2026.07.25 + commit=de69324 + /health ok, 2026-07-25). Gate [27/27] PASS, byte-identical (hash GIỮ NGUYÊN local Windows-CRLF + Render Linux-LF = xác nhận EOL-independent vì fragment dùng escape \\n, không phải newline vật lý). Chọn hướng qua workflow 9-agent (3 design A+/B/C + 5 red-team lăng kính chạy engine thật + synth): 5/5 lăng kính chọn A+. B (đảo thứ tự) BÁC vì (i) prompt là lõi chống-bịa, đổi text = cần đo LIVE mà LIVE KHÔNG chứng minh nổi non-regression: đo thật 2 run temp=0 trùng 0/173 câu trả lời + lệch 44% handle-set, nhóm an toàn 0/23 tái lập -> noise floor > effect size; (ii) 'tách thật' phần lớn ẢO — 34/39 mệnh đề chống-bịa (⛔) lồng trong thân rule VN, reorder header không dời được. C-external (prompt ra file) BÁC vì phá offline-import mà check.sh + 2 test prompt phụ thuộc. A+ = tách mảnh có TÊN (23 mảnh) gộp _INVARIANT(7)/_VN_CONVENTION(15)/_HEADER(1) + _EMIT_ORDER GIỮ NGUYÊN byte order -> SYSTEM_PROMPT byte-identical (0 rủi ro hành vi, KHÔNG cần đo LIVE), + PROMPT_VERSION/PROMPT_HASH lộ ở /version (audit: trước /version KHÔNG có định danh prompt). Fragment sinh bằng SLICE chuỗi đóng băng (KHÔNG gõ tay -> chống lỗi transcription ★/⛔/space). Docstring TRUNG THỰC: 'tách' là NHÃN/INDEX, KHÔNG phải tách rời điều khoản (nhiều mảnh VN vẫn chứa ⛔). Nguồn: 2 mảnh 8c trùng nhãn -> tách tên _P_R8c_OLE/_P_R8c_INOX (khử trùng ở source, GIỮ nhãn '8c.' byte-identical). Test test_prompt_taxonomy.py 24 ca (byte-lock sha256 + lắp ráp + phân hoạch + anchor regression) wired check.sh [26->27]. test_app_routes +2 (prompt_version/prompt_hash). check.sh [27/27], takeoff 262/misc 94/grounding 47/qa 129 KHÔNG đổi = 0 regress. Reorder sạch (Option B) hoãn = 1 dòng sửa _EMIT_ORDER rồi ĐO LIVE A/B với baseline đóng băng (chỉ khi muốn thử primacy, không phải kết luận sẵn). Workflow: wf_f1111f89-fa0."
     }
   ]
 }

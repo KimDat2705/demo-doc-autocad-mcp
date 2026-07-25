@@ -32,9 +32,9 @@ Chạy TRƯỚC mỗi commit và cuối mỗi phiên (một phiên = một "tran
 - [ ] `python tests/test_size_guard.py` = **9/9** · `test_file_ttl.py` = **12/12** · `test_health.py` = **11/11** (robustness I/J/L, offline)
 - [ ] `python tests/test_session.py` = **25/25 PASS** (robustness K + **[K.7] R11 IDOR** cross-session 404 + **[K.8] F-A** race evict né phiên bận)
 - [ ] `python tests/test_hoc_log.py` = **20/20** · `test_hoc_quy_uoc.py` = **2/2** (P2 log WORM + P3 INV-10 LLM-exclusion/INV-12 grep-guard)
-- [ ] **GĐ1-2 kiểm thử (offline):** `test_visual_highlight` **19** [+U6C bi_cat] · `test_excel_content` **21** [+I2 Tien_luong] (mở lại .xlsx) · `test_misc_tools` **94** [+I5 bi_cat] · `test_vntext` 28 · `test_fuzz_input` 36 · `test_dwgconv` 10 · `test_mcp_stdio` 14 (spawn mcp_server thật) · `test_app_routes` 8 · `test_bang_ve_net` **9** [I4a detector]
+- [ ] **GĐ1-2 kiểm thử (offline):** `test_visual_highlight` **19** [+U6C bi_cat] · `test_excel_content` **21** [+I2 Tien_luong] (mở lại .xlsx) · `test_misc_tools` **94** [+I5 bi_cat] · `test_vntext` 28 · `test_fuzz_input` 36 · `test_dwgconv` 10 · `test_mcp_stdio` 14 (spawn mcp_server thật) · `test_app_routes` **10** [+I9 prompt keys] · `test_bang_ve_net` **9** [I4a detector] · `test_prompt_taxonomy` **24** [I9 byte-lock sha256]
 - [ ] `python tests/test_grounding_guard.py` = **47/47** (id135 grounding-guard + I1b m2/m3 + I4a exclude) · `python tests/test_cao_do_min_max.py` = **31/31** (id135 recall: đọc cao độ min/max + handle)
-- [ ] `bash harness/scripts/check.sh` = **HARNESS GATE: PASS** (**26 bước**: import+29tool · no-key · takeoff 262 · fallback 22 · size 9 · ttl 12 · session 25 · health 11 · hoc-log 20 · hoc-quy-uoc 2 · visual 19 [U6C] · excel 21 [I2] · misc 94 [I5] · vntext 28 · fuzz 36 · dwgconv 10 · mcp-stdio 14 · app-routes 8 · grounding-guard 47 [+I1b +I4a] · cao-do 31 · khao-sat-corpus 61 · ole-canh-bao 51 · **oleexcel 18** [U3] · **handle-guard 44** [I1] · **i3-bounds 24** [I3-B] · **bang-ve-net 9** [I4a])
+- [ ] `bash harness/scripts/check.sh` = **HARNESS GATE: PASS** (**27 bước**: import+29tool · no-key · takeoff 262 · fallback 22 · size 9 · ttl 12 · session 25 · health 11 · hoc-log 20 · hoc-quy-uoc 2 · visual 19 [U6C] · excel 21 [I2] · misc 94 [I5] · vntext 28 · fuzz 36 · dwgconv 10 · mcp-stdio 14 · app-routes 10 [+I9] · grounding-guard 47 [+I1b +I4a] · cao-do 31 · khao-sat-corpus 61 · ole-canh-bao 51 · **oleexcel 18** [U3] · **handle-guard 44** [I1] · **i3-bounds 24** [I3-B] · **bang-ve-net 9** [I4a] · **prompt-taxonomy 24** [I9 byte-lock sha256])
 - [ ] **E2E-AI (TỐN API, NGOÀI cổng):** `tests/run_battery.py` 198 câu + `tests/kichban_gd2.py` 12 lượt (đối chiếu engine-truth) — KPI ~0% bịa (đã đo ~1.1% bịa cứng 2026-07-13, đều edge-case)
 
 ## Tổng quát (chống overfit)
@@ -47,5 +47,5 @@ Chạy TRƯỚC mỗi commit và cuối mỗi phiên (một phiên = một "tran
 
 ## Cloud
 - [ ] Push `main` → Render rebuild OK
-- [ ] `GET /version` live = commit VỪA push + `sect_cm_max:130` + `has_section_index:true` + `models:[2.5-flash,2.0-flash,1.5-flash]` (bản đã lên + chuỗi fallback H)
+- [ ] `GET /version` live = commit VỪA push + `sect_cm_max:130` + `has_section_index:true` + `models:[2.5-flash,2.0-flash,1.5-flash]` + **`prompt_version:i9-2026.07.25` + `prompt_hash:bea17c6eec56…`** [I9] (bản đã lên + chuỗi fallback H)
 - [ ] `GET /health` live = `{ok:true, uptime_s, sessions, metrics}` (L — healthCheckPath Render + monitor ngoài; self-ping tự chạy khi có RENDER_EXTERNAL_URL)
