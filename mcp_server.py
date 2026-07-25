@@ -92,6 +92,16 @@ def doc_bang_nhung(tu_khoa: str = "") -> dict:
 
 
 @mcp.tool()
+def phat_hien_bang_ve_net() -> dict:
+    """PHÁT HIỆN vùng giống BẢNG kẻ-bằng-nét (đường LINE + chữ trong ô) mà máy CHƯA đọc được nội dung.
+    DÙNG khi nghi bản vẽ có bảng thống kê THÉP / khối lượng / cửa / thiết bị VẼ TRỰC TIẾP bằng nét (không phải OLE,
+    không phải block) — nhất là khi thong_ke_thep trả 0 thanh / co_bang_thong_ke=False trên bản vẽ KẾT CẤU.
+    Chỉ trả CỜ (co_bang_ve_net + so_vung + cảnh báo) — máy KHÔNG đọc số trong bảng, KHÔNG tự cộng vào tổng;
+    nếu co_bang_ve_net=true phải nói đối tác ĐỐI CHIẾU TAY (thất bại phải lộ, khác 'bản vẽ không có bảng')."""
+    return _need() or DRAWING.phat_hien_bang_ve_net()
+
+
+@mcp.tool()
 def liet_ke_chu_theo_layer(layer: str, gioi_han: int = 60) -> dict:
     """Liệt kê các đoạn chữ trên một layer (lớp) cụ thể, kèm handle."""
     return _need() or DRAWING.liet_ke_chu_theo_layer(layer=layer, gioi_han=gioi_han)

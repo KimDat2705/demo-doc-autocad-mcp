@@ -129,10 +129,15 @@ out=$($PY tests/test_handle_guard.py 2>&1); rc=$?
 echo "$out" | tail -1
 [ "$rc" -eq 0 ] || { echo "FAIL: test handle guard co FAIL"; fail=1; }
 
-echo "=== [25/25] Test I3-B BOUNDS (duong kinh thep tron o DK bang -> LO nghi_ngo, khong lot grounding, offline) ==="
+echo "=== [25/26] Test I3-B BOUNDS (duong kinh thep tron o DK bang -> LO nghi_ngo, khong lot grounding, offline) ==="
 out=$($PY tests/test_i3_bounds.py 2>&1); rc=$?
 echo "$out" | tail -1
 [ "$rc" -eq 0 ] || { echo "FAIL: test i3 bounds co FAIL"; fail=1; }
+
+echo "=== [26/26] Test BANG VE-NET (I4a: detector bang ke-bang-net LINE+TEXT -> LO co, khong lot grounding, offline) ==="
+out=$($PY tests/test_bang_ve_net.py 2>&1); rc=$?
+echo "$out" | tail -1
+[ "$rc" -eq 0 ] || { echo "FAIL: test bang ve-net co FAIL"; fail=1; }
 
 echo "------------------------------------"
 if [ "$fail" -eq 0 ]; then echo "HARNESS GATE: PASS"; else echo "HARNESS GATE: FAIL"; fi

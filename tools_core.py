@@ -2844,3 +2844,86 @@ class Drawing:
                 "ghi_chu": ("Đã KHOANH ĐỎ vị trí nhãn '%s' trên ảnh bản vẽ (anh_id)%s. Đây là SỐ LẦN nhãn xuất "
                             "hiện trên hình, KHÔNG phải số lượng cấu kiện thật — số lượng thật xem tra_cuu_so_luong.%s"
                             % (tk or ly, cum, cat))}
+
+    def phat_hien_bang_ve_net(self, **_):
+        """I4a — PHÁT HIỆN vùng giống BẢNG kẻ-bằng-nét (LINE grid + TEXT trong ô) mà máy CHƯA đọc được nội dung.
+        ~29% file corpus có bảng vẽ-bằng-nét (bảng thống kê thép/khối lượng) engine bỏ sót ÂM THẦM (thep_kg=0 như
+        'không có bảng'). Tool này CHỈ LỘ CỜ (bool + prose SẠCH SỐ) — KHÔNG đọc nội dung, KHÔNG tự cộng số, KHÔNG số
+        vào rổ grounding (mcp_bridge loại tên tool này). Tách detect+cảnh-báo an toàn TRƯỚC (khuôn U3/bug-C); reader
+        nội dung (I4b) rủi ro overfit để SAU. Lazy-scan modelspace có CAP RAM; FAIL-OPEN mọi lỗi. Tín hiệu HÌNH HỌC
+        (miễn nhiễm garble/đơn-vị): CẤM đếm nét toàn cục (mọi bản vẽ trực giao) — dùng cổng-VÀ LOCAL."""
+        try:
+            cap = RENDER_MAX_ENTITIES     # trần đoạn nét (chống OOM file nặng) — tái dùng hằng U6(C)
+            h_segs = []                   # (xmin, xmax, y) đoạn NGANG
+            v_segs = []                   # (x, ymin, ymax) đoạn DỌC
+            tpts = []                     # (x, y) điểm TEXT
+            n_seg = 0; da_cat = False
+            def _add_seg(sx, sy, ex, ey):
+                if abs(sy - ey) <= 1e-6 and abs(sx - ex) > 1e-6:
+                    h_segs.append((min(sx, ex), max(sx, ex), sy)); return 1
+                if abs(sx - ex) <= 1e-6 and abs(sy - ey) > 1e-6:
+                    v_segs.append((sx, min(sy, ey), max(sy, ey))); return 1
+                return 0
+            for e in self.doc.modelspace():
+                t = e.dxftype()
+                if t == "LINE":
+                    try: n_seg += _add_seg(float(e.dxf.start.x), float(e.dxf.start.y),
+                                           float(e.dxf.end.x), float(e.dxf.end.y))
+                    except Exception: pass
+                elif t in ("LWPOLYLINE", "POLYLINE"):
+                    try:
+                        pts = ([(float(p[0]), float(p[1])) for p in e.get_points()] if t == "LWPOLYLINE"
+                               else [(float(v.dxf.location.x), float(v.dxf.location.y)) for v in e.vertices])
+                    except Exception: pts = []
+                    for i in range(len(pts) - 1):
+                        n_seg += _add_seg(pts[i][0], pts[i][1], pts[i + 1][0], pts[i + 1][1])
+                elif t in ("TEXT", "MTEXT"):
+                    p = self._quick_point(e)
+                    if p: tpts.append(p)
+                if n_seg >= cap:
+                    da_cat = True; break
+            # Lượng-tử-hoá THÍCH NGHI theo đơn-vị (KHÔNG dùng ngưỡng mm tuyệt đối — chống overfit tỉ-lệ-vẽ):
+            # QH ~ 1/2000 bề rộng dải nét ngang. Đoạn kẻ-hàng của 1 bảng chia sẻ CÙNG (xmin,xmax) mép bảng.
+            if not h_segs:
+                return {"co_bang_ve_net": False, "so_vung": 0,
+                        "canh_bao": "Không thấy đường kẻ ngang nào — không có bảng kẻ-bằng-nét trong modelspace."}
+            xr = max(s[1] for s in h_segs) - min(s[0] for s in h_segs)
+            QH = max(1e-6, xr / 2000.0)
+            from collections import defaultdict
+            rows_by_span = defaultdict(list)
+            for xmin, xmax, y in h_segs:
+                rows_by_span[(round(xmin / QH), round(xmax / QH))].append(y)
+            vung = 0
+            for (kxmin, kxmax), ys in rows_by_span.items():
+                if len(ys) < 4:                       # cần ≥4 vạch-hàng ĐỒNG-ĐIỂM = kẻ hàng của MỘT bảng
+                    continue
+                if kxmax <= kxmin:                    # bề rộng SUY BIẾN (~0) — nét ngang quá ngắn, không phải mép bảng
+                    continue                          # (đơn-vị-độc-lập: kxmax-kxmin đo theo QH thích nghi, không mm tuyệt đối)
+                bx0, bx1 = kxmin * QH, kxmax * QH
+                ymin, ymax = min(ys), max(ys)
+                hgt = ymax - ymin
+                if hgt <= 0:
+                    continue
+                cols = 0                               # cột = đoạn DỌC trong bề ngang bảng, phủ >50% chiều cao
+                for vx, vy0, vy1 in v_segs:
+                    if bx0 - QH <= vx <= bx1 + QH and (min(vy1, ymax) - max(vy0, ymin)) > 0.5 * hgt:
+                        cols += 1
+                if cols < 2 or cols > 15:              # ≥2 cột; TRẦN 15 loại LƯỚI-TRỤC cột nhà (đo thật cols=48)
+                    continue
+                ntext = sum(1 for tx, ty in tpts if bx0 - QH <= tx <= bx1 + QH and ymin - QH <= ty <= ymax + QH)
+                if ntext < 3:                          # ≥3 chữ trong ô (loại hatch/mặt-cắt: nét không có chữ trong ô)
+                    continue
+                vung += 1
+            if vung > 0:
+                cb = ("Phát hiện vùng giống BẢNG kẻ-bằng-nét (đường kẻ + chữ trong ô) mà máy CHƯA đọc được nội dung — "
+                      "KHÁC với 'bản vẽ không có bảng'. Có thể là bảng thống kê thép / khối lượng vẽ trực tiếp bằng nét. "
+                      "Đề nghị đối tác ĐỐI CHIẾU TAY; máy KHÔNG tự đọc số trong bảng này và KHÔNG tự cộng vào tổng.")
+                if da_cat:
+                    cb += " Bản vẽ rất nặng nét: đã quét MỘT PHẦN, có thể còn vùng bảng khác chưa xét."
+                return {"co_bang_ve_net": True, "so_vung": vung, "da_cat": da_cat, "canh_bao": cb}
+            return {"co_bang_ve_net": False, "so_vung": 0, "da_cat": da_cat,
+                    "canh_bao": ("Không thấy vùng bảng kẻ-bằng-nét rõ rệt trong modelspace. Lưu ý: bảng ở LAYOUT IN "
+                                 "(paperspace) hoặc bảng nhúng OLE không nằm trong phạm vi tool này.")}
+        except Exception as e:
+            return {"co_bang_ve_net": False, "so_vung": 0,
+                    "loi_mem": "Không quét được nét bảng (bỏ qua an toàn): %s" % str(e)[:80]}

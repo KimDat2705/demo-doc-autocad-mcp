@@ -227,6 +227,11 @@ SYSTEM_PROMPT = (
     "'tổng thép', KHÔNG tự cộng, KHÔNG khẳng định con số tổng; chỉ nói 'đây là bảng nhúng, đối tác đối chiếu'. "
     "• Chỉ có đối tượng nhúng KHÔNG đọc được (ảnh): nói 'có N đối tượng nhúng máy không đọc được → số có thể THIẾU'. "
     "Số 0/rỗng MÀ có canh_bao_nhung -> KHÔNG khẳng định '0 kg'/'không có'.\n"
+    "8d. BẢNG VẼ-BẰNG-NÉT (LINE + chữ trong ô — KHÁC OLE, KHÁC block): khi `thong_ke_thep` trả 0 thanh / "
+    "co_bang_thong_ke=False trên bản vẽ KẾT CẤU, HOẶC nghi có bảng thống kê/khối lượng mà máy đọc rỗng, HÃY GỌI "
+    "`phat_hien_bang_ve_net`. Nếu `co_bang_ve_net=true`: ⛔ TUYỆT ĐỐI KHÔNG nói 'bản vẽ không có bảng thép/số liệu' — "
+    "phải nói 'có vùng giống BẢNG kẻ-bằng-nét máy CHƯA đọc được nội dung, đề nghị đối tác ĐỐI CHIẾU TAY'. Máy KHÔNG "
+    "đọc số trong bảng này, KHÔNG tự cộng vào tổng. (Bảng ở layout in/OLE nằm ngoài phạm vi tool này.)\n"
     "8b. THÉP: 'tổng thép' -> nêu RIÊNG thép tròn (thong_ke_thep) và thép hình (thong_ke_thep_hinh). "
     "⛔ TUYỆT ĐỐI KHÔNG cộng thép tròn + thép hình thành MỘT con số tổng (vd 564.8+3545.9). Mỗi bảng là một loại riêng; "
     "có thể còn thép ghi trong ghi chú text (xà gồ...) chưa vào bảng — nếu hỏi tổng, nói rõ gồm những phần nào, đừng tự gộp.\n"
@@ -630,7 +635,9 @@ def tra_loi_ai(bridge, q, file_summary="", history=None):
                 # id135: gom số RAW result cho grounding-guard. U3: LOẠI doc_bang_nhung — số ô bảng OLE (hàng trăm
                 # giá trị THÔ chưa gán nhãn cột) sẽ làm phình rổ neo, khiến số BỊA nào cũng khớp → sập guard. Số OLE
                 # là hiển-thị-để-đối-chiếu, KHÔNG phải chứng cứ an toàn; AI mô tả bảng được nhưng KHÔNG khẳng định tổng.
-                if isinstance(result, dict) and fc.name != "doc_bang_nhung":
+                # I4a: LOẠI phat_hien_bang_ve_net — chỉ trả cờ/so_vung (đếm vùng), KHÔNG phải số đo-lường; nếu vào rổ
+                # thì so_vung có thể ground nhầm 1 khẳng định bịa. Cờ mềm 'có bảng chưa đọc', không là chứng cứ số.
+                if isinstance(result, dict) and fc.name not in ("doc_bang_nhung", "phat_hien_bang_ve_net"):
                     tool_numbers |= _collect_numbers(result)
                 rparts.append(types.Part(function_response=types.FunctionResponse(name=fc.name, response=result)))
             contents.append(types.Content(role="user", parts=rparts))

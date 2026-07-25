@@ -91,7 +91,12 @@ def main():
     # Red-team: số ô bảng OLE THÔ (hàng trăm giá trị chưa gán nhãn cột) nếu vào tool_numbers -> số BỊA nào cũng
     # khớp -> guard sập. Fix ở mcp_bridge (vòng tool-use): loại doc_bang_nhung khỏi union tool_numbers.
     _src = open(B.__file__, encoding="utf-8").read()
-    ok("mcp_bridge LOẠI doc_bang_nhung khỏi tool_numbers (grep-guard)", 'fc.name != "doc_bang_nhung"' in _src)
+    # I4a (2026-07-25): exclude đổi từ `!= "doc_bang_nhung"` sang `not in (...)` để LOẠI THÊM phat_hien_bang_ve_net.
+    # Grep-guard khoá: doc_bang_nhung VẪN bị loại (dù ở dạng tuple) + phat_hien_bang_ve_net cũng bị loại.
+    ok("mcp_bridge LOẠI doc_bang_nhung khỏi tool_numbers (grep-guard)",
+       ('fc.name != "doc_bang_nhung"' in _src) or ('not in ("doc_bang_nhung"' in _src))
+    ok("mcp_bridge LOẠI phat_hien_bang_ve_net khỏi tool_numbers (I4a grep-guard)",
+       '"phat_hien_bang_ve_net"' in _src and 'tool_numbers |= _collect_numbers' in _src)
     # chứng minh vì sao phải loại: 1 bảng OLE nhỏ đã bơm nhiều số vào pool
     _ole = {"so_bang": 1, "bang": [{"handle": "H1", "sheet": "Thep", "nguon": "ole:H1:Thep",
             "cac_hang": [["STT", "KL"], [1, 581.7], [2, 1963.9], [3, 5039.4]]}]}
