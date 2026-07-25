@@ -9,8 +9,9 @@
 > Mới nhất ở TRÊN CÙNG. Bàn giao đầy đủ: `session-handoff.md`. Nhật ký chi tiết hơn nữa: `../GHI_CHU_HOAN_THIEN.md`.
 
 ---
-## Session 2026-07-25 — I3-U Lớp 1 (2 bug sai-tự-tin) ✅ LIVE `21926c9` + I3-U ngưỡng-sàn NO_GO (data thật) + U6 iterdxf HOÃN
-> **CHỐT SỔ 2026-07-25:** check.sh **[25/25] PASS** · **takeoff 258→262 (+4 khoá I3-U-L1)** · qa 129 · 0 regress. **I3-U Lớp 1 LIVE `21926c9`** (commit+push+deploy+verify /version=21926c9 + /health ok). Working tree sạch, main==origin. Đều qua red-team-trước-code + red-team-impl (repro engine thật). **Chuỗi:** U3 `fd48b19` → I1 `de1ef47` → I3-B `82951db` → I1b `b2a0ea5` → **I3-U-L1 `21926c9`**.
+## Session 2026-07-25 — I3-U Lớp 1 (2 bug sai-tự-tin) ✅ LIVE `21926c9` + **U6(C) hạ hard_cap render ✅ LIVE `a242027`** + I3-U ngưỡng-sàn NO_GO (data thật) + U6 iterdxf HOÃN
+> **CHỐT SỔ 2026-07-25:** check.sh **[25/25] PASS** · takeoff 262 (+4 I3-U-L1) · **visual-highlight 15→19 (+4 U6C)** · qa 129 · 0 regress. **2 fix LIVE:** I3-U Lớp 1 `21926c9` + **U6(C) `a242027`** (đều commit+push+deploy+verify /version+/health ok). Working tree sạch, main==origin. Đều qua red-team-trước-code + red-team-impl (repro engine thật). **Chuỗi:** U3 `fd48b19` → I1 `de1ef47` → I3-B `82951db` → I1b `b2a0ea5` → I3-U-L1 `21926c9` → **U6C `a242027`**.
+> **U6(C) — hạ trần entity render 20000→6000 (env `RENDER_MAX_ENTITIES`):** đòn bẩy (C) từ nghiên cứu U6, GIỮ 100% chức năng. Đo thật matplotlib ~26KB/entity → cửa-sổ dày 20000 entity ~+500-600MB (khảo sát cũ CHỈ đo parse, bỏ sót spike render); highlight THẬT ≤1067 entity → trần 6000 KHÔNG cắt ca thường, chỉ chặn cửa-sổ dày (~500→~180MB, ~3×). Ô khoanh đỏ vẽ ĐỘC LẬP → hạ trần không mất marker. LỘ cờ bool `anh_bi_cat` + prose sạch số (không lọt grounding). Env-tunable. Red-team-impl repro engine thật (default 6000/highlight thường 964 không đổi/cửa-sổ 7467→cắt 6000/override 2000 chạy). Test khoá +4 visual 15→19. **⏳ đòn bẩy (ii) nâng RAM Standard 2GB (HELD f025ad7 + hạ MAX_SESSIONS 4→2) chờ user billing.**
 > **BỐI CẢNH PHIÊN (user 2 lần delegate "nghiên cứu rồi triển khai cái hợp lý nhất"):** id135 deep vẫn chờ file đối tác sâu hơn (TB6 khảo sát nốt = -2.49m NÔNG). Nghiên cứu 2 đầu mục user hỏi: **I3-U** (thiết kế lại) + **U6** (có phá chức năng không). Cả 2 ra kết luận CÓ SỐ, rồi chọn triển khai phần LÀM-NGAY-AN-TOÀN nhất = I3-U Lớp 1.
 
 **I3-U Lớp 1 — vá 2 bug SAI-TỰ-TIN trong `tinh_dai_luong` (corpus-independent, KHÔNG ngưỡng, additive):**
@@ -23,7 +24,7 @@
 
 **📌 U6 (giảm RAM) — trả lời user: iterdxf HOÃN DỨT KHOÁT (đo RAM thật):** iterdxf-streaming PHÁ 5 chức năng phụ thuộc `self.doc` random-access (I1 `entitydb.get`, render RenderContext+quét lần 2, U3 OLE paperspace, layers, INSUNITS) → rớt gate [11]+[24] VÀ không cứu OOM (render vẫn readfile lại). **Phát hiện đo được:** RENDER (matplotlib) mới phình RAM chính (+231MB/lần, khảo sát cũ chưa tính), không phải parse; trần thật = hằng `READFILE_MAX_MB=45`. **2 đòn bẩy GIỮ 100% chức năng:** (ii) push HELD Standard 2GB [cần billing] + hạ MAX_SESSIONS 4→2; (C) hạ render `hard_cap` 20000→~4-5k [làm NGAY, chỉ đổi độ phân giải]. Memory `[[project-chiu-tai-va-chi-phi]]` cập nhật.
 
-**Đang chờ / bước tiếp:** **id135 deep** chờ file hạ tầng ĐỘC LẬP sâu ≥-5m (đối tác — TB6 nông -2.49m). **I3-U Lớp 2** (unit-tag) — cần user quyết prompt Gemini. **U6 (C)** hạ hard_cap render (làm được ngay) / **U6 (ii)** nâng RAM (chờ user billing). U-series còn U1/U2/U4/U5 + I2/I4-I9.
+**Đang chờ / bước tiếp:** **id135 deep** chờ file hạ tầng ĐỘC LẬP sâu ≥-5m (đối tác — TB6 nông -2.49m). **I3-U Lớp 2** (unit-tag) — cần user quyết prompt Gemini. **U6 (ii)** nâng RAM Standard 2GB (config HELD `f025ad7` + hạ MAX_SESSIONS 4→2) — chờ user bật billing Render. ~~U6(C)~~ ✅ LIVE `a242027`. U-series còn U1/U2/U4/U5 + I2/I4-I9.
 
 ---
 ## Session 2026-07-24 — I1 (guard handle) ✅ LIVE + I3-B ✅ + I1b (vá guard m2/m3) ✅ + id135-E2E ⏳ (đã ROLLBACK overclaim)
