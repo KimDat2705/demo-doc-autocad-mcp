@@ -15,7 +15,7 @@ Trình duyệt ──HTTP──► app.py (Flask host, state global: BRIDGE/SUMM
                          │
                          ▼
                    mcp_bridge.py (1 phiên MCP BỀN trên asyncio nền; vòng lặp Gemini function-calling
-                         │         14 lượt + SYSTEM_PROMPT 13 luật chống bịa)
+                         │         14 lượt + SYSTEM_PROMPT 21 luật chống bịa)
                          │ stdio JSON-RPC
                          ▼
                    mcp_server.py (FastMCP 'doc-autocad', 20 @mcp.tool wrapper mỏng, giữ 1 DRAWING)

@@ -148,6 +148,9 @@ def version():
     except Exception as e:
         info["tools_core_error"] = "%s: %s" % (type(e).__name__, e)
     info["models"] = getattr(mcp_bridge, "MODELS", None)   # H: chuỗi model dự phòng 429/503 (verify đã deploy)
+    # I9: định danh SYSTEM_PROMPT đã deploy (version = ý người; hash = sự thật byte, phát hiện trôi text)
+    info["prompt_version"] = getattr(mcp_bridge, "PROMPT_VERSION", None)
+    info["prompt_hash"] = getattr(mcp_bridge, "PROMPT_HASH", None)
     return jsonify(info)
 
 

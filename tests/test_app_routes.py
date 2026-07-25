@@ -33,6 +33,8 @@ def main():
     ok("/version -> 200 + có 'commit'", r.status_code == 200 and "commit" in j, j)
     ok("/version -> sect_cm_max=130 (cờ parity cm/mm đã có mặt)", j.get("sect_cm_max") == 130, j.get("sect_cm_max"))
     ok("/version -> has_section_index=True", j.get("has_section_index") is True)
+    ok("/version -> có 'prompt_version' (I9)", isinstance(j.get("prompt_version"), str) and j.get("prompt_version"), j.get("prompt_version"))
+    ok("/version -> 'prompt_hash' khớp mcp_bridge.PROMPT_HASH", j.get("prompt_hash") == getattr(A.mcp_bridge, "PROMPT_HASH", None), j.get("prompt_hash"))
 
     print("[R.4] GET /health -> {ok, uptime_s, sessions, metrics}")
     r = c.get("/health"); j = r.get_json()

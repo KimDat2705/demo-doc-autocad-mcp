@@ -23,7 +23,7 @@ Số do CODE tính → **không bịa**. File mẫu để PHÁT HIỆN quy ướ
 | File | Vai trò |
 |---|---|
 | `app.py` | Flask host (MCP host tự viết) + routes (/upload,/ask,/image,/file,/config,/version) + state global (BRIDGE/SUMMARY/CHAT_HISTORY) + UI (biến PAGE) |
-| `mcp_bridge.py` | Cầu Gemini↔MCP: 1 phiên MCP bền (asyncio nền) + vòng lặp function-calling (MAX_TURNS=14) + SYSTEM_PROMPT 13 luật chống bịa |
+| `mcp_bridge.py` | Cầu Gemini↔MCP: 1 phiên MCP bền (asyncio nền) + vòng lặp function-calling (MAX_TURNS=14) + SYSTEM_PROMPT (7 mảnh bất-biến chống bịa + 15 quy-ước-VN + header, tách mảnh có version/hash — I9) |
 | `mcp_server.py` | FastMCP server (stdio), **20 @mcp.tool()** wrapper mỏng gọi `tools_core` |
 | `tools_core.py` | Lớp `Drawing`: ezdxf trong RAM + trích xuất + `_FORMULAS` engine takeoff + render/highlight |
 | `dwgconv.py` / `vntext.py` | Convert .dwg→.dxf (ODA) / giải mã TCVN3 |

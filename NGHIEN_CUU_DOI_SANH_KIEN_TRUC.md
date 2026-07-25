@@ -28,7 +28,7 @@
 | Upload/convert | tương đương | size-guard sớm, session riêng, lỗi lộ rõ | (P2) iterdxf streaming cho file lớn |
 | **Engine đọc** | bảng = grid từ đường kẻ; zone; bounds-check | 8 chỉ mục y-band, OLE chỉ cảnh báo | **(P1) đọc OLE · nâng ghép bảng · bounds-check · (P2) vùng-chưa-phủ, phân vùng** |
 | MCP tools | query tổng quát + phân trang; đếm theo block | 26 tool chuyên biệt | (P2) tool query phân trang + dem_theo_block |
-| LLM | router câu mẫu; tách prompt bất biến/quy ước | 17 luật + fallback | (P2) tách prompt version hoá; (P3) router |
+| LLM | router câu mẫu; tách prompt bất biến/quy ước | 21 luật + fallback; ✅ I9 tách mảnh + version/hash (LIVE) | (P3) router câu mẫu |
 | **Guard** | validate citation-ID; câu-không-cần-nguồn | số ±1% (hơn mặt bằng) | **(P1) validate handle** · (P2) giảm từ-chối-oan · (P3) claim phi-số |
 | **Answer/Excel** | 6 cột tiên lượng VN; diễn giải công thức; HITL pin | Excel 8 cột riêng, không phẳng | **(P1) sheet Tiên lượng chuẩn VN + diễn giải + không ôm đơn giá** · (P2) UI màu cờ · (P3) pin-to-accept |
 | Vision | VLM chỉ ĐỊNH VỊ, không đọc số (Enginuity: định vị recall 0.61–0.87 nhưng đọc nội dung F1 0.03–0.18) | chưa có | (P3) chốt luật thiết kế trước, SoM audit offline đo trước khi đầu tư |

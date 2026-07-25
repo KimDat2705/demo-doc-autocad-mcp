@@ -134,10 +134,15 @@ out=$($PY tests/test_i3_bounds.py 2>&1); rc=$?
 echo "$out" | tail -1
 [ "$rc" -eq 0 ] || { echo "FAIL: test i3 bounds co FAIL"; fail=1; }
 
-echo "=== [26/26] Test BANG VE-NET (I4a: detector bang ke-bang-net LINE+TEXT -> LO co, khong lot grounding, offline) ==="
+echo "=== [26/27] Test BANG VE-NET (I4a: detector bang ke-bang-net LINE+TEXT -> LO co, khong lot grounding, offline) ==="
 out=$($PY tests/test_bang_ve_net.py 2>&1); rc=$?
 echo "$out" | tail -1
 [ "$rc" -eq 0 ] || { echo "FAIL: test bang ve-net co FAIL"; fail=1; }
+
+echo "=== [27/27] Test PROMPT TAXONOMY (I9: SYSTEM_PROMPT tach manh + version/hash, byte-lock sha256, offline) ==="
+out=$($PY tests/test_prompt_taxonomy.py 2>&1); rc=$?
+echo "$out" | tail -1
+[ "$rc" -eq 0 ] || { echo "FAIL: test prompt taxonomy co FAIL"; fail=1; }
 
 echo "------------------------------------"
 if [ "$fail" -eq 0 ]; then echo "HARNESS GATE: PASS"; else echo "HARNESS GATE: FAIL"; fi
