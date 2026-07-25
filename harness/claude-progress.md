@@ -10,7 +10,7 @@
 
 ---
 ## Session 2026-07-25 (nối) — I9 TÁCH SYSTEM_PROMPT có version/hash ✅ LIVE `de69324` (byte-identical A+, chọn qua workflow 9-agent)
-> **CHỐT SỔ:** check.sh **[27/27] PASS** · 29 tool · takeoff 262 · qa 129 · grounding 47 · **prompt-taxonomy 24 (MỚI, I9)** · app-routes 8→10 · 0 regress. **I9 LIVE `de69324`** (code) + `<docs-hash>` (chốt sổ). Verify LIVE: `/version` prompt_hash=`bea17c6eec564361f3c2fca21fb1cdd458078b3cda45be1d7f61827100a70e18` + prompt_version=`i9-2026.07.25` + commit=de69324 + `/health` ok. Working tree sạch, main==origin.
+> **CHỐT SỔ:** check.sh **[27/27] PASS** · 29 tool · takeoff 262 · qa 129 · grounding 47 · **prompt-taxonomy 24 (MỚI, I9)** · app-routes 8→10 · 0 regress. **I9 LIVE `de69324`** (code) + `9ee8ac4` (chốt sổ docs). Verify LIVE: `/version` prompt_hash=`bea17c6eec564361f3c2fca21fb1cdd458078b3cda45be1d7f61827100a70e18` + prompt_version=`i9-2026.07.25` + commit=de69324 + `/health` ok. Working tree sạch, main==origin.
 > **I9 = TÁCH SYSTEM_PROMPT (P2·S) — hướng A+ (byte-identical) chọn qua workflow 9-agent, 5/5 lăng kính đồng thuận:**
 > - **Vấn đề:** SYSTEM_PROMPT là 1 tuple 124 dòng trộn luật-bất-biến (chống bịa/thao túng) với quy-ước-VN theo thứ tự cũ (rule 15 kẹt giữa 14-16, rule 9 cuối, **2 nhãn "8c" trùng**). Spec I9: "tách luật-bất-biến / quy-ước-VN có version".
 > - **CRUX:** tách 2 khối SẠCH ⇒ phải ĐẢO thứ tự ⇒ đổi text prompt (lõi chống bịa) ⇒ cần đo LIVE. Workflow so 3 hướng: **A+** (mảnh có tên, giữ byte order → byte-identical), **B** (đảo thật + dọn 8c → cần LIVE), **C** (external-file / prompt-as-data).
