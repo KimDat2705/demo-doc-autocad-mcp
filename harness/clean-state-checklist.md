@@ -47,5 +47,5 @@ Chạy TRƯỚC mỗi commit và cuối mỗi phiên (một phiên = một "tran
 
 ## Cloud
 - [ ] Push `main` → Render rebuild OK
-- [ ] `GET /version` live = commit VỪA push + `sect_cm_max:130` + `has_section_index:true` + `models:[2.5-flash,2.0-flash,1.5-flash]` + **`prompt_version:i9-2026.07.25` + `prompt_hash:bea17c6eec56…`** [I9] (bản đã lên + chuỗi fallback H)
+- [ ] `GET /version` live = commit VỪA push + `sect_cm_max:130` + `has_section_index:true` + `models:[2.5-flash,2.0-flash,1.5-flash]` + **`prompt_version:2026.07.26-routing-l2` + `prompt_hash:e5e05d7d48…`** [routing R7b + prompt-half; hash cũ I9 = bea17c6e] (bản đã lên + chuỗi fallback H)
 - [ ] `GET /health` live = `{ok:true, uptime_s, sessions, metrics}` (L — healthCheckPath Render + monitor ngoài; self-ping tự chạy khi có RENDER_EXTERNAL_URL)
