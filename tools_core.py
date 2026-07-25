@@ -652,7 +652,11 @@ def _tok_bound(tok, lab):
     """Token có chữ số -> khớp RANH GIỚI TỪ, BỎ gạch ngang giữa chữ-số (C1 == C-1, ĐC3 == đc-3);
     vẫn chặn C-4 khớp nhầm C-40 (ranh giới). Token chữ -> substring (khớp font/ghép từ)."""
     if any(c.isdigit() for c in tok):
-        t2 = tok.replace("-", "")
+        # Chuẩn hoá ĐỐI XỨNG token+label: chỉ strip gạch CHỮ→SỐ (C-1==C1); GIỮ gạch SỐ-SỐ ('D2-4').
+        # -> 'D2-4' khớp 'd2-4' (cả hai giữ gạch) = recall id73/93/103; 'D2' (họ) vẫn khớp 'd2-1' qua RANH GIỚI
+        # (gạch số-số là biên). Ranh giới (?<![a-z0-9])..(?![a-z0-9]) chặn C-4≠C-40, D2-2≠D2-2A, D2-4≠D2-40.
+        # (Cũ: token strip-ALL 'd24' ≠ label 'd2-4' = MISS D2-4; nếu strip số-số ở label thì 'd2-1'->'d21' PHÁ họ 'D2'.)
+        t2 = re.sub(r"(?<=[a-zđ])-(?=\d)", "", tok)
         l2 = re.sub(r"(?<=[a-zđ])-(?=\d)", "", lab)
         return re.search(r"(?<![a-z0-9])%s(?![a-z0-9])" % re.escape(t2), l2) is not None
     return tok in lab
@@ -1543,6 +1547,32 @@ class Drawing:
         if co_nghi_dk: r["co_nghi_ngo_duong_kinh"] = True
         return self._gan_canh_bao_nhung(r)
 
+    def _bang_con_thep_hinh(self):
+        """recall id22/32: bảng thép hình/inox thường có SUBTOTAL riêng từng bảng (ô 'TỔNG KHỐI LƯỢNG (kG): N'),
+        nhưng thong_ke_thep_hinh() chỉ trả TỔNG toàn file. Quét ô subtotal + ghép TIÊU ĐỀ bảng GẦN NHẤT theo toạ độ.
+        Số ĐỌC NGUYÊN VĂN từ ô (KHÔNG tự cộng/bịa); tiêu đề chỉ là NHÃN gợi ý (gần nhất) — có handle để đối chiếu."""
+        subs, titles = [], []
+        for tx in self.texts:
+            vn = (tx.get("vn") or "").strip()
+            u = unaccent(vn).lower()
+            if "tong khoi luong" in u and "kg" in u:
+                m = re.search(r"(\d[\d.,]*)\s*$", vn)          # số ở CUỐI ô ('...(kG): 2163.02')
+                v = _to_num(m.group(1)) if m else None
+                if v is not None and v > 0:
+                    subs.append({"kg": v, "x": tx.get("x", 0.0), "y": tx.get("y", 0.0),   # GIỮ số ĐÚNG ô (nguyen_van là gốc)
+                                 "handle": tx.get("handle"), "nguyen_van": vn})
+            elif "bang thong ke" in u and ("thep hinh" in u or "inox" in u):
+                titles.append({"title": vn, "x": tx.get("x", 0.0), "y": tx.get("y", 0.0)})
+        out = []
+        for s in subs:
+            best, bd = None, None
+            for t in titles:
+                d = (s["x"] - t["x"]) ** 2 + (s["y"] - t["y"]) ** 2
+                if bd is None or d < bd: bd, best = d, t
+            out.append({"tieu_de_gan_nhat": (best["title"] if best else None),
+                        "tong_kg": s["kg"], "handle": s["handle"], "nguyen_van": s["nguyen_van"]})
+        return out
+
     def thong_ke_thep_hinh(self, **_):
         th = self.thep_hinh or {}; by = th.get("by_show") or {}
         if not by:
@@ -1550,10 +1580,19 @@ class Drawing:
                 {"co_bang": False, "ghi_chu": "Bản vẽ không có bảng thép hình/inox đọc được."})
         theo = {k: {"so_luong": v["so"], "khoi_luong_kg": round(v["kg"], 1)}
                 for k, v in sorted(by.items(), key=lambda x: -x[1]["kg"])}
-        return self._gan_canh_bao_nhung({
-                "co_bang": True, "tong_khoi_luong_kg": round(th.get("tong_kg", 0), 1),
-                "so_dong": th.get("so_dong", 0), "theo_tiet_dien": theo,
-                "ghi_chu": "Tổng THÉP HÌNH/INOX/xà gồ theo bảng (số THẬT). RIÊNG với cốt thép tròn."})
+        r = {"co_bang": True, "tong_khoi_luong_kg": round(th.get("tong_kg", 0), 1),
+             "so_dong": th.get("so_dong", 0), "theo_tiet_dien": theo,
+             "ghi_chu": "Tổng THÉP HÌNH/INOX/xà gồ theo bảng (số THẬT). RIÊNG với cốt thép tròn."}
+        try:
+            bc = self._bang_con_thep_hinh()   # recall id22/32: subtotal riêng từng bảng (LỘ, đối chiếu handle)
+        except Exception:
+            bc = []
+        if bc:
+            r["bang_con"] = bc
+            r["ghi_chu"] += (" CÓ %d bảng con: subtotal 'TỔNG KHỐI LƯỢNG' RIÊNG từng bảng (số ĐỌC nguyên văn từ ô + "
+                             "tiêu đề GẦN NHẤT theo toạ độ — đối chiếu handle). 'tong_khoi_luong_kg' là TỔNG TOÀN FILE "
+                             "(gồm các bảng con); KHÔNG tự cộng bảng con." % len(bc))
+        return self._gan_canh_bao_nhung(r)
 
     def liet_ke_chu_theo_layer(self, layer=None, gioi_han=60, **_):
         ly = (layer or "").strip()
@@ -1798,6 +1837,15 @@ class Drawing:
                 "tong_doi_tuong": self.total, "so_doan_chu": len(self.texts),
                 "so_kich_thuoc": len(self.dims), "so_nhan_tieu_de": len(self.sheets),
                 "thep_tong_kg": self.thep.get("tong_kg", 0), "counts": self.counts}
+
+    def thong_tin_file(self):
+        """Metadata CHUNG file đang nạp (tên, phiên bản DXF, số layer/đối tượng/chữ/kích thước/sheet) — để trả
+        'bản vẽ tên gì / phiên bản AutoCAD nào / bao nhiêu layer'. tom_tat() chỉ chạy lúc nạp; đây là đường ĐỌC-LẠI
+        lúc hỏi (vá recall id39/107). Số ĐỌC từ metadata DXF (không tính/không bịa)."""
+        d = self.tom_tat()
+        d["ghi_chu"] = ("Thông tin CHUNG của file đang nạp (đọc từ metadata DXF). 'so_doan_chu'/'so_kich_thuoc'/"
+                        "'tong_doi_tuong' là số ĐỐI TƯỢNG kỹ thuật, KHÔNG phải số cấu kiện thực tế.")
+        return d
 
     # ============================================================
     # GIAI ĐOẠN 2 — ENGINE TÍNH TOÁN (takeoff). CODE lấy input + CODE tính, LLM chỉ điều phối.

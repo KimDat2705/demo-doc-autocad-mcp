@@ -36,6 +36,13 @@ def nap_ban_ve(path: str) -> dict:
 
 
 @mcp.tool()
+def thong_tin_file() -> dict:
+    """Thông tin CHUNG của bản vẽ ĐANG nạp: tên file, phiên bản AutoCAD (DXF), số layer/đối tượng/đoạn chữ/kích thước/sheet.
+    DÙNG cho 'bản vẽ tên gì', 'file phiên bản AutoCAD nào', 'có bao nhiêu layer/đối tượng' (đọc metadata, không bịa)."""
+    return _need() or DRAWING.thong_tin_file()
+
+
+@mcp.tool()
 def tim_kiem(tu_khoa: str = "", layer: str = "", gioi_han: int = 40) -> dict:
     """Tìm các đoạn chữ chứa từ khoá (không phân biệt dấu/hoa-thường). Trả nội dung + handle + layer.
     Dùng cho mọi câu 'tìm', 'có chữ', 'liệt kê ... chứa'. Để trống cả hai sẽ báo lỗi."""

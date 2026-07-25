@@ -187,6 +187,45 @@ def kiem_tim_kiem_bicat(dwg, ten):
     _emit("gioi_han=-5 -> hien_thi=0 (giữ hành vi cũ, không cắt cụt âm)", r3.get("hien_thi") == 0)
 
 
+def kiem_tok_bound_regress():
+    """Pattern A (2026-07-26) — no-regression BIÊN (fixture-independent): mã có gạch-sau-chữ-số ('D2-4')
+    giờ khớp nhãn 'd2-4 (SL=..)' NHƯNG ranh giới vẫn chặn C-4≠C-40, D2-2≠D2-2A; C-1==C1 giữ nguyên."""
+    from tools_core import _tok_bound
+    print("[_tok_bound A no-regress]")
+    _emit("A: 'd2-4' khớp 'd2-4 (sl= 05)' (FIX recall id73/93/103)", _tok_bound("d2-4", "d2-4 (sl= 05, l= 12.82m)"))
+    _emit("A: 'd2-2' khớp 'd2-2 (sl= 02)'", _tok_bound("d2-2", "d2-2 (sl= 02, l= 59.02m)"))
+    _emit("A: 'd2' (HỌ) VẪN khớp 'd2-1' (không phá prefix họ — chống regress tong_so_luong)", _tok_bound("d2", "dam d2-1"))
+    _emit("A: 'd2' KHÔNG khớp 'd20' (họ ≠ mã liền số)", not _tok_bound("d2", "cot d20"))
+    _emit("A: 'c-1' == 'c1' (giữ nguyên, không regress)", _tok_bound("c-1", "c1 mong don"))
+    _emit("A: 'c-4' KHÔNG khớp 'c-40' (ranh giới con)", not _tok_bound("c-4", "cot c-40 chi tiet"))
+    _emit("A: 'd2-2' KHÔNG khớp 'd2-2a' (ranh giới con)", not _tok_bound("d2-2", "dam d2-2a"))
+
+
+def kiem_recall_fixes(dwg, ten):
+    """Recall fixes 2026-07-26: B thong_tin_file (metadata) / C bang_con (subtotal riêng bảng) / A e2e (D2-x, chỉ KC)."""
+    print("[recall-fixes A/B/C] %s" % ten)
+    tf = dwg.thong_tin_file()
+    _emit("B thong_tin_file: name+dxfversion+so_layer(>=1)+ghi_chu (vá id39/107)",
+          bool(tf.get("name")) and bool(tf.get("dxfversion")) and _isnum(tf.get("so_layer"))
+          and tf["so_layer"] >= 1 and bool(tf.get("ghi_chu")), "-> %s / %s" % (tf.get("name"), tf.get("dxfversion")))
+    bc = dwg.thong_ke_thep_hinh().get("bang_con")
+    _emit("C bang_con: None hoặc list mỗi mục tong_kg(số>0)+handle+nguyen_van (đọc verbatim, không bịa)",
+          bc is None or (isinstance(bc, list) and all(_isnum(b.get("tong_kg")) and b["tong_kg"] > 0
+                          and b.get("handle") and b.get("nguyen_van") for b in bc)))
+    if "KC" in ten:
+        det, okA = [], True
+        for ma in ("D2-4", "D2-7", "D2-2"):
+            ds = (dwg.tra_cuu_so_luong(tu_khoa=ma).get("danh_sach_so_luong") or [])
+            has = bool(ds) and _isnum(ds[0].get("so_luong"))
+            okA = okA and has; det.append("%s=%s" % (ma, ds[0].get("so_luong") if ds else None))
+        _emit("A recall e2e: tra_cuu D2-4/D2-7/D2-2 -> có so_luong (id73/93/103)", okA, "-> " + ", ".join(det))
+    if "KT" in ten:
+        kgs = [b.get("tong_kg") for b in (dwg.thong_ke_thep_hinh().get("bang_con") or [])]
+        _emit("C KT: bang_con có 2163.02 (thép hình id22) + 161.21 (inox304 id32)",
+              any(abs((v or 0) - 2163.02) < 0.1 for v in kgs) and any(abs((v or 0) - 161.21) < 0.1 for v in kgs),
+              "-> %d subtotal" % len(kgs))
+
+
 def chay(dwg, ten):
     kiem_dem_so_luong(dwg, ten)
     kiem_tong_so_luong(dwg, ten)
@@ -195,9 +234,11 @@ def chay(dwg, ten):
     kiem_liet_ke_sheet(dwg, ten)
     kiem_liet_ke_layer(dwg, ten)
     kiem_tim_kiem_bicat(dwg, ten)
+    kiem_recall_fixes(dwg, ten)
 
 
 def main():
+    kiem_tok_bound_regress()   # A no-regression BIÊN (fixture-independent) — chạy 1 lần
     for path, ten in [(KT, "KT CT-A"), (KC, "KC CT-A")]:
         if not os.path.isfile(path):
             skip(ten, "khong thay fixture (%s)" % path)
