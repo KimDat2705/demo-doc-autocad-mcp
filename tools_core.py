@@ -35,6 +35,10 @@ os.makedirs(RENDER_DIR, exist_ok=True)
 READFILE_MAX_MB = int(os.environ.get("READFILE_MAX_MB", "45"))
 # Robustness J — dọn file _renders (png/xlsx) cũ hơn ngần này phút mỗi lần tạo file mới (0 = tắt). Bound đĩa trong phiên dài.
 FILE_TTL_MIN = int(os.environ.get("FILE_TTL_MIN", "60"))
+# U6(C) — TRẦN entity vẽ mỗi cửa sổ render (chống ĐỈNH RAM render: matplotlib ~26KB/entity, đo thật). Cửa-sổ highlight
+# THẬT chỉ vẽ ≤~1100 entity nên 6000 KHÔNG cắt ca thường; chỉ chặn cửa-sổ DÀY bệnh lý (worst-case ~500MB→~180MB render).
+# Cắt = giảm nét-NỀN, KHÔNG mất ô khoanh đỏ (vẽ độc lập). Env-tunable; lên gói RAM mạnh có thể nâng lại.
+RENDER_MAX_ENTITIES = int(os.environ.get("RENDER_MAX_ENTITIES", "6000"))
 
 # ----------------------------------------------------------------------------
 # CHUẨN HOÁ (port nguyên từ demo 1 app.py — đã test kỹ)
@@ -2713,7 +2717,8 @@ class Drawing:
         except Exception: pass
         return None
 
-    def _entities_in_window(self, window, hard_cap=20000):
+    def _entities_in_window(self, window, hard_cap=None):
+        cap = RENDER_MAX_ENTITIES if hard_cap is None else hard_cap   # U6(C): trần env (mặc định 6000), test truyền tay
         x0, y0, x1, y1 = window
         out = []
         for e in self.doc.modelspace():
@@ -2721,7 +2726,7 @@ class Drawing:
             if p is None: continue
             if x0 <= p[0] <= x1 and y0 <= p[1] <= y1:
                 out.append(e)
-                if len(out) >= hard_cap: break
+                if len(out) >= cap: break
         return out
 
     def render_region(self, window, highlights=None, dpi=110, max_px_in=16):
@@ -2784,8 +2789,14 @@ class Drawing:
         cum = ("" if n_clusters <= 1 else
                " (ảnh phóng to CỤM ĐÔNG NHẤT %d/%d vị trí; các vị trí khác nằm ở chi tiết/sheet khác)"
                % (len(shown), len(all_hits)))
+        # U6(C): vùng quá dày -> đã cắt bớt nét NỀN để chống đỉnh RAM render. LỘ rõ (thất bại phải lộ), prose SẠCH SỐ
+        # (không lọt rổ grounding); trấn an ô khoanh đỏ vẫn đúng. Số nét vẽ vẫn ở field so_entity_ve như cũ.
+        anh_bi_cat = n_ent >= RENDER_MAX_ENTITIES
+        cat = ("" if not anh_bi_cat else
+               " ⚠ Vùng bản vẽ quá dày: ảnh chỉ vẽ MỘT PHẦN nét nền (giới hạn để chống quá tải bộ nhớ) — có thể "
+               "thiếu nét nền, nhưng VỊ TRÍ KHOANH ĐỎ vẫn đúng.")
         return {"so_ket_qua": len(all_hits), "so_danh_dau_tren_anh": len(shown), "anh_id": fid,
-                "so_entity_ve": n_ent, "vi_tri": vi_tri,
+                "so_entity_ve": n_ent, "anh_bi_cat": anh_bi_cat, "vi_tri": vi_tri,
                 "ghi_chu": ("Đã KHOANH ĐỎ vị trí nhãn '%s' trên ảnh bản vẽ (anh_id)%s. Đây là SỐ LẦN nhãn xuất "
-                            "hiện trên hình, KHÔNG phải số lượng cấu kiện thật — số lượng thật xem tra_cuu_so_luong."
-                            % (tk or ly, cum))}
+                            "hiện trên hình, KHÔNG phải số lượng cấu kiện thật — số lượng thật xem tra_cuu_so_luong.%s"
+                            % (tk or ly, cum, cat))}

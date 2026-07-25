@@ -126,6 +126,40 @@ def main():
     else:
         skip("D", "khong lay duoc toa do hit tren KC")
 
+    print("[E] U6(C) — TRẦN entity render (chống đỉnh RAM): cap tôn trọng + LỘ anh_bi_cat khi cắt, prose sạch số, ô đỏ độc lập")
+    import tools_core as _tc, re as _re
+    # (E.1) _entities_in_window tôn trọng cap TRUYỀN TAY (cơ chế, không phụ thuộc mật độ fixture)
+    _xs = []; _ys = []
+    for _e in kc.doc.modelspace():
+        _p = kc._quick_point(_e)
+        if _p: _xs.append(_p[0]); _ys.append(_p[1])
+    if _xs:
+        _win_all = (min(_xs), min(_ys), max(_xs), max(_ys))
+        _ncap = len(kc._entities_in_window(_win_all, hard_cap=50))
+        _emit("E.1: _entities_in_window(hard_cap=50) trả ĐÚNG ≤50 (cap tôn trọng)", _ncap <= 50, "-> %d" % _ncap)
+    else:
+        skip("E.1", "khong lay duoc toa do tren KC")
+    # (E.2) highlight bình thường (cửa sổ nhỏ) KHÔNG bị cắt -> anh_bi_cat=False (không cắt oan ca thường)
+    _rn = kc.highlight(tu_khoa="cot")
+    if _rn.get("anh_id"): _created.add(_rn["anh_id"])
+    _emit("E.2: highlight thường -> anh_bi_cat=False (không cắt oan ca thường)",
+          _rn.get("anh_bi_cat") is False, "-> so_entity_ve=%s" % _rn.get("so_entity_ve"))
+    # (E.3) TẠM hạ trần rất thấp -> highlight PHẢI lộ anh_bi_cat=True + so_entity_ve==trần + prose cảnh báo SẠCH SỐ
+    _old = _tc.RENDER_MAX_ENTITIES
+    try:
+        _tc.RENDER_MAX_ENTITIES = 20
+        _rc = kc.highlight(tu_khoa="cot")
+        if _rc.get("anh_id"): _created.add(_rc["anh_id"])
+        _emit("E.3: trần=20 -> anh_bi_cat=True + so_entity_ve==20 + LỘ cảnh báo 'quá dày' (thất bại phải lộ)",
+              _rc.get("anh_bi_cat") is True and _rc.get("so_entity_ve") == 20
+              and "quá dày" in (_rc.get("ghi_chu") or ""),
+              "-> entity=%s cat=%s" % (_rc.get("so_entity_ve"), _rc.get("anh_bi_cat")))
+        _gc = _rc.get("ghi_chu") or ""; _idx = _gc.find("Vùng bản vẽ quá dày")
+        _emit("E.3: đoạn cảnh báo cắt KHÔNG chứa chữ số (không leak trần vào rổ grounding)",
+              _idx >= 0 and not _re.search(r"\d", _gc[_idx:]))
+    finally:
+        _tc.RENDER_MAX_ENTITIES = _old
+
     # ---- DỌN: xoá mọi PNG test tạo ra để giữ _renders sạch ----
     for aid in _created:
         try:
