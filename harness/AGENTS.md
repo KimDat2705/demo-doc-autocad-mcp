@@ -8,6 +8,14 @@
 5. `harness/session-handoff.md` — phiên gần nhất làm gì / còn gì.
 6. Chạy baseline (dưới) → tóm tắt.
 
+## ⭐ THỨ TỰ ƯU TIÊN CÔNG VIỆC (user chốt 2026-07-25 — ÁP DỤNG MỌI PHIÊN)
+Ưu tiên hoàn thành theo đúng thứ tự: **A → C → D → B**. Làm cạn nhóm trên trước khi sang nhóm dưới (trừ khi user chỉ định khác trong phiên).
+1. **A — CHỨC NĂNG CHÍNH (trọng tâm):** AI ĐỌC CHÍNH XÁC dữ liệu bản vẽ AutoCAD + TRẢ LỜI ĐÚNG, **KHÔNG ảo giác**. Gồm: bộ đọc dữ liệu (số lượng/thép/cao độ/kích thước/diện tích/bảng OLE+bảng-vẽ-nét/layer-block-sheet), recall/tìm kiếm, CHỐNG BỊA (grounding-guard, anti-manipulation, bounds-check, provenance, validate-handle, thất-bại-phải-lộ), và điều kiện để đọc được (DWG→DXF convert, giải mã TCVN3).
+2. **C — RAM / DUNG LƯỢNG UPLOAD FILE:** chịu tải file lớn (nâng RAM Render, hạ render cap, size-guard, file-TTL). Ràng buộc là RAM cloud, không phải logic.
+3. **D — KHÁC:** vận hành/robustness, AI tự học (P-series), kiểm thử/corpus, UI, bảo mật/repo.
+4. **B — DỰ TOÁN / TÍNH KHỐI LƯỢNG / XUẤT EXCEL (LÀM CUỐI):** takeoff `tinh_dai_luong`, tổng hợp, xuất Excel/BOQ. User đang **cân nhắc THU HẸP** nhóm này — KHÔNG mở rộng thêm (I4b/I2-v2/Catalog) trừ khi user yêu cầu; **dự toán CHI PHÍ (đơn giá/định mức/thành tiền) đã NGOÀI phạm vi** (chốt 2026-07-09). Các guard chống-bịa nằm trong takeoff thì thuộc nhóm A và luôn giữ.
+> Bản rà soát phân nhóm đầy đủ 64 đầu mục: artifact "Rà soát đầu mục" + workflow `wf_d5d37fa6-683`. Xem thêm memory `[[project-uu-tien-nhom-cong-viec]]` + `[[project-roadmap-con-lai-2026-07-25]]`.
+
 ## Lệnh kiểm tra (từ thư mục `demo_mcp_autocad/`)
 - **Baseline nhanh (đầu phiên):** `python tests/test_takeoff_chong_bia.py` (**76/76**, offline, không tốn API)
 - **Cổng đầy đủ (cuối phiên):** `bash harness/scripts/check.sh` (import + đếm tool + no-key + 2 bộ test)
