@@ -2412,6 +2412,17 @@ class Drawing:
                     "cach_tinh": F["cach_tinh"], "inputs_da_co": da_co, "inputs_thieu": [],
                     "ghi_chu": "Kết quả tính ra KHÔNG hợp lệ (vô cực/tràn số) — số liệu đầu vào quá lớn/bất thường. "
                                "Đề nghị đối tác kiểm lại các số đã nhập (KHÔNG trả số vô nghĩa)."})
+        # I3-U(1b) — CHỐNG SAI-TỰ-TIN LỖI ĐƠN VỊ: mọi input đã qua cổng >0 (2396) nên kq TRƯỚC làm tròn LUÔN > 0;
+        # nếu kq <= 0 tức đã LÀM TRÒN VỀ 0.0 = độ lớn dưới sàn làm tròn của đơn vị mm → dấu hiệu MẠNH nhập nhầm ĐƠN VỊ
+        # (vd gõ MÉT thay mm: chiều cao 3.6 thay 3600 → thể tích ≈0 m³). KHÔNG trả 0.0 như 'kết quả hợp lệ' (lệch 1000×
+        # mà đóng nhãn đáng tin). Mirror guard net<=0 ở nhánh trừ lỗ. prose SẠCH SỐ (không lọt rổ grounding); cờ BOOL.
+        if kq <= 0:
+            return _gan_cc({"dai_luong": ten_dl, "co_ket_qua": False, "can_bo_sung": True, "so_lieu_khong_hop_le": ["ket_qua"],
+                    "don_vi": F["don_vi"], "cach_tinh": F["cach_tinh"], "inputs_da_co": da_co, "inputs_thieu": [],
+                    "nghi_ngo_don_vi": True,
+                    "ghi_chu": "Kết quả tính ra XẤP XỈ KHÔNG (làm tròn về không) dù MỌI input đều dương — độ lớn quá nhỏ so "
+                               "với đơn vị milimet. Dấu hiệu THƯỜNG GẶP: nhập nhầm ĐƠN VỊ (mét thay vì milimet, nhỏ đi hàng "
+                               "nghìn lần). Đề nghị đối tác kiểm lại ĐƠN VỊ và độ lớn các số đã nhập — nhập theo milimet."})
         # Task B — TRỪ LỖ cửa/cửa sổ: kq ở trên là GROSS (số cũ). Chỉ khi đối tác khai 'lo_cua' cho xay_tuong/
         # dien_tich_trat mới trừ; KHÔNG có lo_cua -> tru_extra=None -> giữ NGUYÊN kq cũ + KHÔNG thêm field (76 test không đổi).
         tru_extra = None
@@ -2447,6 +2458,7 @@ class Drawing:
         co_gan_dim = any(x["chua_chac"] and x.get("nguon") == "gan_vi_tri" for x in da_co)
         co_gia_dinh_cao = any(x.get("gia_dinh_cao_tang") for x in da_co)   # Task F: ước cao cột theo cao độ
         suy_dv = any(x.get("suy_doan_don_vi") for x in da_co)   # co_chua_chac/co_xac_nhan_uv đã tính ở trên (dùng chung mọi đường-ra)
+        co_dung_cap = any(x.get("nguon") == "nguoi_dung_cung_cap" for x in da_co)   # I3-U(1a): input ĐỐI TÁC CẤP (số trần) — KHÔNG đọc từ file
         so_do = ["%s = %s %s (%s%s)" % (x["ten"], (round(x["gia_tri"], 2)), x["don_vi"], x["nguon"],
                                         ((", GIẢ ĐỊNH 1 tầng" if x.get("gia_dinh_cao_tang") else ", CHƯA CHẮC") if x["chua_chac"] else "")) for x in da_co]
         if tru_extra:
@@ -2463,8 +2475,11 @@ class Drawing:
             gc += "Có input lấy theo GÁN VỊ TRÍ (đường kích thước gần cấu kiện) → CHƯA CHẮC đúng 100%; đối tác nên xác nhận. "
         elif co_xac_nhan_uv:   # R1: E2/learned xác-nhận-theo-handle -> nêu CHƯA CHẮC, KHÔNG dán 'đáng tin'
             gc += "Có input đối tác XÁC NHẬN theo ỨNG VIÊN (handle) → CHƯA CHẮC, CẦN ĐỐI CHIẾU; KHÔNG coi là số chắc chắn. "
-        elif not co_chua_chac:   # R1: chỉ khẳng định 'đáng tin' khi KHÔNG có input chua_chac nào
+        elif not co_chua_chac and not co_dung_cap:   # R1: chỉ khẳng định 'đọc từ file (đáng tin)' khi MỌI input đọc từ file
             gc += "Mọi input đọc trực tiếp từ file (đáng tin). "
+        elif not co_chua_chac:   # I3-U(1a): có input ĐỐI TÁC CẤP (số trần) — đáng tin theo số đối tác nhập, NHƯNG KHÔNG khẳng định sai 'đọc từ file'
+            gc += ("Input gồm số ĐỌC từ file và số ĐỐI TÁC nhập trực tiếp, không có suy đoán (đáng tin theo nguồn đã nêu; "
+                   "số đối tác nhập KHÔNG phải đọc từ bản vẽ — đối tác nên đối chiếu độ lớn/đơn vị). ")
         elif not co_gia_dinh_cao and not suy_dv:   # R1: còn chua_chac khác (chưa có msg riêng) -> LỘ, không im lặng
             gc += "Có input CHƯA CHẮC (suy đoán/gán) → đối tác nên xác nhận, KHÔNG coi là số chắc chắn. "
         if co_gia_dinh_cao:

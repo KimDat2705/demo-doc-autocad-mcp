@@ -625,6 +625,25 @@ def main():
     _r8 = kt.tinh_dai_luong("khoi luong inox", "S1", '{"so_luong":-5,"kg_moi_bo_handle":"%s"}' % _H)
     _emit("R1: nhánh lỗi (số vô lệ) + input xác-nhận-handle -> resp.chua_chac=True + can_doi_chieu=True (cờ ở MỌI đường-ra)",
           (not _r8.get("co_ket_qua")) and _r8.get("chua_chac") is True and _r8.get("can_doi_chieu") is True)
+    # ── I3-U Lớp 1 (2026-07-25): CHỐNG SAI-TỰ-TIN LỖI ĐƠN VỊ (bug repro sống: chieu_cao=3.6 gõ MÉT -> 0.0 m³ 'đáng tin') ──
+    # (1b) kq làm tròn về 0.0 dù input đều dương = dấu hiệu nhập nhầm mét/mm -> co_ket_qua=False + LỘ nghi_ngo_don_vi, KHÔNG dán 'đáng tin'
+    _u1 = kt.tinh_dai_luong("the tich be tong cot", "", '{"canh_a":220,"canh_b":220,"chieu_cao":3.6,"so_luong":1}')
+    _emit("I3-U(1b): cột chieu_cao=3.6 (gõ MÉT) -> co_ket_qua=False + nghi_ngo_don_vi + KHÔNG 'đáng tin' (hết 0.0-đáng-tin)",
+          (not _u1.get("co_ket_qua")) and _u1.get("nghi_ngo_don_vi") is True
+          and "đáng tin" not in _u1.get("ghi_chu", "") and _u1.get("ket_qua") is None)
+    # (1b) ca ĐÚNG (mm) VẪN tính đúng — không chặn oan
+    _u2 = kt.tinh_dai_luong("the tich be tong cot", "", '{"canh_a":220,"canh_b":220,"chieu_cao":3600,"so_luong":1}')
+    _emit("I3-U(1b): cột chieu_cao=3600 (mm) -> VẪN tính đúng 0.174 (ca đúng không bị ảnh hưởng)",
+          _u2.get("co_ket_qua") is True and abs((_u2.get("ket_qua") or 0) - 0.174) < 0.001, "-> %s" % _u2.get("ket_qua"))
+    # (1b) giá trị NHỎ HỢP LỆ (0.05 m³) KHÔNG bị chặn oan (không phải mọi số nhỏ đều là lỗi đơn vị)
+    _u3 = kt.tinh_dai_luong("the tich be tong san", "", '{"dien_tich":1,"chieu_day":50}')
+    _emit("I3-U(1b): sàn 1m²×50mm -> 0.05 m³ HỢP LỆ, KHÔNG bị chặn oan (0<kq, không FP)",
+          _u3.get("co_ket_qua") is True and abs((_u3.get("ket_qua") or 0) - 0.05) < 1e-9, "-> %s" % _u3.get("ket_qua"))
+    # (1a) input ĐỐI TÁC CẤP (không đọc từ file) -> vẫn 'đáng tin' theo số đối tác NHƯNG KHÔNG khẳng định sai 'mọi input đọc từ file'
+    _u4 = kt.tinh_dai_luong("the tich be tong san", "", '{"dien_tich":50,"chieu_day":100}')
+    _emit("I3-U(1a): input đối-tác-cấp -> GIỮ 'đáng tin' NHƯNG bỏ khẳng định sai 'Mọi input đọc trực tiếp từ file'",
+          _u4.get("co_ket_qua") is True and "đáng tin" in _u4.get("ghi_chu", "")
+          and "Mọi input đọc trực tiếp từ file" not in _u4.get("ghi_chu", ""))
     # E3 — comparator (resolver-level, tất định): đối tác cấp so_luong LỆCH số-đọc-file -> LỘ nghi_ngo, số dùng đối tác
     _cand = None
     for _e in (kc.qty_index or []):
