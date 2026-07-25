@@ -671,6 +671,32 @@ def _nd(val):
             "do_tin_cay": "do_nguoi_dung", "giai_thich": "do đối tác cấp (không đọc từ file)"}
 
 
+# I3-U(Lớp 2) — QUY ĐỔI ĐƠN VỊ ĐỘ DÀI tất định (CODE tính, KHÔNG để LLM/đối tác tự nhân ×1000).
+_UNIT_DAI_RE = re.compile(r"\s*(-?\d+(?:[.,]\d+)?)\s*(mm|cm|dm|m)\s*", re.IGNORECASE)
+_UNIT_DAI_HESO = {"mm": 1.0, "cm": 10.0, "dm": 100.0, "m": 1000.0}
+
+
+def _quy_doi_don_vi_dai(raw):
+    """Quy CHUỖI có TAG đơn-vị-độ-dài ('3.6m'/'360cm'/'36dm'/'3600mm') -> số mm (float), TẤT ĐỊNH.
+    CHỈ khớp TRÒN (fullmatch, neo đầu-cuối) nên KHÔNG bắt 'd200'/'m2'/'3.6 m2'/'cao 3.6m ở góc'.
+    Không phải str / không khớp -> None (đối tác cấp SỐ TRẦN hoặc '3600' đi path cũ, 0 thay đổi).
+    GIỮ NGUYÊN dấu (âm/0) để cổng '> 0' ở tinh_dai_luong vẫn bắt. CHỈ đơn-vị-độ-dài — KHÔNG đụng
+    'm2'/'m³'/bộ/kg. CHỐNG BỊA: KHÔNG tự đoán đơn vị cho SỐ TRẦN (đó mới là bịa đơn vị) — chỉ chuyển
+    khi TAG hiện diện tường minh."""
+    if not isinstance(raw, str):
+        return None
+    m = _UNIT_DAI_RE.fullmatch(raw)
+    if not m:
+        return None
+    try:
+        so = float(m.group(1).replace(",", "."))
+    except Exception:
+        return None
+    if not math.isfinite(so):
+        return None
+    return {"mm": so * _UNIT_DAI_HESO[m.group(2).lower()], "don_vi_goc": m.group(2).lower(), "raw": raw}
+
+
 # Mỗi công thức: ten hiển thị, cách tính, đơn vị KQ, danh sách input (ten|đơn vị|resolver method|khoá inputs_bo_sung),
 # và hàm compute nhận dict {ten_input: giá_trị_số}. CODE tính, không để LLM tính.
 _FORMULAS = {
@@ -2353,12 +2379,24 @@ class Drawing:
                 if _tu_choi: e_thieu["handle_khong_khop"] = _tu_choi   # E2: LỘ handle bị từ chối (không tự cắm số vô chủ)
                 thieu.append(e_thieu)
             else:
+                # I3-U(Lớp 2) — QUY ĐỔI ĐƠN VỊ ĐỘ DÀI (CODE tính, không LLM): đối tác cấp CHUỖI có TAG ('3.6m'/'360cm')
+                # cho input dv=='mm' -> _nd giữ raw string -> cổng 'xau' (dưới) đá vào so_lieu_khong_hop_le = TỪ-CHỐI-OAN.
+                # Quy đổi CHỈ khi tag TƯỜNG MINH + CHỈ dv=='mm' (KHÔNG đụng bộ/kg/m² dùng chung _rs_bs_only); số/'3600'/
+                # rác không tag -> KHÔNG đổi (degrade-safe, 0 regression). Số âm/0 sau quy đổi vẫn để cổng '> 0' bắt.
+                # LỘ giả định qua 'quy_doi_don_vi' (thất-bại-phải-lộ → đối tác bắt mis-tag). Robust cho MỌI MCP-client
+                # (client trực tiếp KHÔNG có luật ×1000 của SYSTEM_PROMPT). CHỐNG BỊA: KHÔNG đoán đơn vị cho SỐ TRẦN.
+                if dv == "mm" and isinstance(res.get("gia_tri"), str):
+                    _qd = _quy_doi_don_vi_dai(res["gia_tri"])
+                    if _qd is not None:
+                        res["quy_doi_don_vi"] = "%s → %g mm" % (res["gia_tri"].strip(), _qd["mm"])
+                        res["gia_tri"] = _qd["mm"]
                 vals[ten] = res["gia_tri"]
                 da_co.append({"ten": ten, "gia_tri": res["gia_tri"], "don_vi": dv, "nguon": res["nguon"],
                               "handle": res.get("handle"), "do_tin_cay": res.get("do_tin_cay"),
                               "chua_chac": res.get("chua_chac", False), "suy_doan_don_vi": res.get("suy_doan_don_vi", False),
                               "gia_dinh_cao_tang": res.get("gia_dinh_cao_tang", False),
                               "la_hoc": res.get("la_hoc", False),   # F5: giữ cờ HỌC xuống da_co -> backstop §2.6 2 lớp (la_hoc OR nguon)
+                              "quy_doi_don_vi": res.get("quy_doi_don_vi", ""),   # I3-U(L2): LỘ giả định quy đổi đơn vị (nếu có)
                               "giai_thich": res.get("giai_thich", "")})
                 if res.get("nghi_ngo"): nghi_ngo_all.extend(res["nghi_ngo"])   # E3: gom cờ đối chiếu số đối-tác vs số đọc
                 if res.get("can_doi_chieu"): da_co[-1]["can_doi_chieu"] = True   # E2: xác nhận theo handle -> cần đối chiếu (LỘ)

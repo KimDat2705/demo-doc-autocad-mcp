@@ -644,6 +644,43 @@ def main():
     _emit("I3-U(1a): input đối-tác-cấp -> GIỮ 'đáng tin' NHƯNG bỏ khẳng định sai 'Mọi input đọc trực tiếp từ file'",
           _u4.get("co_ket_qua") is True and "đáng tin" in _u4.get("ghi_chu", "")
           and "Mọi input đọc trực tiếp từ file" not in _u4.get("ghi_chu", ""))
+    # ── I3-U Lớp 2 (2026-07-26): QUY ĐỔI ĐƠN VỊ ĐỘ DÀI code-only — đối tác cấp CHUỖI có tag '3.6m' -> mm ──
+    # Vá đường TỪ-CHỐI-OAN (chuỗi-tag qua _nd giữ raw -> cổng 'xau'); CHỈ tag tường minh + CHỈ dv=='mm'; degrade-safe.
+    # Robust cho MỌI MCP-client (client trực tiếp không có luật ×1000 của SYSTEM_PROMPT). CHỐNG BỊA: không đoán đơn vị số-trần.
+    from tools_core import _quy_doi_don_vi_dai as _qd
+    _emit("I3-U(L2)-helper: tag '3.6m'/'360cm'/'36dm'/'3600mm'/'3,6m' -> 3600 mm (tất định, đa đơn vị)",
+          all(_qd(k) and _qd(k)["mm"] == 3600 for k in ("3.6m", "360cm", "36dm", "3600mm", "3,6m")))
+    _emit("I3-U(L2)-helper: KHÔNG bắt số-trần/'m2'/'d200'/'3.6 m2'/int/bool (chống bịa đơn vị + không nhầm diện tích)",
+          all(_qd(k) is None for k in ("3.6", "m2", "d200", "3.6 m2", "D40", "b300")) and _qd(3600) is None and _qd(True) is None)
+    _emit("I3-U(L2)-helper: GIỮ dấu âm/0 để cổng >0 bắt (không tự sửa dấu)",
+          _qd("-3.6m")["mm"] == -3600 and _qd("0m")["mm"] == 0)
+    _l2base = kt.tinh_dai_luong("the tich be tong cot", "", '{"canh_a":220,"canh_b":220,"chieu_cao":3600,"so_luong":1}')
+    _l2m = kt.tinh_dai_luong("the tich be tong cot", "", '{"canh_a":220,"canh_b":220,"chieu_cao":"3.6m","so_luong":1}')
+    _emit("I3-U(L2): chieu_cao='3.6m' -> co_ket_qua=True + ket_qua == ca '3600' (quy đổi đúng, hết từ-chối-oan)",
+          _l2m.get("co_ket_qua") and _l2m.get("ket_qua") == _l2base.get("ket_qua"), "-> %s" % _l2m.get("ket_qua"))
+    _l2c = next((x for x in _l2m.get("inputs_da_co", []) if x["ten"] == "chieu_cao"), None)
+    _emit("I3-U(L2): LỘ giả định quy_doi_don_vi ('3.6m → 3600 mm') + gia_tri=3600.0 (thất-bại-phải-lộ)",
+          _l2c is not None and "3.6m" in (_l2c.get("quy_doi_don_vi") or "") and _l2c["gia_tri"] == 3600.0)
+    _l2s = kt.tinh_dai_luong("the tich be tong cot", "", '{"canh_a":220,"canh_b":220,"chieu_cao":"3600","so_luong":1}')
+    _emit("I3-U(L2): '3600' (chuỗi số KHÔNG tag) -> vẫn == baseline + KHÔNG gắn quy_doi (degrade-safe, 0 regression)",
+          _l2s.get("ket_qua") == _l2base.get("ket_qua")
+          and not any((x.get("quy_doi_don_vi") or "") for x in _l2s.get("inputs_da_co", [])))
+    _l2b = kt.tinh_dai_luong("the tich be tong cot", "", '{"canh_a":220,"canh_b":220,"chieu_cao":3.6,"so_luong":1}')
+    _emit("I3-U(L2): bare 3.6 (số trần KHÔNG tag) -> VẪN nghi_ngo_don_vi (I3-U L1); KHÔNG tự đoán đơn vị",
+          _l2b.get("nghi_ngo_don_vi") is True and not _l2b.get("co_ket_qua"))
+    _l2neg = kt.tinh_dai_luong("the tich be tong cot", "", '{"canh_a":220,"canh_b":220,"chieu_cao":"-3.6m","so_luong":1}')
+    _l2ar = kt.tinh_dai_luong("the tich be tong cot", "", '{"canh_a":220,"canh_b":220,"chieu_cao":"3.6 m2","so_luong":1}')
+    _emit("I3-U(L2): '-3.6m' -> so_lieu_khong_hop_le (cổng >0); '3.6 m2' cho input mm -> KHÔNG quy đổi (không nhầm diện tích)",
+          bool(_l2neg.get("so_lieu_khong_hop_le")) and bool(_l2ar.get("so_lieu_khong_hop_le")))
+    _l2kg = kt.tinh_dai_luong("khoi luong inox", "S1", '{"kg_moi_bo":"8.62kg"}')
+    _emit("I3-U(L2): kg_moi_bo '8.62kg' (dv=kg, dùng chung _rs_bs_only) -> KHÔNG quy đổi (gate dv==mm), giữ hành vi cũ",
+          not _l2kg.get("co_ket_qua"))
+    # C1-lite (đóng băng invariant lớp resolver — bơm input XẤU -> KHÔNG BAO GIỜ ra kết quả; chống regression)
+    import json as _jsonx
+    _c1_ok = all(not kt.tinh_dai_luong("the tich be tong cot", "",
+                 _jsonx.dumps({"canh_a": 220, "canh_b": 220, "chieu_cao": _bv, "so_luong": 1})).get("co_ket_qua")
+                 for _bv in (0, -5, "", "abc", True, 1e400, None))
+    _emit("C1-lite: input XẤU (0/-5/''/abc/True/inf/None) cho chieu_cao -> KHÔNG BAO GIỜ co_ket_qua (đóng băng invariant)", _c1_ok)
     # E3 — comparator (resolver-level, tất định): đối tác cấp so_luong LỆCH số-đọc-file -> LỘ nghi_ngo, số dùng đối tác
     _cand = None
     for _e in (kc.qty_index or []):
