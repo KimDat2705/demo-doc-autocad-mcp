@@ -139,10 +139,35 @@ out=$($PY tests/test_bang_ve_net.py 2>&1); rc=$?
 echo "$out" | tail -1
 [ "$rc" -eq 0 ] || { echo "FAIL: test bang ve-net co FAIL"; fail=1; }
 
-echo "=== [27/27] Test PROMPT TAXONOMY (I9: SYSTEM_PROMPT tach manh + version/hash, byte-lock sha256, offline) ==="
+echo "=== [27/28] Test PROMPT TAXONOMY (I9: SYSTEM_PROMPT tach manh + version/hash, byte-lock sha256, offline) ==="
 out=$($PY tests/test_prompt_taxonomy.py 2>&1); rc=$?
 echo "$out" | tail -1
 [ "$rc" -eq 0 ] || { echo "FAIL: test prompt taxonomy co FAIL"; fail=1; }
+
+echo "=== [28/29] Test DISPATCH GATE (L0 kho kien thuc: chan thi hanh tool host-only/ten la truoc bridge.call, offline) ==="
+out=$($PY tests/test_dispatch_gate.py 2>&1); rc=$?
+echo "$out" | tail -1
+[ "$rc" -eq 0 ] || { echo "FAIL: test dispatch gate co FAIL"; fail=1; }
+
+echo "=== [29/30] Test KIENTHUC (L1+L2 kho kien thuc: validator digit-free + byte-lock KB_HASH + strip _kb chong lot ro, offline) ==="
+out=$($PY tests/test_kienthuc.py 2>&1); rc=$?
+echo "$out" | tail -1
+[ "$rc" -eq 0 ] || { echo "FAIL: test kienthuc co FAIL"; fail=1; }
+
+echo "=== [30/31] Test KB GRAFT (L4 kho kien thuc: gate bang-chung-duong + confirm-only + khong lot grounding + degrade-safe, offline) ==="
+out=$($PY tests/test_kb_graft.py 2>&1); rc=$?
+echo "$out" | tail -1
+[ "$rc" -eq 0 ] || { echo "FAIL: test kb graft co FAIL"; fail=1; }
+
+echo "=== [31/32] Test KB XAC NHAN (L5 kho kien thuc: confirm-only fail-closed + host-only 2 hang rao + endpoint /xac-nhan + frontend hook, offline) ==="
+out=$($PY tests/test_kb_xacnhan.py 2>&1); rc=$?
+echo "$out" | tail -1
+[ "$rc" -eq 0 ] || { echo "FAIL: test kb xac nhan co FAIL"; fail=1; }
+
+echo "=== [32/32] Test TRA KY HIEU (L3 kho kien thuc: tra kho read-only fail-open + nhom de-nham + khong lot grounding + R18, offline) ==="
+out=$($PY tests/test_tra_ky_hieu.py 2>&1); rc=$?
+echo "$out" | tail -1
+[ "$rc" -eq 0 ] || { echo "FAIL: test tra ky hieu co FAIL"; fail=1; }
 
 echo "------------------------------------"
 if [ "$fail" -eq 0 ]; then echo "HARNESS GATE: PASS"; else echo "HARNESS GATE: FAIL"; fi

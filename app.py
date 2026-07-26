@@ -151,6 +151,12 @@ def version():
     # I9: định danh SYSTEM_PROMPT đã deploy (version = ý người; hash = sự thật byte, phát hiện trôi text)
     info["prompt_version"] = getattr(mcp_bridge, "PROMPT_VERSION", None)
     info["prompt_hash"] = getattr(mcp_bridge, "PROMPT_HASH", None)
+    try:                                     # L1 (kho kiến thức): định danh KHO đã deploy — degrade-safe (thiếu file vẫn chạy)
+        import kienthuc
+        info["kb_version"] = kienthuc.KB_VERSION
+        info["kb_hash"] = kienthuc.KB_HASH
+    except Exception:
+        info["kb_version"] = info["kb_hash"] = None
     return jsonify(info)
 
 
@@ -264,6 +270,28 @@ def ask():
         return jsonify({"answer": "⚠ Lỗi khi hỏi AI: %s" % e, "evidence": [], "ai": True})
 
 
+@app.route("/xac-nhan", methods=["POST"])
+def xac_nhan():
+    """L5 (kho kiến thức, CONFIRM-ONLY) — kênh xác nhận CỦA NGƯỜI: nút bấm frontend gọi THẲNG endpoint này
+    -> bridge.call host-side, KHÔNG đi qua chat/Gemini (tool 'xac_nhan_ky_hieu' nằm trong _TOOL_KHONG_CHO_LLM
+    + gate dispatch L0 chặn) -> AI không thể tự bấm thay đối tác bằng bất kỳ đường nào. Fail-closed ở tầng
+    Drawing (kb_id + option ∈ ENUM + câu hỏi ĐÃ phát trong phiên). KHÔNG đổi số — chỉ nhãn theo PHIÊN file."""
+    sid, s = get_session()
+    if s.get("bridge") is None:
+        return jsonify({"ok": False, "loi": "Chưa nạp bản vẽ cho phiên này."}), 400
+    d = request.get_json(silent=True) or {}
+    try:
+        with s["lock"]:             # tuần tự hoá với /ask cùng phiên (1 subprocess/bridge)
+            r = s["bridge"].call("xac_nhan_ky_hieu", {
+                "kb_id": str(d.get("kb_id") or ""), "option_key": str(d.get("option_key") or ""),
+                "ma": str(d.get("ma") or ""), "thu_hoi": bool(d.get("thu_hoi"))})
+        return jsonify(r if isinstance(r, dict) else {"ok": False})
+    except Exception as e:
+        _METRICS["errors"] += 1
+        print("[xac-nhan] %s: %s" % (type(e).__name__, e), file=sys.stderr, flush=True)
+        return jsonify({"ok": False, "loi": "Lỗi khi ghi nhận xác nhận: %s" % e}), 500
+
+
 def _artifact_owned(art_id):
     """R11 — chống IDOR: True nếu artifact-id (basename) THUỘC phiên hiện tại (cookie sid). KHÔNG tạo phiên mới cho
     asset request; refresh 'last' để phiên không TTL-hết trong lúc tải asset. Phiên khác/không cookie -> False -> 404."""
@@ -364,7 +392,7 @@ button:disabled{opacity:.5;cursor:default}
 const $=id=>document.getElementById(id);
 async function jget(u){return (await fetch(u)).json()}
 async function jpost(u,b,f){let o={method:'POST'};if(f){o.body=b}else{o.headers={'Content-Type':'application/json'};o.body=JSON.stringify(b)}return (await fetch(u,o)).json()}
-function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
 function ready(on){$('inp').disabled=!on;$('btnSend').disabled=!on}
 function me(t){$('chat').innerHTML+=`<div class="msg me"><div class="bub">${esc(t)}</div></div>`;$('chat').scrollTop=1e9}
 function evHtml(ev){if(!ev||!ev.length)return '';
@@ -391,10 +419,25 @@ async function upload(){let f=$('up').files[0];if(!f){alert('Hãy chọn file .d
   $('sum').style.display='block';$('sum').textContent=dwg?'⏳ Đang tải lên & chuyển đổi .dwg → nạp...':'⏳ Đang tải lên & nạp...';
   showSum(await jpost('/upload',fd,true))}
 function q(t){$('inp').value=t;send()}
+/* L5 (kho kiến thức) — câu hỏi CONFIRM-ONLY: hệ hỏi với phương án soạn sẵn, CHỈ NGƯỜI bấm (POST /xac-nhan,
+   không đi qua chat/AI). Nút bấm dùng data-attribute (esc cả dấu nháy) — chống chèn thuộc tính từ mã người gõ. */
+let _kbSeq=0;
+function kbHtml(qs){if(!qs||!qs.length)return '';
+  return qs.map(k=>{let bid='kbq'+(++_kbSeq);
+    let btns=(k.phuong_an||[]).map(o=>`<button data-id="${esc(k.id)}" data-opt="${esc(o.key)}" data-ma="${esc(k.ma||'')}" onclick="xacNhanBtn(this,'${bid}')" style="margin:3px 4px 0 0;padding:4px 10px;border-radius:8px;border:1px solid #4a5;background:#173;color:#cfe;cursor:pointer">${esc(o.label)}</button>`).join('');
+    return `<div id="${bid}" style="margin-top:8px;padding:8px;border:1px dashed #4a5;border-radius:8px">`+
+      `<div>❓ <b>${esc(k.cau_hoi)}</b></div>${btns}`+
+      `<div class="cap">Chỉ bạn bấm được — AI không tự chọn. Hiệu lực trong phiên file đang mở; không thay đổi con số nào.</div></div>`}).join('')}
+async function xacNhanBtn(b,bid){let el=$(bid);if(!el)return;
+  try{let r=await jpost('/xac-nhan',{kb_id:b.dataset.id,option_key:b.dataset.opt,ma:b.dataset.ma});
+    el.innerHTML='<div>'+(r.ok?'✔ '+esc(r.ghi_chu||'Đã ghi nhận.'):'⚠ '+esc(r.ly_do||r.loi||'Không ghi nhận được.'))+'</div>'}
+  catch(e){el.innerHTML='<div>⚠ Lỗi kết nối khi xác nhận.</div>'}}
 async function send(){let t=$('inp').value.trim();if(!t)return;me(t);$('inp').value='';
   let ph=bot('🤖 AI đang đọc & tra cứu qua MCP… 0s');let bub=ph.querySelector('.bub');
   ready(false);let sec=0,tm=setInterval(()=>{sec++;bub.textContent='🤖 AI đang đọc & tra cứu qua MCP… '+sec+'s'},1000);
-  try{let r=await jpost('/ask',{q:t});clearInterval(tm);ph.remove();bot(r.answer,r.evidence,r.anh_id,true,r.file_id)}
+  try{let r=await jpost('/ask',{q:t});clearInterval(tm);ph.remove();
+    let el=bot(r.answer,r.evidence,r.anh_id,true,r.file_id);
+    if(r.kb_cau_hoi&&r.kb_cau_hoi.length&&el){el.querySelector('.bub').innerHTML+=kbHtml(r.kb_cau_hoi);$('chat').scrollTop=1e9}}
   catch(e){clearInterval(tm);ph.remove();bot('⚠ Lỗi kết nối máy chủ.')}
   ready(true);$('inp').focus()}
 async function init(){try{let c=await jget('/config');if(!c.use_ai){bot('⚠ Máy chủ chưa cấu hình GEMINI_API_KEY.')}}catch(e){}}

@@ -94,8 +94,10 @@ def main():
         print("[F] GROUNDING — mcp_bridge LOAI ten tool khoi ro + prose canh_bao SACH CHU SO")
         _mb_src = io.open(os.path.join(HERE, "..", "mcp_bridge.py"), encoding="utf-8").read()
         # dong loai-ten phai chua ca doc_bang_nhung VA phat_hien_bang_ve_net trong CUNG dieu kien tool_numbers
+        # (L2 kho kien thuc 2026-07-26: call-site nay boc them _strip_kb(result) — van gom so tool nhu cu,
+        #  chi loai key '_kb'; dang moi duoc khoa rieng o test_kienthuc K11a)
         _loai_ok = bool(re.search(r'fc\.name not in \([^)]*"phat_hien_bang_ve_net"[^)]*\)', _mb_src)) \
-                   and 'tool_numbers |= _collect_numbers(result)' in _mb_src
+                   and 'tool_numbers |= _collect_numbers(_strip_kb(result))' in _mb_src
         _emit("F1: mcp_bridge loai 'phat_hien_bang_ve_net' khoi tool_numbers (khong lot grounding)", _loai_ok)
         # prose canh_bao (ket qua DUONG) KHONG chua chu so
         cb = rA.get("canh_bao", "")

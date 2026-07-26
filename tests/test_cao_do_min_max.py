@@ -37,8 +37,12 @@ def skip(name):
 
 
 class _Fake:
-    """Đối tượng tối thiểu — cao_do_min_max chỉ đọc self.texts."""
-    def __init__(self, texts): self.texts = texts
+    """Đối tượng tối thiểu — cao_do_min_max đọc self.texts (+ L4 kho kiến thức: mượn method graft THẬT
+    của Drawing + state hỏi, để nhánh marker-ÂM-dạng-cách chạy y hệt sản phẩm, không phải stub né)."""
+    _kb_hoi_am_cach = tc.Drawing._kb_hoi_am_cach
+    def __init__(self, texts):
+        self.texts = texts
+        self.kb_hoi, self.kb_da_phat = {}, set()
 
 
 def _txt(vn, handle="H", layer="0"):

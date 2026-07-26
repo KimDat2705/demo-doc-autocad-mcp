@@ -250,6 +250,15 @@ def _norm_ma(s):
     Map Đ/đ -> 'dj' TRƯỚC khi _norm_label (distinct, ASCII, an toàn _tok_bound). Dùng RIÊNG cho khớp mã ở hoc_quy_uoc/_ung_vien_hoc."""
     return _norm_label((s or "").replace("Đ", "dj").replace("đ", "dj"))
 
+
+# L4 (KHO KIẾN THỨC dev-soạn — KE_HOACH_KHO_KIEN_THUC.md): import DEGRADE-SAFE. Thiếu/hỏng kienthuc.py ->
+# _kienthuc=None -> MỌI graft kho tự tắt, hệ chạy y hệt cũ (bất biến thiết kế; test khoá).
+try:
+    import kienthuc as _kienthuc
+except Exception:
+    _kienthuc = None
+_KB_PREFIX_RE = re.compile(r"^\s*([A-Za-zÀ-ỹĐđ]+)")   # LETTER-RUN đầu mã (giữ Đ/đ + chữ có dấu) -> khoá tra kho qua _norm_ma
+
 _MA_PAREN_RE = re.compile(r"\([^()]*\)")
 _MA_LEN_RE = re.compile(r"\bl\s*[=:]\s*\d+(?:[.,]\d+)?\s*m?m?\b")   # 'L= 4.42m' / 'L:3.00' (chú thích chiều dài)
 
@@ -1007,6 +1016,11 @@ class Drawing:
         self.used_handles = self._build_used_handles()         # P0: SỔ handle đã hấp thụ (nền tín hiệu ① residual)
         self.hoc_phien = []                                    # P0/P3: quy ước ĐỌC học theo PHIÊN (chết theo phiên/nạp file mới)
         self._hoc_seq = 0                                      # P3 (R7): counter rule_id TẤT ĐỊNH (không trùng sau thu_hoi; không dùng time/random)
+        self.kb_hoi = {}                                       # L4 (kho kiến thức): trạng thái ĐÃ HỎI per (entry|mã) — chống hỏi lặp (RT4-4); chết theo phiên
+        self.kb_da_phat = set()                                # L4/L5: (entry_id, option_key) ĐÃ PHÁT trong phiên — L5 xác nhận fail-closed CHỈ nhận option đã phát
+        self.kb_xacnhan = {}                                   # L5: xác nhận NGƯỜI BẤM per (entry|mã) — nhãn diễn giải PHIÊN-FILE, KHÔNG đổi số; đổi file = reset
+        self._kb_khoa_file = None                              # L4 lazy: tập khoá mã có mặt trong file (bằng chứng 'cả 2 dạng raw')
+        self._kb_co_chu_thich = False                          # L4 lazy: file có bảng chú thích (legend-first tối giản)
 
     # ---------------- P0 (AI tự học): sổ handle đã hấp thụ + residual (nền tín hiệu ① "có text mà không hiểu") ----------------
     def _build_used_handles(self):
@@ -1040,6 +1054,195 @@ class Drawing:
         khỏi list (không đánh cờ) nên list này luôn 'sạch'. Grep-guard (INV-12) khẳng định KHÔNG nơi nào khác truy
         `self.hoc_phien[` ngoài hoc_quy_uoc / thu_hoi_quy_uoc / _quy_tac_hieu_luc -> chống đọc rải rác/quên lọc thu_hoi."""
         return list(getattr(self, "hoc_phien", []) or [])
+
+    # ---------------- L4 (KHO KIẾN THỨC dev-soạn): graft có GATE bằng-chứng-dương (chống bão-hỏi 50-80% đo được) ----------------
+    def _kb_quet_file(self):
+        """Lazy 1 lần/phiên: (a) tập khoá _norm_ma của LETTER-RUN đầu các token dạng MÃ <chữ><số> trong file —
+        bằng chứng 'CẢ HAI dạng raw cùng tồn tại' (file có 'ĐC-1' lẫn 'DC-1' -> {'djc','dc'}); (b) cờ file CÓ
+        bảng chú thích (legend-first tối giản, fail-open — garble không nhận ra thì chỉ mất note, không sai)."""
+        if self._kb_khoa_file is None:
+            khoas, co_ct = set(), False
+            try:
+                for t in self.texts:
+                    vn = (t.get("vn") or "").strip()
+                    if not vn: continue
+                    if not co_ct and "chu thich" in unaccent(vn).lower(): co_ct = True
+                    w = vn.split()[0] if vn.split() else ""
+                    if not any(c.isdigit() for c in w): continue        # chỉ token dạng MÃ chữ+số ('ĐC-1', 'DC2')
+                    m = _KB_PREFIX_RE.match(w)
+                    if m and m.group(1): khoas.add(_norm_ma(m.group(1)))
+            except Exception:
+                khoas, co_ct = set(), False
+            self._kb_khoa_file, self._kb_co_chu_thich = khoas, co_ct
+        return self._kb_khoa_file, self._kb_co_chu_thich
+
+    def _kb_hit_types(self, ma):
+        """LOẠI index engine đã ghép mã: 'section' (kết cấu) / 'door' (cửa). ĐÚNG 1 loại = engine ĐÃ tự phân giải
+        -> KHÔNG hỏi (chống hỏi thừa kiểu 'C hai xuất hiện nhiều lần thuần cột'); 2 loại = mâu thuẫn nội-file."""
+        toks = [w for w in _norm_label(ma or "").split() if any(c.isdigit() for c in w)]
+        types = set()
+        try:
+            if toks:
+                if any(any(_tok_bound(tk, e.get("code", "")) for tk in toks) for e in (self.section_index or [])):
+                    types.add("section")
+                if any(any(_tok_bound(tk, e.get("code", "")) for tk in toks) for e in (self.door_size_index or [])):
+                    types.add("door")
+        except Exception:
+            return set()
+        return types
+
+    def _kb_cau_hoi_neu_can(self, ma):
+        """GATE HỎI = BẰNG-CHỨNG-DƯƠNG NỘI-FILE (KE_HOACH_KHO_KIEN_THUC §2): chỉ trả câu hỏi confirm khi
+        (a) entry kho confusable VÀ ((cả 2 dạng raw cùng tồn tại trong CHÍNH file qua cạnh confusable_with)
+        HOẶC (mã dính ≥2 LOẠI index)) VÀ (b) engine CHƯA tự ghép đúng 1 loại VÀ (c) chưa hỏi (entry|mã) trong
+        phiên. Trả: payload '_kb' (CAP 1 câu/lượt — chỉ entry đầu đạt gate) / {'da_hoi_trong_phien':True} / None.
+        Call-site đặt kết quả dưới ĐÚNG key '_kb' -> L2 mcp_bridge strip trước rổ grounding. FAIL-OPEN tuyệt đối."""
+        try:
+            if _kienthuc is None or not (ma or "").strip(): return None
+            m = _KB_PREFIX_RE.match(ma.strip())
+            if not m: return None
+            ents = _kienthuc.theo_khoa_phan_biet(_norm_ma(m.group(1)))
+            if not ents: return None
+            hits = self._kb_hit_types(ma)
+            if len(hits) == 1: return None            # engine đã tự phân giải 1 loại -> không hỏi
+            khoa_file, co_ct = self._kb_quet_file()
+            for e in ents:
+                if not e.get("confusable") or not e.get("confirm_template"): continue
+                bang_chung = len(hits) >= 2           # mâu thuẫn: mã dính CẢ index kết cấu LẪN cửa
+                if not bang_chung:
+                    for cid in e.get("confusable_with", ()):
+                        ce = _kienthuc.theo_id(cid)
+                        if ce and e["khoa_phan_biet"] in khoa_file and ce["khoa_phan_biet"] in khoa_file:
+                            bang_chung = True; break  # CẢ HAI dạng raw cùng tồn tại trong chính file
+                if not bang_chung: continue
+                key = e["id"] + "|" + _norm_ma(ma)
+                if key in self.kb_xacnhan:            # L5: ĐÃ xác nhận -> nhãn diễn giải, không hỏi lại
+                    return {"id": e["id"], "da_xac_nhan": True,
+                            "nghia_key": self.kb_xacnhan[key].get("nghia_key", ""),
+                            "ghi_chu": "theo xác nhận trong phiên file này"}
+                if self.kb_hoi.get(key):              # đã hỏi trong phiên -> note ngắn, KHÔNG lặp câu hỏi (RT4-4)
+                    return {"id": e["id"], "da_hoi_trong_phien": True}
+                self.kb_hoi[key] = "da_hoi"
+                p = _kienthuc.payload(e)
+                p["cau_hoi"] = (p.get("cau_hoi") or "").replace("{ky_hieu}", ma.strip()[:40])
+                p["ma"] = ma.strip()[:40]             # L5: frontend echo lại khi bấm nút (POST /xac-nhan)
+                if co_ct:
+                    p["ghi_chu"] = ((p.get("ghi_chu") or "") + " Bản vẽ CÓ bảng chú thích — ưu tiên đối chiếu theo "
+                                    "chú thích của chính bản vẽ trước khi chọn.").strip()
+                for o in p.get("phuong_an", []):
+                    self.kb_da_phat.add((e["id"], o["key"]))
+                return p
+            return None
+        except Exception:
+            return None                               # kho KHÔNG BAO GIỜ được phá tool (fail-open)
+
+    def _kb_hoi_am_cach(self, cb_am):
+        """L4 — móc kho cho marker ÂM dạng CÁCH ('WORD - n.nnn') của cao_do_min_max: HÌNH THỨC tự nó là bằng
+        chứng mập mờ (cả chiều-cao LẪN mốc-sâu-thật đều từng có thật trong corpus) -> câu hỏi confirm-only từ
+        entry 'word_gach_so_am'. Đây là ĐƯỜNG KÍCH HOẠT THẬT của ca 'CH - 2.700'. Fail-open."""
+        try:
+            if _kienthuc is None or not cb_am: return None
+            e = _kienthuc.theo_id("word_gach_so_am")
+            if not e or not e.get("confirm_template"): return None
+            key = e["id"] + "|cao_do"
+            if key in self.kb_xacnhan:                # L5: đã xác nhận -> nhãn, không hỏi lại
+                return {"id": e["id"], "da_xac_nhan": True,
+                        "nghia_key": self.kb_xacnhan[key].get("nghia_key", ""),
+                        "ghi_chu": "theo xác nhận trong phiên file này"}
+            if self.kb_hoi.get(key): return {"id": e["id"], "da_hoi_trong_phien": True}
+            self.kb_hoi[key] = "da_hoi"
+            p = _kienthuc.payload(e)
+            p["cau_hoi"] = (p.get("cau_hoi") or "").replace("{ky_hieu}", (cb_am[0].get("nguyen_van") or "")[:40])
+            p["ma"] = ""                              # L5: ngữ cảnh cao_do (không theo mã) — frontend echo rỗng
+            for o in p.get("phuong_an", []):
+                self.kb_da_phat.add((e["id"], o["key"]))
+            return p
+        except Exception:
+            return None
+
+    def xac_nhan_ky_hieu(self, kb_id, option_key, ma="", thu_hoi=False):
+        """L5 (CONFIRM-ONLY — CHỈ NGƯỜI BẤM, host-only) — nhận xác nhận cho câu hỏi kho ĐÃ PHÁT trong phiên.
+        FAIL-CLOSED 3 lớp: (1) entry tồn tại trong kho; (2) option ∈ ENUM dev-soạn của entry; (3) (entry,option)
+        ĐÃ được PHÁT trong phiên (kb_da_phat) — không xác nhận được câu hệ chưa hỏi. TUYỆT ĐỐI KHÔNG đổi SỐ nào —
+        chỉ dán NHÃN DIỄN GIẢI per-PHIÊN-FILE ('theo xác nhận trong phiên file này'); nạp file khác = reset (sống
+        trên Drawing như hoc_phien). 'khac_khong_chac' = ghi nhận KHÔNG chắc (giữ trạng thái bí, không dán nhãn,
+        không hỏi lại trong phiên). thu_hoi=True -> gỡ nhãn + CHO PHÉP hỏi lại."""
+        if _kienthuc is None:
+            return {"ok": False, "tu_choi": "khong_co_kho", "ly_do": "Kho kiến thức không khả dụng trên bản dựng này."}
+        e = _kienthuc.theo_id(str(kb_id or "").strip())
+        if e is None:
+            return {"ok": False, "tu_choi": "kb_id_la", "ly_do": "Không có mục kho nào mang id này."}
+        key = e["id"] + "|" + (_norm_ma(ma) if (ma or "").strip() else "cao_do")
+        if thu_hoi:
+            da = self.kb_xacnhan.pop(key, None)
+            self.kb_hoi.pop(key, None)               # gỡ cả trạng thái đã-hỏi -> lần tra sau được hỏi lại
+            return {"ok": True, "da_thu_hoi": bool(da), "ky_hieu": e.get("symbol_display", ""),
+                    "ghi_chu": "Đã gỡ xác nhận (nếu có) — hệ trở về trạng thái chưa chắc và có thể hỏi lại."}
+        opt = str(option_key or "").strip()
+        cac_opt = {o["key"] for o in (e.get("confirm_template") or {}).get("options", [])}
+        if opt not in cac_opt:
+            return {"ok": False, "tu_choi": "option_la", "ly_do": "Phương án không thuộc bộ đã soạn cho ký hiệu này."}
+        if (e["id"], opt) not in self.kb_da_phat:
+            return {"ok": False, "tu_choi": "chua_phat",
+                    "ly_do": "Câu hỏi này CHƯA được phát trong phiên — chỉ xác nhận được câu hệ đã hỏi."}
+        if opt == "khac_khong_chac":
+            self.kb_xacnhan.pop(key, None)
+            self.kb_hoi[key] = "da_hoi_bo_qua"
+            return {"ok": True, "ket_qua": "khong_chac", "ky_hieu": e.get("symbol_display", ""),
+                    "ghi_chu": "Ghi nhận 'không chắc' — hệ GIỮ trạng thái chưa đọc được cho ký hiệu này "
+                               "(không dán nhãn, không hỏi lại trong phiên)."}
+        mo_ta = next((n.get("mo_ta", "") for n in e.get("nghia", []) if n.get("key") == opt), "")
+        self.kb_xacnhan[key] = {"kb_id": e["id"], "nghia_key": opt, "ma": (ma or "").strip()[:40]}
+        self.kb_hoi[key] = "da_xac_nhan"
+        return {"ok": True, "ket_qua": "da_xac_nhan", "ky_hieu": e.get("symbol_display", ""),
+                "nghia_key": opt, "nghia_mo_ta": mo_ta,
+                "ghi_chu": "Đã ghi nhận — NHÃN DIỄN GIẢI 'theo xác nhận trong phiên file này'. "
+                           "KHÔNG con số nào bị thay đổi; nạp file khác sẽ reset."}
+
+    def tra_ky_hieu(self, ky_hieu):
+        """L3 (kho kiến thức) — TRA CỨU nghĩa ký hiệu/viết tắt theo kho dev-soạn. READ-ONLY + FAIL-OPEN: ngoài
+        kho -> 'không có trong kho' (TUYỆT ĐỐI không đoán). Query người gõ -> tra bằng KHOÁ SẬP (unaccent; 'DC'
+        kéo cả NHÓM dễ-nhầm gồm 'ĐC' qua cạnh confusable), đánh dấu mục khớp CHÍNH XÁC (giữ đ/d). Kèm trạng thái
+        đã-xác-nhận trong phiên + (nếu qua gate bằng-chứng-dương L4) câu hỏi confirm dưới '_kb' -> frontend hiện
+        nút. Kết quả tool này bị LOẠI TOÀN PHẦN khỏi rổ grounding (mcp_bridge) — mô tả kho không làm chứng cứ số."""
+        kh = (ky_hieu or "").strip()
+        if not kh:
+            return {"co_trong_kho": False, "ky_hieu": "",
+                    "ghi_chu": "Cần nêu ký hiệu cần tra (vd 'CH', 'ĐC-1', 'TL')."}
+        if _kienthuc is None:
+            return {"co_trong_kho": False, "ky_hieu": kh[:40],
+                    "ghi_chu": "Kho kiến thức không khả dụng trên bản dựng này."}
+        try:
+            m = _KB_PREFIX_RE.match(kh)
+            ents = []
+            if m:
+                pb = _norm_ma(m.group(1))
+                ents = _kienthuc.theo_khoa_sap(_norm_label(m.group(1))) or _kienthuc.theo_khoa_phan_biet(pb)
+            if not ents:
+                return {"co_trong_kho": False, "ky_hieu": kh[:40],
+                        "ghi_chu": "Ký hiệu này KHÔNG có trong kho ký hiệu dev-soạn — hệ KHÔNG đoán nghĩa. "
+                                   "Chữ/nhãn cụ thể trên bản vẽ vẫn tra được bằng tim_kiem."}
+            cac = []
+            for e in ents:
+                p = _kienthuc.payload(e)
+                p["khop_chinh_xac"] = (m is not None and e.get("khoa_phan_biet") == _norm_ma(m.group(1)))
+                xns = [{"ma": v.get("ma", ""), "nghia_key": v.get("nghia_key", "")}
+                       for k, v in self.kb_xacnhan.items() if k.split("|", 1)[0] == e["id"]]
+                if xns:
+                    p["da_xac_nhan_trong_phien"] = xns
+                p.pop("cau_hoi", None); p.pop("phuong_an", None)   # câu hỏi CHỈ đi qua đường '_kb' CÓ GATE (chống bão-hỏi)
+                cac.append(p)
+            r = {"co_trong_kho": True, "ky_hieu": kh[:40], "so_muc": len(cac), "cac_muc": cac,
+                 "ghi_chu": "Nghĩa lấy từ KHO KIẾN THỨC dev-soạn (đa nghĩa theo loại bản vẽ) — KHÔNG phải đọc từ "
+                            "bản vẽ này; KHÔNG dùng mô tả kho làm số liệu. Ký hiệu đa nghĩa cần đối tác xác nhận "
+                            "(nút bấm) trước khi chốt nghĩa cho bản vẽ đang mở."}
+            kb = self._kb_cau_hoi_neu_can(kh)      # cùng gate L4: chỉ hỏi khi CHÍNH file có bằng chứng >1 nghĩa
+            if kb:
+                r["_kb"] = kb
+            return r
+        except Exception:
+            return {"co_trong_kho": False, "ky_hieu": kh[:40],
+                    "ghi_chu": "Không tra được ký hiệu (lỗi nội bộ) — bỏ qua an toàn, không đoán."}
 
     def phan_loai_tin_hieu(self, ma_cau_kien, limit=8):
         """P1 (AI tự học) — phân loại TÍN HIỆU cho 1 mã, THUẦN ĐỌC + tất định, KHÔNG bịa nghĩa, KHÔNG tự học:
@@ -1090,11 +1293,15 @@ class Drawing:
             uv.append(it)
         uv.sort(key=lambda e: e["khoang_cach"])
         if uv:
-            return {"tin_hieu": "①", "ma": ma_cau_kien, "so_ung_vien": len(uv), "ung_vien": uv[:limit],
-                    "ghi_chu": "CÓ text lạ gần mã mà hệ CHƯA đọc được -> HỎI đối tác đây là gì (nêu NGUYÊN VĂN + handle, "
-                               "TUYỆT ĐỐI KHÔNG bịa nghĩa, KHÔNG tự học). Ứng viên có 'co_chi_thi_dang_ngo' -> cảnh báo, không tuân."}
-        return {"tin_hieu": "②", "ma": ma_cau_kien, "ung_vien": [],
-                "ghi_chu": "Mã có trong bản vẽ nhưng KHÔNG có nhãn lạ (residual cấu trúc) gần đó — không có gì để học ở đây."}
+            r = {"tin_hieu": "①", "ma": ma_cau_kien, "so_ung_vien": len(uv), "ung_vien": uv[:limit],
+                 "ghi_chu": "CÓ text lạ gần mã mà hệ CHƯA đọc được -> HỎI đối tác đây là gì (nêu NGUYÊN VĂN + handle, "
+                            "TUYỆT ĐỐI KHÔNG bịa nghĩa, KHÔNG tự học). Ứng viên có 'co_chi_thi_dang_ngo' -> cảnh báo, không tuân."}
+        else:
+            r = {"tin_hieu": "②", "ma": ma_cau_kien, "ung_vien": [],
+                 "ghi_chu": "Mã có trong bản vẽ nhưng KHÔNG có nhãn lạ (residual cấu trúc) gần đó — không có gì để học ở đây."}
+        kb = self._kb_cau_hoi_neu_can(ma_cau_kien)   # L4: ký hiệu đa-nghĩa CÓ bằng-chứng-dương -> kèm câu hỏi confirm (dưới '_kb')
+        if kb: r["_kb"] = kb
+        return r
 
     def doi_chieu_nghi_ngo(self, ma_cau_kien):
         """P1 (AI tự học) — comparator ③ (tín hiệu NGHI SAI): đối chiếu MÂU THUẪN ĐÃ đọc được cho 1 mã, BÁO NGHI,
@@ -1118,6 +1325,13 @@ class Drawing:
                 if any(_tok_bound(tk, e.get("code", "")) for tk in code_toks) and not e.get("confident"):
                     nghi.append({"loai": "cửa chưa chắc", "ma": e.get("code"), "handle": e.get("handle"),
                                  "giai_thich": "Kích thước cửa đọc được nhưng ĐỘ TIN THẤP (frac/khoảng cách) — đối tác đối chiếu."})
+        # L4 — nguồn (d): ký hiệu ĐA NGHĨA theo KHO có bằng-chứng-dương trong CHÍNH file (gate chống bão-hỏi)
+        kb = self._kb_cau_hoi_neu_can(ma_cau_kien)
+        if kb and not kb.get("da_hoi_trong_phien"):
+            nghi.append({"loai": "đa nghĩa ký hiệu (kho kiến thức)", "ma": ma_cau_kien,
+                         "giai_thich": "Ký hiệu TRÙNG TÊN nhiều nghĩa và trong CHÍNH bản vẽ có bằng chứng của hơn "
+                                       "một nghĩa — cần đối tác XÁC NHẬN theo câu hỏi kèm (không tự chọn).",
+                         "_kb": kb})
         if nghi:
             return {"co_nghi_ngo": True, "ma": ma_cau_kien, "so_nghi": len(nghi), "nghi_ngo": nghi,
                     "ghi_chu": "CÓ điểm CẦN ĐỐI CHIẾU — nêu cả các phương án + handle cho đối tác, TUYỆT ĐỐI KHÔNG tự chọn bên/không tự sửa số."}
@@ -1715,6 +1929,8 @@ class Drawing:
                 r["canh_bao"] = cb_am
                 r["ghi_chu"] += (" ⚠ Có %d marker ÂM dạng CÁCH (xem canh_bao) — không đủ căn cứ nạp min/max, "
                                  "đối chiếu tay." % len(cb_am))
+                kb = self._kb_hoi_am_cach(cb_am)   # L4: câu hỏi confirm-only cho dạng mập mờ (ca CH-2.700)
+                if kb: r["_kb"] = kb
             return r
         thep = [f for f in found if _CD_STEEL_LAYER.search(f["layer"])]     # G3
         pool = [f for f in found if not _CD_STEEL_LAYER.search(f["layer"])]
@@ -1723,14 +1939,17 @@ class Drawing:
             # quay lại làm ĐÁP ÁN với nghi_ngo=false, ĐỒNG THỜI vẫn nằm trong 'canh_bao' kèm câu "đã loại khỏi
             # min/max" => output TỰ MÂU THUẪN (repro: min=-44.1 layer KCS_SOTHEP) và prompt rule 8 dặn "đừng lấy
             # số trong canh_bao" -> AI hết số hợp lệ. Thà LỘ THẤT BẠI còn hơn phong chiều-dài-thanh-thép làm cao độ.
-            return {"co_cao_do": False, "so_marker": 0,
-                    "canh_bao": [{"gia_tri_m": f["v"], "handle": f["handle"], "layer": f["layer"],
-                                  "nguyen_van": f["nguyen_van"], "dang": f["dang"],
-                                  "ly_do": "trên layer thép/số-thép → nghi là GIÁ TRỊ THÉP, không phải cao độ"}
-                                 for f in thep] + cb_am,   # F4: gộp cả marker ÂM dạng cách (LỘ)
-                    "ghi_chu": "MỌI marker đọc được đều nằm trên layer THÉP (là giá trị thép, KHÔNG phải cao độ) "
-                               "→ KHÔNG đọc được cao độ CÓ CĂN CỨ. Xem 'canh_bao' để đối chiếu. "
-                               "⛔ Đừng lấy số trong 'canh_bao' làm cao độ; đừng ước/đoán một con số."}
+            r = {"co_cao_do": False, "so_marker": 0,
+                 "canh_bao": [{"gia_tri_m": f["v"], "handle": f["handle"], "layer": f["layer"],
+                               "nguyen_van": f["nguyen_van"], "dang": f["dang"],
+                               "ly_do": "trên layer thép/số-thép → nghi là GIÁ TRỊ THÉP, không phải cao độ"}
+                              for f in thep] + cb_am,   # F4: gộp cả marker ÂM dạng cách (LỘ)
+                 "ghi_chu": "MỌI marker đọc được đều nằm trên layer THÉP (là giá trị thép, KHÔNG phải cao độ) "
+                            "→ KHÔNG đọc được cao độ CÓ CĂN CỨ. Xem 'canh_bao' để đối chiếu. "
+                            "⛔ Đừng lấy số trong 'canh_bao' làm cao độ; đừng ước/đoán một con số."}
+            kb = self._kb_hoi_am_cach(cb_am)   # L4 (chỉ khi có marker ÂM dạng cách)
+            if kb: r["_kb"] = kb
+            return r
         vals = sorted(set(f["v"] for f in pool))
 
         def _median(xs):
@@ -1760,16 +1979,20 @@ class Drawing:
         lo = min(pool, key=lambda f: f["v"]); hi = max(pool, key=lambda f: f["v"])
         canh_bao = [dict(_item(f), ly_do="trên layer thép/số-thép → nghi là GIÁ TRỊ THÉP, không phải cao độ (đã loại khỏi min/max)")
                     for f in thep] + cb_am   # F4: marker ÂM dạng cách LỘ ở đây (không nạp min/max, không mất âm thầm)
-        return {"co_cao_do": True, "so_marker": len(pool),
-                "cao_do_thap_nhat_m": lo["v"], "thap_nhat": _item(lo),
-                "cao_do_cao_nhat_m": hi["v"], "cao_nhat": _item(hi),
-                "tat_ca_cao_do_m": vals[:60], "canh_bao": canh_bao,
-                "ghi_chu": "Số là ĐỌC từ marker cao độ trên text bản vẽ (KHÔNG suy hình học). Trả lời phải trích "
-                           "nguyên_văn + handle của 'thap_nhat'/'cao_nhat'; ĐỪNG lấy số trong 'canh_bao' (đã loại). "
-                           "'nghi_ngo'=true → extreme cô lập/inline, nói rõ 'cần đối chiếu'. "
-                           "⚠ ĐÂY LÀ MỐC THẤP/CAO NHẤT XUẤT HIỆN TRÊN BẢN VẼ — KHÔNG mặc định là 'đáy móng': bản vẽ "
-                           "MÓNG CỌC thì mốc thấp nhất thường là MŨI CỌC, còn ĐÁY ĐÀI nông hơn cả chục mét. Hỏi "
-                           "'đáy móng' mà bản vẽ là móng cọc → nêu rõ đây là mốc thấp nhất trên bản vẽ và HỎI LẠI."}
+        r = {"co_cao_do": True, "so_marker": len(pool),
+             "cao_do_thap_nhat_m": lo["v"], "thap_nhat": _item(lo),
+             "cao_do_cao_nhat_m": hi["v"], "cao_nhat": _item(hi),
+             "tat_ca_cao_do_m": vals[:60], "canh_bao": canh_bao,
+             "ghi_chu": "Số là ĐỌC từ marker cao độ trên text bản vẽ (KHÔNG suy hình học). Trả lời phải trích "
+                        "nguyên_văn + handle của 'thap_nhat'/'cao_nhat'; ĐỪNG lấy số trong 'canh_bao' (đã loại). "
+                        "'nghi_ngo'=true → extreme cô lập/inline, nói rõ 'cần đối chiếu'. "
+                        "⚠ ĐÂY LÀ MỐC THẤP/CAO NHẤT XUẤT HIỆN TRÊN BẢN VẼ — KHÔNG mặc định là 'đáy móng': bản vẽ "
+                        "MÓNG CỌC thì mốc thấp nhất thường là MŨI CỌC, còn ĐÁY ĐÀI nông hơn cả chục mét. Hỏi "
+                        "'đáy móng' mà bản vẽ là móng cọc → nêu rõ đây là mốc thấp nhất trên bản vẽ và HỎI LẠI."}
+        if cb_am:                                  # L4: dạng 'WORD - n.nnn' mập mờ -> kèm câu hỏi confirm-only
+            kb = self._kb_hoi_am_cach(cb_am)
+            if kb: r["_kb"] = kb
+        return r
 
     def boc_tach_kich_thuoc(self, tu_khoa=None, gioi_han=30, **_):
         """BÓC TÁCH số đo từ GHI CHÚ tự do (vd 'thảm đá (6x2x0.3)m L=56m', 'gạch 190x190x65mm'):

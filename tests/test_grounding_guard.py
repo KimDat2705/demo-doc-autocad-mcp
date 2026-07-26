@@ -36,8 +36,10 @@ class _Cand:
         self.content, self.finish_reason = _Content(parts), finish_reason
 class _Resp:
     def __init__(self, parts): self.candidates = [_Cand(parts)]
+class _FakeTool:                       # L0 (gate dispatch-side): mock PHẢI khai báo tool nó dùng — bridge thật
+    def __init__(self, name): self.name = name   # luôn có ~30 tool trong .tools; tools=[] là mock phi thực tế
 class _Bridge:
-    def __init__(self, result): self.result, self.tools = result, []
+    def __init__(self, result): self.result, self.tools = result, [_FakeTool("tim_kiem")]
     def call(self, name, args): return self.result
 
 

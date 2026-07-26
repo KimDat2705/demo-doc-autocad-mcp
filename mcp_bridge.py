@@ -170,7 +170,25 @@ def _schema(js):
 
 # R8 (red-team P3): TOOL KHÔNG phơi cho LLM — nap_ban_ve (host tự nạp) + hoc_quy_uoc/thu_hoi_quy_uoc (CHỈ đối tác chủ
 # động dạy qua UI/lệnh tường minh; KHÔNG để chữ-file lái LLM TỰ GHI/xoá quy ước = mở cổng người-thật, không auto).
-_TOOL_KHONG_CHO_LLM = {"nap_ban_ve", "hoc_quy_uoc", "thu_hoi_quy_uoc", "kiem_tra_handle"}
+_TOOL_KHONG_CHO_LLM = {"nap_ban_ve", "hoc_quy_uoc", "thu_hoi_quy_uoc", "kiem_tra_handle",
+                       "xac_nhan_ky_hieu"}   # L5: xác nhận kho = CHỈ NGƯỜI bấm (endpoint /xac-nhan), AI không gọi được
+
+
+# L0 (kho kiến thức 2026-07-26) — GATE DISPATCH-SIDE. _TOOL_KHONG_CHO_LLM ở trên chỉ lọc DECLARATION
+# (gemini_tools không khai báo tool host-only cho Gemini), NHƯNG vòng dispatch của tra_loi_ai trước đây
+# thi hành MỌI fc.name model phát ra -> model (hoặc chữ-trong-file lái model) vẫn gọi được tool host-only
+# bằng cách phát đúng TÊN. Gate này chặn TRƯỚC bridge.call: chỉ tên ĐÃ khai báo cho LLM mới được thi hành.
+def _ten_tool_cho_llm(mcp_tools):
+    """Tập tên tool hợp lệ cho vòng dispatch = mọi tool MCP trừ host-only."""
+    return {t.name for t in (mcp_tools or [])} - _TOOL_KHONG_CHO_LLM
+
+
+def _loi_tool_host_only():
+    """Kết quả trả model khi gọi tool ngoài tập khai báo. SẠCH SỐ + KHÔNG chèn fc.name (tên do model phát,
+    có thể chứa chữ số -> nếu chèn sẽ lọt rổ grounding qua _collect_numbers). Dict TƯƠI mỗi lần (chống mutate)."""
+    return {"loi": "Công cụ này không dành cho AI (chỉ người dùng thao tác trực tiếp) hoặc không tồn tại."}
+
+
 def gemini_tools(mcp_tools):
     decls = []
     for t in mcp_tools:
@@ -364,23 +382,38 @@ _P_R17 = (
 _P_R9 = "9. Trả lời tiếng Việt, ngắn gọn, đúng vai kỹ sư."
 
 # Nhom bat bien (chong bia / chong thao tung — domain-agnostic)
+# L3 (kho kiến thức 2026-07-27) — R18: CHỈ luật TRÌNH BÀY + định tuyến tra_ky_hieu (không đụng luật chống bịa
+# nào khác). Thêm mảnh MỚI chèn TRƯỚC _P_R9 (rule 9 style GIỮ cuối) — đúng tiền lệ R7b; bump PROMPT_VERSION +
+# re-freeze hash + ĐO LIVE A/B có mục tiêu (routing tra_ky_hieu + GIỮ refusal-trap chống bịa).
+_P_R18 = (
+    "18. KÝ HIỆU / VIẾT TẮT (kho kiến thức): đối tác hỏi 'X là gì / nghĩa là gì / viết tắt của gì / ký hiệu này đọc "
+    "sao' (CH, ĐC, DC, D1, TL, DK, Km+...) -> GỌI `tra_ky_hieu` TRƯỚC khi trả lời. Trình bày: nêu ĐỦ các nghĩa tool "
+    "trả (ký hiệu thường ĐA NGHĨA theo loại bản vẽ), KHÔNG tự chọn một nghĩa — trừ khi tool ghi 'theo xác nhận trong "
+    "phiên file này' thì dùng nghĩa đã xác nhận và nói rõ là theo xác nhận. 'nguon'/'tier'/'pho_bien' chỉ là XUẤT XỨ "
+    "mục kho, KHÔNG phải độ đúng cho bản vẽ NÀY — cấm dùng nó để tự quyết nghĩa. ⛔ KHÔNG dùng mô tả trong kho làm SỐ "
+    "LIỆU (mọi con số vẫn phải từ tool đọc bản vẽ). Tool trả 'không có trong kho' -> nói thẳng kho chưa có ký hiệu "
+    "này, ĐỪNG đoán nghĩa. Khi kết quả tool nào kèm CÂU HỎI XÁC NHẬN (khối '_kb' có 'cau_hoi') -> NÊU NGUYÊN VĂN câu "
+    "hỏi + các phương án và mời đối tác BẤM NÚT xác nhận trên giao diện; ⛔ TUYỆT ĐỐI không tự chọn/tự xác nhận thay "
+    "đối tác, không coi việc hỏi là đã có kết luận.\n"
+)
+
 _INVARIANT = (_P_PHANBIET, _P_R1, _P_R2, _P_R5, _P_R6, _P_R15, _P_R9)
 # Nhom quy uoc VN + dinh tuyen tool (co the doi theo domain)
-_VN_CONVENTION = (_P_R3, _P_R4, _P_R7, _P_R7b, _P_R8, _P_R8c_OLE, _P_R8d, _P_R8b, _P_R8c_INOX, _P_R10, _P_R11, _P_R12, _P_R13, _P_R14, _P_R16, _P_R17)
+_VN_CONVENTION = (_P_R3, _P_R4, _P_R7, _P_R7b, _P_R8, _P_R8c_OLE, _P_R8d, _P_R8b, _P_R8c_INOX, _P_R10, _P_R11, _P_R12, _P_R13, _P_R14, _P_R16, _P_R17, _P_R18)
 # Khung vai tro (khong phai luat, khong phai quy uoc)
 _HEADER_GROUP = (_P_HEADER,)
 
-# Thu tu PHAT = byte order HIEN TAI (giu nguyen ca nhan 8c trung + rule 9 cuoi)
+# Thu tu PHAT = byte order HIEN TAI (giu nguyen ca nhan 8c trung + rule 9 cuoi; R18 chen truoc R9 — tien le R7b)
 _EMIT_ORDER = (
     _P_HEADER, _P_PHANBIET, _P_R1, _P_R2, _P_R3, _P_R4,
     _P_R5, _P_R6, _P_R7, _P_R7b, _P_R8, _P_R8c_OLE, _P_R8d,
     _P_R8b, _P_R8c_INOX, _P_R10, _P_R11, _P_R12, _P_R13,
-    _P_R14, _P_R15, _P_R16, _P_R17, _P_R9,
+    _P_R14, _P_R15, _P_R16, _P_R17, _P_R18, _P_R9,
 )
 
 SYSTEM_PROMPT = "".join(_EMIT_ORDER)
-PROMPT_VERSION = "2026.07.26-routing-l2"  # ĐỔI TEXT (routing R7b + prompt-half R10) — đã đo LIVE A/B
-PROMPT_VERSION_PREV = "i9-2026.07.25"     # trước khi routing+prompt-half
+PROMPT_VERSION = "2026.07.27-kb-l3"       # ĐỔI TEXT (+R18 tra_ky_hieu, kho kiến thức L3) — đo LIVE A/B có mục tiêu
+PROMPT_VERSION_PREV = "2026.07.26-routing-l2"   # trước khi thêm R18
 PROMPT_HASH = hashlib.sha256(SYSTEM_PROMPT.encode("utf-8")).hexdigest()
 
 
@@ -572,6 +605,36 @@ def _to_f(s):
         return None
 
 
+def _strip_kb(v):
+    """L2 (kho kiến thức) — loại ĐỆ QUY key '_kb' khỏi BẢN SAO result trước khi gom số vào rổ grounding.
+    Allowlist-of-one-key: MỌI dữ liệu gốc-kho trong tool-result bắt buộc nằm dưới đúng 1 key '_kb'
+    (KE_HOACH_KHO_KIEN_THUC.md) -> key tương lai nào của kho cũng tự nằm trong '_kb', KHÔNG thể quên strip.
+    Nguyên văn file + handle đặt NGOÀI '_kb' -> số hợp lệ của file VẪN vào rổ (không từ-chối-oan)."""
+    if isinstance(v, dict):
+        return {k: _strip_kb(x) for k, x in v.items() if k != "_kb"}
+    if isinstance(v, (list, tuple)):
+        return [_strip_kb(x) for x in v]
+    return v
+
+
+def _kb_hoi_tu_result(result, acc):
+    """L5 (kho kiến thức) — gom CÂU HỎI confirm-only ('_kb' CÓ cau_hoi + phuong_an) từ RAW result vào acc,
+    để tra_loi_ai trả 'kb_cau_hoi' cho frontend render NÚT BẤM (kênh xác nhận = endpoint /xac-nhan, KHÔNG
+    phải chat). Bỏ các note da_hoi/da_xac_nhan (không có gì để bấm). Dedupe theo (id, ma). Fail-open."""
+    try:
+        if not isinstance(result, dict): return
+        cands = [result.get("_kb")]
+        for n in (result.get("nghi_ngo") or []):
+            if isinstance(n, dict): cands.append(n.get("_kb"))
+        for kb in cands:
+            if isinstance(kb, dict) and kb.get("cau_hoi") and kb.get("phuong_an"):
+                sig = (kb.get("id"), kb.get("ma"))
+                if sig not in {(x.get("id"), x.get("ma")) for x in acc}:
+                    acc.append(kb)
+    except Exception:
+        pass
+
+
 def _collect_numbers(obj):
     """Gom MỌI số từ RAW result của tool (giá trị số + số trong chuỗi) -> set float. Cố tình SIÊU TẬP
     (over-collect) để grounding rộng tay -> bảo vệ recall (thà bỏ sót bịa còn hơn từ chối nhầm câu đúng)."""
@@ -658,6 +721,7 @@ def tra_loi_ai(bridge, q, file_summary="", history=None):
     history = danh sách [{role:'user'|'model', text}] các lượt TRƯỚC (để nhớ ngữ cảnh, vd đang tính cột nào
     rồi đối tác nhắn số thiếu ở lượt sau). CHỈ gồm câu hỏi + câu trả lời cuối, không gồm bước gọi tool."""
     tools = gemini_tools(bridge.tools)
+    _ten_llm = _ten_tool_cho_llm(bridge.tools)   # L0: tập tên hợp lệ cho vòng dispatch (chặn host-only + tên lạ)
     cfg = types.GenerateContentConfig(
         system_instruction=SYSTEM_PROMPT + ("\n\nBản vẽ đang nạp: " + file_summary if file_summary else ""),
         tools=tools, temperature=0, max_output_tokens=8192,
@@ -673,6 +737,7 @@ def tra_loi_ai(bridge, q, file_summary="", history=None):
     evidence, anh_id, file_id = [], None, None
     tool_numbers = set()          # id135: MỌI số tool đã trả (RAW result) -> grounding-guard chống bịa số đo-lường
     tool_handles = set()          # I1: MỌI handle THẬT tool đã phát -> validate handle model trích dẫn
+    kb_cau_hoi = []               # L5: câu hỏi confirm-only từ '_kb' của tool results -> frontend render nút bấm
     da_goi, da_nhac, da_nhac_rong = False, False, False
 
     for _ in range(MAX_TURNS):
@@ -696,6 +761,10 @@ def tra_loi_ai(bridge, q, file_summary="", history=None):
             rparts = []
             for fc in fcalls:
                 args = dict(fc.args or {})
+                if fc.name not in _ten_llm:       # L0 — gate dispatch-side: host-only/tên lạ -> KHÔNG thi hành
+                    result = _loi_tool_host_only()
+                    rparts.append(types.Part(function_response=types.FunctionResponse(name=fc.name, response=result)))
+                    continue
                 try:
                     result = bridge.call(fc.name, args)
                 except Exception as e:
@@ -714,8 +783,11 @@ def tra_loi_ai(bridge, q, file_summary="", history=None):
                 # là hiển-thị-để-đối-chiếu, KHÔNG phải chứng cứ an toàn; AI mô tả bảng được nhưng KHÔNG khẳng định tổng.
                 # I4a: LOẠI phat_hien_bang_ve_net — chỉ trả cờ/so_vung (đếm vùng), KHÔNG phải số đo-lường; nếu vào rổ
                 # thì so_vung có thể ground nhầm 1 khẳng định bịa. Cờ mềm 'có bảng chưa đọc', không là chứng cứ số.
-                if isinstance(result, dict) and fc.name not in ("doc_bang_nhung", "phat_hien_bang_ve_net"):
-                    tool_numbers |= _collect_numbers(result)
+                # L2 (kho kiến thức): + 'tra_ky_hieu' vào tuple loại-toàn-phần (payload kho = diễn giải,
+                # KHÔNG phải chứng cứ số) + _strip_kb loại key '_kb' cho MỌI tool còn lại (2 tầng độc lập).
+                if isinstance(result, dict) and fc.name not in ("doc_bang_nhung", "phat_hien_bang_ve_net", "tra_ky_hieu"):
+                    tool_numbers |= _collect_numbers(_strip_kb(result))
+                _kb_hoi_tu_result(result, kb_cau_hoi)   # L5: gom câu hỏi confirm-only cho frontend (nút bấm)
                 rparts.append(types.Part(function_response=types.FunctionResponse(name=fc.name, response=result)))
             contents.append(types.Content(role="user", parts=rparts))
             continue
@@ -742,7 +814,7 @@ def tra_loi_ai(bridge, q, file_summary="", history=None):
                     "evidence": _flat_ev(evidence), "anh_id": anh_id, "file_id": file_id, "ai": True}
         _goc = _guard_text(text, tool_numbers)               # id135: chặn bịa số đo-lường không nguồn
         _ans, _hk = _apply_i1(_goc, tool_handles, tool_numbers, bridge, q)   # I1: đối chiếu handle trích dẫn (nối cảnh báo)
-        return {"answer": _ans, "answer_goc": _goc, "handle_kiem": _hk,
+        return {"answer": _ans, "answer_goc": _goc, "handle_kiem": _hk, "kb_cau_hoi": kb_cau_hoi,
                 "evidence": _flat_ev(evidence), "anh_id": anh_id, "file_id": file_id, "ai": True}
 
     # Hết lượt tool mà chưa chốt (Flash hay LẶP gọi tool) -> ÉP trả lời NGAY từ dữ liệu ĐÃ thu,
@@ -762,9 +834,10 @@ def tra_loi_ai(bridge, q, file_summary="", history=None):
         if text:
             _goc = _guard_text(text, tool_numbers)               # id135: chặn bịa số đo-lường không nguồn
             _ans, _hk = _apply_i1(_goc, tool_handles, tool_numbers, bridge, q)   # I1: đối chiếu handle trích dẫn
-            return {"answer": _ans, "answer_goc": _goc, "handle_kiem": _hk,
+            return {"answer": _ans, "answer_goc": _goc, "handle_kiem": _hk, "kb_cau_hoi": kb_cau_hoi,
                     "evidence": _flat_ev(evidence), "anh_id": anh_id, "file_id": file_id, "ai": True}
     except Exception:
         pass
     return {"answer": "Câu hỏi cần tra cứu phức tạp. Hãy thử hỏi cụ thể từng phần (ví dụ hỏi riêng số lượng, riêng kích thước).",
+            "kb_cau_hoi": kb_cau_hoi,
             "evidence": _flat_ev(evidence), "anh_id": anh_id, "file_id": file_id, "ai": True}

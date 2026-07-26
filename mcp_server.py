@@ -235,7 +235,8 @@ def hoi_de_hoc(ma_cau_kien: str = "") -> dict:
                    tin_hieu=r.get("tin_hieu", ""),
                    them={"so_ung_vien": len(r.get("ung_vien", [])),
                          "nhan": [(u.get("vn_verbatim") or "")[:40] for u in r.get("ung_vien", [])[:8]],
-                         "co_chi_thi": sum(1 for u in r.get("ung_vien", []) if u.get("co_chi_thi_dang_ngo"))})
+                         "co_chi_thi": sum(1 for u in r.get("ung_vien", []) if u.get("co_chi_thi_dang_ngo")),
+                         "kb_id": ((r.get("_kb") or {}).get("id") or "")})   # L5: log PHÁT-HỎI kho (dev codify sau)
     except Exception:
         pass
     return r
@@ -286,6 +287,43 @@ def thu_hoi_quy_uoc(rule_id: str = "") -> dict:
     try:
         hoclog.ghi("thu_hoi", file_id=getattr(DRAWING, "content_hash", ""),
                    them={"rule_id": str(rule_id), "da_thu_hoi": r.get("da_thu_hoi", 0)})
+    except Exception:
+        pass
+    return r
+
+
+@mcp.tool()
+def tra_ky_hieu(ky_hieu: str) -> dict:
+    """TRA CỨU Ý NGHĨA KÝ HIỆU / VIẾT TẮT trên bản vẽ theo KHO KIẾN THỨC dev-soạn (vd CH, ĐC, DC, D1, S1, TL, DK,
+    Km+, B20, M75...). DÙNG khi đối tác hỏi 'X là gì / nghĩa là gì / viết tắt của gì / ký hiệu này đọc sao'.
+    Trả CÁC nghĩa khả dĩ (ký hiệu thường ĐA NGHĨA theo loại bản vẽ) + xuất xứ + trạng thái đã-xác-nhận trong phiên;
+    ký hiệu ngoài kho -> 'không có trong kho' (KHÔNG đoán). ⛔ KHÔNG dùng nghĩa trong kho làm SỐ LIỆU — mọi con số
+    vẫn đọc từ bản vẽ qua các tool đọc (tim_kiem/thong_ke_thep/tra_cuu_so_luong...)."""
+    err = _need()
+    if err: return err
+    r = DRAWING.tra_ky_hieu(ky_hieu)
+    try:                          # WORM log — ký hiệu MISS (ngoài kho) = ứng viên dev soạn entry mới
+        hoclog.ghi("tra_ky_hieu", file_id=getattr(DRAWING, "content_hash", ""), ma=ky_hieu,
+                   them={"co_trong_kho": bool(r.get("co_trong_kho")), "so_muc": r.get("so_muc", 0),
+                         "kb_id": ((r.get("_kb") or {}).get("id") or "")})
+    except Exception:
+        pass
+    return r
+
+
+@mcp.tool()
+def xac_nhan_ky_hieu(kb_id: str, option_key: str, ma: str = "", thu_hoi: bool = False) -> dict:
+    """KHO KIẾN THỨC (L5, CONFIRM-ONLY — CHỈ NGƯỜI DÙNG BẤM NÚT trên web, TUYỆT ĐỐI KHÔNG cho AI gọi): ghi nhận
+    xác nhận của đối tác cho câu hỏi ký-hiệu-dễ-nhầm hệ ĐÃ hỏi. kb_id + option_key phải thuộc bộ phương án
+    dev-soạn ĐÃ PHÁT trong phiên (fail-closed); ma = mã đang hỏi (RỖNG cho ngữ cảnh cao độ). KHÔNG đổi số nào —
+    chỉ nhãn diễn giải theo PHIÊN file, nạp file khác reset. thu_hoi=True -> gỡ xác nhận + cho hỏi lại."""
+    err = _need()
+    if err: return err
+    r = DRAWING.xac_nhan_ky_hieu(kb_id, option_key, ma, thu_hoi)
+    try:                          # WORM log (best-effort) — nhiên liệu cho dev codify tay khi đủ nhiều firm
+        hoclog.ghi("xac_nhan_ky_hieu", file_id=getattr(DRAWING, "content_hash", ""), ma=ma,
+                   them={"kb_id": str(kb_id), "option_key": str(option_key), "thu_hoi": bool(thu_hoi),
+                         "ok": bool(r.get("ok")), "tu_choi": r.get("tu_choi", "")})
     except Exception:
         pass
     return r
