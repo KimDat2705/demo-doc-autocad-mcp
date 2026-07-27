@@ -53,7 +53,16 @@ _I1_TOK_RE = re.compile(r"[0-9A-Za-z]+")   # I1: token chữ-số để build t�
 _I1_DIGIT_RE = re.compile(r"\d+")          # I1 (F1): tách dãy SỐ trong token ghép ('900x2200' -> '900','2200')
 _GARBLE_FOLD = str.maketrans({"ö": "u", "Ö": "U", "ä": "o", "Ä": "O",
                               "æ": "o", "Æ": "O", "õ": "e", "Õ": "E"})
-def _garble_fold(s): return (s or "").translate(_GARBLE_FOLD)
+# L6 (kho kiến thức chỉ điểm — garble ĐƯỜNG KÍNH tầng CODE, KE_HOACH_KHO_KIEN_THUC.md): ký hiệu Ø vỡ font
+# thành 'ỉ' hoặc '/g'. BẰNG CHỨNG CORPUS ≥2 FIRM: 'kim thu sét ỉ20'/'dây tiếp địa ỉ14' (điện) · 'ống nhựa
+# thông hơi ỉ50' (cỡ ống uPVC chuẩn) · 'cọc thép mạ đồng Ỉ16X2400' mà CÙNG FILE ghi 'Ø16 DÀI 2,4m' cho CÙNG
+# đối tượng (chứng cứ chéo nội-file, firm khác) · '/g10' 67× cạnh rải a150 + 'MO/SC CA/M/RU /G8'=MÓC CẨU Ø8.
+# GÔNG (chống phản-khớp): chỉ khi KHÔNG dính CHỮ ngay trước + LIỀN SỐ ngay sau → 'chỉ 10'/'nghỉ'/'chỉ10'
+# (ỉ trong từ)/'thép I10'/'i=2%'/'kG//cm2'/'/gach' KHÔNG bị đụng (đo corpus: 0 hit phản-khớp; test khoá).
+# PHẢI chạy TRƯỚC unaccent — unaccent sập ỉ→i làm mất phân biệt với thép hình I10/độ dốc i (không sửa được sau).
+_GARBLE_DIA_RE = re.compile(r"(?<![A-Za-zÀ-ỹ])(?:[ỉỈ]|/[gG])(?=\d)")
+def _garble_fold(s):
+    return _GARBLE_DIA_RE.sub("ø", (s or "").translate(_GARBLE_FOLD))
 def _norm(s): return _DIAM_RE.sub(lambda m: "ø" + m.group(1), unaccent(_garble_fold(s)))
 def _norm_label(s): return unaccent(_garble_fold(s))
 

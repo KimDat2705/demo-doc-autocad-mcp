@@ -164,10 +164,15 @@ out=$($PY tests/test_kb_xacnhan.py 2>&1); rc=$?
 echo "$out" | tail -1
 [ "$rc" -eq 0 ] || { echo "FAIL: test kb xac nhan co FAIL"; fail=1; }
 
-echo "=== [32/32] Test TRA KY HIEU (L3 kho kien thuc: tra kho read-only fail-open + nhom de-nham + khong lot grounding + R18, offline) ==="
+echo "=== [32/33] Test TRA KY HIEU (L3 kho kien thuc: tra kho read-only fail-open + nhom de-nham + khong lot grounding + R18, offline) ==="
 out=$($PY tests/test_tra_ky_hieu.py 2>&1); rc=$?
 echo "$out" | tail -1
 [ "$rc" -eq 0 ] || { echo "FAIL: test tra ky hieu co FAIL"; fail=1; }
+
+echo "=== [33/33] Test GARBLE DIA (L6: fold i-hoi + /g -> Ø co gong, 0 phan-khop, 0 doi so, canonical search, offline) ==="
+out=$($PY tests/test_garble_dia.py 2>&1); rc=$?
+echo "$out" | tail -1
+[ "$rc" -eq 0 ] || { echo "FAIL: test garble dia co FAIL"; fail=1; }
 
 echo "------------------------------------"
 if [ "$fail" -eq 0 ]; then echo "HARNESS GATE: PASS"; else echo "HARNESS GATE: FAIL"; fi
