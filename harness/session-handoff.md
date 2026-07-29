@@ -12,6 +12,20 @@
 > **Muốn public thật sau này — ĐỪNG LÀM LẠI TỪ ĐẦU:** nhánh local **`public-ready`** đã có sẵn trọn gói (history sạch không .deb qua `git filter-repo` · Dockerfile tải ODA tuỳ chọn qua `ODA_DEB_URL` · thông báo .dxf-only thân thiện · .gitignore chặn .deb). Đánh đổi: cloud chỉ đọc .dxf tới khi đặt `ODA_DEB_URL`. Mirror backup: `D:/Dat-Antigravity/_backup_repo_truoc_khi_public_20260717/repo-mirror.git`.
 
 
+## 🏁 TRẠNG THÁI CHỐT PHIÊN 2026-07-27 — ĐỌC MỤC NÀY TRƯỚC
+> **HEAD `91eaba6` == origin · working tree SẠCH · check.sh [33/33] PASS · 33 MCP tool · 0 regress.**
+> **LIVE `c9e2171`:** prompt `2026.07.27-kb-l3` (`239e8b7b…`) · kb `kb-2026.07.26-dot-dau` (`e55ac112…`) · `/health` ok.
+> ⚠ **pytest KHÔNG chạy được** (crash `I/O operation on closed file` → `no tests ran`) — cổng = `bash harness/scripts/check.sh`. **KHÔNG có `specs/`** → `feature_list.json` (46 mục: 44 done/1 deferred/1 partial).
+>
+> **PHIÊN NÀY LÀM GÌ:** hoàn tất **KHO KIẾN THỨC DEV-SOẠN L0→L6 trọn bộ** (pivot "DEV dạy trước, đối tác CHỈ xác nhận"): L0 gate dispatch (vá lỗ an ninh) · L1 `kienthuc.py` 24 ký hiệu byte-lock · L2 chống-lọt-rổ `_strip_kb` · L3 `tra_ky_hieu`+`_P_R18` (A/B LIVE GO) · L4 graft gate bằng-chứng-dương · L5 confirm-only + nút bấm · L6 fold garble Ø (+666 token, 0 phản-khớp, 0 đổi số). **L7 (đổi số) ĐÓNG có-số.** **Vá 3 bug L5 + 7 vá red-team.** Chuỗi: `998950f` → `fccc635` → `c9e2171` → `91eaba6`.
+>
+> **VIỆC CHỜ / BƯỚC TIẾP:**
+> 1. **⚠ 3 bom hẹn giờ vá FREE, CHƯA làm** — quan trọng nhất: **hạ `MAX_SESSIONS` 4→1-2** (đo thật: RAM 7.5×/file, **2 phiên file lớn = OOM** trên gói free 512MB mà cấu hình đang cho 4). Kèm: hết thread ở `n==--threads(4)`, keep-alive hỏng thầm. → `[[ref-canh-bao-health-check-render]]`.
+> 2. **Nhóm C (nâng RAM)** = HOÃN tới cuối dự án (tốn tiền). Config đúng đã nghiên cứu sẵn.
+> 3. **Nhóm A còn:** 13 ca recall hạ-tầng (chặn RAM) · id135 deep (chờ file độc lập sâu ≥-5m) · Pattern D/E (hoãn).
+> 4. **Nhóm D ứng viên:** **I8 panel phân tầng tin cậy** (UI — giá-trị-demo cao nhất) · Truth-engine · phục hồi subprocess chết.
+> 5. **ĐỪNG làm lại:** L7 · họ-slash decode đầy đủ · pagination · dem_theo_block · I3-U ngưỡng-sàn · U6 iterdxf · I9 Option B.
+
 ## Trạng thái hiện tại (2026-07-26 — I3-U Lớp 2 code-only unit-tag LIVE `9d90b25` [⏳ prompt-half CHỜ user lần sau] · I9 tách SYSTEM_PROMPT có version/hash LIVE `de69324` · I5 micro-fix recall LIVE `8f00510` · I4a `6ff81cc` · I2 `86776b9` · U6(C) `a242027` · I3-U Lớp 1 `21926c9` · I1 `de1ef47` · I3-B `82951db` · I1b `b2a0ea5` · **I3-U ngưỡng-sàn NO_GO (data thật 34-41% FP)** · U6 iterdxf HOÃN · ⏳ id135-E2E VẪN chờ file hạ tầng ĐỘC LẬP sâu)
 > Mỗi tuyên bố "xong" kèm BẰNG CHỨNG (commit + số test) truy được. Nhật ký chi tiết hơn: `GHI_CHU_HOAN_THIEN.md`. Kế hoạch nâng cấp: `PHUONG_AN_NANG_CAP_DU_AN.md` (U1-U6).
 > **Code LIVE = `d244865`** (LIVE bundle: routing prompt `_P_R7b` [Gemini BẮT BUỘC gọi tim_kiem trước khi từ chối] + I3-U L2 prompt-half [code sở hữu unit-math] — **đo LIVE A/B GO**: recall refused 19→15, anti-bịa traps GIỮ, prompt-half OK; prompt_hash→`e5e05d7d` version `2026.07.26-routing-l2`. NỀN: Recall offline A/B/C `_tok_bound` D2-x + `thong_tin_file` tool#30 + `bang_con` subtotal (vá 7 ca recall tool-bug); I3-U L2 code-only; robust cho MỌI MCP-client; I9 `de69324` tách SYSTEM_PROMPT (nay 24 mảnh) — verify /version prompt_hash=`e5e05d7d…` + prompt_version=`2026.07.26-routing-l2` + /health ok 2026-07-26; chuỗi phiên: U3 `fd48b19` → I1 `de1ef47` → I3-B `82951db` → I1b `b2a0ea5` → I3-U-L1 `21926c9` → U6C `a242027` → I2 `86776b9` → I4a `6ff81cc` → I9 `de69324` → I3-U-L2 `9d90b25` → recall-A/B/C `81b0a52` → **routing+prompt-half `d244865`**). check.sh **[27/27] PASS · 30 tool** · takeoff 272 · qa 129 · **grounding-guard 47** · misc-tools 107 · cao_do 31 · session 25 · khảo-sát-corpus 61 · ole-cảnh-báo 51 · oleexcel 18 [U3] · handle-guard 44 [I1] · i3-bounds 24 [I3-B] · visual-highlight 19 [U6C] · excel-content 21 [I2] · bang-ve-net 9 [I4a] · **prompt-taxonomy 24 [I9]** · app-routes 8→10 (+I9). Kế hoạch kiểm thử: `KE_HOACH_KIEM_THU_TONG_THE.md`.

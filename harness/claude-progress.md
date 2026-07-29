@@ -9,6 +9,19 @@
 > Mới nhất ở TRÊN CÙNG. Bàn giao đầy đủ: `session-handoff.md`. Nhật ký chi tiết hơn nữa: `../GHI_CHU_HOAN_THIEN.md`.
 
 ---
+## Session 2026-07-26→27 — 🏁 CHỐT SỔ: KHO KIẾN THỨC DEV-SOẠN L0-L6 TRỌN BỘ LIVE + L7 đóng có-số + vá 3 bug L5
+> **CHỐT SỔ CUỐI PHIÊN (2026-07-27):** HEAD **`91eaba6`** == origin, working tree **SẠCH (0 file)**. check.sh **HARNESS GATE PASS [33/33]** · **33 MCP tool** · takeoff **272** · qa 129 · grounding 47 · misc 107 · cao_do 31 · prompt-taxonomy 24 · **kho kiến thức: dispatch-gate 11 · kienthuc 15 · kb-graft 18 · kb-xacnhan 44 · tra-ky-hieu 13 · garble-dia 26** · **0 regress**. LIVE verify `/version`: commit `c9e2171` (docs `91eaba6` không đổi code) · prompt_version **`2026.07.27-kb-l3`** hash `239e8b7b…` · **kb_version `kb-2026.07.26-dot-dau` hash `e55ac112…`** · `/health` ok; **verify TRANG THẬT có nút 'Hoàn tác' + bảng `#xnbox`**.
+> ⚠ **pytest KHÔNG dùng** (test đổi `sys.stdout` lúc import → crash `I/O operation on closed file`, `no tests ran`) — cổng là `check.sh`. **KHÔNG có `specs/specs.json`** → dùng `feature_list.json` (**46 mục**: 44 done · 1 deferred [dự toán chi phí] · 1 partial [I3]).
+> **CHUỖI COMMIT PHIÊN:** `998950f` (kho L0-L5+L3) → `fccc635` (L6 garble-Ø) → `c9e2171` (vá 3 bug L5 + 7 vá red-team) → `91eaba6` (chốt sổ docs).
+> **VIỆC ĐANG CHỜ (phiên sau):**
+> - **Nhóm C (RAM/upload) — HOÃN tới CUỐI dự án** (user chốt: tốn tiền túi, chờ tài trợ). Nghiên cứu đã xong sẵn: `READFILE_MAX_MB=120` + `MAX_SESSIONS=1`, HELD `f025ad7` đang BUGGY. Xem `[[project-chiu-tai-va-chi-phi]]`.
+> - **⚠ 3 BOM HẸN GIỜ đo được, vá FREE, CHƯA làm** (từ chẩn đoán cảnh báo Render): **RAM 7.5×/file → 2 phiên file lớn = OOM mà `MAX_SESSIONS=4` đang cho phép** (nên hạ 4→1-2, 1 dòng env) · hết thread ở `n==--threads(4)` · keep-alive hỏng thầm. Xem `[[ref-canh-bao-health-check-render]]`.
+> - **L7 (xác nhận đổi số) = ĐÓNG** có số cứng (0 ca/62 file) — chỉ mở lại khi corpus MỚI đạt **≥1% tổng mục VÀ ≥3 file của ≥2 đơn vị**. Xem `[[project-l7-doi-so-khong-lam]]`.
+> - **Nhóm A còn:** 13 ca recall hạ-tầng (chặn RAM → nhóm C) · Pattern D/E biên (hoãn) · **id135 deep** chờ bản vẽ hạ tầng ĐỘC LẬP sâu ≥-5m.
+> - **Nhóm D ứng viên tiếp:** I8 panel phân tầng tin cậy (UI, giá-trị-demo cao) · Truth-engine 12 công thức × ≥3 mã · phục hồi subprocess chết.
+> - Nghiên cứu-loại (ĐỪNG làm lại): họ-slash decode đầy đủ (1 file/1 firm) · L7 · pagination · dem_theo_block · I3-U ngưỡng-sàn · U6 iterdxf · I9 Option B.
+
+---
 ## Session 2026-07-26 (nối 2) — ⭐ PIVOT AI-TỰ-HỌC: "DEV dạy trước, đối tác CHỈ XÁC NHẬN" (user chốt) + khởi động nghiên cứu KHO KIẾN THỨC DEV-SOẠN
 > **Bối cảnh:** sau khi hoãn nhóm C, rà nhóm D → user hỏi sâu về AI-tự-học (P-1→P4 LIVE, chỉ còn P5 chặn + F-B treo). Tôi giải thích lý do kênh học bị rào (rủi ro prompt-injection dạy quy ước độc = cao nhất dự án; nguyên tắc "con người bấm, không để AI tự học") → **user đồng ý và PIVOT định hướng**:
 > - **BỎ:** kênh đối-tác-dạy-mở (`hoc_quy_uoc` không phơi cho đối tác — giữ làm công cụ DEV nội bộ) · P5 auto-codify (hoá cứng từ log học) · F-B web-teaching (không làm).
