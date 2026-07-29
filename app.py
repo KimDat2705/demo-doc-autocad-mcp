@@ -270,26 +270,61 @@ def ask():
         return jsonify({"answer": "⚠ Lỗi khi hỏi AI: %s" % e, "evidence": [], "ai": True})
 
 
+def _phien_hien_co():
+    """RT-fix (CAO-2) — LẤY phiên theo cookie mà KHÔNG TẠO MỚI. get_session() luôn tạo phiên + đẩy LRU, nên
+    các route xác nhận (nhất là GET danh-sách) từng có thể bị 4 lượt gọi VÔ DANH đuổi mất phiên đang mở bản
+    vẽ của đối tác (MAX_SESSIONS=4). Cùng khuôn với _artifact_owned: chỉ tra cookie, refresh 'last' để phiên
+    không hết hạn giữa lúc đang thao tác. Trả None nếu không có phiên."""
+    sid = request.cookies.get("sid") or ""
+    with _SESS_LOCK:
+        s = SESSIONS.get(sid)
+        if s is None:
+            return None
+        s["last"] = time.time()
+        return s
+
+
 @app.route("/xac-nhan", methods=["POST"])
 def xac_nhan():
     """L5 (kho kiến thức, CONFIRM-ONLY) — kênh xác nhận CỦA NGƯỜI: nút bấm frontend gọi THẲNG endpoint này
     -> bridge.call host-side, KHÔNG đi qua chat/Gemini (tool 'xac_nhan_ky_hieu' nằm trong _TOOL_KHONG_CHO_LLM
     + gate dispatch L0 chặn) -> AI không thể tự bấm thay đối tác bằng bất kỳ đường nào. Fail-closed ở tầng
     Drawing (kb_id + option ∈ ENUM + câu hỏi ĐÃ phát trong phiên). KHÔNG đổi số — chỉ nhãn theo PHIÊN file."""
-    sid, s = get_session()
-    if s.get("bridge") is None:
+    s = _phien_hien_co()            # RT-fix (CAO-2): KHÔNG tạo phiên mới từ route xác nhận
+    if s is None or s.get("bridge") is None:
         return jsonify({"ok": False, "loi": "Chưa nạp bản vẽ cho phiên này."}), 400
     d = request.get_json(silent=True) or {}
+    _th = d.get("thu_hoi")          # RT-fix (THẤP): ép kiểu CHẶT — chuỗi "false"/"0" là TRUTHY trong Python
+    thu_hoi = (_th is True) or (isinstance(_th, str) and _th.strip().lower() in ("1", "true", "yes"))
     try:
         with s["lock"]:             # tuần tự hoá với /ask cùng phiên (1 subprocess/bridge)
             r = s["bridge"].call("xac_nhan_ky_hieu", {
                 "kb_id": str(d.get("kb_id") or ""), "option_key": str(d.get("option_key") or ""),
-                "ma": str(d.get("ma") or ""), "thu_hoi": bool(d.get("thu_hoi"))})
+                "ma": str(d.get("ma") or ""), "thu_hoi": thu_hoi})
         return jsonify(r if isinstance(r, dict) else {"ok": False})
     except Exception as e:
         _METRICS["errors"] += 1
         print("[xac-nhan] %s: %s" % (type(e).__name__, e), file=sys.stderr, flush=True)
         return jsonify({"ok": False, "loi": "Lỗi khi ghi nhận xác nhận: %s" % e}), 500
+
+
+@app.route("/xac-nhan/danh-sach")
+def xac_nhan_danh_sach():
+    """L5-fix (lát 2) — sổ xác nhận CÒN HIỆU LỰC của phiên, cho giao diện hiện bảng + nút Hoàn tác từng mục.
+    CHỈ ĐỌC, host-only (tool 'danh_sach_xac_nhan' nằm trong _TOOL_KHONG_CHO_LLM + gate dispatch L0)."""
+    s = _phien_hien_co()            # RT-fix (CAO-2): route CHỈ-ĐỌC này TUYỆT ĐỐI không được tạo phiên/đẩy LRU
+    if s is None or s.get("bridge") is None:
+        return jsonify({"so_muc": 0, "cac_muc": []})
+    if not s["lock"].acquire(timeout=3):   # RT-fix (THẤP): không chờ VÔ HẠN sau /ask (30-60s) hay /upload .dwg
+        return jsonify({"so_muc": 0, "cac_muc": [], "dang_ban": True})
+    try:
+        r = s["bridge"].call("danh_sach_xac_nhan", {})
+        return jsonify(r if isinstance(r, dict) else {"so_muc": 0, "cac_muc": []})
+    except Exception as e:
+        print("[xac-nhan/danh-sach] %s: %s" % (type(e).__name__, e), file=sys.stderr, flush=True)
+        return jsonify({"so_muc": 0, "cac_muc": []})
+    finally:
+        s["lock"].release()
 
 
 def _artifact_owned(art_id):
@@ -381,6 +416,7 @@ button:disabled{opacity:.5;cursor:default}
   </div>
   <div class="card">
     <div id="chat"><div class="muted">👉 Tải một bản vẽ lên, rồi hỏi: “có bao nhiêu bộ cửa D1?”, “đánh dấu cửa D1 trên bản vẽ”, “khối lượng thép?”...</div></div>
+    <div id="xnbox" style="display:none;margin-top:8px;padding:8px;border:1px dashed #a76;border-radius:8px"></div>
     <div class="ask">
       <input id="inp" type="text" placeholder="Hỏi tự do: “đánh dấu cửa D1”, “tổng số bộ cửa?”, “liệt kê sheet”..." disabled onkeydown="if(event.key==='Enter')send()">
       <button id="btnSend" onclick="send()" disabled>Gửi</button>
@@ -412,7 +448,7 @@ function showSum(d){let s=$('sum');if(d.error){s.style.display='block';s.textCon
   $('chips').style.display='flex';
   $('chips').innerHTML=['Đánh dấu cửa D1 trên bản vẽ','Có bao nhiêu bộ cửa D1?','Tổng số bộ cửa?','Khối lượng thép?','Liệt kê các sheet','Có bao nhiêu layer?']
     .map(t=>`<span class="chip" onclick="q('${t}')">${t}</span>`).join('');
-  $('chat').innerHTML='';ready(true);
+  $('chat').innerHTML='';ready(true);taiDanhSach();   /* RT-fix (CAO-3): nạp file mới -> bảng phải phản ánh phiên MỚI (server đã reset), không giữ mục file cũ */
   bot('Đã nạp xong. Hỏi bất kỳ điều gì — tôi đọc dữ liệu thật qua MCP, và có thể KHOANH ĐỎ cấu kiện ngay trên bản vẽ.',null,null,false)}
 async function upload(){let f=$('up').files[0];if(!f){alert('Hãy chọn file .dwg/.dxf');return}
   let dwg=f.name.toLowerCase().endsWith('.dwg');let fd=new FormData();fd.append('file',f);
@@ -428,10 +464,41 @@ function kbHtml(qs){if(!qs||!qs.length)return '';
     return `<div id="${bid}" style="margin-top:8px;padding:8px;border:1px dashed #4a5;border-radius:8px">`+
       `<div>❓ <b>${esc(k.cau_hoi)}</b></div>${btns}`+
       `<div class="cap">Chỉ bạn bấm được — AI không tự chọn. Hiệu lực trong phiên file đang mở; không thay đổi con số nào.</div></div>`}).join('')}
+/* Bấm 1 phương án -> ghi nhận, rồi THAY bằng dòng kết quả + NÚT HOÀN TÁC (không xoá trắng khối như trước:
+   trước đây bấm xong là mất hết đường quay lại, kể cả khi lỡ bấm 'khác/không chắc' làm ẩn câu hỏi cả phiên). */
 async function xacNhanBtn(b,bid){let el=$(bid);if(!el)return;
-  try{let r=await jpost('/xac-nhan',{kb_id:b.dataset.id,option_key:b.dataset.opt,ma:b.dataset.ma});
-    el.innerHTML='<div>'+(r.ok?'✔ '+esc(r.ghi_chu||'Đã ghi nhận.'):'⚠ '+esc(r.ly_do||r.loi||'Không ghi nhận được.'))+'</div>'}
-  catch(e){el.innerHTML='<div>⚠ Lỗi kết nối khi xác nhận.</div>'}}
+  let id=b.dataset.id,opt=b.dataset.opt,ma=b.dataset.ma;
+  try{let r=await jpost('/xac-nhan',{kb_id:id,option_key:opt,ma:ma});
+    if(r.ok){el.innerHTML='<div>✔ '+esc(r.ghi_chu||'Đã ghi nhận.')+'</div>'+
+        `<button data-id="${esc(id)}" data-ma="${esc(ma)}" onclick="hoanTacBtn(this,'${bid}')" style="margin-top:6px;padding:4px 10px;border-radius:8px;border:1px solid #a76;background:#432;color:#fed;cursor:pointer">↩ Hoàn tác</button>`;
+      taiDanhSach()}
+    else{el.innerHTML+='<div class="cap">⚠ '+esc(r.ly_do||r.loi||'Không ghi nhận được.')+'</div>'}}
+  catch(e){el.innerHTML+='<div class="cap">⚠ Lỗi kết nối khi xác nhận.</div>'}}
+/* Hoàn tác: gửi ĐÚNG cờ thu_hoi + đúng mã đã bấm; chỉ báo thành công khi server nói THẬT SỰ gỡ được
+   (kiểm r.da_thu_hoi chứ KHÔNG kiểm r.ok — chống 'undo nói dối'). */
+async function hoanTacBtn(b,bid){let el=$(bid);if(!el)return;
+  try{let r=await jpost('/xac-nhan',{kb_id:b.dataset.id,ma:b.dataset.ma,option_key:'',thu_hoi:true});
+    if(r.da_thu_hoi){el.innerHTML='<div>↩ '+esc(r.ghi_chu||'Đã gỡ xác nhận.')+'</div>'}
+    else{el.innerHTML+='<div class="cap">⚠ '+esc(r.ly_do||'Không gỡ được (có thể đã gỡ trước đó).')+'</div>'}
+    taiDanhSach()}
+  catch(e){el.innerHTML+='<div class="cap">⚠ Lỗi kết nối khi hoàn tác.</div>'}}
+/* Bảng THƯỜNG TRỰC 'phiên này đã xác nhận N mục' — gỡ được cả mục ở tin nhắn đã trôi lên trên,
+   và cho người dùng sau thấy cú bấm người trước để lại (demo dùng chung, không đăng nhập). */
+async function taiDanhSach(){let box=$('xnbox');if(!box)return;
+  try{let r=await jget('/xac-nhan/danh-sach');
+    if(!r.so_muc){box.style.display='none';box.innerHTML='';return}
+    box.style.display='block';
+    box.innerHTML='<div><b>🔖 Phiên này đã xác nhận '+r.so_muc+' mục</b> <span class="lay">(chỉ là ghi chú — không thay đổi con số nào)</span></div>'+
+      r.cac_muc.map(m=>`<div style="margin-top:4px">• <b>${esc(m.ma||m.ky_hieu)}</b> — ${esc(m.nghia_mo_ta||m.nghia_key||'')} `+
+        `<button data-id="${esc(m.kb_id)}" data-ma="${esc(m.ma)}" onclick="hoanTacDs(this)" style="padding:2px 8px;border-radius:6px;border:1px solid #a76;background:#432;color:#fed;cursor:pointer">↩ Gỡ</button></div>`).join('')}
+  catch(e){}}
+/* Nút Gỡ trong bảng: cũng phải kiểm r.da_thu_hoi (KHÔNG nuốt lỗi) — cùng luật với hoanTacBtn, nếu không thì
+   server trả trung thực 'không gỡ được' mà người dùng thấy dòng cứ nằm đó, không hiểu vì sao. */
+async function hoanTacDs(b){let box=$('xnbox');
+  try{let r=await jpost('/xac-nhan',{kb_id:b.dataset.id,ma:b.dataset.ma,option_key:'',thu_hoi:true});
+    if(!r.da_thu_hoi&&box){box.innerHTML+='<div class="cap">⚠ '+esc(r.ly_do||r.loi||'Không gỡ được mục này.')+'</div>'}}
+  catch(e){if(box){box.innerHTML+='<div class="cap">⚠ Lỗi kết nối khi gỡ.</div>'}}
+  taiDanhSach()}
 async function send(){let t=$('inp').value.trim();if(!t)return;me(t);$('inp').value='';
   let ph=bot('🤖 AI đang đọc & tra cứu qua MCP… 0s');let bub=ph.querySelector('.bub');
   ready(false);let sec=0,tm=setInterval(()=>{sec++;bub.textContent='🤖 AI đang đọc & tra cứu qua MCP… '+sec+'s'},1000);
@@ -440,7 +507,8 @@ async function send(){let t=$('inp').value.trim();if(!t)return;me(t);$('inp').va
     if(r.kb_cau_hoi&&r.kb_cau_hoi.length&&el){el.querySelector('.bub').innerHTML+=kbHtml(r.kb_cau_hoi);$('chat').scrollTop=1e9}}
   catch(e){clearInterval(tm);ph.remove();bot('⚠ Lỗi kết nối máy chủ.')}
   ready(true);$('inp').focus()}
-async function init(){try{let c=await jget('/config');if(!c.use_ai){bot('⚠ Máy chủ chưa cấu hình GEMINI_API_KEY.')}}catch(e){}}
+async function init(){try{let c=await jget('/config');if(!c.use_ai){bot('⚠ Máy chủ chưa cấu hình GEMINI_API_KEY.')}}catch(e){}
+  taiDanhSach()}   /* RT-fix (CAO-3): tải/refresh trang -> hiện ngay xác nhận CÒN HIỆU LỰC (kể cả do người trước để lại) */
 init();
 </script></body></html>"""
 

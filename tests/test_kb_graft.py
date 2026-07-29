@@ -48,8 +48,12 @@ def main():
     rA3 = dA.doi_chieu_nghi_ngo("ĐC-1")
     _emit("A5: doi_chieu SAU khi đã hỏi -> KHÔNG lặp item kho (cap theo phiên xuyên tool)",
           not any(n.get("loai") == "đa nghĩa ký hiệu (kho kiến thức)" for n in rA3.get("nghi_ngo", [])))
-    _emit("A6: kb_da_phat ghi (entry, option) đã phát — nền cho L5 xác nhận fail-closed",
-          ("dc_dai_coc", "dai_coc") in dA.kb_da_phat and ("dc_dai_coc", "khac_khong_chac") in dA.kb_da_phat)
+    # L5-fix lát 1 (2026-07-27): kb_da_phat lưu BỘ BA có ma_key — trước là cặp (entry, option) nên hỏi 1 mã
+    # là mở khoá xác nhận cho MỌI mã. Test này khoá dạng MỚI (chặt hơn), không cho quay lại dạng cũ.
+    _emit("A6: kb_da_phat ghi BỘ BA (entry, option, ma_key) đã phát — nền cho L5 xác nhận fail-closed theo ĐÚNG mã",
+          ("dc_dai_coc", "dai_coc", "djc-1") in dA.kb_da_phat
+          and ("dc_dai_coc", "khac_khong_chac", "djc-1") in dA.kb_da_phat
+          and all(len(t) == 3 for t in dA.kb_da_phat), str(sorted(dA.kb_da_phat)[:3]))
 
     # ---- [A'] doi_chieu là NGƯỜI HỎI ĐẦU -> item kho + '_kb' nằm TRONG item ----
     dA2 = lam([(0, 0, "ĐC-2"), (5000, 0, "DC-2")])

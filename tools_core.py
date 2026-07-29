@@ -267,6 +267,9 @@ try:
 except Exception:
     _kienthuc = None
 _KB_PREFIX_RE = re.compile(r"^\s*([A-Za-zÀ-ỹĐđ]+)")   # LETTER-RUN đầu mã (giữ Đ/đ + chữ có dấu) -> khoá tra kho qua _norm_ma
+# L5-fix (lát 1): kênh CAO ĐỘ có định danh RIÊNG, không dùng chuỗi trần 'cao_do' (mã tên 'cao do' sẽ trùng
+# không gian khoá). '@' không bao giờ sinh ra từ _norm_ma của mã cấu kiện thật -> tách bạch 2 kênh câu hỏi.
+_KB_KENH_CAO_DO = "@cao_do"
 
 _MA_PAREN_RE = re.compile(r"\([^()]*\)")
 _MA_LEN_RE = re.compile(r"\bl\s*[=:]\s*\d+(?:[.,]\d+)?\s*m?m?\b")   # 'L= 4.42m' / 'L:3.00' (chú thích chiều dài)
@@ -1028,6 +1031,7 @@ class Drawing:
         self.kb_hoi = {}                                       # L4 (kho kiến thức): trạng thái ĐÃ HỎI per (entry|mã) — chống hỏi lặp (RT4-4); chết theo phiên
         self.kb_da_phat = set()                                # L4/L5: (entry_id, option_key) ĐÃ PHÁT trong phiên — L5 xác nhận fail-closed CHỈ nhận option đã phát
         self.kb_xacnhan = {}                                   # L5: xác nhận NGƯỜI BẤM per (entry|mã) — nhãn diễn giải PHIÊN-FILE, KHÔNG đổi số; đổi file = reset
+        self.kb_ma_goc = {}                                    # RT-fix: khoá -> mã dạng NGƯỜI ĐỌC ('ĐC-1'), để bảng không phơi khoá nội bộ 'djc-1'
         self._kb_khoa_file = None                              # L4 lazy: tập khoá mã có mặt trong file (bằng chứng 'cả 2 dạng raw')
         self._kb_co_chu_thich = False                          # L4 lazy: file có bảng chú thích (legend-first tối giản)
 
@@ -1108,7 +1112,12 @@ class Drawing:
         Call-site đặt kết quả dưới ĐÚNG key '_kb' -> L2 mcp_bridge strip trước rổ grounding. FAIL-OPEN tuyệt đối."""
         try:
             if _kienthuc is None or not (ma or "").strip(): return None
-            m = _KB_PREFIX_RE.match(ma.strip())
+            # RT-fix (CAO-1): CHUẨN HOÁ MỘT LẦN Ở BIÊN rồi dùng CHUNG cho cả khoá lẫn echo. Trước đây khoá lấy
+            # `_norm_ma(ma)` (mã THÔ) còn nút bấm echo `ma.strip()[:40]` -> lệch khi mã có khoảng trắng thừa
+            # hoặc dài >40 => hệ HỎI xong rồi TỪ CHỐI chính câu nó vừa hỏi ('chua_phat'), lại mất cả nút Hoàn
+            # tác lẫn dòng trong bảng (repro red-team: mã 46 ký tự qua doi_chieu_nghi_ngo).
+            ma = (ma or "").strip()[:40]
+            m = _KB_PREFIX_RE.match(ma)
             if not m: return None
             ents = _kienthuc.theo_khoa_phan_biet(_norm_ma(m.group(1)))
             if not ents: return None
@@ -1124,7 +1133,8 @@ class Drawing:
                         if ce and e["khoa_phan_biet"] in khoa_file and ce["khoa_phan_biet"] in khoa_file:
                             bang_chung = True; break  # CẢ HAI dạng raw cùng tồn tại trong chính file
                 if not bang_chung: continue
-                key = e["id"] + "|" + _norm_ma(ma)
+                ma_key = _norm_ma(ma)                 # L5-fix(lát 1): khoá PHÁT theo ĐÚNG mã (không mở khoá mã khác)
+                key = e["id"] + "|" + ma_key
                 if key in self.kb_xacnhan:            # L5: ĐÃ xác nhận -> nhãn diễn giải, không hỏi lại
                     return {"id": e["id"], "da_xac_nhan": True,
                             "nghia_key": self.kb_xacnhan[key].get("nghia_key", ""),
@@ -1132,14 +1142,15 @@ class Drawing:
                 if self.kb_hoi.get(key):              # đã hỏi trong phiên -> note ngắn, KHÔNG lặp câu hỏi (RT4-4)
                     return {"id": e["id"], "da_hoi_trong_phien": True}
                 self.kb_hoi[key] = "da_hoi"
+                self.kb_ma_goc[key] = ma              # giữ dạng NGƯỜI ĐỌC ('ĐC-1') để bảng không hiện khoá 'djc-1'
                 p = _kienthuc.payload(e)
-                p["cau_hoi"] = (p.get("cau_hoi") or "").replace("{ky_hieu}", ma.strip()[:40])
-                p["ma"] = ma.strip()[:40]             # L5: frontend echo lại khi bấm nút (POST /xac-nhan)
+                p["cau_hoi"] = (p.get("cau_hoi") or "").replace("{ky_hieu}", ma)
+                p["ma"] = ma                          # L5: frontend echo lại khi bấm nút (POST /xac-nhan)
                 if co_ct:
                     p["ghi_chu"] = ((p.get("ghi_chu") or "") + " Bản vẽ CÓ bảng chú thích — ưu tiên đối chiếu theo "
                                     "chú thích của chính bản vẽ trước khi chọn.").strip()
                 for o in p.get("phuong_an", []):
-                    self.kb_da_phat.add((e["id"], o["key"]))
+                    self.kb_da_phat.add((e["id"], o["key"], ma_key))   # BỘ BA: chỉ mã ĐÃ HỎI mới xác nhận được
                 return p
             return None
         except Exception:
@@ -1153,9 +1164,9 @@ class Drawing:
             if _kienthuc is None or not cb_am: return None
             e = _kienthuc.theo_id("word_gach_so_am")
             if not e or not e.get("confirm_template"): return None
-            key = e["id"] + "|cao_do"
-            if key in self.kb_xacnhan:                # L5: đã xác nhận -> nhãn, không hỏi lại
-                return {"id": e["id"], "da_xac_nhan": True,
+            key = e["id"] + "|" + _KB_KENH_CAO_DO      # L5-fix(lát 1): kênh cao độ có KHOÁ RIÊNG, không lấn
+            if key in self.kb_xacnhan:                # không gian khoá của câu hỏi theo MÃ (trước dùng 'cao_do'
+                return {"id": e["id"], "da_xac_nhan": True,   # trần — trùng được với mã tên 'cao do')
                         "nghia_key": self.kb_xacnhan[key].get("nghia_key", ""),
                         "ghi_chu": "theo xác nhận trong phiên file này"}
             if self.kb_hoi.get(key): return {"id": e["id"], "da_hoi_trong_phien": True}
@@ -1164,7 +1175,7 @@ class Drawing:
             p["cau_hoi"] = (p.get("cau_hoi") or "").replace("{ky_hieu}", (cb_am[0].get("nguyen_van") or "")[:40])
             p["ma"] = ""                              # L5: ngữ cảnh cao_do (không theo mã) — frontend echo rỗng
             for o in p.get("phuong_an", []):
-                self.kb_da_phat.add((e["id"], o["key"]))
+                self.kb_da_phat.add((e["id"], o["key"], _KB_KENH_CAO_DO))
             return p
         except Exception:
             return None
@@ -1181,19 +1192,39 @@ class Drawing:
         e = _kienthuc.theo_id(str(kb_id or "").strip())
         if e is None:
             return {"ok": False, "tu_choi": "kb_id_la", "ly_do": "Không có mục kho nào mang id này."}
-        key = e["id"] + "|" + (_norm_ma(ma) if (ma or "").strip() else "cao_do")
+        ma_s = (ma or "").strip()[:40]                # RT-fix (CAO-1): chuẩn hoá Y HỆT lúc PHÁT câu hỏi
+        ma_key = _norm_ma(ma_s) if ma_s else _KB_KENH_CAO_DO
+        key = e["id"] + "|" + ma_key
         if thu_hoi:
-            da = self.kb_xacnhan.pop(key, None)
-            self.kb_hoi.pop(key, None)               # gỡ cả trạng thái đã-hỏi -> lần tra sau được hỏi lại
-            return {"ok": True, "da_thu_hoi": bool(da), "ky_hieu": e.get("symbol_display", ""),
-                    "ghi_chu": "Đã gỡ xác nhận (nếu có) — hệ trở về trạng thái chưa chắc và có thể hỏi lại."}
+            # L5-fix (lát 0) — UNDO PHẢI TRUNG THỰC: trước đây LUÔN trả ok=True kèm "đã gỡ (nếu có)" nên khi
+            # trượt khoá (vd gõ 'DC-1' trong khi khoá lưu là 'djc-1' do bản vá id84 giữ đ/d) màn hình vẫn báo
+            # "✔ Đã gỡ" trong khi state CÒN NGUYÊN. Nay: KHÔNG gỡ được gì -> ok=False + nói thẳng.
+            # Gỡ được nếu bỏ được BẤT KỲ vế nào: xác nhận (kb_xacnhan) HOẶC trạng thái đã-hỏi/bỏ-qua (kb_hoi)
+            # — nhánh 'khac_khong_chac' chỉ để lại dấu ở kb_hoi, thu hồi nó = MỞ LẠI câu hỏi (ca thật).
+            da_xn = self.kb_xacnhan.pop(key, None)
+            da_hoi = self.kb_hoi.pop(key, None)
+            self.kb_ma_goc.pop(key, None)
+            if not (da_xn or da_hoi):
+                return {"ok": False, "tu_choi": "khong_co_gi_de_go", "da_thu_hoi": False,
+                        "ky_hieu": e.get("symbol_display", ""),
+                        "ly_do": "Không có xác nhận nào đang hiệu lực cho ký hiệu/mã này để gỡ "
+                                 "(có thể đã gỡ trước đó, hoặc mã không khớp mã đã xác nhận)."}
+            # RT-fix (TB): nói ĐÚNG thứ vừa gỡ — gỡ một XÁC NHẬN khác hẳn việc chỉ MỞ LẠI câu hỏi chưa ai trả lời.
+            return {"ok": True, "da_thu_hoi": True, "ky_hieu": e.get("symbol_display", ""),
+                    "loai_da_go": ("xac_nhan" if da_xn else "trang_thai_hoi"),
+                    "ghi_chu": ("Đã gỡ xác nhận — ký hiệu này trở lại trạng thái chưa chắc, hệ có thể hỏi lại."
+                                if da_xn else
+                                "Chưa có xác nhận nào để gỡ; đã MỞ LẠI câu hỏi cho ký hiệu này.")}
         opt = str(option_key or "").strip()
         cac_opt = {o["key"] for o in (e.get("confirm_template") or {}).get("options", [])}
         if opt not in cac_opt:
             return {"ok": False, "tu_choi": "option_la", "ly_do": "Phương án không thuộc bộ đã soạn cho ký hiệu này."}
-        if (e["id"], opt) not in self.kb_da_phat:
+        if (e["id"], opt, ma_key) not in self.kb_da_phat:
+            # L5-fix (lát 1): khoá theo BỘ BA có ma_key. Trước chỉ (id, option) nên hỏi 1 mã là mở khoá xác nhận
+            # cho MỌI mã (kể cả mã KHÔNG tồn tại trong bản vẽ) -> thủng đúng lời hứa "chỉ xác nhận câu ĐÃ hỏi".
             return {"ok": False, "tu_choi": "chua_phat",
-                    "ly_do": "Câu hỏi này CHƯA được phát trong phiên — chỉ xác nhận được câu hệ đã hỏi."}
+                    "ly_do": "Câu hỏi này CHƯA được phát trong phiên cho đúng mã đó — "
+                             "chỉ xác nhận được câu hệ đã thực sự hỏi."}
         if opt == "khac_khong_chac":
             self.kb_xacnhan.pop(key, None)
             self.kb_hoi[key] = "da_hoi_bo_qua"
@@ -1207,6 +1238,40 @@ class Drawing:
                 "nghia_key": opt, "nghia_mo_ta": mo_ta,
                 "ghi_chu": "Đã ghi nhận — NHÃN DIỄN GIẢI 'theo xác nhận trong phiên file này'. "
                            "KHÔNG con số nào bị thay đổi; nạp file khác sẽ reset."}
+
+    def danh_sach_xac_nhan(self):
+        """L5-fix (lát 2) — LIỆT KÊ xác nhận CÒN HIỆU LỰC trong phiên (nền cho bảng 'phiên này đã xác nhận N
+        mục' + nút Hoàn tác từng mục). CHỈ ĐỌC, host-only. Cũng bịt lỗ demo dùng chung: người sau NHÌN THẤY
+        cú bấm người trước để lại thay vì thừa hưởng âm thầm. Trả cả mục 'bỏ qua' (bấm 'khác/không chắc') vì
+        đó cũng là trạng thái CHẶN câu hỏi, cần gỡ được. Fail-open."""
+        try:
+            out = []
+            for key, v in sorted(self.kb_xacnhan.items()):
+                e = _kienthuc.theo_id(v.get("kb_id", "")) if _kienthuc else None
+                mo_ta = ""
+                if e:
+                    mo_ta = next((n.get("mo_ta", "") for n in e.get("nghia", [])
+                                  if n.get("key") == v.get("nghia_key")), "")
+                out.append({"kb_id": v.get("kb_id", ""), "ma": v.get("ma", ""),
+                            "ky_hieu": (e or {}).get("symbol_display", ""),
+                            "nghia_key": v.get("nghia_key", ""), "nghia_mo_ta": mo_ta,
+                            "loai": "da_xac_nhan"})
+            for key, st in sorted(self.kb_hoi.items()):
+                if st != "da_hoi_bo_qua" or key in self.kb_xacnhan:
+                    continue
+                kb_id, _, mk = key.partition("|")
+                e = _kienthuc.theo_id(kb_id) if _kienthuc else None
+                # RT-fix (THẤP): hiện mã dạng NGƯỜI ĐỌC ('ĐC-1'), không phơi khoá nội bộ ('djc-1')
+                out.append({"kb_id": kb_id,
+                            "ma": ("" if mk == _KB_KENH_CAO_DO else (self.kb_ma_goc.get(key) or mk)),
+                            "ky_hieu": (e or {}).get("symbol_display", ""),
+                            "nghia_key": "", "nghia_mo_ta": "đã bấm 'khác / không chắc' — câu hỏi đang tạm ẩn",
+                            "loai": "bo_qua"})
+            return {"so_muc": len(out), "cac_muc": out,
+                    "ghi_chu": "Xác nhận chỉ là DIỄN GIẢI theo phiên file đang mở — KHÔNG thay đổi con số nào. "
+                               "Gỡ một mục sẽ đưa ký hiệu đó về trạng thái chưa chắc và hệ có thể hỏi lại."}
+        except Exception:
+            return {"so_muc": 0, "cac_muc": [], "ghi_chu": "Không đọc được danh sách xác nhận (bỏ qua an toàn)."}
 
     def tra_ky_hieu(self, ky_hieu):
         """L3 (kho kiến thức) — TRA CỨU nghĩa ký hiệu/viết tắt theo kho dev-soạn. READ-ONLY + FAIL-OPEN: ngoài
@@ -1336,7 +1401,9 @@ class Drawing:
                                  "giai_thich": "Kích thước cửa đọc được nhưng ĐỘ TIN THẤP (frac/khoảng cách) — đối tác đối chiếu."})
         # L4 — nguồn (d): ký hiệu ĐA NGHĨA theo KHO có bằng-chứng-dương trong CHÍNH file (gate chống bão-hỏi)
         kb = self._kb_cau_hoi_neu_can(ma_cau_kien)
-        if kb and not kb.get("da_hoi_trong_phien"):
+        # RT-fix (TB): loại CẢ 'da_xac_nhan' — trước chỉ loại 'da_hoi_trong_phien' nên NGAY SAU khi đối tác
+        # xác nhận, tool lại báo "CÓ nghi ngờ — cần đối tác XÁC NHẬN", ngược hẳn với bảng "đã xác nhận N mục".
+        if kb and not kb.get("da_hoi_trong_phien") and not kb.get("da_xac_nhan"):
             nghi.append({"loai": "đa nghĩa ký hiệu (kho kiến thức)", "ma": ma_cau_kien,
                          "giai_thich": "Ký hiệu TRÙNG TÊN nhiều nghĩa và trong CHÍNH bản vẽ có bằng chứng của hơn "
                                        "một nghĩa — cần đối tác XÁC NHẬN theo câu hỏi kèm (không tự chọn).",

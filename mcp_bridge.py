@@ -171,7 +171,8 @@ def _schema(js):
 # R8 (red-team P3): TOOL KHÔNG phơi cho LLM — nap_ban_ve (host tự nạp) + hoc_quy_uoc/thu_hoi_quy_uoc (CHỈ đối tác chủ
 # động dạy qua UI/lệnh tường minh; KHÔNG để chữ-file lái LLM TỰ GHI/xoá quy ước = mở cổng người-thật, không auto).
 _TOOL_KHONG_CHO_LLM = {"nap_ban_ve", "hoc_quy_uoc", "thu_hoi_quy_uoc", "kiem_tra_handle",
-                       "xac_nhan_ky_hieu"}   # L5: xác nhận kho = CHỈ NGƯỜI bấm (endpoint /xac-nhan), AI không gọi được
+                       "xac_nhan_ky_hieu",   # L5: xác nhận kho = CHỈ NGƯỜI bấm (endpoint /xac-nhan), AI không gọi được
+                       "danh_sach_xac_nhan"}  # L5-fix(lát 2): sổ xác nhận của NGƯỜI — AI không đọc/không lái
 
 
 # L0 (kho kiến thức 2026-07-26) — GATE DISPATCH-SIDE. _TOOL_KHONG_CHO_LLM ở trên chỉ lọc DECLARATION

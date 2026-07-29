@@ -312,6 +312,15 @@ def tra_ky_hieu(ky_hieu: str) -> dict:
 
 
 @mcp.tool()
+def danh_sach_xac_nhan() -> dict:
+    """KHO KIẾN THỨC (L5) — LIỆT KÊ các xác nhận CÒN HIỆU LỰC trong phiên (host-only, CHỈ ĐỌC; giao diện dùng
+    để hiện bảng 'phiên này đã xác nhận N mục' + nút Hoàn tác từng mục). KHÔNG dành cho AI gọi."""
+    err = _need()
+    if err: return err
+    return DRAWING.danh_sach_xac_nhan()
+
+
+@mcp.tool()
 def xac_nhan_ky_hieu(kb_id: str, option_key: str, ma: str = "", thu_hoi: bool = False) -> dict:
     """KHO KIẾN THỨC (L5, CONFIRM-ONLY — CHỈ NGƯỜI DÙNG BẤM NÚT trên web, TUYỆT ĐỐI KHÔNG cho AI gọi): ghi nhận
     xác nhận của đối tác cho câu hỏi ký-hiệu-dễ-nhầm hệ ĐÃ hỏi. kb_id + option_key phải thuộc bộ phương án
