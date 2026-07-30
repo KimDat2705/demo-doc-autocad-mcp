@@ -642,7 +642,18 @@ def _apply_i1(guarded, tool_handles, tool_numbers, bridge, cau_hoi):
 REFUSE_MESSAGE = "Không có thông tin này trong bản vẽ."
 _REFUSAL_MARKERS = ("không có thông tin", "chưa hỗ trợ", "không hỗ trợ", "không tìm thấy",
                     "không có trong bản vẽ", "không đưa ra", "quá tải")
-_NUM_IN_STR_RE = re.compile(r"-?\d+(?:[.,]\d+)?")
+# ⚠ DẤU TRỪ GIẢ — gạch nối trong MÃ HIỆU / DẢI SỐ không phải dấu âm.
+# Regex cũ `-?\d+` quét THẲNG mọi chuỗi của tool-result, nên 'DẦM D2-10' sinh neo -10.0 · 'CỘT C-5' sinh
+# -5.0 · 'TB6-DV-CT-CN-27' sinh -27.0 · dải '700-1500' sinh -1500.0. BẤT ĐỐI XỨNG CHÍ MẠNG: phía CÂU
+# TRẢ LỜI, _answer_numbers strip mã-hiệu (_MAHIEU_RES) TRƯỚC khi lấy số, còn phía RỔ NEO thì không strip
+# gì -> mã hiệu KHÔNG BAO GIỜ là "khẳng định" nhưng LUÔN là "bằng chứng". Hệ quả đo được (78 file, gọi
+# tool THẬT): 68/76 file có ≥1 neo ÂM; 24/76 file có neo âm nằm ĐÚNG dải cao độ (-30..-0,1) sinh THUẦN
+# từ mã hiệu/tên file. Tức TÊN DẦM/CỘT đang CẤP PHÉP cho model bịa cao độ âm — đúng lớp lỗi id135 mà
+# hàng rào này sinh ra để chặn.
+# LUẬT MỚI (phẫu thuật, KHÔNG thu hẹp rổ neo dương): '-' chỉ là DẤU ÂM khi KHÔNG dính ngay sau một ký
+# tự chữ/số. Giữ nguyên: 'Ø22'->22 · 'cao độ -13.7 m'->-13.7 · '-3,5'->-3,5 · 'nhịp 4200 mm'->4200.
+# Bỏ đi ĐÚNG các số âm bịa ra từ gạch nối: 'D2-10'->{2,10} (không còn -10).
+_NUM_IN_STR_RE = re.compile(r"(?<![0-9A-Za-zÀ-ỹ])-\d+(?:[.,]\d+)?|\d+(?:[.,]\d+)?")
 # Token MÃ-HIỆU (KHÔNG phải đại lượng đo-lường) -> loại TRƯỚC khi trích số đo-lường của answer:
 _MAHIEU_RES = [
     re.compile(r"\[[0-9A-Za-z]+\]"),                                                          # handle [2A3F]
@@ -677,6 +688,32 @@ def _strip_kb(v):
     if isinstance(v, (list, tuple)):
         return [_strip_kb(x) for x in v]
     return v
+
+
+def _strip_ten_file(v):
+    """Loại ĐỆ QUY key 'name' (TÊN FILE) khỏi BẢN SAO result trước khi gom số vào rổ grounding.
+
+    ⚠ VÌ SAO: `thong_tin_file` trả {'name': <tên file>} và tool này KHÔNG nằm trong tuple loại-trừ, nên
+    MỌI chữ số trong TÊN FILE đi thẳng vào rổ neo. Đây là kênh bơm neo do NGƯỜI DÙNG kiểm soát 100% và
+    KHÔNG cần đụng tới bản vẽ. ĐO THẬT (cùng nội dung byte, chỉ đổi tên): tên gốc -> rổ neo
+    [0, 2, 4, 35, 1032], câu 'Cao do day dai coc la -13,7 m.' CHẶN và 'Chieu sau ho mong 7500 mm.' CHẶN;
+    đổi tên thành 'MC coc -13.7 va 7500.dxf' -> rổ neo thêm -13.7 và 7500, ĐÚNG hai câu đó LỌT (câu đối
+    chứng '-9,4 m' vẫn chặn). Cộng luật ×1000/÷1000 của _is_grounded, mỗi số tên-file khoá được 3 bậc đơn vị.
+    Tên file KHÔNG mang thẩm quyền đo lường nào -> không bao giờ được làm bằng chứng.
+    'name' là khoá DUY NHẤT mang tên file (tools_core.tom_tat); tên block/layer/sheet nằm ở KHOÁ của dict
+    mà _collect_numbers chỉ duyệt GIÁ TRỊ -> không bị ảnh hưởng. Model VẪN đọc được tên file bình thường,
+    đây chỉ là lọc phía BẰNG CHỨNG."""
+    if isinstance(v, dict):
+        return {k: _strip_ten_file(x) for k, x in v.items() if k != "name"}
+    if isinstance(v, (list, tuple)):
+        return [_strip_ten_file(x) for x in v]
+    return v
+
+
+def _strip_neo(v):
+    """Lọc TRƯỚC KHI GOM RỔ NEO — gộp mọi nguồn KHÔNG được phép làm bằng chứng grounding:
+    '_kb' (dữ liệu kho kiến thức, L2) + 'name' (tên file do người dùng đặt)."""
+    return _strip_ten_file(_strip_kb(v))
 
 
 def _kb_hoi_tu_result(result, acc):
@@ -851,8 +888,10 @@ def tra_loi_ai(bridge, q, file_summary="", history=None):
                 # thì so_vung có thể ground nhầm 1 khẳng định bịa. Cờ mềm 'có bảng chưa đọc', không là chứng cứ số.
                 # L2 (kho kiến thức): + 'tra_ky_hieu' vào tuple loại-toàn-phần (payload kho = diễn giải,
                 # KHÔNG phải chứng cứ số) + _strip_kb loại key '_kb' cho MỌI tool còn lại (2 tầng độc lập).
+                # + _strip_ten_file loại key 'name' (TÊN FILE do người dùng đặt = kênh bơm neo ngoài bản vẽ).
+                # Cả hai gộp trong _strip_neo -> mọi nguồn KHÔNG được làm bằng chứng đi qua đúng 1 cửa.
                 if isinstance(result, dict) and fc.name not in ("doc_bang_nhung", "phat_hien_bang_ve_net", "tra_ky_hieu"):
-                    tool_numbers |= _collect_numbers(_strip_kb(result))
+                    tool_numbers |= _collect_numbers(_strip_neo(result))
                 _kb_hoi_tu_result(result, kb_cau_hoi)   # L5: gom câu hỏi confirm-only cho frontend (nút bấm)
                 rparts.append(types.Part(function_response=types.FunctionResponse(name=fc.name, response=result)))
             contents.append(types.Content(role="user", parts=rparts))

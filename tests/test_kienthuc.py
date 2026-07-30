@@ -98,8 +98,14 @@ def main():
 
     # ---- [K11] source-guard L2: call-site gom số phải qua _strip_kb + tuple loại có tra_ky_hieu ----
     bsrc = open(os.path.join(ROOT, "mcp_bridge.py"), encoding="utf-8").read()
-    _emit("K11a: call-site dùng _collect_numbers(_strip_kb(result)) (không gom raw)",
-          "_collect_numbers(_strip_kb(result))" in bsrc)
+    # ⚠ HỢP ĐỒNG ĐÃ MỞ RỘNG CÓ Ý THỨC (2026-07-30): call-site nay đi qua _strip_neo — cửa DUY NHẤT gộp
+    # mọi nguồn không được làm bằng chứng: '_kb' (kho kiến thức, L2) + 'name' (TÊN FILE do người dùng đặt,
+    # đo được là kênh bơm neo ngoài bản vẽ). Ý ĐỊNH GỐC của K11a (không bao giờ gom RAW, kho luôn bị strip)
+    # được giữ NGUYÊN và còn được khoá CHẶT HƠN: kiểm thêm rằng _strip_neo thực sự lồng _strip_kb.
+    _emit("K11a: call-site dùng _collect_numbers(_strip_neo(result)) (không gom raw)",
+          "_collect_numbers(_strip_neo(result))" in bsrc)
+    _emit("K11a2: _strip_neo VẪN lồng _strip_kb (đảm bảo kho kiến thức không bao giờ lọt rổ)",
+          re.search(r"def _strip_neo\([\s\S]{0,400}?_strip_kb\(", bsrc) is not None)
     _emit("K11b: 'tra_ky_hieu' nằm trong tuple loại-toàn-phần khỏi rổ (tiền lệ doc_bang_nhung/I4a)",
           re.search(r"doc_bang_nhung\",\s*\"phat_hien_bang_ve_net\",\s*\"tra_ky_hieu\"", bsrc) is not None)
 
