@@ -12,7 +12,23 @@
 > **Muốn public thật sau này — ĐỪNG LÀM LẠI TỪ ĐẦU:** nhánh local **`public-ready`** đã có sẵn trọn gói (history sạch không .deb qua `git filter-repo` · Dockerfile tải ODA tuỳ chọn qua `ODA_DEB_URL` · thông báo .dxf-only thân thiện · .gitignore chặn .deb). Đánh đổi: cloud chỉ đọc .dxf tới khi đặt `ODA_DEB_URL`. Mirror backup: `D:/Dat-Antigravity/_backup_repo_truoc_khi_public_20260717/repo-mirror.git`.
 
 
-## 🏁 TRẠNG THÁI CHỐT PHIÊN 2026-07-27 — ĐỌC MỤC NÀY TRƯỚC
+## 🏁 TRẠNG THÁI CHỐT PHIÊN 2026-07-30 — ĐỌC MỤC NÀY TRƯỚC
+> **HEAD `371d950` == origin · tree SẠCH · check.sh [35/35] PASS · 33 MCP tool · 0 regress.**
+> **LIVE `371d950`:** prompt `2026.07.27-kb-l3` (`239e8b7b…`) + kb `kb-2026.07.26-dot-dau` (`e55ac112…`) **KHÔNG ĐỔI** (đợt này không chạm SYSTEM_PROMPT/kho kiến thức → không cần đo A/B) · `/health` ok · **`ram_mb` = 135.3MB** (lần đầu đo được RAM Linux thật).
+>
+> **PHIÊN NÀY LÀM GÌ:** vá **3 "bom hẹn giờ" chịu tải** (RAM/thread/keep-alive) qua 2 lát: `eba4d67` (nhẹ) + `371d950` (nặng). Quy trình: nghiên cứu 11 agent (`wf_40e7e334-100`, bản chốt `scratchpad/wf_chot.md`) → code → gate → **red-team-IMPLEMENTATION 5 agent engine thật** (`wf_a2699eb1-622`) → vá → gate. Chi tiết đầy đủ ở `claude-progress.md` mục 2026-07-30.
+> **ĐO THẬT BÁC 3 mục dự kiến (ĐỪNG làm lại):** hạ `MAX_SESSIONS` (tiết kiệm **0MB** — trần RAM là `MAX_BAN_VE`, số bản vẽ trong RAM = số request đồng thời) · tăng `--threads` 4→8 (**nhân đôi** bom RAM) · lazy-import `google.genai` bằng `find_spec` (**find_spec NÓI DỐI** + NÉM khi thiếu namespace cha = deploy fail).
+> **RED-TEAM-IMPL BẮT 2 LỖI MỨC CHẶN** (1 do CHÍNH bản vá): (a) **bấm 2 lần** phá được trần bản vẽ (cờ đang-nạp là 1 ô vô hướng → request thứ hai xoá cờ của request anh em) — 42 ca test tự-viết MÙ vì đều tuần tự 1 luồng; (b) **nạp lỗi vẫn hiện "✅ Đã nạp"** (`MCPBridge.call` bỏ `res.isError` → `res.get('loi')` là mã chết) — kèm lỗ chống-bịa: model tự bơm được số vào rổ neo qua thông điệp lỗi pydantic. Cả hai đã vá + có test khoá.
+>
+> **VIỆC CHỜ / BƯỚC TIẾP:**
+> 1. **⚠ Đọc `ram_mb` ở `/health` sau khi nạp 1 bản vẽ thật** rồi mới chốt `READFILE_MAX_MB`. Ngân sách còn ~377MB; ngoại suy cho thấy **trần an toàn thật THẤP HƠN 45MB nhiều**, và cổng theo MB **về nguyên tắc không bound được RAM** (RAM đi theo SỐ ĐỐI TƯỢNG). User chốt 2026-07-30 tạm **GIỮ 45**.
+> 2. **Monitor NGOÀI** (UptimeRobot / cron-job.org 5' trỏ `/health`) — code KHÔNG giải được: self-ping chỉ GIỮ THỨC, không ĐÁNH THỨC. **User tự lập tài khoản.**
+> 3. **Nhóm C (nâng RAM)** = vẫn HOÃN tới cuối dự án (tốn tiền). **Nửa MIỄN PHÍ đã LÀM XONG trong phiên này.**
+> 4. **Nhóm A còn:** 13 ca recall hạ-tầng (chặn RAM) · id135 deep (chờ file độc lập sâu ≥-5m) · Pattern D/E (hoãn).
+> 5. **Nhóm D ứng viên:** I8 panel phân tầng tin cậy (UI — giá-trị-demo cao nhất) · Truth-engine · phục hồi subprocess chết.
+> 6. **ĐỪNG làm lại:** L7 · họ-slash · pagination · dem_theo_block · I3-U ngưỡng-sàn · U6 iterdxf · I9 Option B · **+3 mục bị bác ở trên**.
+
+## 🕘 TRẠNG THÁI CHỐT PHIÊN 2026-07-27 (phiên trước)
 > **HEAD `91eaba6` == origin · working tree SẠCH · check.sh [33/33] PASS · 33 MCP tool · 0 regress.**
 > **LIVE `c9e2171`:** prompt `2026.07.27-kb-l3` (`239e8b7b…`) · kb `kb-2026.07.26-dot-dau` (`e55ac112…`) · `/health` ok.
 > ⚠ **pytest KHÔNG chạy được** (crash `I/O operation on closed file` → `no tests ran`) — cổng = `bash harness/scripts/check.sh`. **KHÔNG có `specs/`** → `feature_list.json` (46 mục: 44 done/1 deferred/1 partial).
