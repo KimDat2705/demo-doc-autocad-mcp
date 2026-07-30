@@ -769,7 +769,11 @@ def tra_loi_ai(bridge, q, file_summary="", history=None):
                 try:
                     result = bridge.call(fc.name, args)
                 except Exception as e:
-                    result = {"loi": "Lỗi khi chạy công cụ: %s" % e}
+                    # M4 — chuỗi này ĐI VÀO RỔ GROUNDING qua _collect_numbers (dưới, dòng tool_numbers) nên PHẢI
+                    # SẠCH SỐ. Đo thật: 1 thông điệp lỗi chứa '60s'/'5' bơm 60.0 và 5.0 vào rổ neo -> câu BỊA
+                    # "diện tích sàn 60 m2" ĐI QUA guard. Chi tiết (có số, có tên tool) ra stderr — chỗ an toàn.
+                    print("[tool %s] %s: %s" % (fc.name, type(e).__name__, e), file=sys.stderr, flush=True)
+                    result = {"loi": "Không chạy được công cụ này (chi tiết đã ghi ở log máy chủ)."}
                 if isinstance(result, dict) and result.get("anh_id"):
                     anh_id = result["anh_id"]
                 if isinstance(result, dict) and result.get("file_id"):

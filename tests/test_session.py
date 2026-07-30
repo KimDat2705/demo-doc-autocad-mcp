@@ -171,6 +171,41 @@ def main():
         print("[K.6] hằng số MAX_SESSIONS/SESSION_TTL_MIN là int")
         ok("MAX_SESSIONS int", isinstance(A.MAX_SESSIONS, int))
         ok("SESSION_TTL_MIN int", isinstance(A.SESSION_TTL_MIN, int))
+
+        # K.9 — KHOÁ Ý ĐỊNH "không request nào chờ khoá phiên VÔ HẠN". Đo thật trước bản vá: khoá bị giữ 12s làm
+        # POST /xac-nhan trả về sau 11.60s và GIỮ CHẾT 1 trong 4 thread gunicorn -> /health vỡ ngưỡng 5s của Render.
+        # Khoá TRẦN CHỜ (có giới hạn + trả JSON đủ khoá), KHÔNG khoá con số 3.
+        print("[K.9] 3 route KHÔNG chờ khoá phiên VÔ HẠN + body từ chối đủ khoá cho frontend")
+        _reset()
+        A.MAX_SESSIONS, A.SESSION_TTL_MIN = 4, 30
+        _lw = A.LOCK_WAIT_S
+        A.LOCK_WAIT_S = 1                     # rút ngắn cho test nhanh
+        _tc0 = A._METRICS["tu_choi"]
+        try:
+            c9 = A.app.test_client()
+            _upload(c9, "k9.dxf"); upl.add("k9.dxf"); upl.add("k9b.dxf")
+            s9 = list(A.SESSIONS.values())[0]
+            s9["lock"].acquire()              # giả lập /ask ĐANG CHẠY (giữ khoá phiên)
+            try:
+                for ten, goi in (("/upload", lambda: _upload(c9, "k9b.dxf")),
+                                 ("/ask", lambda: _ask(c9, "hi")),
+                                 ("/xac-nhan", lambda: c9.post("/xac-nhan", json={"kb_id": "x", "option_key": "y", "ma": "z"}))):
+                    t0 = time.perf_counter()
+                    r9 = goi()
+                    dt = time.perf_counter() - t0
+                    j9 = r9.get_json() or {}
+                    ok("%s: trả về trong <= trần chờ + 1s (KHÔNG nằm chờ vô hạn)" % ten, dt <= A.LOCK_WAIT_S + 1.0, round(dt, 2))
+                    ok("%s: HTTP 503 bận — không 500, không treo" % ten, r9.status_code == 503, r9.status_code)
+                    ok("%s: body đủ error+answer+loi+ly_do và da_thu_hoi=False (thiếu ly_do -> tái sinh 'undo nói dối')" % ten,
+                       all(j9.get(k) for k in ("error", "answer", "loi", "ly_do")) and j9.get("da_thu_hoi") is False, j9)
+            finally:
+                s9["lock"].release()
+            ok("mỗi lần từ chối đều được ĐẾM ở metrics.tu_choi (quan sát chặn oan sau khi deploy)",
+               A._METRICS["tu_choi"] == _tc0 + 3, (_tc0, A._METRICS["tu_choi"]))
+            r9b = _upload(c9, "k9b.dxf")      # khoá đã nhả -> phải nạp được bình thường trở lại
+            ok("nhả khoá xong -> upload lại BÌNH THƯỜNG (trần chờ không dính vĩnh viễn)", r9b.status_code == 200, r9b.status_code)
+        finally:
+            A.LOCK_WAIT_S = _lw
     finally:
         _reset()
         A._make_bridge, A.mcp_bridge.tra_loi_ai, A.mcp_bridge.USE_AI = _mk, _tl, _ua

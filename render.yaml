@@ -22,3 +22,13 @@ services:
         value: "45"      # lên gói RAM cao hơn -> tăng ~250 để đọc file lớn
       - key: COOKIE_SECURE
         value: "true"    # E6 — Render chạy HTTPS -> cookie sid gắn cờ Secure (không lộ qua HTTP)
+      # --- Chịu tải / chống chết giữa buổi (đo thật 2026-07-30) — GHI TƯỜNG MINH để không lệch ngầm với app.py ---
+      - key: MAX_SESSIONS
+        value: "4"       # trần SỐ PHIÊN (phiên rỗng ~965 byte). KHÔNG phải trần RAM — đo thật: số bản vẽ trong RAM
+                         # bằng số request đồng thời (--threads), nên hạ số này tiết kiệm 0MB. Trần RAM = MAX_BAN_VE (lát 2).
+      - key: SESSION_TTL_MIN
+        value: "30"
+      - key: KEEPALIVE_MIN
+        value: "5"       # 10 -> 5: chu kỳ 10' chỉ cách ngưỡng ngủ 15' đúng 5' = chịu được 0 nhịp trượt (đo thật)
+      - key: LOCK_WAIT_S
+        value: "3"       # trần chờ khoá phiên. Nếu /health thấy metrics.tu_choi tăng bất thường -> nâng lên 5 (0 dòng code)

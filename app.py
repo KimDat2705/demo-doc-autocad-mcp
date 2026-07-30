@@ -38,20 +38,49 @@ MAX_HISTORY_TURNS = int(os.environ.get("MAX_HISTORY_TURNS", "6"))  # số lượ
 # bằng CAP (trần phiên đồng thời; đầy -> đóng phiên CŨ NHẤT/LRU) + TTL (đóng phiên nhàn rỗi, giải phóng subprocess).
 SESSIONS = {}                     # sid -> {"bridge","summary","history","lock","last"}
 _SESS_LOCK = threading.RLock()    # bảo vệ dict SESSIONS
-MAX_SESSIONS = int(os.environ.get("MAX_SESSIONS", "4"))
+MAX_SESSIONS = int(os.environ.get("MAX_SESSIONS", "4"))     # trần SỐ PHIÊN — phiên RỖNG chỉ ~965 byte (đo thật)
 SESSION_TTL_MIN = int(os.environ.get("SESSION_TTL_MIN", "30"))
+# ⚠ MAX_SESSIONS **KHÔNG PHẢI** trần RAM — đo thật (ma trận cap-vs-thread, 5/5 cấu hình): số bản vẽ nằm trong RAM
+# bằng SỐ REQUEST ĐỒNG THỜI (gunicorn --threads), KHÔNG phụ thuộc cap này (cap=2/threads=4 vẫn ra 4 bản vẽ).
+# Vì vậy hạ cap 4->2 tiết kiệm 0MB và còn MỞ 2 thread rảnh cho người mới -> tự bỏ lớp che mà threads==cap đang cho.
+# Trần RAM thật sẽ là hạn mức SỐ BẢN VẼ (lát 2). Ở đây GIỮ 4.
+LOCK_WAIT_S = int(os.environ.get("LOCK_WAIT_S", "3") or 3)  # trần chờ khoá PHIÊN (giây) — xem _tu_choi()
 
 # Robustness L — KEEP-ALIVE + GIÁM SÁT. Render free ngủ sau ~15' idle -> cold-start; self-ping /health giữ THỨC
 # (dùng RENDER_EXTERNAL_URL Render tự set -> traffic ngoài thật; chỉ chạy khi có URL = production, local/test KHÔNG kích).
 # /health = endpoint NHẸ (no API/no bản vẽ) cho monitor ngoài (UptimeRobot...) + quan sát cơ bản (uptime/sessions/metrics).
 START_TS = time.time()
-_METRICS = {"uploads": 0, "asks": 0, "errors": 0}
-KEEPALIVE_MIN = int(os.environ.get("KEEPALIVE_MIN", "10"))          # 0 = tắt self-ping
+_METRICS = {"uploads": 0, "asks": 0, "errors": 0, "tu_choi": 0}
+# KEEPALIVE_MIN 10 -> 5: đo thật bằng đồng hồ ảo, chu kỳ 10' cho khoảng-2-ping 600s so với ngưỡng ngủ ~900s =>
+# chịu được ĐÚNG 0 nhịp trượt (trượt 1 nhịp -> ping kế ở t=1200s > 900s -> máy ngủ). Chu kỳ 5' (300s) chịu 2 nhịp.
+KEEPALIVE_MIN = int(os.environ.get("KEEPALIVE_MIN", "5"))           # 0 = tắt self-ping
 _KEEPALIVE_URL = (os.environ.get("KEEPALIVE_URL") or os.environ.get("RENDER_EXTERNAL_URL") or "").strip()
+# Chống "hỏng thầm": đo thật -> _keepalive_ping() trả True KỂ CẢ khi lỗi, stderr in ra 0 ký tự, không bộ đếm nào
+# => từ bên ngoài KHÔNG THỂ phân biệt "ping đều 6 tháng" với "ping chết từ ngày đầu". Bộ đếm này phơi ở /health.
+_KEEPALIVE = {"cau_hinh": False, "chu_ky_phut": 0, "ok": 0, "loi": 0, "loi_cuoi": ""}
+_KA_OK_TS = 0.0
 
 
 def _make_bridge():               # tách ra để test monkeypatch FakeBridge (khỏi spawn subprocess thật)
     return mcp_bridge.MCPBridge(["mcp_server.py"], cwd=BASE)
+
+
+def _xoa_file(p):                 # dọn file vừa lưu khi request bị TỪ CHỐI (cùng khuôn nhánh 413)
+    try:
+        os.remove(p)
+    except OSError:
+        pass
+
+
+def _tu_choi(msg, ma=503):
+    """Body TỪ CHỐI dùng chung. PHẢI đủ CẢ 4 khoá chữ vì frontend đọc 4 khoá KHÁC NHAU ở 4 chỗ:
+    showSum đọc 'error' · send() đọc 'answer' · hoanTacBtn đọc DUY NHẤT 'ly_do' (+ 'da_thu_hoi') ·
+    hoanTacDs đọc 'ly_do'||'loi'. Thiếu 'ly_do' -> người bấm ↩ Hoàn tác đọc câu mặc định "Không gỡ được
+    (có thể đã gỡ trước đó)" = TIN SAI là đã gỡ -> tái sinh đúng bug 'undo nói dối' đã vá 2026-07-27.
+    'da_thu_hoi': False để frontend KHÔNG báo gỡ thành công. Chuỗi này đi ra TRÌNH DUYỆT, không vào rổ grounding."""
+    _METRICS["tu_choi"] += 1
+    return jsonify({"error": msg, "answer": msg, "loi": msg, "ly_do": msg,
+                    "ok": False, "da_thu_hoi": False, "dang_ban": True, "evidence": [], "ai": True}), ma
 
 
 def _close_session(sid):          # GỌI TRONG _SESS_LOCK: bỏ phiên + đóng bridge (giải phóng subprocess/RAM). ÉP đóng.
@@ -84,7 +113,9 @@ def _try_close_session(sid):      # F-A — GỌI TRONG _SESS_LOCK: đóng phiê
 
 
 def _evict_one_lru():             # F-A — đóng 1 phiên CŨ NHẤT KHÔNG bận (nhường chỗ). MỌI phiên bận -> False (cho vượt cap tạm).
-    for k in sorted(SESSIONS, key=lambda k: SESSIONS[k]["last"]):
+    # ƯU TIÊN đuổi phiên RỖNG (bridge=None, ~965 byte) TRƯỚC phiên đang giữ bản vẽ (đo thật 149-430MB): trước đây
+    # chỉ sort theo 'last' nên 4 lượt khách VÔ DANH mới vào có thể đẩy mất bản vẽ của đối tác đang xem (phiên cũ nhất).
+    for k in sorted(SESSIONS, key=lambda k: (SESSIONS[k].get("bridge") is not None, SESSIONS[k]["last"])):
         if _try_close_session(k):
             return True
     return False
@@ -163,34 +194,60 @@ def version():
 @app.route("/health")
 def health():
     """Robustness L — health check NHẸ (no API, no bản vẽ): cho Render healthCheckPath + monitor ngoài + self-ping.
-    Trả trạng thái sống + quan sát cơ bản (uptime, số phiên đang mở, model, đếm request)."""
+    Trả trạng thái sống + quan sát cơ bản (uptime, số phiên đang mở, model, đếm request, trạng thái self-ping).
+    ⚠ TUYỆT ĐỐI không lấy _SESS_LOCK ở đây (giữ /health miễn nhiễm tranh chấp khoá) và không bao giờ trả != 200:
+    render.yaml dùng healthCheckPath=/health để GATE DEPLOY -> trả 500 vì self-ping lỗi = tự chặn deploy của mình.
+    ⚠ KHÔNG đưa _KEEPALIVE_URL hay str(e) đầy đủ ra ngoài dạng URL — endpoint này KHÔNG xác thực."""
+    ka = dict(_KEEPALIVE)
+    ka["giay_tu_lan_ok_cuoi"] = round(time.time() - _KA_OK_TS) if _KA_OK_TS else None
     return jsonify({"ok": True, "uptime_s": round(time.time() - START_TS),
                     "sessions": len(SESSIONS), "use_ai": mcp_bridge.USE_AI,
-                    "model": getattr(mcp_bridge, "MODEL", None), "metrics": dict(_METRICS)})
+                    "model": getattr(mcp_bridge, "MODEL", None), "metrics": dict(_METRICS),
+                    "keepalive": ka})
 
 
 def _keepalive_ping():
     """1 lần ping /health CỦA CHÍNH MÌNH qua URL công khai (traffic ngoài -> Render không ngủ). Nuốt lỗi.
-    Trả True nếu có URL cấu hình (đã thử ping), False nếu không cấu hình (local/test -> không làm gì)."""
+    Trả True nếu có URL cấu hình (đã thử ping), False nếu không cấu hình (local/test -> không làm gì).
+    ⚠ GIÁ TRỊ TRẢ VỀ LÀ HỢP ĐỒNG CỐ Ý (test_health L.3): True = 'đã THỬ ping', KỂ CẢ khi ping lỗi — để 1 lỗi mạng
+    không làm chết luồng nền. Muốn biết ping thành/bại thì đọc _KEEPALIVE (bộ đếm), TUYỆT ĐỐI không đổi return."""
     if not _KEEPALIVE_URL:
         return False
     import urllib.request
+    global _KA_OK_TS
     try:
         urllib.request.urlopen(_KEEPALIVE_URL.rstrip("/") + "/health", timeout=20).read(50)
-    except Exception:
-        pass
+        _KEEPALIVE["ok"] += 1
+        _KA_OK_TS = time.time()
+    except Exception as e:
+        _KEEPALIVE["loi"] += 1
+        # /health là endpoint KHÔNG xác thực -> CHỈ phơi TÊN LOẠI lỗi. Thông điệp đầy đủ của urllib có thể nhét
+        # nguyên URL (kể cả query) mà env KEEPALIVE_URL cho phép trỏ địa chỉ khác RENDER_EXTERNAL_URL -> ra stderr.
+        _KEEPALIVE["loi_cuoi"] = type(e).__name__
+        if _KEEPALIVE["loi"] == 1 or _KEEPALIVE["loi"] % 10 == 0:     # lần đầu rồi mỗi 10 lần (chống spam log)
+            print("[keepalive] LOI lan %d: %s: %s" % (_KEEPALIVE["loi"], type(e).__name__, e), file=sys.stderr, flush=True)
     return True
 
 
 def _keepalive_loop():
     while True:
-        time.sleep(max(60, KEEPALIVE_MIN * 60))
+        # PING TRƯỚC rồi mới ngủ: bản cũ ngủ trước nên ping ĐẦU TIÊN chỉ xảy ra ở t=chu_kỳ (đo thật t=600s) ->
+        # cửa sổ mù ngay sau boot/deploy, đúng lúc dễ ngủ nhất.
+        _loi_truoc = _KEEPALIVE["loi"]
         _keepalive_ping()
+        # Tín hiệu thất bại lấy từ BỘ ĐẾM, KHÔNG từ giá trị trả về (_keepalive_ping LUÔN trả True khi có URL ->
+        # viết `if not _keepalive_ping()` thì nhánh thử-lại-nhanh là MÃ CHẾT vĩnh viễn).
+        that_bai = _KEEPALIVE["loi"] > _loi_truoc
+        time.sleep(30 if that_bai else max(60, KEEPALIVE_MIN * 60))
 
 
 def _start_keepalive():
-    """Khởi động self-ping NỀN chỉ khi có URL công khai + KEEPALIVE_MIN>0 (production). Local/test: KHÔNG chạy."""
+    """Khởi động self-ping NỀN chỉ khi có URL công khai + KEEPALIVE_MIN>0 (production). Local/test: KHÔNG chạy.
+    ⚠ Ping đầu tiên nằm BÊN TRONG luồng nền — gọi ping ĐỒNG BỘ ở đây sẽ chặn boot tới 20s (timeout của urlopen),
+    tức làm NẶNG thêm chính cảnh báo health-check 5s đang muốn vá."""
     if _KEEPALIVE_URL and KEEPALIVE_MIN > 0:
+        _KEEPALIVE["cau_hinh"] = True
+        _KEEPALIVE["chu_ky_phut"] = KEEPALIVE_MIN
         threading.Thread(target=_keepalive_loop, daemon=True).start()
         print("[keepalive] self-ping %s/health moi %d phut" % (_KEEPALIVE_URL, KEEPALIVE_MIN), file=sys.stderr, flush=True)
 
@@ -222,7 +279,12 @@ def upload():
                         % (raw_mb, READFILE_MAX_MB)}), 413
     sid, s = get_session()          # Robustness K — bridge/summary/history theo PHIÊN (không đạp người khác)
     try:
-        with s["lock"]:             # tuần tự hoá các request CÙNG phiên (khác phiên = khác bridge -> song song)
+        # Bounded lock — KHÔNG chờ khoá VÔ HẠN: đo thật, khoá bị giữ 12s làm request cùng phiên nằm 11.60s và
+        # GIỮ CHẾT 1 trong 4 thread gunicorn -> ngưỡng vỡ của /health (Render chờ 5s) tới đúng ở N == --threads.
+        if not s["lock"].acquire(timeout=LOCK_WAIT_S):
+            _xoa_file(dest)
+            return _tu_choi("Bản vẽ bạn gửi trước đang được xử lý. Xin đợi xong rồi thử lại.")
+        try:                        # tuần tự hoá các request CÙNG phiên (khác phiên = khác bridge -> song song)
             if s["bridge"] is None:
                 s["bridge"] = _make_bridge()
             res = s["bridge"].call("nap_ban_ve", {"path": dest}, timeout=600)
@@ -231,6 +293,8 @@ def upload():
             s["summary"] = "%s (AutoCAD %s), %s đối tượng, %s layer." % (
                 res.get("name"), res.get("dxfversion"), res.get("tong_doi_tuong"), res.get("so_layer"))
             s["history"] = []       # nạp bản vẽ mới -> quên hội thoại cũ (CỦA PHIÊN NÀY)
+        finally:
+            s["lock"].release()
         _METRICS["uploads"] += 1    # L — đếm giám sát (hiện ở /health)
         return jsonify(res)
     except Exception as e:
@@ -251,7 +315,11 @@ def ask():
         return jsonify({"answer": "Chưa nạp bản vẽ cho phiên này. Hãy tải file .dxf/.dwg trước.",
                         "evidence": [], "ai": True})
     try:
-        with s["lock"]:             # tuần tự hoá request cùng phiên (tránh 2 lượt đạp history/bridge)
+        # Bounded lock (cùng lý do như /upload): 1 lượt hỏi AI giữ khoá hàng chục giây, người dùng bấm gửi lần nữa
+        # KHÔNG được nằm chờ vô hạn và ăn thêm 1 thread.
+        if not s["lock"].acquire(timeout=LOCK_WAIT_S):
+            return _tu_choi("Máy chủ đang trả lời câu hỏi trước của bạn. Xin đợi câu trả lời hiện tại rồi hỏi tiếp.")
+        try:                        # tuần tự hoá request cùng phiên (tránh 2 lượt đạp history/bridge)
             r = mcp_bridge.tra_loi_ai(s["bridge"], q, s["summary"], history=s["history"])
             for _k in ("anh_id", "file_id"):   # R11: ghi nhận artifact CỦA phiên -> /image//file chỉ phục vụ id thuộc phiên này (chống IDOR)
                 _v = r.get(_k) if isinstance(r, dict) else None
@@ -262,6 +330,8 @@ def ask():
             # model đọc lời tự-chê của chính nó -> có thể NGỪNG trích handle -> sập điểm bán hàng "trả lời kèm handle".
             s["history"].append({"role": "model", "text": (r.get("answer_goc") or r.get("answer", ""))})
             del s["history"][:-2 * MAX_HISTORY_TURNS]
+        finally:
+            s["lock"].release()
         _METRICS["asks"] += 1       # L — đếm giám sát (hiện ở /health)
         return jsonify(r)
     except Exception as e:
@@ -292,20 +362,30 @@ def xac_nhan():
     Drawing (kb_id + option ∈ ENUM + câu hỏi ĐÃ phát trong phiên). KHÔNG đổi số — chỉ nhãn theo PHIÊN file."""
     s = _phien_hien_co()            # RT-fix (CAO-2): KHÔNG tạo phiên mới từ route xác nhận
     if s is None or s.get("bridge") is None:
-        return jsonify({"ok": False, "loi": "Chưa nạp bản vẽ cho phiên này."}), 400
+        # 'ly_do' + da_thu_hoi=False là BẮT BUỘC: nút ↩ Hoàn tác đọc DUY NHẤT r.ly_do, thiếu nó thì frontend rơi về
+        # câu mặc định "Không gỡ được (có thể đã gỡ trước đó)" = người dùng TIN SAI là đã gỡ ('undo nói dối').
+        _m = "Chưa nạp bản vẽ cho phiên này."
+        return jsonify({"ok": False, "loi": _m, "ly_do": _m, "da_thu_hoi": False}), 400
     d = request.get_json(silent=True) or {}
     _th = d.get("thu_hoi")          # RT-fix (THẤP): ép kiểu CHẶT — chuỗi "false"/"0" là TRUTHY trong Python
     thu_hoi = (_th is True) or (isinstance(_th, str) and _th.strip().lower() in ("1", "true", "yes"))
     try:
-        with s["lock"]:             # tuần tự hoá với /ask cùng phiên (1 subprocess/bridge)
+        # Bounded lock — /ask giữ ĐÚNG khoá này suốt lượt hỏi AI: đo thật, bấm nút xác nhận ở tin nhắn CŨ trong lúc
+        # đang gửi câu mới làm request nằm 11.60s (route GET danh-sách đã có timeout=3 từ trước, POST thì chưa).
+        if not s["lock"].acquire(timeout=LOCK_WAIT_S):
+            return _tu_choi("Máy chủ đang trả lời câu hỏi. Xin bấm lại sau vài giây.")
+        try:                        # tuần tự hoá với /ask cùng phiên (1 subprocess/bridge)
             r = s["bridge"].call("xac_nhan_ky_hieu", {
                 "kb_id": str(d.get("kb_id") or ""), "option_key": str(d.get("option_key") or ""),
                 "ma": str(d.get("ma") or ""), "thu_hoi": thu_hoi})
+        finally:
+            s["lock"].release()
         return jsonify(r if isinstance(r, dict) else {"ok": False})
     except Exception as e:
         _METRICS["errors"] += 1
         print("[xac-nhan] %s: %s" % (type(e).__name__, e), file=sys.stderr, flush=True)
-        return jsonify({"ok": False, "loi": "Lỗi khi ghi nhận xác nhận: %s" % e}), 500
+        _m = "Lỗi khi ghi nhận xác nhận: %s" % e
+        return jsonify({"ok": False, "loi": _m, "ly_do": _m, "da_thu_hoi": False}), 500
 
 
 @app.route("/xac-nhan/danh-sach")
@@ -427,7 +507,13 @@ button:disabled{opacity:.5;cursor:default}
 <script>
 const $=id=>document.getElementById(id);
 async function jget(u){return (await fetch(u)).json()}
-async function jpost(u,b,f){let o={method:'POST'};if(f){o.body=b}else{o.headers={'Content-Type':'application/json'};o.body=JSON.stringify(b)}return (await fetch(u,o)).json()}
+/* M3 — jpost KHÔNG BAO GIỜ nem: trước đây .json() nem trên phản hồi KHÔNG-JSON (trang 500 HTML của Flask, 502 của
+   Render, kết nối bị đóng) mà upload() lại KHÔNG có try/catch -> ô tóm tắt đứng MÃI ở '⏳ Đang tải lên & nạp...'.
+   Trả về object có ĐỦ khoá mọi chỗ hiển thị đang đọc (error/answer/loi/ly_do/ok/da_thu_hoi) -> luôn hiện được CHỮ. */
+async function jpost(u,b,f){let o={method:'POST'};if(f){o.body=b}else{o.headers={'Content-Type':'application/json'};o.body=JSON.stringify(b)}
+  let ez=m=>({error:m,answer:m,loi:m,ly_do:m,ok:false,da_thu_hoi:false,evidence:[]});
+  try{let r=await fetch(u,o);try{return await r.json()}catch(e){return ez('⚠ Máy chủ trả về phản hồi không đọc được (HTTP '+r.status+'). Xin thử lại.')}}
+  catch(e){return ez('⚠ Không kết nối được máy chủ. Xin kiểm tra mạng rồi thử lại.')}}
 function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
 function ready(on){$('inp').disabled=!on;$('btnSend').disabled=!on}
 function me(t){$('chat').innerHTML+=`<div class="msg me"><div class="bub">${esc(t)}</div></div>`;$('chat').scrollTop=1e9}
@@ -453,7 +539,9 @@ function showSum(d){let s=$('sum');if(d.error){s.style.display='block';s.textCon
 async function upload(){let f=$('up').files[0];if(!f){alert('Hãy chọn file .dwg/.dxf');return}
   let dwg=f.name.toLowerCase().endsWith('.dwg');let fd=new FormData();fd.append('file',f);
   $('sum').style.display='block';$('sum').textContent=dwg?'⏳ Đang tải lên & chuyển đổi .dwg → nạp...':'⏳ Đang tải lên & nạp...';
-  showSum(await jpost('/upload',fd,true))}
+  /* M3 — hàng rào THỨ HAI (jpost đã không nem): dù có gì bất ngờ, ô tóm tắt cũng phải hiện CHỮ chứ không đứng mãi */
+  try{showSum(await jpost('/upload',fd,true))}
+  catch(e){$('sum').textContent='⚠ Mất kết nối khi đang tải file lên. Xin kiểm tra mạng rồi bấm "Tải lên & nạp" lại.';ready(false)}}
 function q(t){$('inp').value=t;send()}
 /* L5 (kho kiến thức) — câu hỏi CONFIRM-ONLY: hệ hỏi với phương án soạn sẵn, CHỈ NGƯỜI bấm (POST /xac-nhan,
    không đi qua chat/AI). Nút bấm dùng data-attribute (esc cả dấu nháy) — chống chèn thuộc tính từ mã người gõ. */

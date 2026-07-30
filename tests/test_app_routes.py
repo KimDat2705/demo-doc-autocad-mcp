@@ -36,10 +36,13 @@ def main():
     ok("/version -> có 'prompt_version' (I9)", isinstance(j.get("prompt_version"), str) and j.get("prompt_version"), j.get("prompt_version"))
     ok("/version -> 'prompt_hash' khớp mcp_bridge.PROMPT_HASH", j.get("prompt_hash") == getattr(A.mcp_bridge, "PROMPT_HASH", None), j.get("prompt_hash"))
 
-    print("[R.4] GET /health -> {ok, uptime_s, sessions, metrics}")
+    print("[R.4] GET /health -> {ok, uptime_s, sessions, metrics, keepalive}")
     r = c.get("/health"); j = r.get_json()
     ok("/health -> 200 + ok=True + shape", r.status_code == 200 and j.get("ok") is True
        and isinstance(j.get("uptime_s"), int) and isinstance(j.get("metrics"), dict), j)
+    # Sau deploy, /health là đường MIỄN PHÍ DUY NHẤT để biết self-ping còn sống và có đang chặn oan không.
+    ok("/health -> có khối 'keepalive' (dict) — chống hỏng thầm", isinstance(j.get("keepalive"), dict), j.get("keepalive"))
+    ok("/health -> metrics có 'tu_choi' (đếm lần từ chối vì bận)", "tu_choi" in (j.get("metrics") or {}), j.get("metrics"))
 
     print("[R.5] POST /upload — cửa 400 lỗi đầu vào (không cần bridge/AI)")
     r = c.post("/upload", data={}, content_type="multipart/form-data")

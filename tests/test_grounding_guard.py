@@ -164,6 +164,17 @@ def main():
     ok("SECTION '220x220 mm' grounded 220 -> GIỮ (không CHẶN)",
        run_e2e({"tiet_dien": [{"a": 220, "b": 220}]}, "Cột C1 tiết diện 220x220 mm.") != R)
 
+    # M4 (2026-07-30) — THÔNG ĐIỆP LỖI của tool ĐI VÀO RỔ NEO. Trước bản vá, chuỗi lỗi nhét nguyên str(e); khi các
+    # ngưỡng chịu-tải thành env (trần chờ khoá / trần chờ sẵn sàng) thì str(e) mang SỐ -> bơm số lạ vào rổ grounding
+    # -> một câu BỊA trùng đúng số đó ĐI QUA guard. Khoá: chuỗi trả model phải SẠCH SỐ, chi tiết đi stderr.
+    print("[A.M4] thông điệp lỗi tool (đi vào rổ neo) phải SẠCH SỐ")
+    import re as _re
+    _msg_loi = "Không chạy được công cụ này (chi tiết đã ghi ở log máy chủ)."
+    ok("chuỗi lỗi tool KHÔNG chứa chữ số", _re.search(r"\d", _msg_loi) is None)
+    ok("chuỗi lỗi tool -> rổ neo RỖNG (không bơm số lạ)", B._collect_numbers({"loi": _msg_loi}) == set())
+    ok("mcp_bridge KHÔNG còn nhét str(e) vào thông điệp trả model (grep-guard)",
+       '{"loi": "Lỗi khi chạy công cụ: %s" % e}' not in _src and "log máy chủ" in _src)
+
     if FAIL:
         print("\n%d PASS / %d FAIL" % (PASS, FAIL))
         return 1
