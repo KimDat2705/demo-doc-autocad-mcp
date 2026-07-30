@@ -169,10 +169,20 @@ out=$($PY tests/test_tra_ky_hieu.py 2>&1); rc=$?
 echo "$out" | tail -1
 [ "$rc" -eq 0 ] || { echo "FAIL: test tra ky hieu co FAIL"; fail=1; }
 
-echo "=== [33/33] Test GARBLE DIA (L6: fold i-hoi + /g -> Ø co gong, 0 phan-khop, 0 doi so, canonical search, offline) ==="
+echo "=== [33/35] Test GARBLE DIA (L6: fold i-hoi + /g -> Ø co gong, 0 phan-khop, 0 doi so, canonical search, offline) ==="
 out=$($PY tests/test_garble_dia.py 2>&1); rc=$?
 echo "$out" | tail -1
 [ "$rc" -eq 0 ] || { echo "FAIL: test garble dia co FAIL"; fail=1; }
+
+echo "=== [34/35] Test ADMISSION (gate SO BAN VE: 503 lich su, khong vuot tran, khong ri suat, fail-closed, offline) ==="
+out=$($PY tests/test_admission.py 2>&1); rc=$?
+echo "$out" | tail -1
+[ "$rc" -eq 0 ] || { echo "FAIL: test admission co FAIL"; fail=1; }
+
+echo "=== [35/35] Test BRIDGE CLOSE (close(cho_giay) xac nhan chet + call sau close khong treo + khong mo coi) ==="
+out=$($PY tests/test_bridge_close.py 2>&1); rc=$?
+echo "$out" | tail -1
+[ "$rc" -eq 0 ] || { echo "FAIL: test bridge close co FAIL"; fail=1; }
 
 echo "------------------------------------"
 if [ "$fail" -eq 0 ]; then echo "HARNESS GATE: PASS"; else echo "HARNESS GATE: FAIL"; fi

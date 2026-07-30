@@ -32,3 +32,14 @@ services:
         value: "5"       # 10 -> 5: chu kỳ 10' chỉ cách ngưỡng ngủ 15' đúng 5' = chịu được 0 nhịp trượt (đo thật)
       - key: LOCK_WAIT_S
         value: "3"       # trần chờ khoá phiên. Nếu /health thấy metrics.tu_choi tăng bất thường -> nâng lên 5 (0 dòng code)
+      - key: MAX_BAN_VE
+        value: "1"       # TRẦN RAM THẬT: số BẢN VẼ trong RAM cùng lúc. Do thật goi free 512MB: web 105MB + 1 ban ve
+                         # 23MiB = 289MB -> 394MB (77%); 2 ban ve -> 683MB = OOM. Len goi 2GB moi dat 2-3, va PHAI
+                         # doc ram_mb that o /health truoc khi nang. 0 = TAT gate (duong lui khan cap).
+      - key: CLOSE_WAIT_S
+        value: "5"       # trần chờ XÁC NHẬN bản vẽ cũ đã ra khỏi RAM trước khi nhận bản mới
+      - key: NAP_HAN_S
+        value: "1500"    # hạn tự lành của 1 suất đang nạp (>= 2x worst-case nạp .dwg: 40s spawn + 600s nạp)
+      - key: MCP_READY_S
+        value: "60"      # 40s hard-code cũ quá mỏng: đo thật spawn biến động 2.06s -> 17.97s trên CÙNG máy,
+                         # CPU chia sẻ của Render free còn chậm hơn ~3.3x

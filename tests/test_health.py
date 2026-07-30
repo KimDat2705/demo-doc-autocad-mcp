@@ -25,8 +25,9 @@ class FakeBridge:
     def call(self, name, args, timeout=120):
         return {"name": "x", "dxfversion": "AC1032", "tong_doi_tuong": 1, "so_layer": 1}
 
-    def close(self):
-        self.closed = True
+    def close(self, cho_giay=0.0):
+        self.closed = True          # chữ ký khớp MCPBridge.close(cho_giay=0.0) — xem ghi chú ở test_session.py
+        return True
 
 
 def _fake_tra_loi(bridge, q, summary="", history=None):

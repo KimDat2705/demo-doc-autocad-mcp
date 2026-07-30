@@ -9,6 +9,7 @@ Cách dùng: client gọi `nap_ban_ve(path)` trước (host đã lưu file vào 
 công cụ đọc/đánh dấu. Mọi con số do CODE tất định tính (chống bịa) + kèm handle truy nguồn.
 Chạy: python mcp_server.py   (giao tiếp JSON-RPC qua stdin/stdout)
 """
+import gc                         # nap_ban_ve: BỎ bản vẽ cũ trước khi cấp RAM cho bản mới (xem ghi chú ở dưới)
 from mcp.server.fastmcp import FastMCP
 from tools_core import Drawing
 import hoclog                     # P2: WORM append-only log cho AI tự học (CHỈ GHI, không đọc-lại)
@@ -31,6 +32,16 @@ def nap_ban_ve(path: str) -> dict:
         path: đường dẫn file trên máy chủ (host đã lưu khi người dùng upload).
     """
     global DRAWING
+    # BỎ bản vẽ CŨ **TRƯỚC** khi cấp RAM cho bản MỚI. Đo thật (nạp A rồi B trong CÙNG tiến trình):
+    #   như cũ (dựng mới trước, bỏ cũ sau) -> đỉnh RAM 383.1MB · bỏ-trước -> đỉnh 259.2MB (giảm 123.9MB).
+    # ⚠ TUYỆT ĐỐI KHÔNG dùng biến tạm (`d = Drawing(path); DRAWING = d`) — đó CHÍNH LÀ lỗi đang vá.
+    # ⚠ Tiêu chí kiểm thử phải là ĐỈNH khi nạp file THỨ HAI, KHÔNG phải RSS ngay sau gc.collect(): đo thật
+    #   gc chỉ trả ~1/3 về hệ điều hành (257.1 -> 188.0MB), phần còn lại nằm trong heap Python và ĐƯỢC TÁI DÙNG.
+    # ĐÁNH ĐỔI CÓ Ý: nạp file mới THẤT BẠI thì MẤT luôn bản vẽ cũ (trước đây còn dùng được). Không bọc
+    # try/except để thất bại LỘ RA (DRAWING=None -> _need() báo "Chưa nạp bản vẽ"); host xoá summary/history
+    # tương ứng, nếu giữ thì Gemini đọc mô tả một bản vẽ KHÔNG TỒN TẠI = bịa có hệ thống.
+    DRAWING = None
+    gc.collect()
     DRAWING = Drawing(path)
     return DRAWING.tom_tat()
 

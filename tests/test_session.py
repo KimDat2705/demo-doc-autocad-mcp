@@ -32,8 +32,11 @@ class FakeBridge:
         return {"name": os.path.basename(args.get("path", "x")), "dxfversion": "AC1032",
                 "tong_doi_tuong": 10, "so_layer": 3}
 
-    def close(self):
+    def close(self, cho_giay=0.0):
+        # Chữ ký PHẢI khớp MCPBridge.close(cho_giay=0.0) — đường nhường-chỗ (lát 2) gọi close(cho_giay=N);
+        # fake thiếu tham số thì ném TypeError NGOÀI try/except của route -> Flask trả 500 HTML, test sập kiểu khó đọc.
         self.closed = True
+        return True
 
 
 def _fake_tra_loi(bridge, q, summary="", history=None):
@@ -61,10 +64,15 @@ def main():
     global PASS, FAIL
     # cài mock: bridge giả + tra_loi_ai giả + bật USE_AI
     _mk, _tl, _ua = A._make_bridge, A.mcp_bridge.tra_loi_ai, A.mcp_bridge.USE_AI
-    _ms, _ttl = A.MAX_SESSIONS, A.SESSION_TTL_MIN
+    _ms, _ttl, _mbv = A.MAX_SESSIONS, A.SESSION_TTL_MIN, A.MAX_BAN_VE
     A._make_bridge = lambda: FakeBridge()
     A.mcp_bridge.tra_loi_ai = _fake_tra_loi
     A.mcp_bridge.USE_AI = True
+    # ⚠ K.1-K.8 kiểm TRẦN SỐ PHIÊN + bất biến F-A, cần ≥2 phiên CÙNG giữ bản vẽ. Trần SỐ BẢN VẼ (MAX_BAN_VE,
+    # mặc định 1 cho gói free 512MB) làm điều đó bất khả thi theo THIẾT KẾ — nên ở đây mở rộng nó ra.
+    # TRẦN SỐ BẢN VẼ có suite RIÊNG: tests/test_admission.py (A.1-A.11), gồm cả ca "B upload đuổi bản vẽ của A".
+    # Đặt cao (không phải 0) để đường code đếm/xin-suất VẪN được chạy trong mọi ca dưới đây.
+    A.MAX_BAN_VE = 99
     upl = set()      # tên file test đã tạo trong _uploads (dọn cuối)
     try:
         print("[K.1] 2 PHIÊN cô lập — upload người B KHÔNG đạp bản vẽ/bridge người A")
@@ -80,8 +88,13 @@ def main():
         b1 = _ask(cb, "hoiB").get_json()["answer"]
         ok("A hỏi -> echo summary aaa.dxf (KHÔNG phải bbb)", "aaa.dxf" in a1 and "bbb.dxf" not in a1, a1)
         ok("B hỏi -> echo summary bbb.dxf", "bbb.dxf" in b1, b1)
-        bra = a1.split("br=")[1].split("|")[0]; brb = b1.split("br=")[1].split("|")[0]
-        ok("A và B dùng BRIDGE KHÁC nhau (không chung subprocess)", bra != brb, "brA=%s brB=%s" % (bra, brb))
+        # PHÒNG THỦ: nếu 2 câu trên vỡ thì 'br=' không có trong answer -> split() ném IndexError và GIẾT cả suite
+        # (23/25 assert im lặng, mất luôn độ phủ R11-IDOR/TTL/history). Kiểm trước rồi mới tách.
+        if "br=" in a1 and "br=" in b1:
+            bra = a1.split("br=")[1].split("|")[0]; brb = b1.split("br=")[1].split("|")[0]
+            ok("A và B dùng BRIDGE KHÁC nhau (không chung subprocess)", bra != brb, "brA=%s brB=%s" % (bra, brb))
+        else:
+            ok("A và B dùng BRIDGE KHÁC nhau (không chung subprocess)", False, "thiếu 'br=': a1=%r b1=%r" % (a1, b1))
 
         print("[K.2] HISTORY theo phiên — lượt sau thấy lịch sử lượt trước, phiên khác độc lập")
         a2 = _ask(ca, "hoiA2").get_json()["answer"]
@@ -209,7 +222,7 @@ def main():
     finally:
         _reset()
         A._make_bridge, A.mcp_bridge.tra_loi_ai, A.mcp_bridge.USE_AI = _mk, _tl, _ua
-        A.MAX_SESSIONS, A.SESSION_TTL_MIN = _ms, _ttl
+        A.MAX_SESSIONS, A.SESSION_TTL_MIN, A.MAX_BAN_VE = _ms, _ttl, _mbv
         for nm in upl:
             for _f in os.listdir(A.UPLOAD_DIR):      # E6: file lưu dạng '<uuid>_<nm>' -> dọn theo hậu tố
                 if _f == nm or _f.endswith("_" + nm):

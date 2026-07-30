@@ -37,6 +37,12 @@ API_KEY = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY") o
 # (timeout) -> không ổn cho đối tác. Pro preview thì quota ~25 req là cạn (429).
 # -> 2.5-flash là cân bằng tốt nhất cho DEMO. Đổi qua env GEMINI_MODEL khi cần (vd 3.5-flash lúc hết tải).
 MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
+# Trần chờ MCP server con sẵn sàng. 40s hard-code trước đây MỎNG: đo thật thời gian spawn biến động 2.06s ->
+# 17.97s trên CÙNG máy local, mà CPU chia sẻ của Render free chậm hơn ~3.3x (import app 9.62s so với ~2.9s local).
+try:
+    READY_WAIT_S = float(os.environ.get("MCP_READY_S", "60") or 60)
+except Exception:
+    READY_WAIT_S = 60.0             # env rác -> mặc định, KHÔNG sập `import mcp_bridge` (kéo sập cả app)
 # 14 (cũ 8): câu nhiều phần ("công trình gì, mấy tầng, mấy phòng") cần nhiều lượt gọi tool;
 # Flash gọi tool kém gọn hơn Pro -> 8 lượt dễ hết -> AI bỏ cuộc dù data có sẵn. Nới rộng.
 MAX_TURNS = int(os.environ.get("GEMINI_MAX_TURNS", "14"))
@@ -110,18 +116,40 @@ class MCPBridge:
         self._ready = threading.Event()
         self._err = None
         self._stop = None
+        self._task = None                   # task của _serve() — cần để HUỶ được từ luồng khác (dọn rác)
+        self._closed = False
         self.session = None
         self.tools = []
-        threading.Thread(target=self._run, daemon=True).start()
-        if not self._ready.wait(40):
+        # GIỮ tham chiếu Thread (trước đây `threading.Thread(...).start()` ném mất đối tượng -> không join được).
+        self._thread = threading.Thread(target=self._run, daemon=True)
+        self._thread.start()
+        if not self._ready.wait(READY_WAIT_S):
+            # M1 — DỌN RÁC. Đo thật (server giả sleep(120)): hết hạn -> ném RuntimeError, PID con VẪN SỐNG sau
+            # +15s (WS 9.1MB), luồng _run còn sống, và caller KHÔNG BAO GIỜ nhận được đối tượng để gọi close()
+            # (app.py gán `s["bridge"] = _make_bridge()` nên ném TRƯỚC khi gán) => mỗi lần đối tác bấm lại là
+            # sinh THÊM ~98MB không bao giờ chết; 2-3 lần bấm là hết RAM, chỉ restart container mới sạch.
+            try:
+                self.close(cho_giay=10)
+            except Exception:
+                pass
             raise RuntimeError("Không khởi động được MCP server: %s" % (self._err or "timeout"))
         if self._err:
+            try:
+                self.close(cho_giay=5)      # cùng lý do: đừng để tiến trình con sống mồ côi khi init lỗi
+            except Exception:
+                pass
             raise RuntimeError("MCP server lỗi: %s" % self._err)
 
     def _run(self):
         asyncio.set_event_loop(self.loop)
         try:
-            self.loop.run_until_complete(self._serve())
+            # create_task để close() có đường HUỶ khi phiên CHƯA ready (lúc đó _stop chưa dùng được):
+            # cancel -> CancelledError vào trong `async with stdio_client` -> __aexit__ chạy -> mcp đóng stdin,
+            # chờ 2s rồi terminate cả cây tiến trình con (Windows: Job Object; Linux: killpg).
+            self._task = self.loop.create_task(self._serve())
+            self.loop.run_until_complete(self._task)
+        except asyncio.CancelledError:
+            pass
         except Exception as e:
             self._err = "%s: %s" % (type(e).__name__, e)
             self._ready.set()
@@ -137,17 +165,50 @@ class MCPBridge:
                 await self._stop.wait()
 
     def call(self, name, args, timeout=120):
+        # Guard: sau close() thì vòng asyncio đã dừng -> future KHÔNG BAO GIỜ hoàn thành và fut.result(timeout)
+        # NẰM CHỜ TRÒN timeout (đo thật: gọi nap_ban_ve rồi close() giữa lúc parse -> call() treo, ở /upload là
+        # 600s). Ném NGAY thay vì treo. ⚠ Chuỗi lỗi phải SẠCH SỐ — nó đi vào rổ grounding (xem M4 ở vòng dispatch).
+        if self._closed or self.session is None:
+            raise RuntimeError("Cầu nối MCP đã đóng")
         fut = asyncio.run_coroutine_threadsafe(self.session.call_tool(name, args or {}), self.loop)
         res = fut.result(timeout=timeout)
         txt = "\n".join(getattr(c, "text", "") or "" for c in res.content)
+        # LỖI NÉM BÊN TRONG TIẾN TRÌNH CON: MCP đánh dấu isError + trả text "Error executing tool X: ...".
+        # TRƯỚC bản vá, cờ này bị BỎ QUA nên lỗi rơi vào {"ket_qua": txt} — KHÔNG có khoá 'loi'. Hai hậu quả THẬT
+        # (red-team tái hiện được, 3 lăng kính độc lập cùng bắt):
+        #  (1) `/upload` kiểm `res.get("loi")` nên MÙ với MỌI lỗi nạp thật (dxf hỏng, .dwg không convert được) ->
+        #      host đi tiếp đường THÀNH CÔNG: HTTP 200, hiện "✅ Đã nạp", summary "None (AutoCAD None), None đối tượng".
+        #  (2) Text lỗi THÔ đi thẳng vào rổ neo grounding. pydantic v2 nhét NGUYÊN GIÁ TRỊ tham số vào thông điệp
+        #      (input_value=12345) => model (hoặc chữ trong file lái model) tự BƠM ĐƯỢC SỐ TUỲ Ý vào rổ chỉ bằng
+        #      cách gọi 1 tool với tham số sai kiểu -> câu bịa mang số đó ĐI QUA guard. Đây đúng lớp lỗi mà M4
+        #      tưởng đã chặn: sanitizer M4 chỉ bọc `except` PHÍA HOST, không với tới lỗi ném ở tiến trình con.
+        # Trả về đúng khoá 'loi' + chuỗi SẠCH SỐ; nguyên văn (có số, có đường dẫn) chỉ ra stderr.
+        if getattr(res, "isError", False):
+            print("[tool %s] LOI TU TIEN TRINH CON: %s" % (name, txt), file=sys.stderr, flush=True)
+            return {"loi": "Không chạy được công cụ này (chi tiết đã ghi ở log máy chủ)."}
         try:
             return json.loads(txt)
         except Exception:
             return {"ket_qua": txt}
 
-    def close(self):
-        if self._stop:
-            self.loop.call_soon_threadsafe(self._stop.set)
+    def close(self, cho_giay=0.0):
+        """cho_giay=0 (MẶC ĐỊNH) = hành vi CŨ: ra lệnh đóng rồi trả về NGAY (đo thật 0.0000s) — tiến trình con
+        vẫn tự chết sau 0.198s (rảnh) đến 2.022s (đang parse) nhờ chuỗi dọn có sẵn của thư viện mcp.
+        cho_giay>0 = CHỜ luồng nền dừng, trả True nếu XÁC NHẬN đã dừng (dùng cho đường nhường-chỗ: phải chắc
+        bản vẽ cũ đã ra khỏi RAM TRƯỚC khi nạp bản mới, nếu không thì có 2 bản vẽ cùng lúc).
+        ⚠ TUYỆT ĐỐI không gọi với cho_giay>0 khi đang giữ app._SESS_LOCK — đo thật: close() ngủ 5s trong
+        _SESS_LOCK làm request KHÔNG liên quan của người khác chậm 4.50s và người mới chậm 5.01s."""
+        self._closed = True
+        try:
+            if self._ready.is_set() and self._stop is not None:
+                self.loop.call_soon_threadsafe(self._stop.set)      # đường thường: nhả sạch qua __aexit__
+            elif self._task is not None:
+                self.loop.call_soon_threadsafe(self._task.cancel)   # CHƯA ready (spawn treo) -> huỷ để __aexit__ chạy
+        except Exception:
+            pass            # vòng asyncio đã dừng (gọi close 2 lần) -> không phải lỗi
+        if cho_giay and self._thread is not None:
+            self._thread.join(cho_giay)
+        return self._thread is None or not self._thread.is_alive()
 
 
 # ----------------------------------------------------------------------------
