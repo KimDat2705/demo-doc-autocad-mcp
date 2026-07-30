@@ -14,7 +14,8 @@
 
 ## 🏁 TRẠNG THÁI CHỐT PHIÊN 2026-07-30 (cuối) — ĐỌC MỤC NÀY TRƯỚC
 > **HEAD `6de1aaa` · tree SẠCH · check.sh [36/36] PASS · 33 tool · 0 regress.**
-> **⚠ `6de1aaa` CHƯA PUSH (cố ý). LIVE vẫn là `371d950`.** Đẩy: `git push origin main` → Render tự deploy ~60s → verify `/version` + `/health`. Đây là commit **ĐỔI SỐ máy báo** nên verify kỹ hơn thường lệ.
+> **⚠ 2 commit CHƯA PUSH (cố ý): `6de1aaa` (code DIMLFAC) + `f0ae46c` (docs). LIVE hiện là `fb8a597`** (mã nguồn y hệt `371d950`, chỉ khác tài liệu). Đẩy: `git push origin main` → Render tự deploy ~60s → verify `/version` + `/health`. `6de1aaa` là commit **ĐỔI SỐ máy báo** nên verify kỹ hơn thường lệ.
+> **Đo LIVE cuối phiên (`fb8a597`):** `ram_mb` **135,5MB** · `ban_ve` 0/1 · `metrics.tu_choi` **0** (chưa ai bị chặn oan) · **`keepalive` ok=99 / lỗi=0** — 99 cú tự-gọi giữ-thức liên tiếp KHÔNG lỗi lần nào, xác nhận bản vá bom-3 chạy đúng trên máy thật.
 >
 > **PHIÊN NÀY (2 phần):** (A) vá **3 bom hẹn giờ chịu tải** — 2 lát đã LIVE `eba4d67` + `371d950`; (B) quay lại **nhóm A**: rà soát lại toàn nhóm + vá **hệ số tỉ lệ đo (DIMLFAC)**. Chi tiết đầy đủ: `claude-progress.md` 2 entry đầu.
 >

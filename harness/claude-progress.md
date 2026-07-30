@@ -10,7 +10,7 @@
 
 ---
 ## Session 2026-07-30 (nối) — 📐 NHÓM A: rà soát lại toàn nhóm + **vá HỆ SỐ TỈ LỆ ĐO (DIMLFAC)** — 21,5% đường kích thước đang bị đọc SAI
-> **CHỐT SỔ:** HEAD **`6de1aaa`**, tree SẠCH. check.sh **[36/36] PASS · 33 tool · 0 regress** (272/107/50/31/63/28/44/24/26… KHÔNG đổi). ⚠ **`6de1aaa` CHƯA PUSH** — cố ý, xem "VIỆC CHỜ" #0. LIVE vẫn là `371d950`.
+> **CHỐT SỔ:** HEAD **`6de1aaa`**, tree SẠCH. check.sh **[36/36] PASS · 33 tool · 0 regress** (272/107/50/31/63/28/44/24/26… KHÔNG đổi). ⚠ **`6de1aaa` CHƯA PUSH** — cố ý, xem "VIỆC CHỜ" #0. LIVE là `fb8a597` (mã nguồn y hệt `371d950`). Đo LIVE cuối phiên: `ram_mb` 135,5MB · `tu_choi` 0 · **`keepalive` ok=99 / lỗi=0** (99 cú giữ-thức liên tiếp không lỗi — bom 3 đã vá đúng trên máy thật).
 > **USER CHỐT 3 điều:** (1) giữ `READFILE_MAX_MB=45`; (2) **ĐỌC hệ số tỉ lệ đo** dù nó ĐỔI SỐ máy báo; (3) **CÓ sửa `_P_R5`** (chỉ dẫn AI) kèm đo A/B.
 >
 > **① RÀ SOÁT LẠI TOÀN NHÓM A (workflow 7 agent `wf_70bc91b8-921`) — KẾT LUẬN NGƯỢC với ghi chú đầu phiên:**
