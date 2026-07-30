@@ -12,7 +12,32 @@
 > **Muốn public thật sau này — ĐỪNG LÀM LẠI TỪ ĐẦU:** nhánh local **`public-ready`** đã có sẵn trọn gói (history sạch không .deb qua `git filter-repo` · Dockerfile tải ODA tuỳ chọn qua `ODA_DEB_URL` · thông báo .dxf-only thân thiện · .gitignore chặn .deb). Đánh đổi: cloud chỉ đọc .dxf tới khi đặt `ODA_DEB_URL`. Mirror backup: `D:/Dat-Antigravity/_backup_repo_truoc_khi_public_20260717/repo-mirror.git`.
 
 
-## 🏁 TRẠNG THÁI CHỐT PHIÊN 2026-07-30 — ĐỌC MỤC NÀY TRƯỚC
+## 🏁 TRẠNG THÁI CHỐT PHIÊN 2026-07-30 (cuối) — ĐỌC MỤC NÀY TRƯỚC
+> **HEAD `6de1aaa` · tree SẠCH · check.sh [36/36] PASS · 33 tool · 0 regress.**
+> **⚠ `6de1aaa` CHƯA PUSH (cố ý). LIVE vẫn là `371d950`.** Đẩy: `git push origin main` → Render tự deploy ~60s → verify `/version` + `/health`. Đây là commit **ĐỔI SỐ máy báo** nên verify kỹ hơn thường lệ.
+>
+> **PHIÊN NÀY (2 phần):** (A) vá **3 bom hẹn giờ chịu tải** — 2 lát đã LIVE `eba4d67` + `371d950`; (B) quay lại **nhóm A**: rà soát lại toàn nhóm + vá **hệ số tỉ lệ đo (DIMLFAC)**. Chi tiết đầy đủ: `claude-progress.md` 2 entry đầu.
+>
+> **USER CHỐT (2026-07-30):** giữ `READFILE_MAX_MB=45` · **ĐỌC hệ số tỉ lệ đo** dù ĐỔI SỐ · **CÓ sửa `_P_R5`** kèm đo A/B · triển khai theo 2 đợt (nhẹ trước, nặng sau).
+>
+> **BƯỚC TIẾP — làm đúng thứ tự này:**
+> 1. **Xong nốt đợt đang dở** (3/4 việc còn lại): bộ phân loại "ghi đè THẬT" trên đường kích thước · cờ "chưa với tới vùng này" (4 tool, khớp **CHỈ trên `to_unicode`** — khớp raw cho **41 hit ẢO**) · tool `tim_chu_trong_ky_hieu` (chỉ khối ĐƯỢC CHÈN). Thiết kế chốt + số liệu: `scratchpad/chot_vungmu.md`, workflow `wf_0cdb83d4-bca`.
+> 2. **`_P_R5` + đo A/B** (lát riêng, cuối cùng — bump PROMPT_VERSION + re-freeze hash).
+> 3. **Nhóm A còn 22 việc** — artifact: https://claude.ai/code/artifact/2aac664c-26fd-4ada-9ece-641ab6e596e5
+> 4. Chạy lại bảng điểm 198 câu 3-5 lượt — **sửa `tests/run_battery.py` trước** (đang ghi đè kết quả lượt trước nên không đo được độ ổn định).
+>
+> **⛔ ĐỪNG LÀM LẠI (đã bác bằng số trong phiên này):**
+> - **"Đọc chữ trong khối vào kho chữ chung"** — 71,6% là nhãn DIMENSION đã đọc rồi · 55,7% khối là khối CHẾT (một khối chết ghi *"156 cọc"* trong khi bản vẽ sống ghi *"131 CỌC"*) · mã cấu kiện chỉ 0,8% · lợi ích +3,0% mà 19/71 file lợi ích BẰNG KHÔNG · toạ độ hệ nội bộ → khoanh đỏ sai chỗ · **`cao_do` KT −2.1 → −94.44** · **id135 `rachmop` −14.26 → −16.14 mà cổng vẫn XANH**.
+> - **Khối mồ côi + chữ trang in đưa vào kho chữ chung** — nguồn không tin được thì KHÔNG trả.
+> - Hạ `MAX_SESSIONS` · tăng `--threads` · lazy-import `google.genai` bằng `find_spec` (xem entry chịu tải).
+>
+> **⚠ HAI ĐÍNH CHÍNH TÀI LIỆU CŨ:** (1) ghi chú *"chữ trong khối không phải bug — đã tự bác bỏ"* là **SAI** (2.068 chuỗi vô hình / 30-40 file) — nhưng cách vá hiển nhiên cũng SAI, xem ⛔ trên. (2) **Bảng điểm 198 câu (24/07) LẠC HẬU** so với code — **đừng trích "39 câu hỏng"** cho ai.
+>
+> **📌 LỖ HỔNG ĐÃ BIẾT, CHƯA VÁ:** hàng rào chống bịa **chỉ soi số ĐO LƯỜNG**; **số ĐẾM không có hàng rào nào** (đo với rổ neo RỖNG: *"Tổng số cọc là 156 cọc."* → LỌT · *"Bản vẽ có 9999 cột."* → LỌT). Vá được nhưng dịch số cả 36 suite → lát RIÊNG.
+>
+> **📌 BÀI HỌC PHIÊN NÀY (đã ghi vào clean-state-checklist):** **cổng xanh KHÔNG đủ để tin bản vá đã chạy.** Vá DIMLFAC đổi số thật trên 21,5% đường kích thước mà cả 6 suite đóng-băng-số vẫn xanh. Với mọi vá đổi hành vi đọc: TỰ KIỂM NGƯỢC (so số trước/sau) rồi mới thêm suite khoá.
+
+## 🕘 TRẠNG THÁI CHỐT PHIÊN 2026-07-30 (giữa phiên — chịu tải)
 > **HEAD `371d950` == origin · tree SẠCH · check.sh [35/35] PASS · 33 MCP tool · 0 regress.**
 > **LIVE `371d950`:** prompt `2026.07.27-kb-l3` (`239e8b7b…`) + kb `kb-2026.07.26-dot-dau` (`e55ac112…`) **KHÔNG ĐỔI** (đợt này không chạm SYSTEM_PROMPT/kho kiến thức → không cần đo A/B) · `/health` ok · **`ram_mb` = 135.3MB** (lần đầu đo được RAM Linux thật).
 >

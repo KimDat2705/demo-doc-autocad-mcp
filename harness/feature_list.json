@@ -322,6 +322,36 @@
       "name": "Trần đọc file bound theo SỐ ĐỐI TƯỢNG (cổng theo MB không bound được RAM)",
       "status": "deferred",
       "evidence": "Đo thật: 38.54MiB/35772 obj -> 260.3MB vs 39.28MiB/145807 obj -> 398.7MB. User chốt 2026-07-30 giữ READFILE_MAX_MB=45, chốt ngưỡng sau khi đọc ram_mb thật khi có bản vẽ nạp"
+    },
+    {
+      "id": "doc-he-so-ty-le-do",
+      "name": "Doc dung HE SO TI LE DO cua ban ve (DIMLFAC) — 21,5% duong kich thuoc dang bi doc sai",
+      "status": "done",
+      "evidence": "commit 6de1aaa (CHUA push); do that 40 file/15.608 duong: 3.352 duong (21,5%) khai he so !=1, 17/40 file; doi chieu chu in: khop 'so do x he so' 19 / khop tho 0; test_ty_le_do 17 ca, check.sh 35->36"
+    },
+    {
+      "id": "doc-chu-trong-khoi",
+      "name": "Doc chu trong DINH NGHIA KHOI vao kho chu chung",
+      "status": "deferred",
+      "evidence": "BAC BO co so cung (wf_0cdb83d4-bca): 71,6% la nhan DIMENSION da doc; 55,7% khoi la khoi CHET (khoi chet ghi '156 coc' vs ban ve song '131 COC'); ma cau kien chi 0,8%; loi ich +3,0% ma 19/71 file bang 0; toa do he noi bo -> khoanh do sai cho; cao_do KT -2.1 -> -94.44; id135 rachmop -14.26 -> -16.14 ma cong van XANH. THAY BANG tool doc rieng tim_chu_trong_ky_hieu (chua lam)"
+    },
+    {
+      "id": "canh-bao-ghi-de-kich-thuoc",
+      "name": "Canh bao chu IN tren duong kich thuoc khac so do (ghi de THAT)",
+      "status": "partial",
+      "evidence": "Thiet ke chot + luat _dang_chu_in da va 2 ho bao-dong-gia (luat tho bat 859 dim/17 file va co 2 file bat 100% OAN; luat chot 837/15). CHUA code. scratchpad/chot_vungmu.md"
+    },
+    {
+      "id": "co-chua-voi-toi-vung-nay",
+      "name": "Co 'may chua voi toi vung nay' thay vi im lang tra 'khong co'",
+      "status": "partial",
+      "evidence": "Thiet ke chot: khop CHI tren to_unicode (khop raw cho 41 hit AO tren 04.Cong tuong rao + C1). Can sua _P_R5 moi co tac dung. CHUA code"
+    },
+    {
+      "id": "guard-so-dem",
+      "name": "Hang rao chong bia cho SO DEM (hien chi soi so DO LUONG)",
+      "status": "deferred",
+      "evidence": "Do voi ro neo RONG: 'Tong so coc la 156 coc.' LOT, 'Ban ve co 9999 cot.' LOT; cung luot 'Chieu dai dam 30 m' CHAN. Goc: _guard_text thoat som o `if not do_luong: return text`. Va duoc nhung dich so ca 36 suite -> lat RIENG"
     }
   ]
 }

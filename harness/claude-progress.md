@@ -9,6 +9,37 @@
 > Mới nhất ở TRÊN CÙNG. Bàn giao đầy đủ: `session-handoff.md`. Nhật ký chi tiết hơn nữa: `../GHI_CHU_HOAN_THIEN.md`.
 
 ---
+## Session 2026-07-30 (nối) — 📐 NHÓM A: rà soát lại toàn nhóm + **vá HỆ SỐ TỈ LỆ ĐO (DIMLFAC)** — 21,5% đường kích thước đang bị đọc SAI
+> **CHỐT SỔ:** HEAD **`6de1aaa`**, tree SẠCH. check.sh **[36/36] PASS · 33 tool · 0 regress** (272/107/50/31/63/28/44/24/26… KHÔNG đổi). ⚠ **`6de1aaa` CHƯA PUSH** — cố ý, xem "VIỆC CHỜ" #0. LIVE vẫn là `371d950`.
+> **USER CHỐT 3 điều:** (1) giữ `READFILE_MAX_MB=45`; (2) **ĐỌC hệ số tỉ lệ đo** dù nó ĐỔI SỐ máy báo; (3) **CÓ sửa `_P_R5`** (chỉ dẫn AI) kèm đo A/B.
+>
+> **① RÀ SOÁT LẠI TOÀN NHÓM A (workflow 7 agent `wf_70bc91b8-921`) — KẾT LUẬN NGƯỢC với ghi chú đầu phiên:**
+> Quét 4 nguồn độc lập → **187 đầu mục thô** → đối chiếu code → **26 việc CÒN LẠI** · **13 mục tưởng còn nhưng ĐÃ XONG** (tài liệu chưa cập nhật) · **16 mục không thuộc A**. Phân tầng: **14 làm được NGAY (không vướng gì)** · 4 cần user quyết · 2 chờ file đối tác · 6 hoãn có cơ sở. **Artifact:** https://claude.ai/code/artifact/2aac664c-26fd-4ada-9ece-641ab6e596e5
+> ⚠ **ĐÍNH CHÍNH ghi chú cũ:** `claude-progress.md`/`session-handoff.md` từng kết luận *"chữ trong khối KHÔNG phải bug — đã tự bác bỏ"*. **SAI.** Tự đo 40 file: **2.068 chuỗi riêng biệt** chỉ tồn tại trong khối/trang in, ở **30/40 file**, công cụ tìm kiếm KHÔNG bao giờ thấy và KHÔNG cảnh báo. (Nhưng xem ② — cách vá hiển nhiên lại SAI.)
+> ⚠ **Bảng điểm 198 câu (`tests/battery_results.jsonl`, 24/07) LẠC HẬU** so với code (prompt đã qua 3 phiên bản). **ĐỪNG trích con số "39 câu hỏng"** cho ai.
+>
+> **② NGHIÊN CỨU TRƯỚC-CODE cho 3 việc đọc vùng mù (workflow 11 agent `wf_0cdb83d4-bca`, 4 red-team GO_WITH_ADJUSTMENTS) — BÁC BỎ 1 trong 3 việc đã duyệt:**
+> - **V2 "đọc chữ trong khối vào kho chữ chung" = BỎ HẲN** (không bản rút gọn, không "để sau"). Số cứng: **71,6%** chữ-trong-khối là nhãn DIMENSION `*D` **máy ĐÃ đọc rồi** (nạp vào = đếm trùng + bơm lại số vào rổ neo) · **55,7%** khối có chữ là khối **CHƯA TỪNG được chèn** — khối chết ghi *"156 cọc"* trong khi bản vẽ sống ghi *"131 CỌC"* · chữ trong khối được-chèn: **mã cấu kiện chỉ 0,8%**, khung tên 37,8% · lợi ích thật **+3,0%**, **19/71 file lợi ích BẰNG KHÔNG**, top5 file chiếm 59% · hệ số phóng đại **8,61×** (1 bản trong định nghĩa = 8,61 lần hiện) · toạ độ khối là hệ NỘI BỘ (29%/56%/**97%** chữ nằm ngoài khung bản vẽ) → đầu độc mọi tuyến ghép-theo-vị-trí + khoanh đỏ SAI CHỖ · `cao_do_min_max` KT **−2.1 → −94.44** (cao độ khảo sát địa hình, khác hệ; lọc "chỉ khối được chèn" KHÔNG cứu) · **id135 `rachmop` đổi đáp án −14.26 → −16.14 mà 35/35 vẫn XANH** (trôi thầm).
+> - **THAY BẰNG:** tool ĐỌC RIÊNG `tim_chu_trong_ky_hieu`, chỉ khối **ĐƯỢC CHÈN**, không nhập vào `self.texts`, KHÔNG trường đếm. Lý do bắt buộc phải có: chỉ gắn cờ "có vùng chưa đọc" mà KHÔNG cho đường đọc = vừa khẳng định *có*, vừa cấm nói *không có*, vừa không đưa dữ liệu = **công thức ép bịa**. Dữ liệu THẬT đang mất: `SL:67`, `L=1600`, `DN-01, L=15000, SL:02`, `l=1100`.
+> - **Khối MỒ CÔI + TRANG IN: BỎ khỏi mọi tool/cờ** (nguồn không tin được thì KHÔNG trả, chứ không phải trả rồi chặn rổ neo).
+> - V1 (cờ "chưa với tới") phải khớp **CHỈ trên `to_unicode`**: khớp raw tạo **bằng chứng ẢO** — file `04.Cong, tuong rao` + `C1` → **41 hit ảo** (mã màu `\|c163\|` của nhãn phong thuỷ).
+> - **`_P_R5` PHẢI SỬA** (nằm trong `_INVARIANT`, ra lệnh *"tool trả 0 kết quả → nói thẳng không có"*) — không sửa thì cờ V1 nằm im vô dụng. Tách lát riêng + bump version + re-freeze hash + A/B.
+>
+> **③ ĐÃ LÀM & LIVE-READY: HỆ SỐ TỈ LỆ ĐO (DIMLFAC) — commit `6de1aaa`**
+> Bản vẽ cho phép MỖI đường kích thước tự khai hệ số ("chi tiết vẽ thu nhỏ, nhân 0,25 mới ra số thật"). `get_measurement()` trả số HÌNH HỌC THÔ, **không áp hệ số** → số máy đọc KHÁC số IN. **Tự đo 40 file/15.608 đường: 3.352 đường (21,5%) có khai hệ số ≠ 1, dính 17/40 file.** Ca đối chiếu được với chữ in: khớp *"số đo × hệ số"* **19** / khớp số đo thô **0**. Trên `MB KET CAU 27.3.2022.dxf`: tổng 3.167.454,3 → **2.498.584,2**, **569 đường đổi số**.
+> Đọc hệ số theo **TỪNG ĐƯỜNG** (`e.override()`), KHÔNG đọc bảng kiểu dáng (đo được **11 file** có bảng khai hệ số mà **0 đường** nào dùng → đọc bảng sẽ áp OAN). FAIL-OPEN: hệ số rác (0/NaN/±inf) hoặc `override()` ném → về hành vi CŨ, không nuốt dimension. LỘ bằng cờ **BOOL** `co_dim_ty_le_do` + prose **SẠCH SỐ**, **không thêm trường đếm** (mọi số trong kết quả tool đều nở rổ neo).
+> ⚠ **BÀI HỌC ĐẮT NHẤT PHIÊN NÀY:** sau khi vá, **CẢ 6 suite đóng-băng-số vẫn XANH** — bộ kiểm **mù hoàn toàn**. Phải TỰ KIỂM NGƯỢC (so tổng số đo trước/sau) mới biết bản vá thực sự chạy, chứ không im lặng rơi về hành vi cũ. → suite mới `test_ty_le_do` **17 ca** (bản vẽ SYNTHETIC ezdxf, tất định): không-khai-hệ-số KHÔNG đổi số · có-khai nhân đúng (0,25/100/0,5/2,0) · hệ số RÁC giữ cũ · `override()` ném → fail-open không nuốt dimension · cờ BOOL + prose sạch số + KHÔNG trường đếm · rổ neo không nở. check.sh **35→36 bước**.
+>
+> **④ LỖ HỔNG PHÁT HIỆN DỌC ĐƯỜNG (chưa vá, ngoài phạm vi — GHI SỔ):** hàng rào chống bịa **CHỈ soi số ĐO LƯỜNG**, **số ĐẾM không có hàng rào nào**. Đo với rổ neo RỖNG: *"Tổng số cọc là 156 cọc."* → **LỌT** · *"Bản vẽ có 9999 cột."* → **LỌT**; cùng lượt *"Chiều dài dầm 30 m"* → CHẶN, *"Diện tích sàn 43 m2"* → CHẶN. Nguyên nhân: `_guard_text` thoát sớm ở `if not do_luong: return text`. Với phần mềm bóc khối lượng thì "bao nhiêu cấu kiện" quan trọng ngang "dài bao nhiêu mét". Vá được nhưng sẽ dịch số của cả 36 suite → phải là lát RIÊNG.
+>
+> **VIỆC CHỜ (phiên sau):**
+> 0. **⚠ `6de1aaa` CHƯA PUSH.** Cố ý: đã hứa với user gộp cùng phần còn lại của đợt (cảnh báo ghi-đè + cờ + tool tra). Muốn đẩy ngay: `git push origin main` (Render tự deploy ~60s, rồi verify `/version` + `/health`). Nếu đẩy riêng thì nhớ: đây là commit **ĐỔI SỐ máy báo**, nên verify LIVE kỹ hơn thường lệ.
+> 1. **Còn 3/4 việc của đợt này:** bộ phân loại "ghi đè THẬT" trên đường kích thước (luật `_dang_chu_in` đã thiết kế + đã vá 2 họ báo-động-giả; đo: luật chốt bật 837 dim/15 file, luật thô bật 859/17 và có **2 file bật 100% OAN**) · cờ "chưa với tới vùng này" (4 tool) · tool `tim_chu_trong_ky_hieu`.
+> 2. **`_P_R5` + đo A/B** — user ĐÃ CHỐT LÀM. Lát riêng, cuối cùng.
+> 3. **Nhóm A còn 22 việc khác** — xem artifact ở ① (14 việc không vướng gì: chữ trang in · nắn phông VNI/TCVN3 còn sót · nhận đơn vị inch/feet · "đài cọc" trả ra "dầm" · 7 việc nhỏ…).
+> 4. Bảng điểm 198 câu: chạy lại 3-5 lượt (user đã chốt phương án b) — **làm SAU khi 3 việc còn lại của đợt lên**, và phải sửa `tests/run_battery.py` (ghi đè kết quả lượt trước) TRƯỚC.
+
+---
 ## Session 2026-07-30 — 🧯 VÁ 3 "BOM HẸN GIỜ" CHỊU TẢI (2 lát LIVE `eba4d67` + `371d950`), gate 33→35/35, **lần đầu ĐO ĐƯỢC RAM Linux thật**
 > **CHỐT SỔ:** HEAD `371d950` == origin, tree sạch. check.sh **[35/35] PASS · 33 tool · 0 regress** (272/107/50/31/44/24/26 không đổi). LIVE verify 2 lần: `/version` commit khớp + **prompt_hash/kb_hash KHÔNG đổi** (bản vá này TUYỆT ĐỐI không chạm SYSTEM_PROMPT/kho kiến thức → không cần đo A/B) + `/health` ok + **verify TRANG THẬT 6/6 chuỗi frontend**.
 > **USER CHỐT:** giữ `READFILE_MAX_MB=45` (giữ điểm mạnh "đọc bản vẽ thật") · triển khai **2 đợt** (nhẹ trước, nặng sau).
