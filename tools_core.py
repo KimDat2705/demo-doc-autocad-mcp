@@ -215,6 +215,114 @@ def _la_notation_chuan(vn, tok):
     return bool(_NOTATION_CHUAN_TOK_RE.match((tok or "").strip()))
 
 
+# ═══ CHỮ IN TRÊN ĐƯỜNG KÍCH THƯỚC — phân loại GHI ĐÈ THẬT ════════════════════════════════════════
+# Bản vẽ cho phép người vẽ GÕ ĐÈ chữ hiển thị của một đường kích thước. Khi chữ in KHÔNG phải là con số
+# máy đo được, số máy trả ra vẫn "trông như" một kích thước bình thường — người đọc không có cách nào biết.
+# Ta CHỈ LỘ dấu hiệu, TUYỆT ĐỐI KHÔNG đổi số nào và KHÔNG tự quy đổi.
+#
+# ĐO THẬT (2026-07-31, 78 file corpus, sau khi đã loại đường đo GÓC): 1.098 đường / 26 file bị bắt cờ
+# (khong_phai_so 987 · dieu_kien 100 · bieu_thuc 11).
+# ⚠ Con số 837 dim/15 file trong tài liệu thiết kế cũ KHÔNG tái lập được trên mã hiện tại — đừng dùng lại.
+#
+# BỐN LUẬT, mỗi luật có lý do đo được:
+#  · `_CI_TAG` thay '<>' TRƯỚC khi soi toán tử. Không làm vậy thì '5x150=<>' sinh chuỗi con '=<' và bị
+#    nhận nhầm là bất đẳng thức.
+#  · `_CI_BAC` (luật ÂM) chặn nhãn chia khoảng/bậc thang '5x150=<>', '120x 15 Bậc =<>'. Thiếu nó thì 2 file
+#    bật cờ 100% OAN. ⚠ Phải phủ CẢ hai biến thể khoảng trắng: '120x 15 Bậc =<>' và '300 x 11 BËC = <>'.
+#  · `_CI_BT` đòi toán tử KỀ TUYỆT ĐỐI (không cho \s*), nếu không '7 tÇng x <>' (vô hại) thành 'biểu thức'.
+#  · `_CI_SO` nhận dấu phân cách nghìn ('13.600', '3,000.09') — thiếu thì gắn cờ oan cho số thật.
+# Dùng `to_unicode` của repo chứ KHÔNG tự bóc mã MTEXT: chuỗi đổi font GIỮA chừng
+# ('{\Fromans,vnd|c163;2\Fromans,vnd|c0;5...}') ra đúng '250', bộ bóc tự viết để sót -> 24 dim oan/1 file.
+_CI_TAG = "\u0001"          # token trung tinh thay '<>' — ky tu KHONG BAO GIO co trong ban ve
+_CI_SO = re.compile(r"^[Øø±Rr]?[-+]?(\d{1,3}(?:[.,]\d{3})+|\d+)(?:[.,]\d+)?\s*(?:mm|cm|m)?$", re.I)
+_CI_DK = re.compile(r"(<=|>=|≤|≥|~|(?<![a-z0-9])min(?![a-z0-9])|(?<![a-z0-9])max(?![a-z0-9]))")
+_CI_BT = re.compile(r"[-+*/](?=\u0001)|(?<=\u0001)[-+*/xX×]")   # toan tu KE TUYET DOI (khong \s*)
+_CI_BAC = re.compile(r"^\s*\d+\s*[x*×]\s*\d+.*=\s*\u0001\s*$", re.I)  # nhan chia khoang/bac thang
+_CI_CAP_VITRI = 400          # trần số bản ghi vị trí giữ trong RAM (chống file bệnh lý)
+
+
+def _dang_chu_in(raw):
+    """Phân loại CHỮ IN của một đường kích thước. Trả None (không đáng ngờ) hoặc 1 trong 3 nhãn.
+    THUẦN, không đụng state — test được độc lập."""
+    s = to_unicode(raw or "")
+    if not s or not s.strip(): return None
+    s = s.replace("<>", _CI_TAG).strip()
+    if _CI_TAG in s:
+        if _CI_BAC.match(s): return None                 # '5x150=<>', '300 x 14 Bậc =<>', '13*180=<>'
+        if _CI_DK.search(s.lower()): return "dieu_kien"  # '<=<>', '~<>', 'l min=<>', '2000<=H<<>'
+        if _CI_BT.search(s): return "bieu_thuc"          # '320-<>', '<>x6', '<>/2000', 'd+<>'
+        return None                                       # '{\W0.6;<>}', '%%C<>', '7 tÇng x <>'
+    if _CI_SO.match(s): return None                       # '2100', '5,5', '2.76m', '13.600', '3,000.09'
+    return "khong_phai_so"                                # 'h1', 'ØFs a100', 'B theo thùc tÕ', 'L4M'
+
+
+def _thu_thap_chu_in(e, ds, st):
+    """Gom dấu hiệu chữ in của MỘT đường kích thước vào (ds, st). CHỈ LỘ, không đổi số nào.
+    Chữ in TOÀN KHOẢNG TRẮNG (người vẽ ẨN số đi — máy vẫn trả số mà người đọc không thấy gì) hiện
+    KHÔNG tính là ghi đè: chưa đo được delta của lớp này nên chưa dám dựng cờ, ghi sổ để làm sau."""
+    st["tong"] += 1
+    raw = e.dxf.get("text", "") or ""
+    u = to_unicode(raw)
+    if not u.strip() or u.strip() == "<>":
+        return
+    st["ghi_de"] += 1
+    d = _dang_chu_in(raw)
+    if d:
+        st["l8"] += 1
+        if len(ds) < _CI_CAP_VITRI:
+            ds.append({"handle": e.dxf.handle, "dang": d})   # KHÔNG lưu chuỗi in, KHÔNG lưu giá trị
+
+
+# Ngưỡng "lan rộng" — chọn để cảnh báo nói lên điều gì đó về CẢ BẢN VẼ, không phải vài đường lẻ.
+_V1_LAN_RONG_SO       = 10     # số đường dạng-ngờ tối thiểu
+_V1_LAN_RONG_TY_LE    = 0.05
+_V1_HAU_HET_TY_LE     = 0.50   # 'hầu hết' = quá nửa đường kích thước bị gõ đè
+_V1_HAU_HET_TOI_THIEU = 5      # chặn file có quá ít đường (2/3 = 66% nhưng vô nghĩa)
+# NGUYÊN VĂN, SẠCH CHỮ SỐ (mọi số trong kết quả tool đều nở rổ neo chống bịa).
+# ⛔ CẤM mọi diễn đạt gợi hệ số quy đổi ('bản vẽ vẽ theo mét nên nhân nghìn') — đó là mời model tự nhân/chia.
+_V1_CAU_CANH_BAO = (
+    " ⚠ Bản vẽ này có dấu hiệu CHỮ IN trên đường kích thước KHÁC số máy đo được (chữ in là ký hiệu, hoặc "
+    "kèm điều kiện, hoặc là biểu thức; hoặc quá nửa số đường kích thước đã bị gõ đè). Máy KHÔNG tự quy đổi "
+    "và KHÔNG đổi bất kỳ số nào đã trả — các số kích thước ở đây cần ĐỐI CHIẾU TAY trên bản vẽ.")
+
+
+# ═══ VÙNG CHƯA ĐỌC TỚI — chữ nằm TRONG ĐỊNH NGHĨA khối/ký hiệu ĐƯỢC CHÈN ═════════════════════════
+# `self.texts` chỉ gom chữ ở modelspace. Chữ nằm bên trong ĐỊNH NGHĨA một khối thì công cụ tìm kiếm
+# KHÔNG BAO GIỜ thấy — và tệ hơn, nó trả "không có" bằng giọng chắc chắn. Dữ liệu THẬT đang mất, đo được:
+# 'SL:67', 'L=1600', 'DN-01, L=15000, SL:02', 'l=1100'.
+# Ở lát này ta CHỈ DỰNG CỜ BOOL (không trả chuỗi, không trả số) — đường ĐỌC là tool riêng ở lát sau.
+#
+# BỐN QUYẾT ĐỊNH CÓ SỐ:
+#  · Chỉ khối ĐƯỢC CHÈN. Khối MỒ CÔI (định nghĩa nhưng chưa từng chèn) là bản CHẾT: đo được một khối mồ côi
+#    ghi 'coc 350x350 ... 156 cọc' trong khi bản vẽ sống ghi '131 CỌC'. Nguồn không tin được thì KHÔNG trả.
+#  · LOẠI TRỪ TƯỜNG MINH '*d…' (khối nhãn DIMENSION — chữ trong đó máy ĐÃ đọc qua đường dimension),
+#    '*model_space', '*paper_space'. TUYỆT ĐỐI KHÔNG loại theo tiền tố '*' chung: khối '*U459' được chèn
+#    9 lần và chứa 'lt-02' (9 lanh tô THẬT) — loại cả họ '*' là xoá mất ca này.
+#  · Khớp CHỈ trên to_unicode, KHÔNG ghép nhánh raw như search_texts. Đo: file '04. Cong, tuong rao.dxf'
+#    + từ khoá 'C1' -> nhánh raw cho **41 hit ẢO** (khớp vào mã màu '\|c163\|' của nhãn phong thuỷ),
+#    to_unicode cho 0. Đây là lỗi CÓ SẴN của search_texts — KHÔNG được "sửa cho đồng bộ" theo chiều xấu.
+#  · Khớp theo RANH GIỚI TỪ (_tok_bound) chứ không substring trần: đo được giảm nhiễu mà không mất ca dương nào.
+_VCD_SAU_TOI_DA = 8          # chặn độ sâu lồng khối (khối tự tham chiếu -> không treo)
+_VCD_CAP = 200000            # trần số chuỗi giữ trong rổ bóng
+_VCD_VONG_TOI_DA = 20000     # trần số bước lan toả (chống nổ tổ hợp trên file bệnh lý)
+
+
+def _vcd_bo_qua(ten):
+    """LOẠI TRỪ TƯỜNG MINH — KHÔNG loại theo tiền tố '*' chung (xem lý do ở khối chú thích trên)."""
+    nl = (ten or "").lower()
+    return nl.startswith("*d") or nl.startswith("*model_space") or nl.startswith("*paper_space")
+
+
+# Câu nudge — NGUYÊN VĂN, SẠCH CHỮ SỐ, KHÔNG chứa tên hàm.
+# ⛔ CẤM chứa cụm 'không có' / 'không tìm thấy': hai cụm đó nằm trong _REFUSAL_MARKERS của hàng rào chống
+# bịa; nếu model chép lại vào câu trả lời thì _guard_text THOÁT SỚM và bỏ kiểm TOÀN BÀI (đo được: câu
+# 'Không tìm thấy ở vùng máy đọc, nhưng lanh tô dài 1100 mm.' với rổ neo RỖNG -> LỌT).
+_VCD_CAU_NUDGE = (
+    " ⚠ Bản vẽ này còn chữ nằm BÊN TRONG các ký hiệu/khối được chèn mà công cụ này chưa đọc tới, và cụm từ "
+    "đang tìm CÓ ở đó. Chưa đủ căn cứ để kết luận bản vẽ thiếu cụm từ này — cần xem tiếp phần chữ trong ký "
+    "hiệu, hoặc mở bản vẽ kiểm tra.")
+
+
 # ---- P3 (AI tự học — MỞ KÊNH HỌC): ENUM template + parser CỐ ĐỊNH cho hoc_quy_uoc (dev cấp; đối tác/LLM KHÔNG đưa regex thô) ----
 _KG_PU_LO, _KG_PU_MAX = 0.01, 5000.0     # biên kg/bộ HỢP LÝ (R5; TẠM — hiệu chỉnh theo corpus P5)
 _HOC_PHIEN_CAP = 200                      # R7: cap quy tắc/phiên (chống spam phình RAM)
@@ -926,6 +1034,8 @@ class Drawing:
     def _extract(self):
         counts, texts, dims, dim_items = Counter(), [], [], []
         n_dim_ty_le = 0        # số đường kích thước CÓ khai hệ số tỉ lệ đo (DIMLFAC ≠ 1) — chỉ để LỘ, không để tính
+        dim_chu_in = []        # [{handle, dang}] — vị trí đường kích thước có CHỮ IN đáng ngờ (KHÔNG lưu chuỗi/giá trị)
+        dim_stat = {"tong": 0, "ghi_de": 0, "l8": 0}   # chỉ ĐẾM nội bộ — KHÔNG bao giờ ra ngoài kết quả tool
         blocks, used_layers, thep, thep_hinh = Counter(), set(), {}, {}
         thep_att_handles = set()   # R4 (P3): handle các ô ATTRIB thuộc bảng thép -> đăng ký used_handles (không lọt residual)
         for e in self.doc.modelspace():
@@ -958,6 +1068,25 @@ class Drawing:
                     elif "SHOW" in attmap: _acc_thep_hinh(thep_hinh, attmap)
             elif t == "DIMENSION":
                 try:
+                    # ── (1) LOẠI ĐƯỜNG ĐO GÓC ───────────────────────────────────────────────────────
+                    # dimtype & 7: 0 dài-thẳng · 1 dài-xiên · 2 GÓC · 3 đường kính · 4 bán kính ·
+                    #              5 GÓC-3-điểm · 6 toạ độ.
+                    # Số đo của đường đo GÓC là ĐỘ, KHÔNG phải mm — đổ chung vào rổ kích thước là sai loại.
+                    # ĐO THẬT (78 file): chỉ 90/64.436 đường (0,14%), nhưng ở '01-TD tuyen ong ap luc.dxf'
+                    # chúng CHIẾM CHỖ "kích thước lớn nhất": máy báo 35.970,0 mm cho một góc 359,7°
+                    # (359,7 × hệ số 100), trong khi số đo lớn nhất AutoCAD tự lưu trong CHÍNH file đó là
+                    # 212,1 — sai ~170 lần, mà cùng lúc cờ co_dim_ty_le_do lại in câu TRẤN AN rằng các số
+                    # này "khớp số IN trên bản vẽ". Bỏ đường đo góc ra -> lon_nhat_mm file đó về 130,4.
+                    # Lỗi này CÓ TRƯỚC bản vá hệ số tỉ lệ (không hệ số thì vẫn báo "359,7 mm" cho 1 góc).
+                    try: _dt = int(e.dimtype) & 7
+                    except Exception: _dt = 0
+                    if _dt in (2, 5):
+                        continue          # counts[t]/used_layers đã cộng ở trên -> thống kê đối tượng KHÔNG hụt
+                    # ── (1b) CHỮ IN GHI ĐÈ — CHỈ LỘ, đặt SỚM và có try RIÊNG ────────────────────────
+                    # Gọi TRƯỚC phần đọc số đo để 'tong' đếm đủ mọi đường (mẫu số của các tỉ lệ bên dưới)
+                    # kể cả khi đọc số đo ném lỗi; và try riêng để lỗi ở đây KHÔNG BAO GIỜ nuốt dimension.
+                    try: _thu_thap_chu_in(e, dim_chu_in, dim_stat)
+                    except Exception: pass
                     # HỆ SỐ TỈ LỆ ĐO (DIMLFAC) — bản vẽ TỰ KHAI "đường này phải nhân hệ số mới ra số thật"
                     # (chi tiết vẽ thu nhỏ/phóng to). `get_measurement()` trả số HÌNH HỌC THÔ, KHÔNG áp hệ số,
                     # nên với các đường có khai hệ số thì số máy đọc KHÁC số IN trên bản vẽ.
@@ -969,13 +1098,43 @@ class Drawing:
                     _lf = 1.0
                     try:
                         _lf = float(e.override().get("dimlfac", 1.0) or 1.0)
-                        if not (_lf == _lf) or _lf in (0.0, float("inf"), float("-inf")):
-                            _lf = 1.0                 # NaN/0/inf -> bỏ qua, giữ hành vi cũ
+                        # ⚠ HỆ SỐ ÂM PHẢI BỎ QUA — AutoCAD KHÔNG áp nó cho đường kích thước ở modelspace
+                        # (âm chỉ dành cho đường vẽ trên trang in). Vòng lặp này chỉ quét modelspace (L931).
+                        # ĐO THẬT (78 file corpus): 1.882 đường khai hệ số ÂM, TẤT CẢ = -1.0, TẤT CẢ ở
+                        # modelspace, 0 ở trang in. Đối chiếu số đo AutoCAD tự lưu trong file (group code 42):
+                        # 1.880/1.882 ca code42 = số đo THÔ, 0 ca = số đo × hệ số -> AutoCAD bỏ qua hệ số âm.
+                        # NẾU ÁP: số thành ÂM -> bị chính các cổng lọc dương của dự án (L1024-1025 'd > 0',
+                        # _OPENING_DIM_LO=400, _DIM_UV_LO=20) vứt IM LẶNG, trong khi so_duong_kich_thuoc vẫn
+                        # đếm đủ -> "đếm đủ mà mất số". Nặng nhất: 1.186/1.650 đường (71,9%) của 1 file.
+                        if not (_lf == _lf) or _lf <= 0.0 or _lf == float("inf"):
+                            _lf = 1.0                 # NaN / 0 / ÂM / ±vô cực -> giữ hành vi cũ
                     except Exception:
                         _lf = 1.0                     # thiếu override/ezdxf cũ -> giữ hành vi cũ (fail-open)
                     if _lf != 1.0:
                         n_dim_ty_le += 1              # ĐẾM để LỘ ở thong_tin_kich_thuoc (không phải để tính)
-                    v = round(float(e.get_measurement()) * _lf, 1)
+                    # ── (3) SỐ ĐO: ưu tiên số AutoCAD TỰ LƯU TRONG FILE (DXF group code 42) ─────────
+                    # AutoCAD ghi sẵn số đo THẬT của mỗi đường vào group code 42 (`actual_measurement`).
+                    # Đây là ĐÁP ÁN CỦA CHÍNH PHẦN MỀM VẼ, không phải suy đoán của ta, và ĐÃ GỒM hệ số
+                    # tỉ lệ -> TUYỆT ĐỐI KHÔNG nhân _lf lần nữa (nhân lại = sai gấp bội).
+                    # ĐO THẬT (78 file / 64.436 đường): code42 có mặt 61.131 (94,9%).
+                    #   · Phép thử KHÔNG THIÊN VỊ trên 54.735 đường mà AutoCAD vẽ ra SỐ THUẦN (đã loại
+                    #     đường bị gõ tay đè chữ): code42 đúng RIÊNG 2.936 ca · engine đúng RIÊNG 0 ca ·
+                    #     đúng cả hai 51.775 · không ai đúng 24. KHÔNG MỘT CA NÀO engine đúng mà code42 sai.
+                    #   · Tách theo loại: dài-xiên (aligned) engine chỉ đúng 600/1.613 = 37,2% ·
+                    #     dài-thẳng 96,5%. Tức 62,8% đường dài-xiên đang bị đọc sai mà không ai biết.
+                    #   · Cứu thêm 607 đường mà `get_measurement()` trả 0.0 trong khi bản vẽ IN số thật —
+                    #     những đường này đang bị cổng 'd > 0' (L1024-1025) vứt IM LẶNG.
+                    # AN TOÀN MỘT CHIỀU: chỉ dùng code42 khi nó DƯƠNG và hữu hạn; mọi trường hợp khác về
+                    # đúng đường tính hình học cũ. Nghĩa là code42 chỉ THÊM thông tin, không bao giờ bớt.
+                    _c42 = None
+                    try:
+                        _c42 = e.dxf.get("actual_measurement", None)
+                        _c42 = None if _c42 is None else float(_c42)
+                        if _c42 is not None and (not (_c42 == _c42) or _c42 <= 0.0 or _c42 == float("inf")):
+                            _c42 = None               # thiếu/NaN/0/âm/vô cực -> KHÔNG dùng, về hình học
+                    except Exception:
+                        _c42 = None                   # ezdxf cũ / thuộc tính lạ -> fail-open
+                    v = round(_c42, 1) if _c42 is not None else round(float(e.get_measurement()) * _lf, 1)
                     dims.append(v)
                     # GĐ2: thêm TOẠ ĐỘ (để gắn dim vào cấu kiện) + HƯỚNG (ngang=rộng / dọc=cao).
                     dx = dy = 0.0; co_td = False
@@ -1020,6 +1179,8 @@ class Drawing:
         self.total = sum(counts.values())
         self.dims = dims
         self.dim_items = dim_items
+        self.dim_chu_in = dim_chu_in           # vị trí (handle + nhãn dạng); KHÔNG chuỗi in, KHÔNG giá trị
+        self.dim_chu_in_stat = dim_stat        # chỉ để DỰNG CỜ ở thong_tin_kich_thuoc — không phát ra ngoài
         self.n_dim_ty_le = n_dim_ty_le
         self.dim_vals = sorted({d for d in dims if d > 0})
         self.dim_top = Counter(round(d) for d in dims if d > 0).most_common(30)
@@ -1596,6 +1757,114 @@ class Drawing:
         return idx
 
     # ---------------- tra cứu cơ bản (port) ----------------
+    def _vcd_khong_gian(self):
+        """modelspace + MỌI trang in. Khối chỉ được chèn trên trang in vẫn là khối ĐƯỢC DÙNG."""
+        kg = []
+        try: kg.append(self.doc.modelspace())
+        except Exception: return kg
+        try:
+            for lay in self.doc.layouts:
+                if getattr(lay, "name", "") != "Model": kg.append(lay)
+        except Exception: pass
+        return kg
+
+    def _vcd_dem_chen(self):
+        """{tên khối: số lần chèn hiệu dụng} — BFS từ INSERT ở mọi không gian, lan qua INSERT LỒNG."""
+        goc = Counter()
+        for kg in self._vcd_khong_gian():
+            for e in kg:
+                try:
+                    if e.dxftype() != "INSERT": continue
+                    ten = e.dxf.get("name") or ""
+                except Exception: continue
+                if ten and not _vcd_bo_qua(ten): goc[ten] += 1
+        dem, hang, vong = Counter(), [(t, c, 0) for t, c in goc.items()], 0
+        while hang and vong < _VCD_VONG_TOI_DA:
+            vong += 1
+            ten, sl, sau = hang.pop()
+            dem[ten] += sl
+            if sau >= _VCD_SAU_TOI_DA: continue          # khối tự tham chiếu -> KHÔNG treo
+            try: bd = self.doc.blocks.get(ten)
+            except Exception: bd = None
+            if bd is None: continue
+            con = Counter()
+            for e in bd:
+                try:
+                    if e.dxftype() != "INSERT": continue
+                    t2 = e.dxf.get("name") or ""
+                except Exception: continue
+                if t2 and not _vcd_bo_qua(t2): con[t2] += 1
+            for t2, c2 in con.items(): hang.append((t2, sl * c2, sau + 1))
+        return dem
+
+    def _vcd_bong(self):
+        """Rổ bóng: [{handle, khoi, hay, chen}] — chữ TEXT/MTEXT trong định nghĩa khối ĐƯỢC CHÈN.
+        KHÔNG lấy ATTDEF (đó là khuôn thuộc tính, giá trị thật đã đọc qua ATTRIB ở modelspace).
+        LƯỜI + cache theo phiên. Fail-open tuyệt đối: mọi lỗi -> rổ RỖNG, hệ y hệt như trước."""
+        cache = getattr(self, "_vcd_cache", None)
+        if cache is not None: return cache
+        out, da_cat = [], False
+        try:
+            for ten, sl in self._vcd_dem_chen().items():
+                try: bd = self.doc.blocks.get(ten)
+                except Exception: continue
+                if bd is None: continue
+                for e in bd:
+                    try:
+                        t = e.dxftype()
+                        if t not in ("TEXT", "MTEXT"): continue
+                        raw = e.dxf.text if t == "TEXT" else e.text
+                    except Exception: continue
+                    if not raw: continue
+                    _vn = to_unicode(raw)
+                    out.append({"handle": getattr(e.dxf, "handle", None), "khoi": ten,
+                                "vn": _vn, "hay": _norm(_vn), "chen": sl})
+                    if len(out) >= _VCD_CAP: da_cat = True; break
+                if da_cat: break
+        except Exception:
+            out, da_cat = [], False
+        self._vcd_cache = (out, da_cat)
+        return self._vcd_cache
+
+    def _vcd_khop(self, tu_khoa):
+        """(có, chèn_nhiều_lần, bị_cắt). Khớp CHỈ trên to_unicode + RANH GIỚI TỪ."""
+        try:
+            toks = [t for t in _norm(tu_khoa or "").split() if t]
+            if not toks: return (False, False, False)      # không từ khoá -> KHÔNG quét (khỏi tốn công)
+            ds, da_cat = self._vcd_bong()
+            co = nhieu = False
+            for it in ds:
+                if all(_tok_bound(t, it["hay"]) for t in toks):
+                    co = True
+                    if it["chen"] >= 2: nhieu = True; break
+            return (co, nhieu, da_cat)
+        except Exception:
+            return (False, False, False)
+
+    def _vcd_gan_co(self, r, tu_khoa, co_ket_qua):
+        """CỔNG KÉP: chỉ báo khi rổ bóng CÓ **và** (truy vấn rỗng kết quả **hoặc** khối được chèn ≥2 lần).
+        Vế 'rỗng kết quả' bắt ca khẳng định-sai-tự-tin; vế 'chèn ≥2 lần' bắt ca đếm hụt nặng (đo: một khối
+        chèn 5 lần chứa 'g3' ở 6 chỗ trong khi máy đếm ra 1). CỐ Ý IM LẶNG với khối chèn ĐÚNG 1 LẦN khi
+        truy vấn đã có kết quả — đánh đổi có ý thức để không dán hedging lên câu vốn đúng.
+        CHỈ thêm cờ BOOL + câu SẠCH SỐ; KHÔNG trả chuỗi/số của rổ bóng (không nở rổ neo chống bịa).
+
+        ⚠ VẾ 'chèn ≥2 lần' CHỈ ÁP CHO TRUY VẤN MANG MÃ (có chữ số) — đã ĐO rồi mới siết: để nó bắn cho
+        mọi từ khoá thì nhiễu = **15,3%** cặp đã-có-kết-quả-đúng (301 cặp file×từ-khoá), VƯỢT ngưỡng 10%
+        mà thiết kế đặt. Lý do đúng-về-bản-chất: vế này sinh ra để bắt ĐẾM HỤT một cấu kiện cụ thể (đo:
+        khối chèn 5 lần chứa 'g3' ở 6 chỗ trong khi máy đếm ra 1) — chuyện đó chỉ có nghĩa với MÃ CẤU KIỆN.
+        Từ vật liệu chung ('bê tông', 'thép') xuất hiện trong khối KHÔNG hàm ý con số nào sai, nên bắn ở đó
+        chỉ là dán hedging lên câu vốn đúng. Truy vấn không mang mã vẫn được vế 'rỗng kết quả' bảo vệ."""
+        try:
+            co, nhieu, da_cat = self._vcd_khop(tu_khoa)
+            la_ma = any(c.isdigit() for c in (tu_khoa or ""))
+            if co and ((not co_ket_qua) or (nhieu and la_ma)):
+                r["co_o_vung_chua_doc"] = True
+                r["ghi_chu"] = (r.get("ghi_chu") or "") + _VCD_CAU_NUDGE
+                if da_cat: r["vung_chua_doc_bi_cat"] = True
+        except Exception:
+            pass
+        return r
+
     def search_texts(self, term, layer=None):
         toks = [t for t in _norm(term).split() if t]
         ly = unaccent(layer) if layer else None
@@ -1653,21 +1922,73 @@ class Drawing:
         # I5 (recall, đo thật): default gioi_han=40 cắt truy vấn ngữ-nghĩa 76-123 kết quả. LỘ RÕ cờ BỊ CẮT + nudge
         # gọi lại (thất-bại-phải-lộ; prose SẠCH SỐ — số đã ở so_ket_qua/hien_thi). bi_cat là BOOL (không lọt grounding).
         bi_cat = len(hits) > len(ket)
-        return {"tu_khoa": tk or None, "layer": ly or None, "so_ket_qua": len(hits),
-                "hien_thi": len(ket), "bi_cat": bi_cat, "ket_qua": ket,
-                "ghi_chu": ("so_ket_qua = số ĐOẠN CHỮ khớp từ khoá (có thể gồm khớp một phần); "
-                            "đọc nội dung để xác nhận, KHÔNG coi là số lượng cấu kiện."
-                            + (" ⚠ Kết quả BỊ CẮT (hien_thi < so_ket_qua) — gọi lại tim_kiem với gioi_han cao hơn "
-                               "để xem hết, đừng kết luận thiếu." if bi_cat else ""))}
+        r = {"tu_khoa": tk or None, "layer": ly or None, "so_ket_qua": len(hits),
+             "hien_thi": len(ket), "bi_cat": bi_cat, "ket_qua": ket,
+             "ghi_chu": ("so_ket_qua = số ĐOẠN CHỮ khớp từ khoá (có thể gồm khớp một phần); "
+                         "đọc nội dung để xác nhận, KHÔNG coi là số lượng cấu kiện."
+                         + (" ⚠ Kết quả BỊ CẮT (hien_thi < so_ket_qua) — gọi lại tim_kiem với gioi_han cao hơn "
+                            "để xem hết, đừng kết luận thiếu." if bi_cat else ""))}
+        return self._vcd_gan_co(r, tk, bool(hits))
+
+    def tim_chu_trong_ky_hieu(self, tu_khoa=None, gioi_han=20, **_):
+        """ĐỌC chữ nằm BÊN TRONG định nghĩa các ký hiệu/khối ĐANG ĐƯỢC CHÈN — phần `tim_kiem` không với tới.
+
+        VÌ SAO PHẢI CÓ: cờ `co_o_vung_chua_doc` chỉ nói "có thứ ở vùng chưa đọc". Nếu chỉ gắn cờ mà KHÔNG
+        cho đường đọc thì hệ vừa khẳng định CÓ, vừa cấm nói KHÔNG CÓ, vừa không đưa dữ liệu — đúng công
+        thức ÉP BỊA. Dữ liệu THẬT đang mất, đo được: 'SL:67', 'L=1600', 'DN-01, L=15000, SL:02', 'l=1100'.
+
+        BA ĐIỀU KHÔNG TRẢ, mỗi điều có lý do đo được:
+         · KHÔNG có trường ĐẾM. Số lần một chuỗi xuất hiện trong ĐỊNH NGHĨA khối không ứng với gì cả —
+           nó chỉ phản ánh người vẽ tách chữ thành mấy đối tượng. Đo: 'g3' có 6 đoạn chữ rời trong một
+           khối chèn 5 lần ⇒ số hiện thật là 30, engine đọc ra 1, còn 6 thì vô nghĩa với cả hai.
+         · KHÔNG có TOẠ ĐỘ, và KHÔNG dùng cho khoanh đỏ: toạ độ trong khối là hệ NỘI BỘ; đo được 55-100%
+           chữ-trong-khối của 5/28 file rơi nhầm vào vùng bao của chữ modelspace ⇒ khoanh SAI CHỖ.
+         · KHÔNG lấy khối MỒ CÔI và KHÔNG lấy trang in — nguồn không tin được thì KHÔNG trả.
+
+        Trần mặc định THẤP hơn `tim_kiem` có chủ đích (đã ĐO: trung vị số neo grounding tool này bơm vào
+        rổ = 6,0 so với 19,0 của tim_kiem cùng lượt) — nhờ vậy giữ được quyền neo cho số ĐÚNG vừa tìm ra
+        mà không nới hàng rào chống bịa."""
+        tk = (tu_khoa or "").strip()
+        if not tk:
+            return {"tu_khoa": None, "co_ket_qua": False, "ket_qua": [], "bi_cat": False,
+                    "ghi_chu": "Cần từ khoá cụ thể để tìm trong ký hiệu/khối."}
+        try:
+            cap = max(0, min(int(gioi_han or 20), 40))
+        except Exception:
+            cap = 20
+        ra, da_cat_bong = [], False
+        try:
+            ds, da_cat_bong = self._vcd_bong()
+            toks = [t for t in _norm(tk).split() if t]
+            for it in ds:
+                if not toks or not all(_tok_bound(t, it["hay"]) for t in toks):
+                    continue
+                if len(ra) >= cap:
+                    da_cat_bong = True; break
+                vn = it.get("vn") or ""
+                ra.append({"handle": it.get("handle"), "text": vn,
+                           "chen_nhieu_lan": bool(it.get("chen", 0) >= 2),
+                           # E4 — kênh chữ-file MỚI đi thẳng vào câu trả lời: gắn cờ CHỈ THỊ ĐÁNG NGỜ
+                           # (chống thao túng qua nguyên văn). ADVISORY, không loại kết quả.
+                           "co_chi_thi_dang_ngo": bool(_co_chi_thi_dang_ngo(vn))})
+        except Exception:
+            ra, da_cat_bong = [], False       # fail-open: không có gì thì trả rỗng, KHÔNG ném
+        return {"tu_khoa": tk, "co_ket_qua": bool(ra), "ket_qua": ra, "bi_cat": bool(da_cat_bong),
+                "ghi_chu": ("Chữ nằm BÊN TRONG định nghĩa ký hiệu/khối ĐƯỢC CHÈN trên bản vẽ — nguồn mà "
+                            "tim_kiem không đọc tới. 'được chèn' nghĩa là khối có mặt trong bản vẽ, KHÔNG "
+                            "đồng nghĩa 'nhìn thấy trên bản in' (chưa xét layer tắt/đóng băng, ngoài vùng in). "
+                            "Máy KHÔNG biết chuỗi này hiện mấy lần trên bản in — TUYỆT ĐỐI không dùng làm số "
+                            "lượng cấu kiện. Không có toạ độ nên không khoanh được vị trí.")}
 
     def dem_so_luong(self, tu_khoa=None, **_):
         tk = (tu_khoa or "").strip()
         if not tk: return {"loi": "Thiếu từ khoá cụ thể để đếm.", "so_lan_xuat_hien": None}
         hits = self.search_texts(tk)
         mau = [{"handle": h["handle"], "layer": h.get("layer") or "", "text": h["vn"]} for h in hits[:8]]
-        return {"tu_khoa": tk, "so_lan_xuat_hien": len(hits), "vi_du": mau,
-                "ghi_chu": "Đây là SỐ LẦN chuỗi xuất hiện, KHÔNG phải số lượng cấu kiện thật. "
-                           "Câu hỏi 'có bao nhiêu cấu kiện' phải dùng tra_cuu_so_luong."}
+        r = {"tu_khoa": tk, "so_lan_xuat_hien": len(hits), "vi_du": mau,
+             "ghi_chu": "Đây là SỐ LẦN chuỗi xuất hiện, KHÔNG phải số lượng cấu kiện thật. "
+                        "Câu hỏi 'có bao nhiêu cấu kiện' phải dùng tra_cuu_so_luong."}
+        return self._vcd_gan_co(r, tk, bool(hits))
 
     def tra_cuu_so_luong(self, tu_khoa=None, **_):
         tk = (tu_khoa or "").strip()
@@ -1684,10 +2005,14 @@ class Drawing:
                     "danh_sach_so_luong": stated[:40], "ghi_chu": gc}
         # F1 (GĐ4): kết quả ÂM ('không ghi số lượng') trên file có OLE -> phải LỘ 'máy không đọc được bảng nhúng'
         # thay vì để đối tác hiểu 'bản vẽ không có' (đúng failure mode rule 8c, trước chỉ cắm ở tuyến thép).
-        return self._gan_canh_bao_nhung(
+        # Nhánh ÂM BẮT BUỘC có cờ vùng-chưa-đọc: đo thật trên 'Be nuoc PCCC...' — khối ĐƯỢC CHÈN
+        # 'A$C4be25227' chứa nguyên văn 'DN-01, L=15000, SL:02', trong khi tool trả co_ghi_so_luong=False
+        # kèm câu "Nếu thật sự không ghi -> cần bóc tách". Đó là khẳng định SAI và TỰ TIN.
+        return self._vcd_gan_co(self._gan_canh_bao_nhung(
                {"tu_khoa": tk, "co_ghi_so_luong": False, "so_muc_co_ghi": 0, "danh_sach_so_luong": [],
                 "ghi_chu": ("Bản vẽ KHÔNG ghi sẵn số lượng cho '%s'. KHÔNG lấy số lần xuất hiện làm số lượng. "
-                            "Thử mã cấu kiện ngắn (vd 'D1'). Nếu thật sự không ghi -> cần bóc tách." % tk)})
+                            "Thử mã cấu kiện ngắn (vd 'D1'). Nếu thật sự không ghi -> cần bóc tách." % tk)}),
+               tk, False)
 
     def liet_ke_so_luong(self, loc=None, **_):
         idx = self.qty_index or []
@@ -1697,9 +2022,10 @@ class Drawing:
                     "handle": e.get("qty_handle", e["handle"])},
                    **({"canh_bao": e["canh_bao_sl"]} if e.get("canh_bao_sl") else {})) for e in items]
         if co_loc and not ds:   # M6 — LỘ thất bại: lọc KHÔNG khớp -> báo rõ, KHÔNG âm thầm trả CẢ bảng (đối tác tưởng đã lọc)
-            return self._gan_canh_bao_nhung(   # F1: lọc-không-khớp trên file OLE -> LỘ bảng nhúng máy không đọc
+            return self._vcd_gan_co(self._gan_canh_bao_nhung(   # F1: lọc-không-khớp trên file OLE -> LỘ bảng nhúng máy không đọc
                    {"so_muc": 0, "danh_sach": [],
-                    "ghi_chu": "KHÔNG có mục số lượng nào khớp '%s'. Bỏ tham số lọc để xem TẤT CẢ, hoặc thử mã ngắn (vd 'D1')." % loc})
+                    "ghi_chu": "KHÔNG có mục số lượng nào khớp '%s'. Bỏ tham số lọc để xem TẤT CẢ, hoặc thử mã ngắn (vd 'D1')." % loc}),
+                   loc, False)
         gc = ("Các mục CÓ GHI SỐ LƯỢNG (nhãn 'số lượng: N bộ'/'SL='). Tên có thể lỗi font "
               "('cöa'='cửa'). Số THẬT ghi trên bản vẽ, không phải đếm chữ.")
         if any("canh_bao" in d for d in ds):   # id84: LỘ xung đột SL (không im lặng)
@@ -1978,6 +2304,23 @@ class Drawing:
             r["ghi_chu"] += (" ⚠ Bản vẽ có những đường kích thước tự khai HỆ SỐ TỈ LỆ ĐO (chi tiết vẽ thu nhỏ/"
                              "phóng to); các số này đã được nhân hệ số theo đúng khai báo trong file, nên khớp "
                              "số IN trên bản vẽ chứ không khớp số đo hình học thô.")
+        # VIỆC 1 — LỘ dấu hiệu CHỮ IN GHI ĐÈ. Cờ BOOL + câu SẠCH SỐ; TUYỆT ĐỐI không thêm trường ĐẾM
+        # (mọi số trong kết quả tool đều nở rổ neo chống bịa — nới hàng rào).
+        # ⚠ getattr BẮT BUỘC: tests/test_ole_canh_bao.py gọi hàm này UNBOUND với đối tượng giả không có
+        # thuộc tính mới -> truy cập thẳng self.dim_chu_in_stat sẽ vỡ AttributeError.
+        _st = getattr(self, "dim_chu_in_stat", None) or {}
+        _n = _st.get("tong", 0) or 0
+        _l8 = _st.get("l8", 0) or 0
+        _gd = _st.get("ghi_de", 0) or 0
+        _hau_het = bool(_gd >= _V1_HAU_HET_TOI_THIEU and _n and _gd / _n >= _V1_HAU_HET_TY_LE)
+        if _l8:
+            r["co_chu_in_khong_phai_so_do"] = True
+        if _hau_het:
+            r["hau_het_chu_in_la_ghi_de"] = True
+        # 'lan rộng' = nói lên điều gì đó về CẢ BẢN VẼ, không phải vài đường lẻ -> mới nối câu cảnh báo.
+        if (_l8 and (_l8 >= _V1_LAN_RONG_SO or (_n and _l8 / _n >= _V1_LAN_RONG_TY_LE))) or _hau_het:
+            r["canh_bao_kich_thuoc_lan_rong"] = True
+            r["ghi_chu"] += _V1_CAU_CANH_BAO
         # F1 (GĐ4): 0 đường kích thước trên file có OLE -> LỘ 'kích thước có thể nằm trong bảng nhúng máy không đọc'
         return self._gan_canh_bao_nhung(r) if not self.dims else r
 

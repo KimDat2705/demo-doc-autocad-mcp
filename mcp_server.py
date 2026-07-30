@@ -350,6 +350,15 @@ def xac_nhan_ky_hieu(kb_id: str, option_key: str, ma: str = "", thu_hoi: bool = 
 
 
 @mcp.tool()
+def tim_chu_trong_ky_hieu(tu_khoa: str, gioi_han: int = 20) -> dict:
+    """Đọc chữ nằm BÊN TRONG định nghĩa các ký hiệu/khối ĐANG ĐƯỢC CHÈN trên bản vẽ — phần mà tim_kiem
+    KHÔNG đọc tới. GỌI NGAY khi tim_kiem / dem_so_luong / tra_cuu_so_luong trả co_o_vung_chua_doc=true,
+    TRƯỚC khi kết luận bản vẽ thiếu thông tin. Máy KHÔNG biết chuỗi này hiện mấy lần trên bản in —
+    KHÔNG được dùng làm số lượng cấu kiện. Không có toạ độ nên không khoanh được vị trí."""
+    return _need() or DRAWING.tim_chu_trong_ky_hieu(tu_khoa=tu_khoa, gioi_han=gioi_han)
+
+
+@mcp.tool()
 def kiem_tra_handle(handles: str = "") -> dict:
     """HOST-ONLY (I1, KHÔNG dành cho LLM — nằm trong _TOOL_KHONG_CHO_LLM ở mcp_bridge): đối chiếu 1 danh sách
     handle (ngăn phẩy) với đối tượng THẬT trong file đang mở. CHỈ ĐỌC, trả DỮ KIỆN THÔ (trong_file/dxftype/

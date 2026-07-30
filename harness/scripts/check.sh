@@ -184,10 +184,35 @@ out=$($PY tests/test_bridge_close.py 2>&1); rc=$?
 echo "$out" | tail -1
 [ "$rc" -eq 0 ] || { echo "FAIL: test bridge close co FAIL"; fail=1; }
 
-echo "=== [36/36] Test TY LE DO (DIMLFAC: ap he so ban ve tu khai, fail-open, co BOOL + prose sach so, offline) ==="
+echo "=== [36/37] Test TY LE DO (DIMLFAC: ap he so ban ve tu khai, fail-open, co BOOL + prose sach so, offline) ==="
 out=$($PY tests/test_ty_le_do.py 2>&1); rc=$?
 echo "$out" | tail -1
 [ "$rc" -eq 0 ] || { echo "FAIL: test ty le do co FAIL"; fail=1; }
+
+echo "=== [37/38] Test SO DO DIM (nguon so do: uu tien code42 AutoCAD tu luu + loai duong do GOC, offline) ==="
+out=$($PY tests/test_so_do_dim.py 2>&1); rc=$?
+echo "$out" | tail -1
+[ "$rc" -eq 0 ] || { echo "FAIL: test so do dim co FAIL"; fail=1; }
+
+echo "=== [38/39] Test NEO GROUNDING (ma hieu khong sinh neo AM + ten file khong lam bang chung, offline) ==="
+out=$($PY tests/test_neo_grounding.py 2>&1); rc=$?
+echo "$out" | tail -1
+[ "$rc" -eq 0 ] || { echo "FAIL: test neo grounding co FAIL"; fail=1; }
+
+echo "=== [39/40] Test CHU IN KICH THUOC (LO cho chu in khac so may do; co BOOL + prose sach so, offline) ==="
+out=$($PY tests/test_chu_in_kich_thuoc.py 2>&1); rc=$?
+echo "$out" | tail -1
+[ "$rc" -eq 0 ] || { echo "FAIL: test chu in kich thuoc co FAIL"; fail=1; }
+
+echo "=== [40/41] Test VUNG CHUA DOC (co chu trong khoi DUOC CHEN; cong kep, khong khop raw, offline) ==="
+out=$($PY tests/test_vung_chua_doc.py 2>&1); rc=$?
+echo "$out" | tail -1
+[ "$rc" -eq 0 ] || { echo "FAIL: test vung chua doc co FAIL"; fail=1; }
+
+echo "=== [41/41] Test CHU TRONG KY HIEU (tool doc khoi duoc chen; khong truong dem, ngan sach ro neo) ==="
+out=$($PY tests/test_chu_trong_ky_hieu.py 2>&1); rc=$?
+echo "$out" | tail -1
+[ "$rc" -eq 0 ] || { echo "FAIL: test chu trong ky hieu co FAIL"; fail=1; }
 
 echo "------------------------------------"
 if [ "$fail" -eq 0 ]; then echo "HARNESS GATE: PASS"; else echo "HARNESS GATE: FAIL"; fi

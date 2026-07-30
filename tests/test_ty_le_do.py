@@ -81,6 +81,33 @@ def main():
         ok("hệ số %s -> vẫn 1000 (bỏ qua hệ số rác)" % ten,
            len(d) == 1 and abs(d[0] - 1000.0) < 0.5 and not math.isnan(d[0]), d)
 
+    print("[T.4b] HỆ SỐ ÂM -> BỎ QUA (AutoCAD không áp hệ số âm cho đường ở modelspace)")
+    # VÌ SAO CÓ NHÓM CA NÀY (bản vá đầu ĐỂ LỌT, cổng vẫn xanh — T.4 gom 'rác' là 0/NaN/+vô cực nhưng
+    # THIẾU đúng lớp số ÂM): đo 78 file corpus -> 1.882 đường khai hệ số âm (đều -1.0), TẤT CẢ ở
+    # modelspace, 0 ở trang in. Đối chiếu số đo AutoCAD tự lưu trong file (group code 42): 1.880/1.882
+    # ca code42 = số đo THÔ, 0 ca = số đo × hệ số. Nếu áp: số thành ÂM -> bị các cổng lọc dương của
+    # chính dự án (L1024-1025 'd > 0', _OPENING_DIM_LO=400, _DIM_UV_LO=20) vứt IM LẶNG, mà
+    # so_duong_kich_thuoc vẫn đếm đủ -> KHÔNG một trường nào đổi giá trị để lộ ra. Nặng nhất:
+    # 1.186/1.650 đường (71,9%) của một file biến mất khỏi mọi tool.
+    for hs, ten in ((-1.0, "-1 (ca THẬT của corpus)"), (-0.25, "-0,25"), (float("-inf"), "-vô cực")):
+        p = _tao_dxf([hs])
+        d = _dims_cua(p)
+        ok("hệ số %s -> giữ 1000 (số đo thô), KHÔNG ra số âm" % ten,
+           len(d) == 1 and abs(d[0] - 1000.0) < 0.5, d)
+
+    print("[T.4c] hệ số âm KHÔNG được làm RỤNG đường kích thước khỏi min/max/phổ biến")
+    p = _tao_dxf([None, -1.0, None, -1.0])
+    dr_am = tc.Drawing(p)
+    r_am = dr_am.thong_tin_kich_thuoc()
+    ok("4 đường đều còn trong dims", len(dr_am.dims) == 4, dr_am.dims)
+    ok("KHÔNG đường nào mang giá trị âm", all(v > 0 for v in dr_am.dims), dr_am.dims)
+    ok("nho_nhat/lon_nhat đọc được (không rỗng do bị lọc sạch)",
+       r_am.get("nho_nhat_mm") is not None and r_am.get("lon_nhat_mm") is not None, r_am)
+    ok("số ĐƯỜNG khớp số GIÁ TRỊ còn dùng được (đếm đủ nhưng không mất số)",
+       r_am.get("so_duong_kich_thuoc") == 4 and len(dr_am.dim_vals) >= 1, (r_am.get("so_duong_kich_thuoc"), dr_am.dim_vals))
+    ok("bản vẽ CHỈ khai hệ số âm -> KHÔNG dựng cờ (hệ số bị bỏ qua thì đừng trấn an)",
+       "co_dim_ty_le_do" not in r_am, list(r_am))
+
     print("[T.5] FAIL-OPEN — thư viện không cho đọc hệ số thì về hành vi cũ, KHÔNG mất đường kích thước")
     p = _tao_dxf([None, 0.25, None])
     _goc = ezdxf.entities.Dimension.override
