@@ -1080,7 +1080,13 @@ class Drawing:
                     # Lỗi này CÓ TRƯỚC bản vá hệ số tỉ lệ (không hệ số thì vẫn báo "359,7 mm" cho 1 góc).
                     try: _dt = int(e.dimtype) & 7
                     except Exception: _dt = 0
-                    if _dt in (2, 5):
+                    if _dt in (2, 5, 6):
+                        # 6 = đường đo TOẠ ĐỘ (ordinate): số đo là KHOẢNG CÁCH TỚI MỐC CHUẨN, trên bản vẽ
+                        # hạ tầng/trắc địa là toạ độ tuyệt đối cỡ trăm nghìn. Trước đây nó tự rơi ra vì
+                        # `get_measurement()` trả Vec3 -> float() ném lỗi; nhưng nhánh code42 đọc TRƯỚC nên
+                        # sẽ mở cửa cho nó vào rổ mm. Corpus hiện có 0 đường loại này (bom hẹn giờ, không
+                        # phải lỗi đang cháy) — chặn sẵn vì đây đúng lớp lỗi "sai LOẠI đại lượng" mà việc
+                        # loại đường đo GÓC vừa vá.
                         continue          # counts[t]/used_layers đã cộng ở trên -> thống kê đối tượng KHÔNG hụt
                     # ── (1b) CHỮ IN GHI ĐÈ — CHỈ LỘ, đặt SỚM và có try RIÊNG ────────────────────────
                     # Gọi TRƯỚC phần đọc số đo để 'tong' đếm đủ mọi đường (mẫu số của các tỉ lệ bên dưới)
@@ -1134,7 +1140,31 @@ class Drawing:
                             _c42 = None               # thiếu/NaN/0/âm/vô cực -> KHÔNG dùng, về hình học
                     except Exception:
                         _c42 = None                   # ezdxf cũ / thuộc tính lạ -> fail-open
-                    v = round(_c42, 1) if _c42 is not None else round(float(e.get_measurement()) * _lf, 1)
+                    try:
+                        _hh = float(e.get_measurement())
+                    except Exception:
+                        _hh = 0.0
+                    # ⚠ HÌNH HỌC SUY BIẾN (đo ra 0 / đọc lỗi) THÌ code42 KHÔNG CÒN GÌ ĐỠ — nó là số CŨ nằm
+                    # lại trong file. Chỉ được "cứu" khi bản vẽ KHÔNG gõ đè chữ: khi đó AutoCAD tự vẽ số
+                    # bằng đúng code42, nên code42 CHÍNH LÀ con số người đọc nhìn thấy.
+                    # ĐO THẬT (78 file, 607 đường hình-học-suy-biến có code42 dương):
+                    #   · 529 đường KHÔNG gõ đè  -> cứu ĐÚNG (con số người đọc thấy)
+                    #   ·   1 đường gõ đè và KHỚP code42 -> cứu đúng
+                    #   ·  66 đường gõ đè SỐ KHÁC code42 -> cứu SAI: bản vẽ in '10000' mà máy phát 2136,3;
+                    #      in '5760' -> 2175,4; in '120' -> 75,0. Đây là BỊA, và tệ hơn lỗi gốc (lỗi gốc chỉ
+                    #      LÀM RƠI giá trị vì bị cổng 'd > 0' lọc, còn cứu sai thì phát số tự tin VÀ số đó
+                    #      thành NEO grounding, hợp thức hoá mọi câu chứa nó).
+                    #   ·  11 đường gõ đè bằng KÝ HIỆU -> người đọc không thấy số nào, cũng không cứu.
+                    # Hình học CÒN ĐỠ (>0) thì giữ nguyên ưu tiên code42 — đó là phần đã có phép thử
+                    # không thiên vị bảo chứng (code42 đúng riêng 2.936 ca / engine đúng riêng 0 ca).
+                    if _c42 is not None and _hh <= 0.0:
+                        try:
+                            _u = to_unicode(e.dxf.get("text", "") or "").strip()
+                        except Exception:
+                            _u = "?"
+                        if _u and _u != "<>":
+                            _c42 = None               # có chữ gõ đè -> KHÔNG cứu, giữ hành vi cũ
+                    v = round(_c42, 1) if _c42 is not None else round(_hh * _lf, 1)
                     dims.append(v)
                     # GĐ2: thêm TOẠ ĐỘ (để gắn dim vào cấu kiện) + HƯỚNG (ngang=rộng / dọc=cao).
                     dx = dy = 0.0; co_td = False
@@ -1826,15 +1856,39 @@ class Drawing:
         self._vcd_cache = (out, da_cat)
         return self._vcd_cache
 
+    @staticmethod
+    def _vcd_tok_khop(tok, hay):
+        """Khớp 1 token trong rổ bóng — CHẶT HƠN `_tok_bound` ở hai chỗ, mỗi chỗ có ca thật:
+
+        (1) Token KHÔNG mang chữ số: `_tok_bound` rơi về SUBSTRING TRẦN, nên 'cong' khớp 'cong trinh'
+            -> báo động giả. Ở đây đòi RANH GIỚI TỪ.
+        (2) Token MANG chữ số: chặn khớp MẢNH VỤN của phân lệ / mẫu số tỉ lệ. Đo thật: từ khoá '100'
+            bắt cờ ở 11 file chỉ vì khung tên in TỈ LỆ BẢN VẼ '1/100' (hoặc '3.100', '1:100').
+            `_tok_bound` không chặn được vì '/' , '.' , ':' đều là ranh giới hợp lệ.
+        """
+        if not any(c.isdigit() for c in tok):
+            return re.search(r"(?<![a-z0-9])%s(?![a-z0-9])" % re.escape(tok), hay) is not None
+        if not _tok_bound(tok, hay):
+            return False
+        t2 = re.sub(r"(?<=[a-zđ])-(?=\d)", "", tok)
+        for m in re.finditer(r"(?<![a-z0-9])%s(?![a-z0-9])" % re.escape(t2),
+                             re.sub(r"(?<=[a-zđ])-(?=\d)", "", hay)):
+            i = m.start()
+            # ngay trước là dấu phân lệ/tỉ lệ VÀ trước đó nữa là chữ số -> đây là MẢNH VỤN, bỏ qua
+            if i >= 2 and m.string[i - 1] in ".,/:" and m.string[i - 2].isdigit():
+                continue
+            return True
+        return False
+
     def _vcd_khop(self, tu_khoa):
-        """(có, chèn_nhiều_lần, bị_cắt). Khớp CHỈ trên to_unicode + RANH GIỚI TỪ."""
+        """(có, chèn_nhiều_lần, bị_cắt). Khớp CHỈ trên to_unicode + RANH GIỚI TỪ + chặn mảnh vụn."""
         try:
             toks = [t for t in _norm(tu_khoa or "").split() if t]
             if not toks: return (False, False, False)      # không từ khoá -> KHÔNG quét (khỏi tốn công)
             ds, da_cat = self._vcd_bong()
             co = nhieu = False
             for it in ds:
-                if all(_tok_bound(t, it["hay"]) for t in toks):
+                if all(self._vcd_tok_khop(t, it["hay"]) for t in toks):
                     co = True
                     if it["chen"] >= 2: nhieu = True; break
             return (co, nhieu, da_cat)
@@ -1961,7 +2015,7 @@ class Drawing:
             ds, da_cat_bong = self._vcd_bong()
             toks = [t for t in _norm(tk).split() if t]
             for it in ds:
-                if not toks or not all(_tok_bound(t, it["hay"]) for t in toks):
+                if not toks or not all(self._vcd_tok_khop(t, it["hay"]) for t in toks):
                     continue
                 if len(ra) >= cap:
                     da_cat_bong = True; break

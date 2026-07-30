@@ -41,6 +41,7 @@ os.environ.setdefault("HOC_LOG", "0")
 
 import ezdxf
 import tools_core as tc
+import mcp_bridge as B      # cấp module: dùng ở cả N.6b lẫn N.10 (import trong hàm -> B thành biến cục bộ)
 
 PASS = FAIL = 0
 
@@ -120,6 +121,51 @@ def main():
     ok("đường đo-0 được khôi phục thành 550", any(abs(v - 550.0) < 0.5 for v in d.dims), d.dims)
     ok("và KHÔNG bị rụng khỏi rổ giá trị dùng được", any(abs(v - 550.0) < 0.5 for v in d.dim_vals), d.dim_vals)
 
+    print("[N.6b] ⚠ HÌNH HỌC SUY BIẾN + CHỮ GÕ ĐÈ -> KHÔNG được 'cứu' (code42 lúc này là số CŨ)")
+    # RED-TEAM IMPLEMENTATION BẮT ĐƯỢC (2026-07-31): bản vá code42 đầu tiên cứu MỌI đường đo-ra-0.
+    # Đo 78 file: 607 đường như vậy — 529 KHÔNG gõ đè (AutoCAD tự vẽ số = code42 -> cứu ĐÚNG), nhưng
+    # **66 đường gõ đè SỐ KHÁC code42** -> cứu SAI: bản vẽ in '10000' mà máy phát 2136,3; in '5760' ->
+    # 2175,4; in '120' -> 75,0. Tệ HƠN lỗi gốc: lỗi gốc chỉ LÀM RƠI giá trị (bị cổng 'd > 0' lọc), còn
+    # cứu sai thì phát số tự tin VÀ số đó thành NEO grounding, hợp thức hoá mọi câu chứa nó.
+    doc = ezdxf.new(); msp = doc.modelspace()
+    _dai(msp, 0, 0.0, c42=534.375)                    # p1 == p2 -> hình học 0; sẽ gõ đè '50'
+    _dai(msp, -200, 2500.0)
+    d = tc.Drawing(_luu(doc))                          # (chưa gõ đè -> vẫn cứu, xem N.6)
+    doc2 = ezdxf.new(); msp2 = doc2.modelspace()
+    _d0 = _dai(msp2, 0, 0.0, c42=534.375); _d0.dimension.dxf.text = "50"
+    _dai(msp2, -200, 2500.0)
+    d2 = tc.Drawing(_luu(doc2))
+    ok("KHÔNG cứu -> 534.4 không có trong số đo", all(abs(v - 534.4) > 0.5 for v in d2.dims), d2.dims)
+    r2 = d2.thong_tin_kich_thuoc()
+    ok("và không ra nho_nhat_mm", abs((r2.get("nho_nhat_mm") or 0) - 534.4) > 0.5, r2.get("nho_nhat_mm"))
+    ro = B._collect_numbers(B._strip_neo(r2))
+    ok("và KHÔNG lọt vào rổ neo chống bịa (không hợp thức hoá câu bịa)", 534.4 not in ro, sorted(ro))
+    ok("đường kích thước KHÔNG bị nuốt (vẫn đếm đủ)", r2.get("so_duong_kich_thuoc") == 2, r2.get("so_duong_kich_thuoc"))
+
+    print("[N.6c] hình học suy biến + chữ đè là KÝ HIỆU -> cũng không cứu (người đọc không thấy số nào)")
+    doc3 = ezdxf.new(); msp3 = doc3.modelspace()
+    _d3 = _dai(msp3, 0, 0.0, c42=777.0); _d3.dimension.dxf.text = "ØFs a100"
+    d3 = tc.Drawing(_luu(doc3))
+    ok("777 không vào số đo", all(abs(v - 777.0) > 0.5 for v in d3.dims), d3.dims)
+
+    print("[N.6d] ĐƯỜNG ĐO TOẠ ĐỘ (ordinate) không được vào rổ mm — số đo là khoảng cách tới MỐC")
+    # Bom hẹn giờ: corpus hiện có 0 đường loại này, nhưng nhánh code42 đọc TRƯỚC nên sẽ mở cửa cho nó
+    # (trước đây nó tự rơi ra vì get_measurement() trả Vec3 -> float() ném lỗi).
+    doc4 = ezdxf.new(); msp4 = doc4.modelspace()
+    try:
+        _o = msp4.add_ordinate_x_dim(feature_location=(1200000, 500000), offset=(50, 0), origin=(0, 0))
+        _o.render(); _o.dimension.dxf.actual_measurement = 1200000.0
+        _co_ord = True
+    except Exception:
+        _co_ord = False
+    _dai(msp4, -400, 3000.0)
+    d4 = tc.Drawing(_luu(doc4))
+    if _co_ord:
+        ok("toạ độ 1.200.000 KHÔNG vào số đo", all(abs(v - 1200000.0) > 1.0 for v in d4.dims), d4.dims)
+        ok("chỉ còn đúng đường dài thật", len(d4.dims) == 1 and abs(d4.dims[0] - 3000.0) < 0.5, d4.dims)
+    else:
+        ok("(bỏ qua: ezdxf bản này không dựng được dim toạ độ)", True)
+
     print("[N.7] KHÔNG có code42 -> hành vi CŨ nguyên vẹn (hệ số vẫn được áp)")
     doc = ezdxf.new(); msp = doc.modelspace()
     _dai(msp, 0, 1000.0, he_so=0.25)
@@ -162,7 +208,6 @@ def main():
 
     print("[N.10] KHÔNG thêm trường số nào ra kết quả tool / rổ neo chống bịa không nở")
     import re
-    import mcp_bridge as B
     doc = ezdxf.new(); msp = doc.modelspace()
     _goc(msp); _dai(msp, -200, 1000.0, c42=777.0)
     r = tc.Drawing(_luu(doc)).thong_tin_kich_thuoc()

@@ -183,6 +183,25 @@ def main():
     r = d.tim_kiem(layer="0")
     ok("không có cờ khi chỉ lọc layer", "co_o_vung_chua_doc" not in r, list(r))
 
+    print("[W.15b] CHẶN KHỚP MẢNH VỤN + CHẶN SUBSTRING (red-team implementation bắt được)")
+    # (1) Tu khoa SO khop MANH VUN cua phan le / mau so ti le: do thuc te tu khoa '100' bat co o 11 file
+    #     chi vi KHUNG TEN in TI LE BAN VE '1/100'. `_tok_bound` khong chan duoc vi '/', '.', ':' deu la
+    #     ranh gioi hop le. Doi tac hoi mot kich thuoc pho bien tren ban ve BINH THUONG se bi dan hedging.
+    # (2) Token KHONG mang chu so roi ve SUBSTRING TRAN -> 'cong' khop 'congtrinh'.
+    K = tc.Drawing._vcd_tok_khop
+    for tok, hay, mong, vi_sao in [
+        ("100", "ti le 1/100", False, "mẫu số tỉ lệ"),
+        ("100", "ti le 1:100", False, "tỉ lệ dấu hai chấm"),
+        ("100", "cao do 3.100", False, "phần lẻ thập phân"),
+        ("100", "l=100", True, "số THẬT phải giữ"),
+        ("cong", "congtrinh abc", False, "substring — phải chặn"),
+        ("cua", "cuaso", False, "substring — phải chặn"),
+        ("cong", "cong, tuong rao", True, "khớp ĐÚNG TỪ phải giữ"),
+        ("l=1100", "l=1100", True, "ca dương thật"),
+        ("dn-01", "dn-01, l=15000, sl:02", True, "ca dương thật"),
+    ]:
+        ok("%r trong %r -> %s (%s)" % (tok, hay, mong, vi_sao), K(tok, hay) is mong, K(tok, hay))
+
     print("[W.16] KHÔNG khớp trên chuỗi RAW — chống BẰNG CHỨNG ẢO (ca 41 hit)")
     doc = ezdxf.new(); msp = doc.modelspace()
     b = doc.blocks.new(name="KF")
