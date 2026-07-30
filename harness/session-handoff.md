@@ -12,7 +12,58 @@
 > **Muốn public thật sau này — ĐỪNG LÀM LẠI TỪ ĐẦU:** nhánh local **`public-ready`** đã có sẵn trọn gói (history sạch không .deb qua `git filter-repo` · Dockerfile tải ODA tuỳ chọn qua `ODA_DEB_URL` · thông báo .dxf-only thân thiện · .gitignore chặn .deb). Đánh đổi: cloud chỉ đọc .dxf tới khi đặt `ODA_DEB_URL`. Mirror backup: `D:/Dat-Antigravity/_backup_repo_truoc_khi_public_20260717/repo-mirror.git`.
 
 
-## 🏁 TRẠNG THÁI CHỐT PHIÊN 2026-07-30 (cuối) — ĐỌC MỤC NÀY TRƯỚC
+## 🏁 TRẠNG THÁI CHỐT PHIÊN 2026-07-31 — ĐỌC MỤC NÀY TRƯỚC
+> **HEAD `4c42a35` · tree SẠCH · check.sh [41/41] PASS · 34 MCP tool · 0 regress.**
+> **⚠ 7 commit CHƯA PUSH (user chốt: commit theo từng lát, CHƯA push).** LIVE vẫn là `fb8a597`.
+> **⛔ `6de1aaa` KHÔNG ĐƯỢC push nguyên trạng** — chính nó chứa lỗi hệ số ÂM, đã vá ở `138d104`.
+>
+> **PHIÊN NÀY LÀM 4 VIỆC USER GIAO + 1 VIỆC PHÁT SINH (nền đo).** Chuỗi: `5548fe1` (2 lỗ guard) →
+> `138d104` (nền đo 3 lỗi + việc 1/2/3) → `f621b6e` (`_P_R5` + A/B) → `4c42a35` (vá 3 lỗi red-team).
+>
+> **⭐ PHÁT HIỆN LỚN NHẤT — NỀN ĐỌC SỐ ĐO SAI Ở 3 TẦNG ĐỘC LẬP,** lộ ra khi rà lại trước khi làm việc 1
+> (việc 1 chính là "so chữ in với số máy đo", nên số máy sai thì việc 1 vô nghĩa):
+> 1. **Hệ số tỉ lệ ÂM bị áp** (do chính `6de1aaa` sinh ra): 1.882 đường/4 file thành âm → bị các cổng lọc
+>    dương của dự án vứt IM LẶNG, `so_duong_kich_thuoc` vẫn đếm đủ. Nặng nhất 71,9% một file.
+> 2. **Đường đo GÓC coi là mm** (lỗi CÓ TRƯỚC DIMLFAC): `01-TD` báo **35.970 mm cho góc 359,7°** đồng thời
+>    in câu TRẤN AN rằng số khớp bản vẽ.
+> 3. **Không ai đọc group code 42** (`actual_measurement` — số đo AutoCAD TỰ LƯU, có mặt 94,9%). Phép thử
+>    không thiên vị 54.735 đường: code42 đúng RIÊNG 2.936 ca / engine đúng RIÊNG **0** ca. Dim dài-XIÊN
+>    engine chỉ đúng **37,2%**. → **USER CHỐT dùng code42 làm nguồn chính.**
+> ⚠ **code42 CHỈ đáng tin khi HÌNH HỌC CÒN ĐỠ NÓ** — xem "bài học" bên dưới.
+>
+> **KẾT QUẢ ĐO CỦA TỪNG VIỆC (công bố theo yêu cầu của chính thiết kế):**
+> - **Việc 1** (chữ in ghi đè): luật bắt 1.098 đường/26 file; cờ "lan rộng" bật **19/66 = 29%** file — dưới
+>   trần 45% nên GIỮ ngưỡng. Con số `837 dim/15 file` trong thiết kế cũ **KHÔNG tái lập được**.
+> - **Việc 2** (cờ vùng chưa đọc): nhiễu **15,3% → 0,0%** sau khi siết vế "chèn ≥2 lần" chỉ áp cho truy vấn
+>   MANG MÃ (ngưỡng thiết kế 10%); 4/4 ca dương vẫn bật; chi phí dựng rổ ≤0,11s.
+> - **Việc 3** (tool #34 `tim_chu_trong_ky_hieu`): cổng cứng ngân sách rổ neo **6,0 vs `tim_kiem` 19,0** →
+>   ĐẠT, nên KHÔNG đưa vào tuple loại-trừ. E2E lấy lại `l=1100`[38E9C/38EA5] · `L=1600, SL:67`[3053A] ·
+>   `DN-01, L=15000, SL:02`[1C2F1E] — chuỗi trước đây KHÔNG tool nào chạm tới.
+> - **Việc 4** (`_P_R5`): ⚠ **A/B LIVE KHÔNG CHỨNG MINH ĐƯỢC TÁC DỤNG.** Prompt CŨ 4/8, MỚI 5/8 — chênh
+>   đúng 1 ca. **Recall thắng là nhờ việc 2+3, không phải `_P_R5`.** Không gây hại (4/4 bẫy vẫn từ chối
+>   đúng, 0 từ-chối-oan). ĐỪNG tính nó vào lợi ích.
+>
+> **📌 BÀI HỌC ĐẮT NHẤT — RED-TEAM IMPLEMENTATION BẮT ĐƯỢC LỖI BỊA SỐ DO CHÍNH BẢN VÁ SINH RA:**
+> bản vá code42 đầu "cứu" MỌI đường đo-ra-0. Nhưng hình học suy biến ⇒ code42 **chắc chắn là số CŨ**.
+> Đo 607 đường được cứu: **529 chữ in RỖNG → cứu ĐÚNG** · **66 gõ đè SỐ KHÁC → BỊA** (bản vẽ in `10000`
+> mà máy phát 2136,3) · 11 gõ đè ký hiệu. **Tệ HƠN lỗi gốc**: lỗi gốc chỉ làm rơi giá trị, cứu sai thì
+> phát số tự tin VÀ số đó thành NEO grounding. **Cả 3 suite mới tự viết đều XANH** — điểm mù: ca test
+> dựng đúng nhánh cứu nhưng CỐ Ý không gõ đè chữ. → luật đúng: hình học >0 dùng code42; hình học =0 chỉ
+> cứu khi KHÔNG có chữ gõ đè.
+>
+> **⏳ 3 RỦI RO TỒN DƯ (nêu rõ, chưa vá — user quyết ưu tiên):**
+> 1. **Cụm TỪ CHỐI tắt guard TOÀN BÀI** (`_REFUSAL_MARKERS` thoát sớm). Lỗ CÓ SẴN; câu nudge việc 2 làm nó
+>    dễ kích hoạt hơn (đo: 45% câu trả lời thật đang ở trạng thái không-hàng-rào). Vá = dời kiểm marker
+>    xuống SAU `_answer_numbers` → đụng lõi, dịch số nhiều suite → LÁT RIÊNG.
+> 2. **Regex neo mới ĐỔI neo âm lấy neo dương** (`D2-10` nay cho `10` thay vì `−10`). Không thuần tuý là
+>    thu hẹp. Vá đối xứng (chạy `_MAHIEU_RES` cả phía rổ neo) thì `Ø22` mất neo 22 → nguy cơ từ-chối-oan.
+> 3. **Việc 1 im lặng với chữ in là SỐ THUẦN khác số máy** — đúng, nhưng lớp đó bắn **91,2%** ứng viên nên
+>    đưa vào cờ luôn-bật sẽ thành nhiễu. Đường đúng = tool tra theo yêu cầu (lát 2 thiết kế, chưa làm).
+>
+> **⛔ ĐỪNG LÀM LẠI:** đọc bảng DIMSTYLE thay override (docstring cũ SAI — `e.override()` VỐN gộp bảng, và
+> nhánh đó ĐÚNG, code42 xác nhận) · dùng `_tok_bound` trần cho rổ bóng (khớp mảnh vụn `1/100` + substring).
+
+## 🕘 TRẠNG THÁI CHỐT PHIÊN 2026-07-30 (trước) — ĐỌC MỤC NÀY TRƯỚC
 > **HEAD `6de1aaa` · tree SẠCH · check.sh [36/36] PASS · 33 tool · 0 regress.**
 > **⚠ 2 commit CHƯA PUSH (cố ý): `6de1aaa` (code DIMLFAC) + `f0ae46c` (docs). LIVE hiện là `fb8a597`** (mã nguồn y hệt `371d950`, chỉ khác tài liệu). Đẩy: `git push origin main` → Render tự deploy ~60s → verify `/version` + `/health`. `6de1aaa` là commit **ĐỔI SỐ máy báo** nên verify kỹ hơn thường lệ.
 > **Đo LIVE cuối phiên (`fb8a597`):** `ram_mb` **135,5MB** · `ban_ve` 0/1 · `metrics.tu_choi` **0** (chưa ai bị chặn oan) · **`keepalive` ok=99 / lỗi=0** — 99 cú tự-gọi giữ-thức liên tiếp KHÔNG lỗi lần nào, xác nhận bản vá bom-3 chạy đúng trên máy thật.
