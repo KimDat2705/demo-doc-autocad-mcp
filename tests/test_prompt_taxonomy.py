@@ -15,7 +15,14 @@ import mcp_bridge as B  # noqa  (import offline = 1 phần điều kiện DoD)
 # 2026-07-26: ĐỔI CÓ CHỦ ĐÍCH (routing R7b + prompt-half R10) — ĐÃ đo LIVE A/B. Hash: e5e05d7d…0512ceaa.
 # 2026-07-27: ĐỔI CÓ CHỦ ĐÍCH (+_P_R18 kho kiến thức L3 — luật trình bày tra_ky_hieu + confirm-only, chèn
 # TRƯỚC _P_R9 theo tiền lệ R7b; emit 24→25, VN 16→17) — bump PROMPT_VERSION 2026.07.27-kb-l3 + ĐO LIVE A/B.
-FROZEN = "239e8b7ba707d5a0dd53c065af3397c8fcfb2c9f689a6f20d4249c09994f11c0"
+# 2026-07-31: ĐỔI CÓ CHỦ ĐÍCH — SỬA `_P_R5` (KHÔNG thêm mảnh mới; emit GIỮ 25, phân hoạch GIỮ nguyên).
+#   Thêm NGOẠI LỆ: kết quả mang cờ co_o_vung_chua_doc=true thì CHƯA được kết luận 'không có', phải gọi
+#   tim_chu_trong_ky_hieu trước. LÝ DO BẮT BUỘC: `_P_R5` nằm trong `_INVARIANT`, được đánh số, ở
+#   system_instruction — một câu `ghi_chu` trong function_response ở temperature=0 THUA nó là kịch bản mặc
+#   định. Không sửa `_P_R5` thì cờ 'vùng chưa đọc' nằm im và ta TƯỞNG đã vá.
+#   bump PROMPT_VERSION 2026.07.31-vung-chua-doc + ĐO LIVE A/B (refusal-rate · bẫy chống-bịa · tỉ lệ model
+#   THỰC SỰ gọi tim_chu_trong_ky_hieu khi thấy cờ — tỉ lệ này thấp thì lợi ích là ẢO, phải báo cáo đúng vậy).
+FROZEN = "56177a5b736b763582d0308cc7a9de93dede7f5784170dcb2a207996e2c23068"
 
 PASS = FAIL = 0
 
@@ -31,7 +38,7 @@ def main():
     sha = hashlib.sha256(sp.encode("utf-8")).hexdigest()
 
     print("[T.1] BYTE-LOCK — SYSTEM_PROMPT không đổi byte (lõi chống bịa)")
-    ok("sha256(SYSTEM_PROMPT) == FROZEN 239e8b7b…", sha == FROZEN, sha)
+    ok("sha256(SYSTEM_PROMPT) == FROZEN 56177a5b…", sha == FROZEN, sha)
     ok("SYSTEM_PROMPT là str không rỗng", isinstance(sp, str) and len(sp) > 1000, len(sp))
 
     print("[T.2] LẮP RÁP — SYSTEM_PROMPT = ''.join(_EMIT_ORDER)")

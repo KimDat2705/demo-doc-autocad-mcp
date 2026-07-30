@@ -295,7 +295,9 @@ _P_R4 = (
     "danh_dau_cau_kien (trả anh_id để hiển thị ảnh có khoanh đỏ). Truyền ĐÚNG cụm từ người dùng nêu "
     "(vd 'cửa D1', KHÔNG rút thành 'D1' kẻo bắt nhầm dầm D1). Sau khi gọi, nói ngắn gọn đã đánh dấu bao nhiêu vị trí.\n"
 )
-_P_R5 = "5. Nếu công cụ trả 0 kết quả/không có -> nói thẳng 'Không có thông tin này trong bản vẽ.' KHÔNG bịa.\n"
+_P_R5 = ("5. Nếu công cụ trả 0 kết quả/không có -> nói thẳng 'Không có thông tin này trong bản vẽ.' KHÔNG bịa. "
+         "NGOẠI LỆ: nếu kết quả mang cờ co_o_vung_chua_doc=true thì CHƯA được kết luận như vậy — phải gọi "
+         "tim_chu_trong_ky_hieu rồi mới trả lời.\n")
 _P_R6 = "6. Với nội dung cụ thể, KÈM handle (vd [2A3F]) từ công cụ. KHÔNG bịa handle.\n"
 _P_R7 = (
     "7. Đường kính thép (Ø/D/phi) đã được công cụ tự quy 1 dạng. Mác bê tông ghi nhiều kiểu — nếu 1 từ khoá "
@@ -474,8 +476,8 @@ _EMIT_ORDER = (
 )
 
 SYSTEM_PROMPT = "".join(_EMIT_ORDER)
-PROMPT_VERSION = "2026.07.27-kb-l3"       # ĐỔI TEXT (+R18 tra_ky_hieu, kho kiến thức L3) — đo LIVE A/B có mục tiêu
-PROMPT_VERSION_PREV = "2026.07.26-routing-l2"   # trước khi thêm R18
+PROMPT_VERSION = "2026.07.31-vung-chua-doc"     # ĐỔI TEXT (_P_R5 + ngoại lệ co_o_vung_chua_doc) — đo LIVE A/B có mục tiêu
+PROMPT_VERSION_PREV = "2026.07.27-kb-l3"        # trước khi thêm ngoại lệ vùng-chưa-đọc
 PROMPT_HASH = hashlib.sha256(SYSTEM_PROMPT.encode("utf-8")).hexdigest()
 
 

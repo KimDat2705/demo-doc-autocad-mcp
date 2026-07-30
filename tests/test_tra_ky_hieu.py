@@ -99,10 +99,16 @@ def main():
             sach = False
     _emit("Y7: cac_muc digit-free (mô tả kho không mang số — phòng xa dù tool đã bị loại khỏi rổ)", sach)
 
-    # ---- [Y8] prompt R18 có mặt + version bump (phần offline của L3) ----
-    _emit("Y8: SYSTEM_PROMPT có luật R18 (tra_ky_hieu + cấm tự xác nhận) + PROMPT_VERSION kb-l3",
-          "tra_ky_hieu" in MB.SYSTEM_PROMPT and "18." in MB.SYSTEM_PROMPT
-          and MB.PROMPT_VERSION == "2026.07.27-kb-l3")
+    # ---- [Y8] prompt R18 có mặt (phần offline của L3) ----
+    # ⚠ 2026-07-31: BỎ vế `PROMPT_VERSION == "2026.07.27-kb-l3"`. Vế đó KHÔNG thuộc phạm vi suite L3 và
+    # làm suite này ĐỎ OAN mỗi lần có thay đổi prompt hợp lệ khác (lần này: sửa `_P_R5` cho vùng-chưa-đọc,
+    # bump sang 2026.07.31-vung-chua-doc). Quyền sở hữu version/hash nằm ở `test_prompt_taxonomy` —
+    # nơi có byte-lock sha256 thật sự, chặt hơn hẳn phép so chuỗi này. Ý ĐỊNH của Y8 (R18 phải còn trong
+    # prompt, không bị xoá âm thầm) được GIỮ NGUYÊN và tách bạch.
+    _emit("Y8: SYSTEM_PROMPT có luật R18 (tra_ky_hieu + cấm tự xác nhận)",
+          "tra_ky_hieu" in MB.SYSTEM_PROMPT and "18." in MB.SYSTEM_PROMPT)
+    _emit("Y8b: PROMPT_VERSION là chuỗi không rỗng (giá trị cụ thể do test_prompt_taxonomy khoá)",
+          isinstance(MB.PROMPT_VERSION, str) and bool(MB.PROMPT_VERSION.strip()), MB.PROMPT_VERSION)
 
     print("\n%d PASS / %d FAIL" % (PASS, FAIL))
     return 1 if FAIL else 0
