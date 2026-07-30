@@ -925,6 +925,7 @@ class Drawing:
     # ---------------- trích xuất (port _collect_entities + parse) ----------------
     def _extract(self):
         counts, texts, dims, dim_items = Counter(), [], [], []
+        n_dim_ty_le = 0        # số đường kích thước CÓ khai hệ số tỉ lệ đo (DIMLFAC ≠ 1) — chỉ để LỘ, không để tính
         blocks, used_layers, thep, thep_hinh = Counter(), set(), {}, {}
         thep_att_handles = set()   # R4 (P3): handle các ô ATTRIB thuộc bảng thép -> đăng ký used_handles (không lọt residual)
         for e in self.doc.modelspace():
@@ -957,7 +958,24 @@ class Drawing:
                     elif "SHOW" in attmap: _acc_thep_hinh(thep_hinh, attmap)
             elif t == "DIMENSION":
                 try:
-                    v = round(float(e.get_measurement()), 1)
+                    # HỆ SỐ TỈ LỆ ĐO (DIMLFAC) — bản vẽ TỰ KHAI "đường này phải nhân hệ số mới ra số thật"
+                    # (chi tiết vẽ thu nhỏ/phóng to). `get_measurement()` trả số HÌNH HỌC THÔ, KHÔNG áp hệ số,
+                    # nên với các đường có khai hệ số thì số máy đọc KHÁC số IN trên bản vẽ.
+                    # ĐO THẬT (40 file, 15.608 đường): 3.352 đường (21,5%) có khai hệ số ≠ 1. Trong các ca đối
+                    # chiếu được với chữ in: khớp "số đo × hệ số" 19 ca / khớp số đo thô 0 ca.
+                    # Đây KHÔNG phải suy đoán — hệ số nằm sẵn trong file, đọc là ra, không cần ngưỡng.
+                    # Đọc theo TỪNG ĐƯỜNG (override) chứ KHÔNG đọc bảng kiểu dáng: đo được bảng khai hệ số mà
+                    # 0 đường nào dùng ở 11 file -> đọc bảng sẽ áp oan.
+                    _lf = 1.0
+                    try:
+                        _lf = float(e.override().get("dimlfac", 1.0) or 1.0)
+                        if not (_lf == _lf) or _lf in (0.0, float("inf"), float("-inf")):
+                            _lf = 1.0                 # NaN/0/inf -> bỏ qua, giữ hành vi cũ
+                    except Exception:
+                        _lf = 1.0                     # thiếu override/ezdxf cũ -> giữ hành vi cũ (fail-open)
+                    if _lf != 1.0:
+                        n_dim_ty_le += 1              # ĐẾM để LỘ ở thong_tin_kich_thuoc (không phải để tính)
+                    v = round(float(e.get_measurement()) * _lf, 1)
                     dims.append(v)
                     # GĐ2: thêm TOẠ ĐỘ (để gắn dim vào cấu kiện) + HƯỚNG (ngang=rộng / dọc=cao).
                     dx = dy = 0.0; co_td = False
@@ -1002,6 +1020,7 @@ class Drawing:
         self.total = sum(counts.values())
         self.dims = dims
         self.dim_items = dim_items
+        self.n_dim_ty_le = n_dim_ty_le
         self.dim_vals = sorted({d for d in dims if d > 0})
         self.dim_top = Counter(round(d) for d in dims if d > 0).most_common(30)
         self.layers = [l.dxf.name for l in self.doc.layers]
@@ -1951,6 +1970,14 @@ class Drawing:
              "gia_tri_pho_bien_mm": pho_bien, "don_vi_khai_bao": don_vi,
              "ghi_chu": "Đường kích thước (DIMENSION); trường '_mm' theo GIẢ ĐỊNH mm (%s). gia_tri_pho_bien = giá trị "
                         "NHIỀU NHẤT (thường bước cột/nhịp); lớn nhất KHÔNG chắc là kích thước tổng công trình." % ct}
+        # LỘ việc đã áp HỆ SỐ TỈ LỆ ĐO: cờ BOOL + prose SẠCH SỐ (số đếm nằm ngoài, KHÔNG đưa vào kết quả tool —
+        # mọi số trong kết quả đều mở rộng rổ neo grounding). Người đọc cần biết vì số máy báo cho các đường này
+        # KHÁC số đo hình học thô, và đó là CHỦ Ý: bản vẽ tự khai hệ số.
+        if getattr(self, "n_dim_ty_le", 0):
+            r["co_dim_ty_le_do"] = True
+            r["ghi_chu"] += (" ⚠ Bản vẽ có những đường kích thước tự khai HỆ SỐ TỈ LỆ ĐO (chi tiết vẽ thu nhỏ/"
+                             "phóng to); các số này đã được nhân hệ số theo đúng khai báo trong file, nên khớp "
+                             "số IN trên bản vẽ chứ không khớp số đo hình học thô.")
         # F1 (GĐ4): 0 đường kích thước trên file có OLE -> LỘ 'kích thước có thể nằm trong bảng nhúng máy không đọc'
         return self._gan_canh_bao_nhung(r) if not self.dims else r
 

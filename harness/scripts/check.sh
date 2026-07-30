@@ -179,10 +179,15 @@ out=$($PY tests/test_admission.py 2>&1); rc=$?
 echo "$out" | tail -1
 [ "$rc" -eq 0 ] || { echo "FAIL: test admission co FAIL"; fail=1; }
 
-echo "=== [35/35] Test BRIDGE CLOSE (close(cho_giay) xac nhan chet + call sau close khong treo + khong mo coi) ==="
+echo "=== [35/36] Test BRIDGE CLOSE (close(cho_giay) xac nhan chet + call sau close khong treo + khong mo coi) ==="
 out=$($PY tests/test_bridge_close.py 2>&1); rc=$?
 echo "$out" | tail -1
 [ "$rc" -eq 0 ] || { echo "FAIL: test bridge close co FAIL"; fail=1; }
+
+echo "=== [36/36] Test TY LE DO (DIMLFAC: ap he so ban ve tu khai, fail-open, co BOOL + prose sach so, offline) ==="
+out=$($PY tests/test_ty_le_do.py 2>&1); rc=$?
+echo "$out" | tail -1
+[ "$rc" -eq 0 ] || { echo "FAIL: test ty le do co FAIL"; fail=1; }
 
 echo "------------------------------------"
 if [ "$fail" -eq 0 ]; then echo "HARNESS GATE: PASS"; else echo "HARNESS GATE: FAIL"; fi
