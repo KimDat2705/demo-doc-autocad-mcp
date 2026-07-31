@@ -12,6 +12,23 @@
 > **Muốn public thật sau này — ĐỪNG LÀM LẠI TỪ ĐẦU:** nhánh local **`public-ready`** đã có sẵn trọn gói (history sạch không .deb qua `git filter-repo` · Dockerfile tải ODA tuỳ chọn qua `ODA_DEB_URL` · thông báo .dxf-only thân thiện · .gitignore chặn .deb). Đánh đổi: cloud chỉ đọc .dxf tới khi đặt `ODA_DEB_URL`. Mirror backup: `D:/Dat-Antigravity/_backup_repo_truoc_khi_public_20260717/repo-mirror.git`.
 
 
+## ✅ E2E LIVE `7022aad` — 1.03 + 1.04 XÁC MINH TRÊN MÁY THẬT (2026-07-31)
+> **LIVE verify:** `/version.commit` = `7022aad6…` = HEAD = origin · `prompt_hash` `239e8b7b…` **KHÔNG đổi** · `kb_hash` `e55ac112…` **KHÔNG đổi** (đợt này không chạm SYSTEM_PROMPT/kho kiến thức → không cần A/B) · `/health` ok · `ram_mb` 135,4 lúc rảnh.
+> **CÁCH LÀM ĐÚNG: dựng ĐÁP ÁN CHUẨN tại local TRƯỚC, rồi mới hỏi LIVE** — "câu trả lời trông ổn" không chứng minh gì.
+> **File test:** `01-TD tuyen ong ap luc.dxf` (12,8MB) — chọn vì nó bật ĐỒNG THỜI cả 1.03 lẫn 1.04. Upload OK: `so_kich_thuoc` **175** khớp local · `tong_doi_tuong` 19.442 · RAM 135 → **291,6MB** (đúng ngân sách 1 bản vẽ) · `errors 0` · `tu_choi 0`.
+>
+> **1.04 — ĐẬU.** Máy trả: *"khai báo đơn vị là **mét (m)**… nếu đơn vị khai báo là mét là đúng thì các số kích thước này **có thể bị sai thang đo**"* — khớp `don_vi_khai_bao="m"` + `don_vi_khai_bao_khac_mm=True`, không gắn `kho_tin` (đúng: khai báo hợp lý).
+> ⚠ **NÓI SÒNG PHẲNG:** mã 6 (`m`) VỐN đã có trong bảng cũ nên phần "nhận ra đơn vị" KHÔNG mới; cái mới là **câu cảnh báo sai-thang-đo**. **Nhánh inch/feet/mile của 1.04 file này KHÔNG chạm tới** — vẫn chỉ có bằng chứng local (9+1+1 file).
+>
+> **1.03 — ĐẬU, và đậu ở chiều MẠNH HƠN hiển thị: máy trước đây KHÔNG TÌM RA những chuỗi này.**
+> | tìm | local trước | local sau | **LIVE thật** |
+> |---|---|---|---|
+> | "mặt bích" | 3 | 6 | **6** |
+> | "ống HDPE" | 3 | 6 | **6** |
+> | "cống hiện có" | 4 | 7 | **7** |
+>
+> Chuỗi LIVE trả về đúng là các chuỗi từng vô hình, kèm handle: `MẶT BÍCH RỖNG THÉP DN200 [24DF7D]` · `DN250 [24DF86]` · `DN100 [24E01E]` · `DÙNG CHO ỐNG HDPE [24DF75]` · `chi tiết qua cống dn500 hiện có [204836]` · `cống hiện có dn1250-btct [21AA48]`. **Quét 0 mẩu garble sót** (`MÆT BÝCH RçNG THÐP èNG DïNG hiÖn`) trong cả 3 câu trả lời.
+
 ## 📏 1.04 XONG — ĐƠN VỊ inch/feet: ĐỐI CHIẾU + LỘ MÂU THUẪN (2026-07-31, nối phiên)
 > **Làm ĐÚNG như cảnh báo cũ: KHÔNG thêm bảng tra, KHÔNG tự quy đổi.** Đo `$INSUNITS` + phân bố số đo thật trên 86 file (1 file lỗi đọc):
 > **mm 40 · m 24 · không khai 10 · inch 9 · feet 1 · mile 1.**
