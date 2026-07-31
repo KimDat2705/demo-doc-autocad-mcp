@@ -425,6 +425,39 @@ def kiem_tra_kho():
     return vi_pham
 
 
+def theo_nghia_don(cum_tu):
+    """TRA NGƯỢC: cụm từ tiếng Việt -> ký hiệu. CHỈ với mục có ĐÚNG MỘT nghĩa.
+
+    VÌ SAO CẦN: mã cấu kiện trên bản vẽ ghi bằng KÝ HIỆU ('ĐC-1'), còn đối tác hỏi bằng TIẾNG VIỆT
+    ('đài cọc'). Không nối được hai đầu thì máy trả lời sai mà tự tin. ĐO THẬT trên corpus:
+    `tra_cuu_so_luong('đài cọc')` trên `2. KetCau MN GiaLoc` trả về **131** ('chi tiết nối cọc với đài')
+    trong khi 59 đài cọc thật (`ĐC-1 SL-19`, `ĐC-2 SL-10`, `ĐC-3 SL-25`…) BIẾN MẤT; trên
+    `2. KET CAU MONG` thì trả về **rỗng** hoàn toàn dù file có `chi tiết móng ĐC1 (sl: 40)`.
+
+    ⛔ CHỈ mục MỘT NGHĨA. Mục ĐA NGHĨA (15/24: 'dầm'→D-x lẫn DC-x, 'cửa đi'→CH lẫn D-x lẫn Đ-x…)
+    TUYỆT ĐỐI không tra ngược — chọn giúp một nghĩa chính là ĐOÁN, và chính kho đã ghi
+    `on_collision: ASK` cho chúng. Tra ngược mục đa nghĩa = biến kho chống-nhầm thành nguồn gây nhầm.
+    Tập an toàn đo được: 7/24 mục (đài cọc · đường kính · cấp thoát nước · lý trình tuyến · cút ống ·
+    khu vệ sinh · giằng móng).
+
+    Trả None nếu không chắc — fail-open, KHÔNG đoán."""
+    s = (cum_tu or "").strip().lower()
+    if len(s) < 3:
+        return None
+    for e in KB_ENTRIES:
+        ng = e.get("nghia") or []
+        chu = (e.get("match") or {}).get("chu")
+        if len(ng) != 1 or not chu:
+            continue                                  # đa nghĩa hoặc không có khoá chữ -> BỎ QUA
+        mo_ta = (ng[0].get("mo_ta") or "").split("(")[0].strip().lower()
+        if not mo_ta or len(mo_ta) < 3:
+            continue
+        if s == mo_ta or (len(mo_ta) >= 4 and mo_ta in s):
+            return {"id": e["id"], "chu": chu, "symbol": e.get("symbol_display"),
+                    "nghia": ng[0].get("mo_ta")}
+    return None
+
+
 def _canonical():
     return _json.dumps(KB_ENTRIES, ensure_ascii=False, sort_keys=True)
 

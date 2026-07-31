@@ -109,6 +109,34 @@ def main():
     _emit("K11b: 'tra_ky_hieu' nằm trong tuple loại-toàn-phần khỏi rổ (tiền lệ doc_bang_nhung/I4a)",
           re.search(r"doc_bang_nhung\",\s*\"phat_hien_bang_ve_net\",\s*\"tra_ky_hieu\"", bsrc) is not None)
 
+    # ---- [K12] TRA NGƯỢC cụm-từ-tiếng-Việt -> ký hiệu (1.05: hỏi 'đài cọc' mà máy trả ra thứ khác) ----
+    # VẤN ĐỀ THẬT: bản vẽ ghi mã bằng KÝ HIỆU ('ĐC-1 (SL-19)'), đối tác hỏi bằng TIẾNG VIỆT ('đài cọc').
+    # Đo trên corpus: `tra_cuu_so_luong('đài cọc')` trả 131 ('chi tiết nối cọc với đài') còn 59 đài cọc
+    # THẬT biến mất; file khác trả RỖNG + câu "bản vẽ KHÔNG ghi sẵn số lượng" (SAI mà TỰ TIN).
+    kb = kienthuc.theo_nghia_don("đài cọc")
+    _emit("K12a: 'đài cọc' -> ký hiệu ĐC", bool(kb) and kb.get("chu") == "đc", kb)
+    _emit("K12b: 'giằng móng' -> GM", (kienthuc.theo_nghia_don("giằng móng") or {}).get("chu") == "gm")
+    _emit("K12c: cụm dài chứa cụm chuẩn vẫn tra được ('bao nhiêu đài cọc')",
+          (kienthuc.theo_nghia_don("bao nhiêu đài cọc") or {}).get("chu") == "đc")
+    # ⛔ ĐA NGHĨA TUYỆT ĐỐI KHÔNG TRA NGƯỢC — chọn giúp 1 nghĩa chính là ĐOÁN, và kho đã ghi ASK.
+    # 'dầm' có ở CẢ dc_dam_chi_tiet (DC-x) LẪN d_da_nghia (D-x); 'cửa đi' có ở CH, D-x, Đ-x.
+    for tu in ("dầm", "cửa đi", "cột", "sàn", "tầng", "vách"):
+        _emit("K12d: ĐA NGHĨA '%s' -> KHÔNG tra ngược (không đoán)" % tu,
+              kienthuc.theo_nghia_don(tu) is None, kienthuc.theo_nghia_don(tu))
+    _emit("K12e: chuỗi rỗng/quá ngắn -> None (fail-open)",
+          kienthuc.theo_nghia_don("") is None and kienthuc.theo_nghia_don("đc") is None)
+    _emit("K12f: cụm lạ -> None, KHÔNG bịa ký hiệu", kienthuc.theo_nghia_don("xà gồ mạ kẽm zzz") is None)
+    # tập an toàn phải đúng bằng số mục MỘT NGHĨA — nếu ai thêm nghĩa vào 1 entry thì ca này ĐỎ
+    _mot_nghia = [e["id"] for e in kienthuc.KB_ENTRIES
+                  if len(e.get("nghia") or []) == 1 and (e.get("match") or {}).get("chu")]
+    _emit("K12g: tập tra-ngược = đúng các mục MỘT NGHĨA (đo được 7/24)",
+          len(_mot_nghia) == 7, (len(_mot_nghia), _mot_nghia))
+    # source-guard: không được gộp vào danh sách chính (chống mô hình CỘNG 131 + 59 = 190)
+    tsrc = open(os.path.join(ROOT, "tools_core.py"), encoding="utf-8").read()
+    _emit("K12h: kết quả theo-ký-hiệu để RIÊNG ở 'theo_ky_hieu', KHÔNG gộp vào danh_sach_so_luong",
+          '"theo_ky_hieu"' in tsrc and 'r["theo_ky_hieu"] = them' in tsrc)
+    _emit("K12i: ghi_chu CẤM cộng hai danh sách", "TUYỆT ĐỐI KHÔNG CỘNG hai" in tsrc)
+
     print("\n%d PASS / %d FAIL" % (PASS, FAIL))
     return 1 if FAIL else 0
 

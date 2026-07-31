@@ -2063,6 +2063,47 @@ class Drawing:
                         "Câu hỏi 'có bao nhiêu cấu kiện' phải dùng tra_cuu_so_luong."}
         return self._vcd_gan_co(r, tk, bool(hits))
 
+    def _kb_theo_ky_hieu(self, r, tk):
+        """KHO KIẾN THỨC — nối CỤM TỪ TIẾNG VIỆT của đối tác với KÝ HIỆU trên bản vẽ.
+
+        VẤN ĐỀ THẬT (tái hiện được): bản vẽ ghi mã bằng KÝ HIỆU ('ĐC-1 (SL-19)'), đối tác hỏi bằng
+        TIẾNG VIỆT ('đài cọc'). Không nối được hai đầu thì máy trả lời SAI mà TỰ TIN. Đo trên corpus:
+          · `2. KetCau MN GiaLoc` + 'đài cọc' -> trả **131** ('chi tiết nối cọc với đài'), còn **59 đài
+            cọc thật** (ĐC-1 SL-19 · ĐC-2 SL-10 · ĐC-3 SL-25 …) BIẾN MẤT
+          · `2. KET CAU MONG` + 'đài cọc' -> trả **RỖNG** kèm câu "bản vẽ KHÔNG ghi sẵn số lượng",
+            trong khi file có 'chi tiết móng ĐC1 (sl: 40)'
+        Đo lợi ích: 10 cặp (file × từ) tìm thêm được mục, mục thêm ĐỀU đúng loại (ĐC-02 · GM-04 · wc…).
+
+        ⛔ KHÔNG GỘP vào `danh_sach_so_luong`. Hai nguồn khác hạng: một bên khớp CỤM TỪ, một bên khớp
+        KÝ HIỆU — gộp lại thì mô hình dễ CỘNG chúng (131 + 59 = 190, sai cả hai đầu). Để RIÊNG + nói rõ
+        vì sao, đúng nguyên tắc 'lộ, không gộp' của dự án. Không đổi khoá cũ nào.
+        ⛔ CHỈ mục MỘT NGHĨA (7/24) — xem `kienthuc.theo_nghia_don`. Đa nghĩa thì kho tự ghi ASK.
+        FAIL-OPEN tuyệt đối: thiếu kho / lỗi -> trả `r` y nguyên."""
+        try:
+            if _kienthuc is None or not (tk or "").strip():
+                return r
+            kb = _kienthuc.theo_nghia_don(tk)
+            if not kb:
+                return r
+            m = self.tra_so_luong(kb["chu"])
+            if not m:
+                return r
+            da_co = {x.get("noi_dung") for x in (r.get("danh_sach_so_luong") or [])}
+            them = [{"noi_dung": e["label"], "so_luong": e["so_luong"], "handle": e.get("handle"),
+                     "qty_handle": e.get("qty_handle", e.get("handle"))}
+                    for e in m if e.get("label") not in da_co]
+            if not them:
+                return r
+            r["theo_ky_hieu"] = them[:40]
+            r["ghi_chu"] = (r.get("ghi_chu") or "") + (
+                " ⚠ Bản vẽ ghi loại cấu kiện này bằng KÝ HIỆU chứ không bằng chữ, nên phần khớp theo cụm "
+                "từ ở trên CÓ THỂ THIẾU. Kho ký hiệu cho biết cụm từ bạn hỏi thường được ghi tắt là "
+                "'%s' — các mục khớp theo ký hiệu để RIÊNG ở 'theo_ky_hieu'. TUYỆT ĐỐI KHÔNG CỘNG hai "
+                "danh sách: chúng khớp theo hai cách khác nhau và có thể chồng nhau." % kb["symbol"])
+        except Exception:
+            pass
+        return r
+
     def tra_cuu_so_luong(self, tu_khoa=None, **_):
         tk = (tu_khoa or "").strip()
         if not tk: return {"loi": "Thiếu tên cấu kiện cần tra số lượng.", "co_ghi_so_luong": False}
@@ -2074,18 +2115,31 @@ class Drawing:
             gc = "Số lượng do BẢN VẼ GHI RÕ (nhãn 'số lượng: N bộ' hoặc 'SL='). Số THẬT."
             if any("canh_bao" in s for s in stated):   # id84: LỘ xung đột SL (không im lặng)
                 gc += " ⚠ Có mã SL KHÁC NHAU giữa 2 nguồn (xem 'canh_bao') — cần đối chiếu, KHÔNG cộng dồn."
-            return {"tu_khoa": tk, "co_ghi_so_luong": True, "so_muc_co_ghi": len(stated),
-                    "danh_sach_so_luong": stated[:40], "ghi_chu": gc}
+            return self._kb_theo_ky_hieu(
+                {"tu_khoa": tk, "co_ghi_so_luong": True, "so_muc_co_ghi": len(stated),
+                 "danh_sach_so_luong": stated[:40], "ghi_chu": gc}, tk)
         # F1 (GĐ4): kết quả ÂM ('không ghi số lượng') trên file có OLE -> phải LỘ 'máy không đọc được bảng nhúng'
         # thay vì để đối tác hiểu 'bản vẽ không có' (đúng failure mode rule 8c, trước chỉ cắm ở tuyến thép).
         # Nhánh ÂM BẮT BUỘC có cờ vùng-chưa-đọc: đo thật trên 'Be nuoc PCCC...' — khối ĐƯỢC CHÈN
         # 'A$C4be25227' chứa nguyên văn 'DN-01, L=15000, SL:02', trong khi tool trả co_ghi_so_luong=False
         # kèm câu "Nếu thật sự không ghi -> cần bóc tách". Đó là khẳng định SAI và TỰ TIN.
-        return self._vcd_gan_co(self._gan_canh_bao_nhung(
-               {"tu_khoa": tk, "co_ghi_so_luong": False, "so_muc_co_ghi": 0, "danh_sach_so_luong": [],
-                "ghi_chu": ("Bản vẽ KHÔNG ghi sẵn số lượng cho '%s'. KHÔNG lấy số lần xuất hiện làm số lượng. "
-                            "Thử mã cấu kiện ngắn (vd 'D1'). Nếu thật sự không ghi -> cần bóc tách." % tk)}),
-               tk, False)
+        # ⚠ NHÁNH ÂM — chỗ NGUY HIỂM NHẤT: nó khẳng định "bản vẽ KHÔNG ghi sẵn số lượng". Nếu bản vẽ ghi
+        # bằng KÝ HIỆU (đối tác hỏi bằng chữ) thì câu đó SAI mà TỰ TIN. Đo thật: `2. KET CAU MONG` +
+        # 'đài cọc' -> rỗng + câu phủ định, trong khi file có 'chi tiết móng ĐC1 (sl: 40)'.
+        # Nên tra kho TRƯỚC, và nếu kho tìm ra thì KHÔNG được nói câu phủ định nữa.
+        _am = self._kb_theo_ky_hieu(
+            {"tu_khoa": tk, "co_ghi_so_luong": False, "so_muc_co_ghi": 0, "danh_sach_so_luong": [],
+             "ghi_chu": ""}, tk)
+        if _am.get("theo_ky_hieu"):
+            _am["ghi_chu"] = ("KHÔNG có mục nào khớp theo CỤM TỪ '%s', nhưng bản vẽ có ghi theo KÝ HIỆU — "
+                              "xem 'theo_ky_hieu'." % tk) + _am["ghi_chu"]
+            # ⚠ VẪN phải gắn cảnh báo bảng nhúng: tìm được theo ký hiệu KHÔNG có nghĩa là đã đọc hết —
+            # bảng Excel nhúng (OLE) vẫn có thể chứa số lượng khác mà máy không đọc được.
+            # (Bản vá đầu của tôi bỏ nhánh này, tự soát bắt được.)
+            return self._vcd_gan_co(self._gan_canh_bao_nhung(_am), tk, True)
+        _am["ghi_chu"] = ("Bản vẽ KHÔNG ghi sẵn số lượng cho '%s'. KHÔNG lấy số lần xuất hiện làm số lượng. "
+                          "Thử mã cấu kiện ngắn (vd 'D1'). Nếu thật sự không ghi -> cần bóc tách." % tk)
+        return self._vcd_gan_co(self._gan_canh_bao_nhung(_am), tk, False)
 
     def liet_ke_so_luong(self, loc=None, **_):
         idx = self.qty_index or []
