@@ -60,6 +60,31 @@ RUNS_DIR = os.path.join(HERE, "battery_runs")
 META_DIR = os.path.join(RUNS_DIR, "_meta")
 THU_LAI_TOI_DA = 2        # trần cứng số lần hỏi lại 1 câu trong CÙNG một lượt (chống livelock)
 
+# ---- SEAM bắt RỔ NEO grounding (tuỳ chọn, --ghi-ro-neo) ------------------------------------
+# Rổ neo (`tool_numbers`) chỉ tồn tại BÊN TRONG `tra_loi_ai` và KHÔNG nằm trong dict trả về.
+# ⛔ KHÔNG thêm nó vào dict trả về: `app.py` làm `return jsonify(r)` -> mọi số nội bộ của tool
+#    sẽ bị đẩy thẳng ra trình duyệt ở MỌI câu hỏi. Thay vào đó bọc `_guard_text` TỪ PHÍA TEST
+#    (nó nhận đúng tham số đó, mcp_bridge.py:986 và :1006) -> 0 dòng code sản phẩm bị chạm.
+_NEO = {"n": None, "khong_neo_do": None, "khong_neo_tat_ca": None}
+
+
+def _bat_ro_neo():
+    goc = mcp_bridge._guard_text
+    if getattr(goc, "_la_spy_battery", False):
+        return
+    def spy(text, tool_numbers):
+        try:
+            pool = set(tool_numbers or ())
+            tat_ca, do_luong = mcp_bridge._answer_numbers(text or "")
+            _NEO["n"] = len(pool)
+            _NEO["khong_neo_do"] = sorted({x for x in do_luong if not mcp_bridge._is_grounded(x, pool)})
+            _NEO["khong_neo_tat_ca"] = sorted({x for x in tat_ca if not mcp_bridge._is_grounded(x, pool)})
+        except Exception:
+            pass
+        return goc(text, tool_numbers)
+    spy._la_spy_battery = True
+    mcp_bridge._guard_text = spy
+
 # Mã thoát
 OK, E_DA_CO, E_HONG, E_CHUOI_MODEL, E_LECH_BAN, E_KHUYET, E_THIEU_BAN_VE = 0, 2, 3, 4, 5, 8, 9
 
@@ -237,6 +262,8 @@ def main(argv=None, hoi=None, tao_bridge=None, files=None):
     ap.add_argument("--ghi-chu", default="", help="ghi chú tự do lưu vào meta")
     ap.add_argument("--chay-thu", action="store_true",
                     help="kiểm mọi điều kiện + chốt đường dẫn rồi DỪNG, không gọi API")
+    ap.add_argument("--ghi-ro-neo", action="store_true",
+                    help="ghi thêm thông tin RỔ NEO grounding vào bản ghi (bọc _guard_text phía test)")
     # ⚠ PHẢI là parse_args(argv). Viết `[] if argv is None else argv` thì khi chạy TỪ DÒNG LỆNH
     # (argv=None) argparse nhận danh sách RỖNG -> MỌI tham số bị vứt IM LẶNG -> `--chay-thu` không
     # có tác dụng và script chạy thật, TIÊU TIỀN API. Đã mắc đúng lỗi này ngày 2026-07-31 (42 câu).
@@ -343,6 +370,8 @@ def main(argv=None, hoi=None, tao_bridge=None, files=None):
     out = open(path, "a" if da_co else "x", encoding="utf-8")
     br = None
     stt, done, t0 = 0, 0, time.time()
+    if a.ghi_ro_neo:
+        _bat_ro_neo()
     try:
         br = (tao_bridge or (lambda: mcp_bridge.MCPBridge(["mcp_server.py"],
                                                           env={"READFILE_MAX_MB": "300"})))()
@@ -362,9 +391,14 @@ def main(argv=None, hoi=None, tao_bridge=None, files=None):
                 while True:
                     done += 1
                     t = time.time()
+                    _NEO.update({"n": None, "khong_neo_do": None, "khong_neo_tat_ca": None})
                     try:
                         r = hoi_fn(br, q.get("cau_hoi", ""), summary)
                         rec = ban_ghi(q, f, r, luot, lan, dd, time.time() - t)
+                        if a.ghi_ro_neo:
+                            rec["ro_neo_n"] = _NEO["n"]
+                            rec["so_do_luong_khong_neo"] = _NEO["khong_neo_do"]
+                            rec["so_tat_ca_khong_neo"] = _NEO["khong_neo_tat_ca"]
                     except Exception as e:
                         rec = ban_ghi_loi(q, f, e, luot, lan, dd, time.time() - t)
                         traceback.print_exc()

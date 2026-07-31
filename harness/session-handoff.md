@@ -12,6 +12,22 @@
 > **Muốn public thật sau này — ĐỪNG LÀM LẠI TỪ ĐẦU:** nhánh local **`public-ready`** đã có sẵn trọn gói (history sạch không .deb qua `git filter-repo` · Dockerfile tải ODA tuỳ chọn qua `ODA_DEB_URL` · thông báo .dxf-only thân thiện · .gitignore chặn .deb). Đánh đổi: cloud chỉ đọc .dxf tới khi đặt `ODA_DEB_URL`. Mirror backup: `D:/Dat-Antigravity/_backup_repo_truoc_khi_public_20260717/repo-mirror.git`.
 
 
+## 🟡 (b2) LUẬT "CÂU CÓ *TỔNG* + SỐ KHÔNG TRUY ĐƯỢC NGUỒN" — **HỨA HẸN, CHƯA ĐỦ BẰNG CHỨNG ĐỂ CÀI**
+> **Đo bằng dữ liệu THẬT có rổ neo, lần đầu.** Chạy 33 câu (những câu từng sinh khẳng định "tổng") = **223 giây**, 33/33, 0 hỏng → `tests/battery_runs/run09.jsonl`.
+> **CÁCH LẤY RỔ NEO — 0 DÒNG CODE SẢN PHẨM:** bọc `mcp_bridge._guard_text` **từ phía test** (`run_battery.py --ghi-ro-neo`); nó nhận đúng `tool_numbers` ở `mcp_bridge.py:986` và `:1006`.
+> ⛔ **ĐỪNG thêm `tool_numbers` vào dict trả về của `tra_loi_ai`** — `app.py:625` làm `return jsonify(r)`, tức **bơm toàn bộ số nội bộ của tool ra trình duyệt** ở mọi câu hỏi. (Đây là đề xuất SAI của chính tôi, đã tự bác.)
+>
+> **📌 PHÉP ĐO ĐẦU TIÊN LÀ PHÉP ĐO HỎNG — GHI LẠI ĐỂ KHÔNG LẶP:** regex `tổng…{0,40}(\d…)` cho **0 gắn cờ**, tưởng "sạch tuyệt đối". Thực ra nó vớ phải **"304" trong "INOX 304"** trước khi tới `1344.33`. Bộ trích hỏng → luật không bao giờ kích. Phải đổi sang **quét theo CÂU** (câu chứa "tổng" → mọi số đo-lường trong câu đó).
+>
+> **KẾT QUẢ (sau khi sửa bộ trích):**
+> · 27/33 câu có mệnh đề "tổng" · **gắn cờ 2** (7% câu-có-tổng · 6% toàn bộ) · **0 báo động giả trên 25 câu còn lại** (tổng do tool trả đều truy được nguồn — vd id38 `564.8` và `3545.9` đều grounded).
+> · **Cả 2 ca gắn cờ đều THẬT và đều CỘNG SAI:** cùng 9 mục inox (tổng đúng **1384,83**), model phát **1384,33** (id32, lệch 0,5) và **1344,33** (id193, lệch 40,5).
+> · **Độ bỏ sót:** toàn corpus chỉ **5/33** câu có số đo-lường không-truy-nguồn; 2 ca là tổng bịa (bắt), 3 ca còn lại là số nguyên nhỏ (5.0, 5.0, 10.0) trong câu KHÔNG khẳng định tổng → bỏ qua **có chủ ý** (chính là loại dễ báo oan).
+> · **Bắt được đúng thứ B1 mù**: tổng cộng SAI.
+>
+> **⚠ ĐỪNG ĐỌC "2/2 = 100%" LÀ ĐÃ CHỨNG MINH:** id32 và id193 **cùng rơi vào MỘT bảng inox 9 dòng** ⇒ đây là **MỘT hiện tượng quan sát 2 lần, không phải 2 bằng chứng độc lập**. Thêm nữa: mẫu 33 câu được CHỌN vì trước đó từng sinh "tổng" (mẫu đã làm giàu), 1 lượt, 1 bản code, 3 bản vẽ.
+> **NẾU LÀM TIẾP:** (1) mở rộng mẫu ra cả 198 câu + ≥2 lượt để có ca độc lập; (2) **hành động phải là GẮN CỜ/CẢNH BÁO, KHÔNG phải thay câu trả lời** — lịch sử per-claim đã NO_GO vì giết câu đúng; (3) red-team 2 tầng trước khi chạm `_guard_text`. **CHƯA CÀI GÌ VÀO SẢN PHẨM.**
+
 ## ⛔ (b) BỘ DÒ "TỰ CỘNG SỐ" KIỂU TỔNG-TẬP-CON = **NO_GO CÓ SỐ — ĐỪNG LÀM LẠI**
 > Đo offline trên **595 câu trả lời THẬT** (3 lượt × 198, `run02|03|04`), **0 đồng API**. Luật chốt TRƯỚC khi nhìn số: *tồn tại số T và tập con ≥3 số KHÁC trong CHÍNH câu đó với |sum(S) − T| ≤ max(0,01; 0,1%·T)*.
 > · chạy trên `tat_ca`: gắn cờ **25/595 = 4,2%** · chạy trên `do_luong` (sạch handle): **13/595**.
