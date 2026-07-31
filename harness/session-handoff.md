@@ -12,6 +12,23 @@
 > **Muốn public thật sau này — ĐỪNG LÀM LẠI TỪ ĐẦU:** nhánh local **`public-ready`** đã có sẵn trọn gói (history sạch không .deb qua `git filter-repo` · Dockerfile tải ODA tuỳ chọn qua `ODA_DEB_URL` · thông báo .dxf-only thân thiện · .gitignore chặn .deb). Đánh đổi: cloud chỉ đọc .dxf tới khi đặt `ODA_DEB_URL`. Mirror backup: `D:/Dat-Antigravity/_backup_repo_truoc_khi_public_20260717/repo-mirror.git`.
 
 
+## ⛔ (b) BỘ DÒ "TỰ CỘNG SỐ" KIỂU TỔNG-TẬP-CON = **NO_GO CÓ SỐ — ĐỪNG LÀM LẠI**
+> Đo offline trên **595 câu trả lời THẬT** (3 lượt × 198, `run02|03|04`), **0 đồng API**. Luật chốt TRƯỚC khi nhìn số: *tồn tại số T và tập con ≥3 số KHÁC trong CHÍNH câu đó với |sum(S) − T| ≤ max(0,01; 0,1%·T)*.
+> · chạy trên `tat_ca`: gắn cờ **25/595 = 4,2%** · chạy trên `do_luong` (sạch handle): **13/595**.
+> · **CHẤM TAY TOÀN BỘ: gần như KHÔNG ca nào là "model tự cộng" thật.** Rác điển hình: `8 = 1+2+5` (**4 lần**, là "8 loại lan can" vs số bộ từng loại) · `6 = 1+2+3` (2 lần) · `34 = 9+10+15` · `53 = 2+6+45` · `1000 = 2+30+43+307+618` (1000 là số đối tượng TEXT) · **`51841 = 2+10+51842`** — đó là **HANDLE**, không phải số đo.
+>
+> **🔴 HỎNG Ở TẦNG CẤU TRÚC, KHÔNG PHẢI Ở NGƯỠNG — thử ngay trên ca đã đẻ ra ý tưởng (id193):**
+> | lượt | số model phát | bộ dò |
+> |---|---|---|
+> | run02 | **1344,33 — SAI 40,5 kg** (ca GÂY HẠI) | **TRƯỢT, không gắn cờ gì** |
+> | run03 | 3545,9 (dẫn nhầm, không tự cộng) | không có gì để bắt |
+> | run04 | 1384,83 (tự cộng, ĐÚNG số học) | bắt được — **kèm 1 báo động giả** (357,95) |
+> ⇒ **Bộ dò chỉ bắt được tổng CỘNG ĐÚNG, và mù với tổng CỘNG SAI** — vì tổng sai thì theo định nghĩa nó *không* bằng tổng tập con nào. Mà **tổng cộng sai mới là cái gây hại**. Siết ngưỡng/đổi kích thước tập con KHÔNG chữa được điều này.
+> ⇒ Cộng thêm: với 5-15 số/câu, trùng-hợp tổng-tập-con của số nguyên nhỏ là **gần như chắc chắn xảy ra**.
+>
+> **HƯỚNG THAY THẾ (chưa đo được, cần 1 thứ rẻ):** luật **"số đứng sau cụm TỔNG mà KHÔNG có trong rổ neo"**. Cụm `tổng…<số>` xuất hiện **57/595 = 9,6%** câu — cỡ mẫu vừa phải. Thử tay trên id193: `1344,33` không có trong rổ → **BẮT ĐÚNG** · `1384,83` không có trong rổ → bắt (vẫn là vi phạm `_P_R2` dù cộng đúng) · `3545,9` **CÓ** trong rổ (tool trả) → **KHÔNG bắt, đúng**. Hình dạng hứa hẹn hơn hẳn.
+> ⚠ **NÚT THẮT:** rổ neo (`tool_numbers`) **KHÔNG được lưu** trong bản ghi lượt chạy, nên KHÔNG đo được offline. Muốn đo cần `tra_loi_ai` phơi `tool_numbers` ra (chạm **code sản phẩm** `mcp_bridge.py`) rồi chạy lại battery — sau đó đo **miễn phí** trên dữ liệu mới. **CHƯA LÀM, chờ user quyết.**
+
 ## 🔍 id193 ĐÃ SOI XONG (2026-07-31) — **2 lỗi TÁCH BIỆT, cái nặng hơn thì phép đo ổn định KHÔNG THẤY**
 > Câu hỏi: *"Tổng khối lượng inox lan can cầu thang là bao nhiêu kg?"* (`doc_thieu`, `loi_san = "doc thieu"`).
 >
