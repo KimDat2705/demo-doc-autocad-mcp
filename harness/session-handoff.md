@@ -110,6 +110,25 @@
 > sẵn trong chú thích gốc ("chỉ từ chối khi câu bịa THUẦN"), và mọi phương án thay thế đều **tệ hơn về
 > tổng thể**. Điểm yếu đó phải xử bằng **thu hẹp rổ neo**, KHÔNG phải bằng đổi luật.
 >
+> **✅ ĐỢT 3 — HÀNG RÀO CHO SỐ ĐẾM (nhóm A, LÀM XONG 2026-07-31).** Bề mặt đang MỞ HOÀN TOÀN ở **31%**
+> câu trả lời: `do_luong` chỉ gồm số có ĐƠN VỊ / THẬP PHÂN nên câu chỉ khẳng định SỐ ĐẾM thoát sớm ở
+> `if not do_luong: return text`. Rổ neo RỖNG: *"Tổng số cọc là 156 cọc."* LỌT · *"Bản vẽ có 9999 cột."*
+> LỌT, trong khi *"Chiều dài dầm 30 m"* CHẶN. Với phần mềm bóc khối lượng thì "bao nhiêu cấu kiện" quan
+> trọng NGANG "dài bao nhiêu mét".
+> **ĐO TRƯỚC, CODE SAU** — 198 câu thật, rổ neo dựng lại từ engine, chấm bằng nhãn độc lập `ky_vong`:
+> 106/198 = 54% câu có khẳng định đếm · **62/198 = 31% chỉ có số đếm** · trong 72 câu bản vá chạm tới:
+> chặn thêm **1**, **giết oan 0**, bắt đúng **1** (id123: model nói "120 lần" trong khi `dem_so_luong('MC')`
+> trả **5**). ⇒ chính xác 1/1, từ-chối-oan 0/72. **Profile NGƯỢC HẲN per-claim** — đó là lý do mục này GO
+> còn per-claim NO_GO, dù cùng là "siết hàng rào": ở đây siết cái được coi là KHẲNG ĐỊNH, không đổi luật
+> phán quyết. 71/72 câu vẫn lọt vì model VỐN đã đọc số đếm từ tool.
+> **2 quyết định KHÔNG-LÀM có số:** biến thể KHÔNG DẤU (`156 coc`) vẫn lọt — đo được bắt thêm **0/198**
+> (model luôn trả lời có dấu) · tên LOẠI DXF (`2355 DIMENSION`) không tính — chỉ **1/198** ca và đó là
+> BÁO ĐỘNG GIẢ (`01 TEXT` = tên layer). Cả hai lần **kỳ vọng trong test SAI, không phải code sai**.
+> Cổng bắt 4 ca đỏ khoá hợp đồng cũ ("số nguyên trơn miễn") — cả 4 là khẳng định PHÂN LOẠI, mọi ca HÀNH VI
+> E2E vẫn xanh. `test_grounding_guard` 50→**56** (+khối `[F2]` khoá cả hai chiều).
+> ⏳ Rủi ro tồn dư: danh sách danh từ đếm dựa trên 198 câu của 3 bản vẽ; corpus mới có thể có danh từ chưa
+> phủ — chiều hỏng là IM LẶNG (bỏ sót), không phải báo oan.
+>
 > **GHI SỔ, KHÔNG SỬA:** có bug parser thật ở dấu ngăn cách nghìn kiểu VN (`62.900` bị tách thành 62,9),
 > nhưng đo được luật ÷1000 đang **che hoàn toàn** (8/8 ca không đổi kết quả). Vá một bug đang bị vô hiệu
 > hoá = thêm rủi ro, đổi lại 0. Chỉ mở lại NẾU sau này có ai đổi luật ÷1000.

@@ -681,6 +681,27 @@ _UNIT_NUM_RE = re.compile(r"(-?\d+(?:[.,]\d+)?)\s*(mm|cm|dm|km|m2|m²|m3|m³|kg|
 _I1B_M2_RE = re.compile(r"(\d)\s*m2(?![0-9A-Za-z²³])")   # I1b: 'X m2' (đơn vị viết số) -> 'X m²' trước khi strip mã-hiệu
 _I1B_M3_RE = re.compile(r"(\d)\s*m3(?![0-9A-Za-z²³])")
 _DECIMAL_RE = re.compile(r"-?\d+[.,]\d+")
+# ─── SỐ ĐẾM: 'N <danh từ đếm>' cũng là KHẲNG ĐỊNH cần truy nguồn ────────────────────────────────
+# TRƯỚC bản vá này, `do_luong` chỉ gồm số CÓ ĐƠN VỊ hoặc số THẬP PHÂN, nên câu chỉ khẳng định SỐ ĐẾM
+# thoát sớm ở `if not do_luong: return text` -> KHÔNG qua hàng rào nào. Tái hiện với rổ neo RỖNG:
+#   'Tổng số cọc là 156 cọc.' LỌT · 'Bản vẽ có 9999 cột.' LỌT · 'Có 12 bộ cửa D1.' LỌT
+#   trong khi 'Chiều dài dầm 30 m.' CHẶN · 'Diện tích sàn 43 m2.' CHẶN.
+# Với phần mềm BÓC KHỐI LƯỢNG thì "bao nhiêu cấu kiện" quan trọng NGANG "dài bao nhiêu mét".
+# ĐO THẬT trên 198 câu trả lời LIVE (rổ neo dựng lại từ engine trên đúng bản vẽ của từng câu):
+#   · 95/198 = 48% câu có khẳng định đếm · **62/198 = 31% câu CHỈ có số đếm** (hàng rào bỏ qua hoàn toàn)
+#   · trong 72 câu bản vá chạm tới: chặn thêm **1**, giết oan **0**, bắt đúng **1**
+#     (ca bắt: id123 model nói 'Có 120 lần chuỗi MC' trong khi `dem_so_luong('MC')` trả **5**)
+#   ⇒ độ chính xác 1/1, từ-chối-oan 0/72. 71/72 câu vốn đã neo được số đếm = model ĐANG đọc từ tool,
+#     nên bản vá này rủi ro thấp — khác hẳn per-claim (0-3% chính xác, 10-33% giết oan) đã NO_GO.
+# ⚠ Đặt SAU `_MAHIEU_RES` (giống `_UNIT_NUM_RE`) nên 'CỬA D1' / handle '[67CDF]' đã bị strip trước,
+#   không sinh số đếm giả.
+# ⚠ GIỚI HẠN ĐÃ BIẾT, CỐ Ý KHÔNG VÁ: danh từ ở đây CÓ DẤU nên biến thể KHÔNG DẤU ('156 coc') lọt.
+#   Đã ĐO trước khi quyết: trên 198 câu trả lời thật, bản không-dấu bắt thêm **0 câu** (model trả lời
+#   bằng tiếng Việt có dấu, kể cả khi câu hỏi không dấu). Thêm bản không-dấu = tăng bề mặt lỗi đổi lấy 0.
+_DEM_TU = ("cọc|cột|dầm|sàn|móng|đài|cửa|vách|tường|bậc|thang|bộ|cái|chiếc|thanh|tấm|viên|"
+           "lớp|tầng|phòng|khe|trục|lỗ|ống|đối tượng|layer|khối|block|mục|bảng|chi tiết|"
+           "vị trí|chỗ|điểm|đoạn|nhịp|ô|lần|loại")
+_DEM_NUM_RE = re.compile(r"(?<![0-9A-Za-zÀ-ỹ])(\d{1,7})\s*(?:%s)(?![0-9A-Za-zÀ-ỹ])" % _DEM_TU, re.I)
 _ANY_NUM_RE = re.compile(r"-?\d+(?:[.,]\d+)?")
 
 
@@ -804,6 +825,8 @@ def _answer_numbers(text):
     for rx in _MAHIEU_RES: t = rx.sub("  ", t)
     do_luong = [f for f in (_to_f(m.group(1)) for m in _UNIT_NUM_RE.finditer(t)) if f is not None]
     do_luong += [f for f in (_to_f(m.group(0)) for m in _DECIMAL_RE.finditer(t)) if f is not None]
+    # SỐ ĐẾM ('156 cọc', '9999 cột') cũng là khẳng định cần truy nguồn — xem khối chú thích ở _DEM_NUM_RE
+    do_luong += [f for f in (_to_f(m.group(1)) for m in _DEM_NUM_RE.finditer(t)) if f is not None]
     tat_ca = [f for f in (_to_f(m.group(0)) for m in _ANY_NUM_RE.finditer(t)) if f is not None]
     return tat_ca, do_luong
 

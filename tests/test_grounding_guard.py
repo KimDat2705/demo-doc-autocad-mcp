@@ -66,15 +66,26 @@ def main():
 
     print("[A] UNIT — trích số đo-lường (phân biệt đo-lường vs đếm vs mã-hiệu)")
     ok("id135 '-10m' -> [-10]", B._answer_numbers("Cao độ thấp nhất là -10m.")[1] == [-10.0])
-    ok("đếm '8024 đối tượng, 2355 DIMENSION' -> [] (số nguyên trơn miễn)",
-       B._answer_numbers("Bản vẽ có 8024 đối tượng, 2355 DIMENSION.")[1] == [])
-    ok("thép 'Ø22 20 thanh 298.4 kg' -> có 298.4, KHÔNG có 22/20",
+    # ⚠ HỢP ĐỒNG ĐỔI CÓ CHỦ ĐÍCH (2026-07-31): SỐ ĐẾM nay LÀ khẳng định cần truy nguồn.
+    # Trước đây số nguyên trơn được MIỄN, nên câu CHỈ khẳng định số đếm thoát sớm ở
+    # `if not do_luong: return text` -> KHÔNG qua hàng rào nào. Đo với rổ neo RỖNG:
+    # 'Tổng số cọc là 156 cọc.' LỌT · 'Bản vẽ có 9999 cột.' LỌT, trong khi 'Chiều dài dầm 30 m' CHẶN.
+    # Với phần mềm BÓC KHỐI LƯỢNG thì "bao nhiêu cấu kiện" quan trọng NGANG "dài bao nhiêu mét".
+    # AN TOÀN đã đo trên 198 câu trả lời THẬT (rổ neo dựng lại từ engine): chặn thêm 1, GIẾT OAN 0.
+    # Mọi ca E2E hành vi bên dưới ([C]) VẪN XANH vì số đếm ĐÚNG thì luôn có neo.
+    # '8024 đối tượng' được bắt (danh từ đếm tiếng Việt); '2355 DIMENSION' thì KHÔNG — tên LOẠI đối tượng
+    # DXF cố ý nằm ngoài danh sách. ĐO trước khi quyết: dạng '<số> <LOẠI DXF>' chỉ xuất hiện 1/198 câu,
+    # và ca đó là BÁO ĐỘNG GIẢ ('01 TEXT' là TÊN LAYER, không phải khẳng định đếm). Thêm vào = đẻ lỗi mới
+    # đổi lấy 0. Các số này vốn do `thong_ke_doi_tuong` phát ra nên luôn có neo.
+    ok("đếm '8024 đối tượng' -> NAY LÀ khẳng định; 'DIMENSION' (tên loại DXF) KHÔNG tính",
+       B._answer_numbers("Bản vẽ có 8024 đối tượng, 2355 DIMENSION.")[1] == [8024.0])
+    ok("thép 'Ø22 20 thanh 298.4 kg' -> có 298.4 VÀ 20 (thanh); KHÔNG có 22 (mã hiệu Ø22)",
        298.4 in B._answer_numbers("Ø22 có 20 thanh, 298.4 kg.")[1]
-       and 22.0 not in B._answer_numbers("Ø22 có 20 thanh, 298.4 kg.")[1]
-       and 20.0 not in B._answer_numbers("Ø22 có 20 thanh, 298.4 kg.")[1])
+       and 20.0 in B._answer_numbers("Ø22 có 20 thanh, 298.4 kg.")[1]
+       and 22.0 not in B._answer_numbers("Ø22 có 20 thanh, 298.4 kg.")[1])
     ok("mã-hiệu 'B20/M14/1/200/250x186' -> [] (miễn hết)",
        B._answer_numbers("Mác B20 (mác 250), thép M14, tỉ lệ 1/200, tiết diện 250x186x6x6.")[1] == [])
-    ok("đếm '3 loại cửa' -> [] (miễn)", B._answer_numbers("Bản vẽ có 3 loại cửa.")[1] == [])
+    ok("đếm '3 loại cửa' -> NAY LÀ khẳng định", B._answer_numbers("Bản vẽ có 3 loại cửa.")[1] == [3.0])
     ok("số nguyên có đơn vị vẫn là đo-lường ('58800 mm')", 58800.0 in B._answer_numbers("Dim lớn nhất 58800 mm.")[1])
 
     print("[A] UNIT — grounding (đổi đơn vị mm<->m + làm tròn + CÓ DẤU)")
@@ -154,8 +165,26 @@ def main():
        run_e2e({"dien_tich": [{"m2": 634}]}, "Diện tích mái là 634 m2.") != R)
     ok("mã-hiệu vẫn KHÔNG lọt do_luong sau vá (B20/Ø22/250x186/1÷200)",
        B._answer_numbers("Mác B20, Ø22, tiết diện 250x186, tỉ lệ 1/200.")[1] == [])
-    ok("số ĐẾM trơn '3 phòng' vẫn KHÔNG là đo-lường",
-       B._answer_numbers("Bản vẽ có 3 phòng, 5 cửa.")[1] == [])
+    ok("số ĐẾM '3 phòng, 5 cửa' NAY LÀ khẳng định cần truy nguồn",
+       sorted(B._answer_numbers("Bản vẽ có 3 phòng, 5 cửa.")[1]) == [3.0, 5.0])
+
+    print("[F2] SỐ ĐẾM — hàng rào mới: chặn bịa NHƯNG không giết oan (đo 198 câu thật: chặn 1, oan 0)")
+    ok("BỊA đếm, rổ neo RỖNG -> CHẶN: 'Tổng số cọc là 156 cọc.'",
+       B._guard_text("Tổng số cọc là 156 cọc.", set()) == R)
+    ok("BỊA đếm, rổ neo RỖNG -> CHẶN: 'Bản vẽ có 9999 cột.'",
+       B._guard_text("Bản vẽ có 9999 cột.", set()) == R)
+    ok("ĐÚNG đếm (156 CÓ neo) -> GIỮ, không từ-chối-oan",
+       B._guard_text("Tổng số cọc là 156 cọc.", {156.0}) != R)
+    ok("ĐÚNG đếm (141 layer CÓ neo) -> GIỮ",
+       B._guard_text("Bản vẽ có 141 layer.", {141.0}) != R)
+    ok("ca THẬT id123: model nói '120 lần' trong khi tool trả 5 -> CHẶN",
+       B._guard_text("Có 120 lần chuỗi 'MC' xuất hiện trong bản vẽ.", {5.0, 17.0}) == R)
+    ok("câu KHÔNG khẳng định gì -> KHÔNG bị đụng tới",
+       B._guard_text("Bản vẽ có ghi chú về vật liệu.", set()) == "Bản vẽ có ghi chú về vật liệu.")
+    # ⚠ giới hạn CỐ Ý: danh từ có dấu -> biến thể KHÔNG DẤU lọt. Đo trước khi quyết: trên 198 câu thật,
+    # bản không-dấu bắt thêm 0 câu (model luôn trả lời có dấu). Không vá = không tăng bề mặt lỗi.
+    ok("(giới hạn đã biết, có đo) biến thể KHÔNG DẤU '156 coc' vẫn lọt",
+       B._guard_text("Tong so coc la 156 coc.", set()) != R)
     # KHOÁ REGRESSION id77 (battery bắt): tiết diện 'AxB mm' KHÔNG được sinh do_luong nhầm từ số thứ 2 -> KHÔNG
     # bị từ chối oan. (Bản vá đầu tiên trích do_luong từ text gốc đã nuke 'Cột 220x220 mm' — sai; đã sửa.)
     ok("SECTION '220x220 mm' -> do_luong RỖNG (không nuke câu tiết diện đúng)",
