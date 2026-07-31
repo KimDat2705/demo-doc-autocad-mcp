@@ -12,6 +12,23 @@
 > **Muốn public thật sau này — ĐỪNG LÀM LẠI TỪ ĐẦU:** nhánh local **`public-ready`** đã có sẵn trọn gói (history sạch không .deb qua `git filter-repo` · Dockerfile tải ODA tuỳ chọn qua `ODA_DEB_URL` · thông báo .dxf-only thân thiện · .gitignore chặn .deb). Đánh đổi: cloud chỉ đọc .dxf tới khi đặt `ODA_DEB_URL`. Mirror backup: `D:/Dat-Antigravity/_backup_repo_truoc_khi_public_20260717/repo-mirror.git`.
 
 
+## 🔧 1.06 XONG — DỤNG CỤ ĐO BỘ 198 CÂU (2026-07-31, nối phiên) · check.sh **[42/42]**
+> **HỢP ĐỒNG CHỐT — đừng sáng tác lại:**
+> · Dữ liệu lượt: `tests/battery_runs/run<NN>.jsonl` (**gitignored**) · định danh: `battery_runs/_meta/run<NN>.meta.json` (ghi 1 lần, mode `"x"`).
+> · **APPEND-ONLY tuyệt đối.** Không có đường nào rewrite/xoá/`os.replace` lên file kết quả. `tests/battery_results.jsonl` (24/07) **không còn bị script đụng tới**.
+> · **"Hợp lệ" nhận biết bằng CẤU TRÚC:** `"answer_goc" in r`. `tra_loi_ai` chỉ đính khoá này ở 2 đường trả lời THẬT (`mcp_bridge.py:988`, `:1008`); cả 4 đường hỏng (`:913` quá tải · `:918` rỗng · `:984` rỗng-sau-nhắc · `:1012` hết lượt tool) đều KHÔNG có. **Đừng quay lại khớp chuỗi tiếng Việt** — câu chữ trôi, cấu trúc thì không.
+> · Mã thoát: `0` đủ · `2` đã tồn tại/sidecar mồ côi · `3` jsonl hỏng giữa file · `4` chuỗi model chưa tắt · `5` lệch định danh · `8` còn khuyết câu · `9` thiếu bản vẽ.
+> · `run_battery.py` **ép `GEMINI_FALLBACK_MODELS=""` trước `import mcp_bridge`** (MODELS chốt lúc import). Mở lại: `BATTERY_CHUOI_MODEL=1`. Lý do: 429 lặng lẽ nhảy 2.0-flash → không biết đang chấm model nào.
+> · Đo ổn định: `python tests/do_on_dinh.py` — in **BA số** (mâu thuẫn số · trả-lời-vs-từ-chối · tổng), trung bình trên C(N,2) cặp, **không có ngưỡng đạt/không-đạt**.
+>
+> **SỐ ĐO TRƯỚC-KHI-CODE (2 cặp lượt lịch sử thật):** so nguyên văn **3,5%/0,0%** = chỉ số CHẾT · `_answer_numbers` trả LIST nên so `==` cho 43,4% còn `set()` cho 53,0% (**chênh 10 điểm thuần do lỗi so sánh**) · **29,3%** cặp câu không có số ở CẢ HAI lượt = giống nhau TẦM THƯỜNG, đã loại khỏi mẫu · độ phân giải đạt (cùng model/khác code 33,6% vs khác model 11,5%).
+>
+> **📌 BÀI HỌC TỐN TIỀN THẬT:** `ap.parse_args([] if argv is None else argv)` ⇒ chạy từ DÒNG LỆNH thì mọi tham số bị vứt IM LẶNG ⇒ `--chay-thu` vô tác dụng ⇒ **chạy thật, tiêu API 42 câu**. **49 ca test tự viết đều XANH** vì ca nào cũng truyền argv tường minh. Idiom đúng: `parse_args(argv)` (đã có sẵn đúng ở `tests/khao_sat_corpus.py:486`). Ca khoá `[R.11]` đi đúng đường `sys.argv`. ⇒ **seam làm test dễ viết đồng thời làm test MÙ với entry point thật.**
+>
+> **Tiện thể vá 1 rủi ro MẤT DỮ LIỆU có thật:** `prep_verify.py` xoá `*.json` theo `argv[2]`; `""` hoặc `"."` quét trúng **`tests/battery.json`** (bộ 198 câu, gitignored = BẢN DUY NHẤT) + `kichban_ketqua.json` + `rerun_ids.json`. Đã chặn (chỉ xoá `chunk_*.json`, bắt buộc thư mục con trực tiếp của `tests/`).
+> ⚠ `prep_verify.py` vẫn CHẾT vì thiếu `_renders/profile_*.json` → chạy `python tests/dump_profile.py` trước. Có `tests/battery_runs/run01.jsonl` = **42 câu thật** (lượt 1 dở dang từ sự cố trên, định danh khớp bản hiện tại) — chạy tiếp `--tiep --luot 1` hoặc xoá.
+> **CỐ Ý KHÔNG LÀM:** khoá theo pid · trộn thứ tự câu · thư mục nhóm theo code_hash · file "kết sổ" riêng · bộ tách số thứ hai (dùng chính bộ của hàng rào chống bịa).
+
 ## 🏁 CHỐT SỔ CUỐI PHIÊN 2026-07-31 — ĐỌC 12 DÒNG NÀY TRƯỚC
 > **HEAD `8156d47` == origin · tree SẠCH · check.sh [41/41] PASS · 34 MCP tool · 0 regress.**
 > **LIVE `8156d47`** verify: prompt `2026.07.27-kb-l3` / `239e8b7b…` (thêm rồi GỠ `_P_R5` → byte-identical

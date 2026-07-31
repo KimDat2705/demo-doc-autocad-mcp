@@ -6,9 +6,20 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 RDIR = os.path.normpath(os.path.join(HERE, "..", "_renders"))
 # argv[1] = ten file jsonl ket qua (mac dinh snapshot); argv[2] = thu muc chunk
 SRC_NAME = sys.argv[1] if len(sys.argv) > 1 else "battery_results_flash_snapshot.jsonl"
-CH = os.path.join(HERE, sys.argv[2] if len(sys.argv) > 2 else "verify_chunks")
+_SUB = sys.argv[2] if len(sys.argv) > 2 else "verify_chunks"
+# ⚠ HANG RAO CHONG XOA NHAM (them 2026-07-31). Truoc day: CH = join(HERE, argv[2]) roi
+# `os.remove` MOI *.json trong CH. Da kiem bang duong dan: argv[2] = "" hoac "." cho CH == tests/
+# -> lenh xoa quet trung `battery.json` (bo 198 cau, GITIGNORED nen chi co MOT ban), kem
+# `kichban_ketqua.json` va `rerun_ids.json`. Mot lan go nham la mat.
+if _SUB.strip() in ("", ".", "..") or os.path.isabs(_SUB):
+    sys.exit("DUNG: argv[2] (thu muc chunk) khong duoc rong / '.' / '..' / duong dan tuyet doi.")
+CH = os.path.abspath(os.path.join(HERE, _SUB))
+if os.path.dirname(CH.rstrip(os.sep)) != os.path.abspath(HERE) or CH.rstrip(os.sep) == os.path.abspath(HERE):
+    sys.exit("DUNG: thu muc chunk phai la MOT thu muc con TRUC TIEP cua tests/ (nhan duoc: %s)" % CH)
 os.makedirs(CH, exist_ok=True)
-for f in glob.glob(os.path.join(CH, "*.json")): os.remove(f)
+if glob.glob(os.path.join(CH, "*.jsonl")):
+    sys.exit("DUNG: %s chua file .jsonl -> trong nhu thu muc DU LIEU, khong phai thu muc chunk." % CH)
+for f in glob.glob(os.path.join(CH, "chunk_*.json")): os.remove(f)   # CHI xoa chunk do chinh no sinh
 
 SRC = os.path.join(HERE, SRC_NAME)
 R = [json.loads(l) for l in open(SRC, encoding="utf-8")]
@@ -16,7 +27,10 @@ R = [r for r in R if "[[LỖI" not in r["answer"]]   # bỏ câu lỗi 503/504 (
 
 # --- factsheet tu profile ---
 def factsheet(key):
-    p = json.load(open(os.path.join(RDIR, "profile_%s.json" % key), encoding="utf-8"))
+    fp = os.path.join(RDIR, "profile_%s.json" % key)
+    if not os.path.isfile(fp):      # LO ro nguyen nhan thay vi nem FileNotFoundError tran
+        sys.exit("DUNG: thieu %s. Chay `python tests/dump_profile.py` de sinh lai profile truoc." % fp)
+    p = json.load(open(fp, encoding="utf-8"))
     return {
         "tong_doi_tuong": p["tong_doi_tuong"], "so_layer": p["so_layer"], "so_dim": p["so_dim"],
         "dim_min": p["dim_min"], "dim_max": p["dim_max"],

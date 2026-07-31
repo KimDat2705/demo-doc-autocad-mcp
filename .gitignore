@@ -13,6 +13,7 @@ spikes/spike_bridge_out.txt
 
 # Test artifacts (kết quả chạy, log) — giữ SCRIPT test, bỏ dữ liệu chạy
 tests/battery_results*.jsonl
+tests/battery_runs/
 tests/*.log
 tests/verify*_chunks/
 tests/battery.json
