@@ -101,11 +101,44 @@ def main():
     r = _ro({"ket_qua": [{"text": "cửa D1"}], "_kb": {"giai_thich": "rộng 25 sâu 12.5"}})
     ok("số trong '_kb' không vào rổ", 25.0 not in r and 12.5 not in r, sorted(r))
 
+    print("[P.10] HANDLE (mã hex nội bộ) KHÔNG được làm bằng chứng — kênh RỘNG NHẤT trong 3 kênh")
+    # handle là ĐỊNH DANH NỘI BỘ, không phải số in trên bản vẽ. Nhưng _collect_numbers bóc chữ số trong
+    # mọi chuỗi -> '13876A' sinh neo 13876.0. ĐO THẬT: kết quả chỉ gồm 3 handle + chữ KHÔNG CÓ SỐ NÀO
+    # vẫn sinh rổ [1.0, 2.0, 9.0, 38.0, 13876.0]. MỌI tool trả handle đều dính, không riêng tool mới.
+    r = _ro({"ket_qua": [{"handle": "13876A", "text": "ghi chu"},
+                         {"handle": "1C2F1E", "text": "abc"},
+                         {"handle": "38E9C", "text": "xyz"}]})
+    ok("rổ neo RỖNG khi chữ không mang số nào", r == set(), sorted(r))
+    ok("cụ thể 13876 KHÔNG thành neo", 13876.0 not in r)
+    r2 = _ro({"ket_qua": [{"handle": "2A3F", "text": "dam D1 rong 220"}]})
+    ok("số THẬT trong chữ VẪN vào rổ (không từ-chối-oan)", 220.0 in r2, sorted(r2))
+    ok("qty_handle cũng bị loại", 9999.0 not in _ro({"ds": [{"qty_handle": "9999B", "noi_dung": "x"}]}))
+
+    print("[P.11] CỤM TỪ CHỐI không còn TẮT hàng rào toàn bài (câu TRỘN bị chặn)")
+    # Trước: chỉ cần câu có 'không tìm thấy' là _guard_text trả nguyên câu, mọi số còn lại đi thẳng ra.
+    tron = "Không tìm thấy ở phần máy đọc được, nhưng cao độ đáy đài cọc là -13,7 m."
+    ok("câu TRỘN (từ chối + số bịa) bị CHẶN", B._guard_text(tron, set()) == B.REFUSE_MESSAGE, B._guard_text(tron, set()))
+    ok("câu bịa THUẦN vẫn bị chặn", B._guard_text("Cao độ đáy đài cọc là -13,7 m.", set()) == B.REFUSE_MESSAGE)
+    for thuan in ("Không tìm thấy thông tin này trong bản vẽ.", "Tôi chưa hỗ trợ suy ra hướng công trình.",
+                  B.REFUSE_MESSAGE):
+        ok("từ chối THUẦN GIỮ NGUYÊN byte: %r" % thuan[:34], B._guard_text(thuan, set()) == thuan)
+    ok("câu TRỘN có số TRUY ĐƯỢC thì vẫn GIỮ (không từ-chối-oan)",
+       B._guard_text(tron, {-13.7}) == tron)
+
     print("[P.9] source-guard: call-site và cấu trúc lọc")
     bsrc = open(os.path.join(ROOT, "mcp_bridge.py"), encoding="utf-8").read()
     ok("call-site gom số đi qua _strip_neo", "_collect_numbers(_strip_neo(result))" in bsrc)
     ok("_strip_neo lồng _strip_kb", re.search(r"def _strip_neo\([\s\S]{0,400}?_strip_kb\(", bsrc) is not None)
     ok("_strip_neo lồng _strip_ten_file", re.search(r"def _strip_neo\([\s\S]{0,400}?_strip_ten_file\(", bsrc) is not None)
+    ok("_strip_neo lồng _strip_handle", re.search(r"def _strip_neo\([\s\S]{0,400}?_strip_handle\(", bsrc) is not None)
+    # ⚠ phải soi MÃ THẬT chứ không phải chú thích: chú thích của bản vá có trích lại nguyên văn dòng
+    # đã gỡ (để người sau biết vì sao gỡ), nên regex trần sẽ khớp nhầm vào đó.
+    ok("_guard_text KHÔNG còn thoát sớm theo _REFUSAL_MARKERS (soi MÃ, bỏ chú thích)",
+       re.search(r"^\s+if any\(m in tl for m in _REFUSAL_MARKERS\)",
+                 "\n".join(l for l in bsrc.splitlines() if not l.lstrip().startswith("#")),
+                 re.M) is None)
+    ok("_apply_i1 VẪN giữ thoát sớm (chỉ nối cảnh báo, đúng ý F2)",
+       re.search(r"def _apply_i1\([\s\S]{0,600}?_REFUSAL_MARKERS", bsrc) is not None)
 
     print("\n%d PASS / %d FAIL" % (PASS, FAIL))
     return 1 if FAIL else 0

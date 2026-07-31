@@ -58,10 +58,30 @@
 > dựng đúng nhánh cứu nhưng CỐ Ý không gõ đè chữ. → luật đúng: hình học >0 dùng code42; hình học =0 chỉ
 > cứu khi KHÔNG có chữ gõ đè.
 >
-> **⏳ 3 RỦI RO TỒN DƯ (nêu rõ, chưa vá — user quyết ưu tiên):**
-> 1. **Cụm TỪ CHỐI tắt guard TOÀN BÀI** (`_REFUSAL_MARKERS` thoát sớm). Lỗ CÓ SẴN; câu nudge việc 2 làm nó
->    dễ kích hoạt hơn (đo: 45% câu trả lời thật đang ở trạng thái không-hàng-rào). Vá = dời kiểm marker
->    xuống SAU `_answer_numbers` → đụng lõi, dịch số nhiều suite → LÁT RIÊNG.
+> **✅ ĐỢT 2 CÙNG NGÀY — user chốt "nghiên cứu kỹ rồi mới quyết":**
+> - **GỠ vế ngoại lệ `_P_R5`** (prompt về BYTE-IDENTICAL `239e8b7b`). Đề xuất "giữ" của phiên trước **BỊ
+>   BÁC bằng số**: lợi ích ~0 (A/B 4/8 vs 5/8, Fisher p=1,000) · hại đo được: trong ca cờ bật chỉ **5%**
+>   tool trả dữ liệu thật, **95%** câu trả lời ĐÚNG vẫn là "không có" mà vế đó lại CẤM nói → **cỗ máy ép
+>   bịa**. GIỮ phần CODE (cờ + tool) vì dữ liệu mất là thật.
+> - **Sửa NGUYÊN NHÂN GỐC báo động giả: đòi khớp ĐÚNG DẤU** (`_vcd_dau_khop`). `_norm` bỏ dấu nên
+>   'cửa'→'của', **'mác'→'mạc tiến trình' (TÊN NGƯỜI KÝ)**, 'cột'→'cốt thép', 'trần'→'THỊ TRẤN'.
+>   Kết quả: ca bật cờ **20→5** · khớp mù dấu **15→0** · tỉ lệ mang dữ liệu thật **5%→20%**.
+> - **GỠ thoát-sớm theo cụm TỪ CHỐI trong `_guard_text`** (giữ ở `_apply_i1`). Dòng đó là MÃ CHẾT với câu
+>   từ chối thuần (`if not do_luong` đã lo trọn — 0/102 câu đổi kể cả rổ neo RỖNG), nên tác dụng duy nhất
+>   là miễn trừ đúng phần nguy hiểm. Với rổ neo THẬT: **0/793 câu đổi**.
+> - **VÁ HANDLE BƠM NEO ẢO — kênh RỘNG NHẤT.** `'13876A'` → neo `13876.0`; kết quả chỉ gồm 3 handle +
+>   chữ KHÔNG CÓ SỐ vẫn sinh rổ `[1,2,9,38,13876]`. MỌI tool trả handle đều dính. `_strip_handle` gộp vào
+>   `_strip_neo`; I1 KHÔNG ảnh hưởng (`_collect_handles` chạy trên result thô).
+> - Test: neo_grounding 21→**34**, vung_chua_doc 37→**44**. Gate **41/41**.
+>
+> **⚠ ĐÍNH CHÍNH SỐ CŨ CỦA CHÍNH TÀI LIỆU NÀY: "45% câu trả lời ở trạng thái không-hàng-rào" là SAI.**
+> Đo lại trên 822 câu thật: **21,2%** (mẫu chính 198 câu) / **14,5-17,5%** (mẫu gộp), và phần lớn VÔ HẠI
+> (từ chối thuần, không có số để bảo vệ). Nhóm nguy hiểm thật (trộn từ-chối + khẳng định số) = **2,1%**.
+>
+> **⏳ RỦI RO TỒN DƯ (chưa vá — user quyết ưu tiên):**
+> 0. **`_guard_text` là ANY-GROUNDED**: chỉ cần MỘT số truy được là CẢ BÀI đi qua. Nên một trích dẫn hợp lệ
+>    trở thành GIẤY PHÉP grounding cho mọi số khác trong cùng câu trả lời. Đây là hạn chế THIẾT KẾ sâu
+>    hơn mọi lỗ đã vá; muốn siết phải chuyển sang per-claim, dịch số toàn bộ suite.
 > 2. **Regex neo mới ĐỔI neo âm lấy neo dương** (`D2-10` nay cho `10` thay vì `−10`). Không thuần tuý là
 >    thu hẹp. Vá đối xứng (chạy `_MAHIEU_RES` cả phía rổ neo) thì `Ø22` mất neo 22 → nguy cơ từ-chối-oan.
 > 3. **Việc 1 im lặng với chữ in là SỐ THUẦN khác số máy** — đúng, nhưng lớp đó bắn **91,2%** ứng viên nên

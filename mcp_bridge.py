@@ -295,9 +295,19 @@ _P_R4 = (
     "danh_dau_cau_kien (trả anh_id để hiển thị ảnh có khoanh đỏ). Truyền ĐÚNG cụm từ người dùng nêu "
     "(vd 'cửa D1', KHÔNG rút thành 'D1' kẻo bắt nhầm dầm D1). Sau khi gọi, nói ngắn gọn đã đánh dấu bao nhiêu vị trí.\n"
 )
-_P_R5 = ("5. Nếu công cụ trả 0 kết quả/không có -> nói thẳng 'Không có thông tin này trong bản vẽ.' KHÔNG bịa. "
-         "NGOẠI LỆ: nếu kết quả mang cờ co_o_vung_chua_doc=true thì CHƯA được kết luận như vậy — phải gọi "
-         "tim_chu_trong_ky_hieu rồi mới trả lời.\n")
+# ⛔ 2026-07-31 — ĐÃ GỠ vế "NGOẠI LỆ: nếu kết quả mang cờ co_o_vung_chua_doc=true thì CHƯA được kết luận
+# như vậy — phải gọi tim_chu_trong_ky_hieu rồi mới trả lời." ĐỪNG THÊM LẠI nếu không có bằng chứng mới.
+# LÝ DO CÓ SỐ (đo offline 76 file + A/B LIVE, không phải suy đoán):
+#   · LỢI ÍCH ≈ 0: A/B LIVE 8 câu — prompt CŨ 4/8 gọi tool mới, prompt MỚI 5/8 (chênh 1 ca, trong nhiễu).
+#     Model ĐÃ tự gọi tool nhờ DOCSTRING của `tim_chu_trong_ky_hieu` + cờ trong kết quả tool; điều 5 không
+#     phải thứ điều khiển hành vi đó.
+#   · HẠI ĐO ĐƯỢC: trong các ca cờ bật, chỉ 5% tool trả về dữ liệu thật; **95% câu trả lời ĐÚNG vẫn là
+#     "không có" — mà vế ngoại lệ CẤM model nói đúng câu đó** và không cho đường quay lại. Guard tự tạo
+#     áp lực bịa. Mỗi lần bị ép gọi thêm tool còn bơm trung vị 3-6 neo vào rổ grounding.
+#   · Điều 5 nằm trong `_INVARIANT` — lõi chống bịa. Không đụng khi chưa có bằng chứng lợi ích.
+# GIỮ LẠI phần CODE (cờ `co_o_vung_chua_doc` + tool `tim_chu_trong_ky_hieu`): dữ liệu mất là THẬT
+# ('DN-01, L=15000, SL:02' · 'L=1600, SL:67' · 'thép ỉ20: L=6,5M/CÁI; TỔNG KL: 32,5 KG').
+_P_R5 = "5. Nếu công cụ trả 0 kết quả/không có -> nói thẳng 'Không có thông tin này trong bản vẽ.' KHÔNG bịa.\n"
 _P_R6 = "6. Với nội dung cụ thể, KÈM handle (vd [2A3F]) từ công cụ. KHÔNG bịa handle.\n"
 _P_R7 = (
     "7. Đường kính thép (Ø/D/phi) đã được công cụ tự quy 1 dạng. Mác bê tông ghi nhiều kiểu — nếu 1 từ khoá "
@@ -476,8 +486,10 @@ _EMIT_ORDER = (
 )
 
 SYSTEM_PROMPT = "".join(_EMIT_ORDER)
-PROMPT_VERSION = "2026.07.31-vung-chua-doc"     # ĐỔI TEXT (_P_R5 + ngoại lệ co_o_vung_chua_doc) — đo LIVE A/B có mục tiêu
-PROMPT_VERSION_PREV = "2026.07.27-kb-l3"        # trước khi thêm ngoại lệ vùng-chưa-đọc
+PROMPT_VERSION = "2026.07.27-kb-l3"       # ĐỔI TEXT (+R18 tra_ky_hieu, kho kiến thức L3) — đo LIVE A/B có mục tiêu
+PROMPT_VERSION_PREV = "2026.07.26-routing-l2"   # trước khi thêm R18
+# (2026-07-31: đã THÊM rồi GỠ vế ngoại lệ co_o_vung_chua_doc ở _P_R5 — A/B LIVE không chứng minh được
+#  lợi ích, còn hại thì đo được. Prompt trở về byte-identical bản kb-l3, nên version/hash giữ nguyên.)
 PROMPT_HASH = hashlib.sha256(SYSTEM_PROMPT.encode("utf-8")).hexdigest()
 
 
@@ -712,10 +724,31 @@ def _strip_ten_file(v):
     return v
 
 
+_KHOA_HANDLE = ("handle", "qty_handle", "handles", "handle_kiem")
+
+
+def _strip_handle(v):
+    """Loại ĐỆ QUY các khoá HANDLE khỏi BẢN SAO result trước khi gom số vào rổ grounding.
+
+    ⚠ VÌ SAO: handle là MÃ ĐỊNH DANH NỘI BỘ dạng HEX ('13876A', '1C2F1E', '38E9C'), không phải con số
+    nào in trên bản vẽ. Nhưng `_collect_numbers` quét chữ số trong MỌI chuỗi, nên nó bóc '13876' ra khỏi
+    '13876A' rồi coi đó là BẰNG CHỨNG. ĐO THẬT: một kết quả chỉ gồm 3 handle + chữ KHÔNG CÓ SỐ NÀO vẫn
+    sinh rổ neo [1.0, 2.0, 9.0, 38.0, 13876.0]. Cộng luật ×1000/÷1000 của _is_grounded, mỗi handle khoá
+    được 3 bậc đơn vị cho một con số hoàn toàn bịa.
+    Đây là kênh RỘNG NHẤT trong ba kênh đã vá (mã hiệu, tên file, handle): MỌI tool trả handle đều dính.
+    ⚠ KHÔNG ảnh hưởng I1: `_collect_handles` chạy trên result THÔ ở call-site riêng, không qua hàm này —
+    model vẫn trích dẫn được handle và vẫn bị đối chiếu như cũ."""
+    if isinstance(v, dict):
+        return {k: _strip_handle(x) for k, x in v.items() if k not in _KHOA_HANDLE}
+    if isinstance(v, (list, tuple)):
+        return [_strip_handle(x) for x in v]
+    return v
+
+
 def _strip_neo(v):
     """Lọc TRƯỚC KHI GOM RỔ NEO — gộp mọi nguồn KHÔNG được phép làm bằng chứng grounding:
-    '_kb' (dữ liệu kho kiến thức, L2) + 'name' (tên file do người dùng đặt)."""
-    return _strip_ten_file(_strip_kb(v))
+    '_kb' (dữ liệu kho kiến thức, L2) + 'name' (tên file do người dùng đặt) + HANDLE (mã hex nội bộ)."""
+    return _strip_handle(_strip_ten_file(_strip_kb(v)))
 
 
 def _kb_hoi_tu_result(result, acc):
@@ -789,8 +822,16 @@ def _guard_text(text, tool_numbers):
     """GROUNDING-GUARD: câu khẳng định số ĐO-LƯỜNG mà KHÔNG số nào (đo-lường lẫn đếm) truy được về RAW result
     tool -> bịa -> thay bằng câu từ chối (giữ evidence). Ngược lại GIỮ NGUYÊN. TUYỆT ĐỐI không biến 1 câu
     ĐÃ từ chối thành câu khác. Neo = TAT_CA số -> chỉ từ chối khi câu bịa THUẦN (mọi số đều vô căn cứ)."""
-    tl = (text or "").lower()
-    if any(m in tl for m in _REFUSAL_MARKERS): return text
+    # ⛔ ĐÃ GỠ (2026-07-31) dòng `if any(m in tl for m in _REFUSAL_MARKERS): return text`.
+    # Nó tưởng là bảo vệ "câu ĐÃ từ chối thì đừng đổi", nhưng với câu từ chối THUẦN thì dòng
+    # `if not do_luong: return text` NGAY DƯỚI đã lo trọn việc đó — đo 0/102 câu từ-chối-thuần bị đổi
+    # kể cả khi ép rổ neo RỖNG, và REFUSE_MESSAGE tự ổn định (`_answer_numbers` trả ([], [])).
+    # Nên tác dụng DUY NHẤT còn lại của nó là MIỄN TRỪ đúng phần nguy hiểm: câu TRỘN vừa từ chối vừa
+    # khẳng định số. Tái hiện trực tiếp: "Không tìm thấy ở phần máy đọc được, nhưng cao độ đáy đài cọc
+    # là -13,7 m." LỌT nguyên văn dù rổ neo KHÔNG hề chứa -13.7; bỏ 6 chữ đầu đi thì CHẶN.
+    # Đo bán kính ảnh hưởng trên 822 câu trả lời THẬT: chỉ nhóm TRỘN 17 câu (2,1%) có thể đổi hành vi;
+    # với RỔ NEO THẬT dựng từ engine thì **0/793 câu đổi** (lăng kính từ-chối-oan không phá được).
+    # `_apply_i1` GIỮ NGUYÊN thoát-sớm: nó chỉ NỐI CẢNH BÁO, không chặn, và giữ đúng ý F2.
     tat_ca, do_luong = _answer_numbers(text)
     if not do_luong: return text                                        # không có khẳng định đo-lường -> không đụng
     if any(_is_grounded(a, tool_numbers) for a in tat_ca): return text  # ≥1 số truy được -> GIỮ (bảo vệ recall)

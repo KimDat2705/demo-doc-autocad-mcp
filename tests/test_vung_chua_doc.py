@@ -202,6 +202,25 @@ def main():
     ]:
         ok("%r trong %r -> %s (%s)" % (tok, hay, mong, vi_sao), K(tok, hay) is mong, K(tok, hay))
 
+    print("[W.15c] ĐÒI ĐÚNG DẤU với từ khoá có dấu — chặn khớp MÙ DẤU (đo: 75% ca bật cờ là loại này)")
+    # `_norm` bỏ dấu nên nếu chỉ khớp trên dạng không dấu thì: 'cửa' khớp vào 'của' · 'mác' khớp vào
+    # 'mạc tiến trình' (TÊN NGƯỜI KÝ trong khung tên, lặp ở nhiều file) · 'cột' khớp 'cốt thép'.
+    # Sau khi siết: 20 ca bật cờ -> 5, khớp mù dấu 15 -> 0, tỉ lệ mang dữ liệu thật 5% -> 20%.
+    D = tc.Drawing._vcd_dau_khop
+    for tok, vn, mong, vi_sao in [
+        ("cửa", "của các đơn vị quản lý", False, "'cửa' ≠ 'của'"),
+        ("cửa", "cửa đi D1 900x2200", True, "đúng từ phải giữ"),
+        ("mác", "THS.ks. mạc tiến trình", False, "'mác' ≠ tên người ký 'mạc'"),
+        ("mác", "mác bê tông B20", True, "đúng từ phải giữ"),
+        ("cột", "cốt thép chủ", False, "'cột' ≠ 'cốt'"),
+        ("trần", "THỊ TRẤN KINH MÔN", False, "'trần' ≠ 'trấn'"),
+    ]:
+        ok("%r trong %r -> %s (%s)" % (tok, vn[:26], mong, vi_sao), D(tok, vn) is mong, D(tok, vn))
+    # đường end-to-end: khối chứa 'của' KHÔNG được bật cờ cho từ khoá 'cửa'
+    d = tc.Drawing(_ve({"KG": ["quy dinh nay ap dung cho tat ca cac"]}, [("KG", 1)]))
+    ok("E2E: khối chứa 'của' không bật cờ cho từ khoá 'cửa'",
+       "co_o_vung_chua_doc" not in d.tim_kiem(tu_khoa="cửa"), list(d.tim_kiem(tu_khoa="cửa")))
+
     print("[W.16] KHÔNG khớp trên chuỗi RAW — chống BẰNG CHỨNG ẢO (ca 41 hit)")
     doc = ezdxf.new(); msp = doc.modelspace()
     b = doc.blocks.new(name="KF")

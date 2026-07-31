@@ -1880,14 +1880,30 @@ class Drawing:
             return True
         return False
 
+    @staticmethod
+    def _vcd_dau_khop(tok_co_dau, vn):
+        """Từ khoá CÓ DẤU thì đòi khớp ĐÚNG DẤU trên chữ gốc — `_norm` bỏ dấu nên nếu không có bước này
+        thì khớp mù dấu sinh báo động giả SAI TỪ HẲN. Đo thật: 15/20 ca bật cờ là loại này —
+        'cửa' khớp vào **'của'** · 'mác' khớp vào **'mạc tiến trình'** (TÊN NGƯỜI KÝ trong khung tên,
+        lặp ở nhiều file) · 'cột' khớp 'cốt thép' · 'trần' khớp 'THỊ TRẤN'.
+        ⚠ Chữ GARBLE (TCVN/VNI hỏng phông) sẽ KHÔNG khớp được ở đây → cờ im lặng. Đó là chiều AN TOÀN
+        và là chủ ý: thà bỏ sót còn hơn khẳng định 'cụm từ đang tìm CÓ ở đó' rồi chỉ ra tên người ký."""
+        return tok_co_dau in _garble_fold(vn or "").lower()
+
     def _vcd_khop(self, tu_khoa):
-        """(có, chèn_nhiều_lần, bị_cắt). Khớp CHỈ trên to_unicode + RANH GIỚI TỪ + chặn mảnh vụn."""
+        """(có, chèn_nhiều_lần, bị_cắt). Khớp trên to_unicode + RANH GIỚI TỪ + chặn mảnh vụn
+        + ĐÒI ĐÚNG DẤU với từ khoá có dấu (xem `_vcd_dau_khop`)."""
         try:
             toks = [t for t in _norm(tu_khoa or "").split() if t]
             if not toks: return (False, False, False)      # không từ khoá -> KHÔNG quét (khỏi tốn công)
+            # phần từ khoá CÓ DẤU (đã fold garble, chưa bỏ dấu) — dùng để chặn khớp mù dấu
+            co_dau = [w for w in _garble_fold(tu_khoa or "").lower().split()
+                      if w and w != unaccent(w)]
             ds, da_cat = self._vcd_bong()
             co = nhieu = False
             for it in ds:
+                if co_dau and not all(self._vcd_dau_khop(w, it.get("vn")) for w in co_dau):
+                    continue
                 if all(self._vcd_tok_khop(t, it["hay"]) for t in toks):
                     co = True
                     if it["chen"] >= 2: nhieu = True; break
@@ -2014,7 +2030,10 @@ class Drawing:
         try:
             ds, da_cat_bong = self._vcd_bong()
             toks = [t for t in _norm(tk).split() if t]
+            co_dau = [w for w in _garble_fold(tk).lower().split() if w and w != unaccent(w)]
             for it in ds:
+                if co_dau and not all(self._vcd_dau_khop(w, it.get("vn")) for w in co_dau):
+                    continue                              # chặn khớp MÙ DẤU ('cửa'≠'của', 'mác'≠'mạc')
                 if not toks or not all(self._vcd_tok_khop(t, it["hay"]) for t in toks):
                     continue
                 if len(ra) >= cap:
