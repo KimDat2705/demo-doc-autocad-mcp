@@ -12,6 +12,29 @@
 > **Muốn public thật sau này — ĐỪNG LÀM LẠI TỪ ĐẦU:** nhánh local **`public-ready`** đã có sẵn trọn gói (history sạch không .deb qua `git filter-repo` · Dockerfile tải ODA tuỳ chọn qua `ODA_DEB_URL` · thông báo .dxf-only thân thiện · .gitignore chặn .deb). Đánh đổi: cloud chỉ đọc .dxf tới khi đặt `ODA_DEB_URL`. Mirror backup: `D:/Dat-Antigravity/_backup_repo_truoc_khi_public_20260717/repo-mirror.git`.
 
 
+## 🔍 id193 ĐÃ SOI XONG (2026-07-31) — **2 lỗi TÁCH BIỆT, cái nặng hơn thì phép đo ổn định KHÔNG THẤY**
+> Câu hỏi: *"Tổng khối lượng inox lan can cầu thang là bao nhiêu kg?"* (`doc_thieu`, `loi_san = "doc thieu"`).
+>
+> **LỖI A — TRƯỢT RECALL, ỔN ĐỊNH 3/3 LƯỢT (nặng hơn, và VÔ HÌNH với M1/M2/M3).**
+> Đáp án nằm nguyên vẹn ở handle **`60E44`**: *"ghi chú: (tính trên 1 cầu thang) - khối lượng inox lan can (inox 304): + tay vịn inox d60 dày 2mm: 27,8m = 80,52 kg. + tay vịn inox d40: 20m = 37,84 kg. + tay đỡ inox 20x20x1.5mm: 38 cái = 3,18 kg. + inox hộp 30x30x2mm: 49,3 kg. + inox hộp 25x25x1.5mm: 165,82 kg."*
+> **Cả 3 lượt có Y HỆT 10 handle, KHÔNG lượt nào chứa `60E44`** ⇒ model chưa bao giờ lấy được nó, không phải "thấy rồi bỏ qua".
+> **Truy được model đã hỏi gì:** truy vấn `"TỔNG KHỐI LƯỢNG"` → trả đúng **10/10 handle** model dùng, và **KHÔNG** chứa `60E44`. Trong khi MỌI truy vấn bám CHỦ ĐỀ câu hỏi đều tìm ra, ở hạng rất cao:
+> | truy vấn | số kq | hạng của `60E44` |
+> |---|---|---|
+> | `lan can cầu thang` | 2 | **1** |
+> | `lan can` | 24 | **1** |
+> | `khối lượng inox` | 10 | **2** |
+> | `inox 304` | 11 | **2** |
+> | `inox` | 59 | 9 |
+> | `TỔNG KHỐI LƯỢNG` | 10 | **không có** |
+> ⇒ **TOOL KHÔNG HỀ CÓ LỖI** (đã bác giả thuyết bug tool bằng số). Lỗi là model **truy vấn theo HÌNH DẠNG ĐÁP ÁN nó muốn ("tổng khối lượng") thay vì theo CHỦ ĐỀ CÂU HỎI ("inox lan can cầu thang")** — rồi rơi đúng vào một bảng tổng KHÔNG liên quan. Đây chính là cái bẫy `doc_thieu` đã gài, và hệ sập 3/3.
+>
+> **LỖI B — TỰ CỘNG SỐ, vi phạm luật có sẵn (đây mới là phần M3 bắt được).**
+> `_P_R2` ghi rõ **"KHÔNG tự cộng/trừ/tính"**. Trên CÙNG 10 mục đó: lượt 2 TUÂN THỦ (*"Hệ thống không tự cộng…"*) nhưng dẫn nhầm **3545,9** = TỔNG THÉP HÌNH; lượt 3 tự cộng ra **1384,83** (đúng số học); lượt 1 tự cộng ra **1344,33** — **SAI 40,5 kg**. Tự kiểm: tổng đúng của 9 mục = 1384,83. ⇒ **model phá luật ở 2/3 lượt, và khi phá thì sai 1/2 số lần.** Hàng rào ANY-GROUNDED không chặn được vì 9 số thành phần đều truy được nguồn — đúng điểm yếu đã ghi sổ, và **đòn bẩy đúng ở đây là chặn việc TỰ CỘNG, không phải đổi luật phán quyết**.
+>
+> **📌 BÀI HỌC PHƯƠNG PHÁP:** Q2 gắn cờ id193 vì lỗi B. Lỗi A **nặng hơn** nhưng M1/M2/M3 **không thể thấy** vì nó SAI GIỐNG NHAU cả 3 lượt — đúng cảnh báo in sẵn trong `do_on_dinh.py`: *"đây là ĐỘ ỔN ĐỊNH, KHÔNG phải ĐỘ ĐÚNG; ba lượt cùng sai giống nhau vẫn cho 0% mâu thuẫn"*. ⇒ **Không được dùng M3 làm thước đo chất lượng.** Muốn bắt lớp A phải chấm theo `ky_vong` (việc riêng, chưa làm).
+> **CHƯA VÁ GÌ.** Hai hướng, đều cần đo trước: (a) lỗi A — prompt-nudge "truy vấn theo chủ đề câu hỏi trước, đừng tìm thẳng từ 'tổng'", phải A/B có mục tiêu; (b) lỗi B — bộ dò tất định "một số trong câu trả lời = tổng các số khác trong CHÍNH câu đó mà không có trong rổ neo" → cần đo tỉ lệ báo động giả trên 594 câu trước.
+
 ## 📊 Q2 XONG — BASELINE ĐỘ ỔN ĐỊNH N=3 (2026-07-31) · **M3 = 13,0%**
 > **Tiêu chí ĐỊNH TRƯỚC ở `harness/Q2_TIEU_CHI_TRUOC_KHI_CHAY.md`, commit `aae3109` — TRƯỚC khi có bất kỳ số nào.** Đọc file đó trước khi trích số ở đây.
 > **Dữ liệu thô:** `tests/battery_runs/run02|03|04.jsonl` (**gitignored**, chỉ có trên máy dev) · sidecar `_meta/`. `run01` bị LOẠI (code_hash `bdffe2ea`, trước 1.03/1.04 — cổng chống-trộn của 1.06 **tự từ chối** `--tiep`, đúng vai trò).
