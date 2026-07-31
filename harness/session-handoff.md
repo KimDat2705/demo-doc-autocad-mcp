@@ -12,6 +12,19 @@
 > **Muốn public thật sau này — ĐỪNG LÀM LẠI TỪ ĐẦU:** nhánh local **`public-ready`** đã có sẵn trọn gói (history sạch không .deb qua `git filter-repo` · Dockerfile tải ODA tuỳ chọn qua `ODA_DEB_URL` · thông báo .dxf-only thân thiện · .gitignore chặn .deb). Đánh đổi: cloud chỉ đọc .dxf tới khi đặt `ODA_DEB_URL`. Mirror backup: `D:/Dat-Antigravity/_backup_repo_truoc_khi_public_20260717/repo-mirror.git`.
 
 
+## 🔤 1.03 XONG — NẮN PHÔNG CŨ (2026-07-31, nối phiên) · check.sh **[42/42]**
+> **⛔ ĐÍNH CHÍNH SỐ CŨ CỦA CHÍNH TÀI LIỆU NÀY:** "545 chuỗi/21 file" là **SAI** (không có script đo kèm). Đo lại toàn corpus `_khao_sat/_dxf` **86 file / 285.413 chuỗi**: thực tế **9.680 chuỗi / 73 file** còn garble — lệch ~18×.
+> **KẾT QUẢ (tự kiểm ngược TRƯỚC/SAU trên cả 86 file):** cứu **8.913** chuỗi · **HỎNG THÊM 0** · đổi-mà-cả-hai-sạch 285 · **số máy báo KHÔNG dịch** (cao độ KT −2.1/10.8 · KC −1.85/10.8 · HT **−14.26**/2.5 y nguyên; text count y nguyên) ⇒ lợi ích recall THUẦN.
+> **3 lỗi độc lập đã vá trong `vntext.py`:**
+> 1. **Dò quá HẸP** — `_SIG` cũ chỉ phủ ô TCVN3 hiện ra KÝ HIỆU Latin-1 (0xA1-0xBE); chuỗi mà mọi ô đều nằm 0xC6-0xFE thì không bị phát hiện (`diÖn tÝch`, `THÐP`, `cèt thÐp`). Thêm 22 chữ Latin không-phải-chữ-Việt làm dấu hiệu tầng 2. **Cố ý loại trừ** `Ø`(0xD8) `×`(0xD7) `÷`(0xF7) + mọi chữ Việt hợp lệ (É Ý é í ô…) — đo corpus: 0 lượt ký tự sót nào trùng 2 nhóm này.
+> 2. **⚠ TỰ NUỐT Ø (lỗi đang SỐNG)** — `_autocad_codes` chạy TRƯỚC nên `%%C`→`Ø`(U+00D8), rồi bộ giải mã TCVN3 ăn luôn vì 0xD8 = ô `ỉ`. **Chuỗi `'thép ỉ10 neo xà gồ'` — bằng chứng chủ lực của lát L6 — là DO MÁY MÌNH TẠO RA**: raw thật `'thÐp %%C10 neo xµ gå'`. Đảo thứ tự → **152 ca Ø-bị-nuốt về 0**. (L6 fold `ỉ→Ø` GIỮ NGUYÊN: nó ở tầng `_norm` cho tìm-kiếm.)
+> 3. **`Ð` hai nghĩa** — ô TCVN3 `é` (`THÐP`→`THÉP`) vs chữ `Đ` viết nhái (`Ðang XD`→`Đang XD`, `Khu ÐT`→`Khu ĐT`). Phân biệt bằng VỊ TRÍ: `Đ` thật trong TCVN3 là 0xA7 (`§`) nên `Ð` **không dính sau chữ cái** chắc chắn là `Đ`.
+> + Gộp **NFC** cho Unicode tổ-hợp-dấu (266 lượt).
+>
+> **📌 BẪY ĐÃ MẮC RỒI MỚI THOÁT — ĐỪNG LẶP:** thêm chốt *"chuỗi đã có ký tự Unicode Việt thì bỏ qua cả chuỗi"* nghe rất hợp lý nhưng **làm 27 chuỗi HỎNG THÊM**: bản vẽ đổi **PHÔNG GIỮA CHỪNG** (`{\f.VnTimeH…®…\fArial…Ư…}`) nên một chuỗi có thể NỬA TCVN3 NỬA Unicode thật (`'Cäc tiÕp ®Þa MẠ KẼM'`). Dấu hiệu SIG tự nó đã đủ chặt.
+> **CÒN TỒN (cố ý, có số):** **768 chuỗi** vẫn hỏng, mang `Ä`(0xC4) `Å`(0xC5) `Û`(0xDB) `Φ` `†` `„` `‚` `Š` — **KHÔNG nằm trong bảng `_TCVN3`** ⇒ **HỌ MÃ KHÁC** (nhiều khả năng VNI-Windows). Muốn xử phải dựng bảng mã riêng + đo lại, **ĐỪNG nhét vào `_TCVN3`** (là đoán). `Φ` (65 lượt) gần như chắc là gõ 'phi' Hy Lạp thay `Ø` nhưng sửa nó = đổi KÝ HIỆU ĐƯỜNG KÍNH → phải đo riêng. `bé`↔`bộ` là nhập nhằng THẬT ở mức byte, không dấu hiệu nào gỡ được.
+> **Test:** `test_vntext` 28→**53** (thêm khối E/F/G/H/I/K) · `test_garble_dia` 26→**27** (G5 đổi kỳ vọng + G5b, có ghi rõ lý do đính chính).
+
 ## 🔧 1.06 XONG — DỤNG CỤ ĐO BỘ 198 CÂU (2026-07-31, nối phiên) · check.sh **[42/42]**
 > **HỢP ĐỒNG CHỐT — đừng sáng tác lại:**
 > · Dữ liệu lượt: `tests/battery_runs/run<NN>.jsonl` (**gitignored**) · định danh: `battery_runs/_meta/run<NN>.meta.json` (ghi 1 lần, mode `"x"`).

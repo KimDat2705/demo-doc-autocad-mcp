@@ -7,6 +7,7 @@ vntext.py — Chuan hoa text doc tu DXF cho de doc:
 Luu y: day la GIAI MA TU DONG; vai chu hoa co the ra thuong (han che da biet cua TCVN3).
 """
 import re
+import unicodedata
 
 # Bang ma TCVN3 (.VnTime): byte goc (ODA da doc thanh ky tu Latin-1 cung ma) -> Unicode
 _TCVN3 = {
@@ -60,10 +61,46 @@ def _mtext_codes(s):
 
 # Ky tu "dau hieu" TCVN3 — gan nhu KHONG xuat hien trong tieng Viet Unicode chuan.
 # Co dau hieu nay -> chac chan la font cu; khong co -> de nguyen (tranh pha chu da dung).
-_SIG = set("µ¶·¸¹»¼½¾¨©ª«¬\xad®¡¢£¤¥¦§")
+#
+# TANG 1 (goc): cac o TCVN3 hien ra ky hieu Latin-1 (khong phai chu cai) — hoan toan khong nhap nhang.
+_SIG_KY_HIEU = set("µ¶·¸¹»¼½¾¨©ª«¬\xad®¡¢£¤¥¦§")
+# TANG 2 (them 2026-07-31): cac o TCVN3 hien ra CHU CAI Latin khong thuoc tieng Viet.
+# ⚠ VI SAO PHAI THEM: _SIG cu chi phu dai byte 0xA1-0xBE, nen chuoi ma MOI o TCVN3 cua no deu nam
+# 0xC6-0xFE thi KHONG bi phat hien -> giu nguyen garble. Do that 86 file / 285.413 chuoi:
+# 9.680 chuoi / 73 file con garble, trong do 12.608 luot ky tu la 23 ky tu duoi day.
+# Vi du song: 'diÖn tÝch' · 'bé' · 'THÐP' · 'cèt thÐp' — tat ca deu KHONG duoc nan truoc ban va.
+# ⚠ CO Y LOAI TRU (dung them vao, se PHA chu dung):
+#   · Chu Viet Unicode hop le trong dai Latin-1: À Á Â Ã È É Ê Ì Í Ò Ó Ô Õ Ù Ú Ý + ban thuong.
+#   · Ky hieu KY THUAT trung o TCVN3: Ø(0xD8)='i-hoi' · ×(0xD7)='i-huyen' · ÷(0xF7)='u-nga'.
+#     Ø la ky hieu DUONG KINH THEP, co mat khap noi — them vao la pha du lieu quan trong nhat.
+# Do tren corpus: 0 luot ky tu con sot nao trung chu-Viet hoac ky-hieu-ky-thuat -> tang 2 khong
+# lam rong dien nghi ngo sang vung nhap nhang.
+# (KHONG co 'ð' 0xF0 va 'Ä/Å' 0xC4/0xC5: chung KHONG nam trong bang _TCVN3 nen lam dau hieu la
+#  vo nghia — kich giai ma nhung chinh chung khong duoc doi. Chung thuoc HO MA KHAC, xem ghi chu cuoi file.)
+_SIG_CHU_LATIN = set("ÆÇËÎÏÐÑÖÞßäåæçëîïñöûþ")
+_SIG = _SIG_KY_HIEU | _SIG_CHU_LATIN
+
+# 'Ð' (U+00D0 ETH) CO HAI NGHIA, phai tach truoc khi dung lam dau hieu:
+#   (a) o TCVN3 0xD0 = 'é'  -> 'THÐP' = 'THÉP'  (Ð nam SAU chu cai)
+#   (b) chu 'Đ' viet NHAI bang ETH cho giong -> 'Ðang XD' = 'Đang XD'  (Ð DAU tu, theo sau chu thuong)
+# Phan biet bang VI TRI: trong van ban TCVN3 that, chu 'Đ' ma hoa la 0xA7 ('§') chu KHONG phai 0xD0,
+# nen 'Ð' dau tu KHONG THE la TCVN3. Do corpus: bo qua viec nay thi 'Ðang XD' -> 'éang XD' (sai).
+# Dieu kien DUY NHAT: Ð khong DINH SAU mot chu cai. Khong doi hoi gi ve ky tu DUNG SAU —
+# tieng Viet khong co tu nao bat dau bang 'é', nen 'Ð' dau tu chac chan la 'Đ'. (Ban dau toi
+# doi "theo sau la chu THUONG", do corpus cho 'Khu ÐT' -> 'Khu ÉT' sai; 'ĐT' = 'Đô Thi'.)
+_ETH_DAU_TU = re.compile(r"(?<![A-Za-zÀ-ỹ])Ð")
+
+
+def _eth_lookalike(s):
+    return _ETH_DAU_TU.sub("Đ", s)
 
 
 def _looks_tcvn3(s):
+    # ⚠ KHONG duoc phu quyet kieu "chuoi da co ky tu Unicode Viet thi bo qua ca chuoi".
+    # Da thu va DO duoc la SAI: ban ve doi PHONG GIUA CHUNG ('{\f.VnTimeH…®…\fArial…Ư…}') nen
+    # mot chuoi co the NUA TCVN3 NUA Unicode that ('MÆT C¾T §IÓN H×NH PHè vIỆT HÒA',
+    # 'Cäc tiÕp ®Þa MẠ KẼM'). Phu quyet ca chuoi lam 27 chuoi HONG THEM tren corpus 86 file.
+    # Dau hieu SIG von da khong xuat hien trong tieng Viet Unicode dung, nen tu no da du chat.
     return any(c in _SIG for c in s)
 
 
@@ -73,8 +110,39 @@ def to_unicode(s):
     if not s:
         return s
     s = _mtext_codes(s)
-    s = _autocad_codes(s)
+    s = _eth_lookalike(s)      # 'Ðang' -> 'Đang' TRUOC khi Ð duoc dung lam dau hieu TCVN3
+    # ⚠ THU TU QUAN TRONG: giai ma TCVN3 TRUOC, doi ma AutoCAD SAU.
+    # Truoc day _autocad_codes chay truoc, bien '%%C' thanh 'Ø' (U+00D8) — ma 0xD8 lai la o
+    # 'i-hoi' trong bang TCVN3, nen buoc giai ma NUOT LUON ky tu duong kinh minh vua tao ra:
+    # 'mÆt b»ng %%C20' -> 'mặt bằng ỉ20'. Tu pha du lieu cua chinh minh. '%%C' la ASCII thuan
+    # nen di qua _decode_tcvn3 nguyen ven; doi sau thi an toan.
     if _looks_tcvn3(s):
         s = _decode_tcvn3(s)
         s = _fix_case(s)
+    s = _autocad_codes(s)
+    # Unicode TO HOP DAU (NFD: 'ệ' = 'e' + U+0323 + U+0302) hien ra nhu chu thieu dau tren
+    # nhieu duong xu ly va lam hong so sanh chuoi. Gop ve dang dung san (NFC). Do: 266 luot/86 file.
+    s = unicodedata.normalize("NFC", s)
     return " ".join(s.split())
+
+
+# ---------------------------------------------------------------------------------------------
+# ĐO TOÀN CORPUS 86 file / 285.413 chuỗi (2026-07-31, mục 1.03) — TRƯỚC/SAU bản vá này:
+#   được cứu (hết ký tự lạ)      8.913
+#   HỎNG THÊM                        0      <- chiều nguy hiểm, đã kiểm sạch
+#   đổi mà cả hai đều sạch          285      (NFC + đổi thứ tự %%C)
+#   Ø bị nuốt thành 'ỉ'      152 -> 0
+#
+# ⚠ CÒN LẠI 768 chuỗi VẪN HỎNG — CỐ Ý CHƯA XỬ LÝ, không phải bỏ sót:
+#   Chúng mang các ký tự Ä(0xC4) Å(0xC5) Û(0xDB) Φ(U+03A6) † „ ‚ Š — **KHÔNG nằm trong bảng
+#   _TCVN3**, tức thuộc HỌ MÃ KHÁC (nhiều khả năng VNI-Windows hoặc phông tự chế của đơn vị vẽ).
+#   Thêm chúng vào bảng TCVN3 là ĐOÁN: chưa có cặp raw->đúng nào được kiểm chứng. Muốn xử lý thì
+#   phải dựng bảng mã riêng cho họ đó và đo lại như trên, KHÔNG nhét vào _TCVN3.
+#   (Φ gần như chắc là người vẽ gõ 'phi' Hy Lạp thay cho Ø — nhưng 65 lượt, và sửa nó là đổi
+#    KÝ HIỆU ĐƯỜNG KÍNH nên phải đo riêng, không làm kèm.)
+#
+# ⚠ GIỚI HẠN KHÔNG GỠ ĐƯỢC BẰNG CÁCH NÀY: chuỗi mà MỌI ô TCVN3 của nó đều trùng chữ Việt hợp lệ
+#   thì KHÔNG có dấu hiệu nào để nhận ra — ví dụ 'bé' (TCVN3 của 'bộ') giữ nguyên là 'bé'. Đây là
+#   nhập nhằng THẬT ở mức byte, không phải lỗi dò. Các tầng trên xử lý bằng ngữ cảnh (xem
+#   chú thích '(1 bé)' ở tools_core).
+# ---------------------------------------------------------------------------------------------

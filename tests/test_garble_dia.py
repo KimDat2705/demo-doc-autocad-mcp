@@ -71,8 +71,16 @@ def main():
     if KT and os.path.isfile(KT):
         dk = tc.Drawing(KT)
         hits = [h["vn"] for h in dk.search_texts("Ø10")]
-        _emit("G5: KT CT-A tìm 'Ø10' thấy 'thép ỉ10 neo xà gồ' (bằng chứng thật)",
-              any("ỉ10" in v for v in hits), str(hits[:3]))
+        # ⚠ ĐÍNH CHÍNH 2026-07-31 (1.03) — ca này TỪNG là bằng chứng chủ lực của L6 với kỳ vọng
+        # 'thép ỉ10 neo xà gồ'. Đọc byte GỐC thì raw = 'thÐp %%C10 neo xµ gå': bản vẽ ghi '%%C'
+        # (mã đường kính AutoCAD) chứ KHÔNG hề garble. Chính `to_unicode` đổi %%C→Ø TRƯỚC rồi
+        # bộ giải mã TCVN3 nuốt Ø (0xD8 = ô 'ỉ') → 'ỉ10' là do MÁY MÌNH tạo ra. Đã sửa thứ tự.
+        # Giữ ca này để khoá: recall vẫn tìm được, và chuỗi hiển thị nay ĐÚNG là 'Ø10'.
+        _emit("G5: KT CT-A tìm 'Ø10' vẫn thấy chuỗi 'thép … neo xà gồ' (recall giữ nguyên)",
+              any("neo x" in v for v in hits), str(hits[:3]))
+        _emit("G5b: chuỗi đó nay hiện 'Ø10' (raw '%%C10'), KHÔNG còn bị tự nuốt thành 'ỉ10'",
+              any("Ø10" in v and "neo x" in v for v in hits)
+              and not any("ỉ10" in v and "neo x" in v for v in hits), str(hits[:3]))
     else:
         print("  [..] BỎ QUA G5 (thiếu fixture corpus_local)")
 
