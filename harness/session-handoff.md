@@ -12,6 +12,33 @@
 > **Muốn public thật sau này — ĐỪNG LÀM LẠI TỪ ĐẦU:** nhánh local **`public-ready`** đã có sẵn trọn gói (history sạch không .deb qua `git filter-repo` · Dockerfile tải ODA tuỳ chọn qua `ODA_DEB_URL` · thông báo .dxf-only thân thiện · .gitignore chặn .deb). Đánh đổi: cloud chỉ đọc .dxf tới khi đặt `ODA_DEB_URL`. Mirror backup: `D:/Dat-Antigravity/_backup_repo_truoc_khi_public_20260717/repo-mirror.git`.
 
 
+## 📊 Q2 XONG — BASELINE ĐỘ ỔN ĐỊNH N=3 (2026-07-31) · **M3 = 13,0%**
+> **Tiêu chí ĐỊNH TRƯỚC ở `harness/Q2_TIEU_CHI_TRUOC_KHI_CHAY.md`, commit `aae3109` — TRƯỚC khi có bất kỳ số nào.** Đọc file đó trước khi trích số ở đây.
+> **Dữ liệu thô:** `tests/battery_runs/run02|03|04.jsonl` (**gitignored**, chỉ có trên máy dev) · sidecar `_meta/`. `run01` bị LOẠI (code_hash `bdffe2ea`, trước 1.03/1.04 — cổng chống-trộn của 1.06 **tự từ chối** `--tiep`, đúng vai trò).
+>
+> **3 CỔNG HỢP LỆ — ĐẠT HẾT:** 198/198 câu cả 3 lượt · hỏng hạ tầng **0,0% / 0,0% / 0,5%** (1 câu id127, trần 5%) · 4 hash giống nhau (`prompt 239e8b7b` · `kb e55ac112` · `code 319de40e` · `battery 5f29111a`). Thời gian: 1232s / 1317s / 1532s.
+>
+> | chỉ số | giá trị |
+> |---|---|
+> | **M1 — mâu thuẫn SỐ** | **4,3%** |
+> | **M2 — trả lời vs từ chối** | **8,7%** |
+> | **M3 = M1+M2 (quyết định)** | **13,0%** → dải **10–25%** |
+> | bao hàm (chẩn đoán) | 10,4% · cặp tệ nhất 5,1% |
+> | macro-average 12 nhóm | 7,3% |
+>
+> **ĐỌC ĐÚNG CON SỐ:** **M2 gấp ĐÔI M1.** Bất ổn chủ đạo KHÔNG phải "hai lượt cho số đá nhau" mà là **"lúc trả lời được, lúc bảo không có"** — tức hàng rào chống bịa đang giữ vững, cái chập chờn là **RECALL**. Tỉ lệ từ chối 3 lượt sát nhau (31,5 / 34,5 / 33,0%) nên M1 thấp KHÔNG phải do một lượt từ chối nhiều hơn (đã kiểm đúng cảnh báo trong công cụ).
+> **Theo nhóm:** ổn định tuyệt đối `thep` 0%/0% · `so_luong` 0%/3,5% · `ky_thuat_vs_thuc_te` 0%/6,1%. Tệ nhất `bay_lac_de` 28,6% mâu thuẫn · `doc_thieu` 26,3%/21,1% · `font_loi` 11,1%/22,2%.
+>
+> **TRUY NGUYÊN NHÂN (bắt buộc theo luật đã đăng ký cho dải 10-25%) — tách được 2 nhóm GẦN BẰNG NHAU, đo bằng biến thiên `n_evidence`:**
+> · câu **BẤT ỔN** (46): biến thiên n_evidence trung bình **5,1**, chỉ 57% có biến thiên = 0
+> · câu **ỔN ĐỊNH** (151): biến thiên trung bình **0,8**, **93%** có biến thiên = 0
+> ⇒ **~20/46 (43%) = ROUTING** — Gemini gọi tool/từ khoá khác nhau nên gom được bộ bằng chứng khác nhau. Ví dụ sống: **id21** lượt 1 tìm ĐÚNG *"xà gồ thép hộp 40x80x2mm: 672m — 2472.64 kg"* (khớp `ky_vong`) trong khi lượt 2+3 trả *"không có thông tin"*; **id82** lượt 1+3 ra CB300-V/260MPa (n_ev=19) còn lượt 2 nói không có (n_ev=**3**).
+> ⇒ **~26/46 (57%) = SINH VĂN BẢN** — CÙNG bộ bằng chứng, khác câu trả lời (id26/id27/id28/id35/id55…). Không phải routing.
+> ⚠ **KHÔNG tìm thấy bug TOOL nào** trong nhóm này — nói thẳng thay vì bịa ra việc vá cho khớp luật.
+> 🔴 **CA ĐÁNG LO NHẤT — id193** (`doc_thieu`, bất đồng 3/3 cặp): 3 lượt cho **3 tổng khác nhau** cho cùng câu hỏi khối lượng inox: **1344,33 kg / 3545,9 kg / 1384,83 kg**, cùng `n_ev=10`. Con số **3545,9** chính là TỔNG THÉP HÌNH — đúng thứ **rule 8b CẤM gộp** (xem lịch sử bug id38/id22). Đây là ứng viên vá số 1, nhưng phải ĐO trước khi sửa.
+>
+> **BƯỚC TIẾP ĐỀ NGHỊ:** (a) id193 — soi vì sao model gộp inox vào tổng thép hình; (b) nhóm ROUTING: thử prompt-nudge có phạm vi + đo A/B (đúng khuôn `[[feedback-do-thay-doi-prompt-ab]]`); (c) nhóm SINH VĂN BẢN: gần như không vá được bằng prompt — cân nhắc chấp nhận & khai báo. **Chưa làm gì trong số này.**
+
 ## ✅ E2E LIVE `7022aad` — 1.03 + 1.04 XÁC MINH TRÊN MÁY THẬT (2026-07-31)
 > **LIVE verify:** `/version.commit` = `7022aad6…` = HEAD = origin · `prompt_hash` `239e8b7b…` **KHÔNG đổi** · `kb_hash` `e55ac112…` **KHÔNG đổi** (đợt này không chạm SYSTEM_PROMPT/kho kiến thức → không cần A/B) · `/health` ok · `ram_mb` 135,4 lúc rảnh.
 > **CÁCH LÀM ĐÚNG: dựng ĐÁP ÁN CHUẨN tại local TRƯỚC, rồi mới hỏi LIVE** — "câu trả lời trông ổn" không chứng minh gì.
