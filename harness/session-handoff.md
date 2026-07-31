@@ -14,8 +14,15 @@
 
 ## 🏁 TRẠNG THÁI CHỐT PHIÊN 2026-07-31 — ĐỌC MỤC NÀY TRƯỚC
 > **HEAD `4c42a35` · tree SẠCH · check.sh [41/41] PASS · 34 MCP tool · 0 regress.**
-> **⚠ 7 commit CHƯA PUSH (user chốt: commit theo từng lát, CHƯA push).** LIVE vẫn là `fb8a597`.
-> **⛔ `6de1aaa` KHÔNG ĐƯỢC push nguyên trạng** — chính nó chứa lỗi hệ số ÂM, đã vá ở `138d104`.
+> **✅ ĐÃ PUSH + DEPLOY + VERIFY LIVE `0613591`** (user chốt push 2026-07-31): `/version` commit khớp ·
+> prompt_version **`2026.07.31-vung-chua-doc`** hash **`56177a5b…`** (đổi CÓ CHỦ ĐÍCH, xem việc 4) ·
+> kb_hash `e55ac112…` KHÔNG đổi (không chạm kho kiến thức) · `/health` ok, `ram_mb` **135,3** (không phình).
+> **VERIFY END-TO-END TRÊN MÁY THẬT** (upload `01-TD tuyen ong ap luc.dxf` 13MB qua web, hỏi qua Gemini):
+> `so_kich_thuoc` = **175** (khớp đo local; `counts.DIMENSION` vẫn **241** = thống kê KHÔNG hụt) ·
+> trả lời **"lớn nhất 212.1 mm, nhỏ nhất 0.7 mm"** — đúng số AutoCAD tự lưu, thay cho **35.970 mm**
+> (vốn là GÓC 359,7°) và 0,3 trước đây · **câu cảnh báo việc 1 bật đúng**, câu TRẤN AN SAI đã biến mất.
+> ℹ Quan sát (KHÔNG phải regress, là hợp đồng M9 sẵn có): model nêu cả `don_vi_khai_bao = mét` bên cạnh
+> trường `_mm` — đúng thiết kế "lộ giả định đơn vị", nhưng đọc hơi nghịch. Cân nhắc làm rõ ở lát sau.
 >
 > **PHIÊN NÀY LÀM 4 VIỆC USER GIAO + 1 VIỆC PHÁT SINH (nền đo).** Chuỗi: `5548fe1` (2 lỗ guard) →
 > `138d104` (nền đo 3 lỗi + việc 1/2/3) → `f621b6e` (`_P_R5` + A/B) → `4c42a35` (vá 3 lỗi red-team).
