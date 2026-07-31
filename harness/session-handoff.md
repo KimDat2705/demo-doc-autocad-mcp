@@ -78,10 +78,41 @@
 > Đo lại trên 822 câu thật: **21,2%** (mẫu chính 198 câu) / **14,5-17,5%** (mẫu gộp), và phần lớn VÔ HẠI
 > (từ chối thuần, không có số để bảo vệ). Nhóm nguy hiểm thật (trộn từ-chối + khẳng định số) = **2,1%**.
 >
-> **⏳ RỦI RO TỒN DƯ (chưa vá — user quyết ưu tiên):**
-> 0. **`_guard_text` là ANY-GROUNDED**: chỉ cần MỘT số truy được là CẢ BÀI đi qua. Nên một trích dẫn hợp lệ
->    trở thành GIẤY PHÉP grounding cho mọi số khác trong cùng câu trả lời. Đây là hạn chế THIẾT KẾ sâu
->    hơn mọi lỗ đã vá; muốn siết phải chuyển sang per-claim, dịch số toàn bộ suite.
+> **⛔⛔ ANY-GROUNDED = GIỮ NGUYÊN. ĐỔI SANG PER-CLAIM = NO_GO CÓ SỐ (2026-07-31). ĐỪNG MỞ LẠI.**
+> Đã nghiên cứu trọn vẹn theo yêu cầu user ("nếu làm sai có thể đánh đổi cả dự án"): workflow 8 agent
+> (`wf_8a663cde-735`, 7/8 xong) + 3 phép đo độc lập của chính người viết. **KẾT LUẬN: KHÔNG đụng vào
+> `_guard_text` / `_answer_numbers` / `_is_grounded`.**
+>
+> **⚠ TRƯỚC HẾT — "TỈ LỆ LỌT" KHÔNG PHẢI ĐẠI LƯỢNG DÙNG ĐƯỢC ĐỂ RA QUYẾT ĐỊNH.** 5 probe đo CÙNG một
+> đại lượng ra **0% / 23,8% / 32,2% / 37,9% / 52-77,5%**; người viết đo ra 15,0%. Tự kiểm: trên **CÙNG
+> MỘT rổ neo**, chỉ đổi BỘ SINH số bịa thì tỉ lệ chạy **0,0% → 13,6%** (probe khác đo 1,9% → 79,2%).
+> ⇒ Mọi con số "nền" đều là ARTIFACT của bộ test. **ĐỪNG trích con số nào làm căn cứ**, kể cả 15,0%
+> hay 36-49% từng ghi ở tài liệu cũ.
+>
+> **THỨ CÓ GIÁ TRỊ QUYẾT ĐỊNH = đo trên CÂU TRẢ LỜI THẬT, chấm bằng NHÃN ĐỘC LẬP (`ky_vong` bộ 198 câu):**
+> · độ chính xác của per-claim = **0/25** (probe 3) và **1/30 = 3,3%** (probe 6) ⇒ **96,7-100% câu nó giết
+>   là câu ĐÚNG** · giết oan **9,9-33,1%** câu đã xác minh đúng · mỗi lần giết mất **~587 ký tự thân bài**,
+>   thay bằng 36 ký tự từ chối.
+> · đo riêng của người viết (7 dạng câu đúng): **ALL giết 82% câu có PHÉP CỘNG** (= việc CHÍNH của phần mềm
+>   bóc tách) và 31% câu có số ĐẾM. **ANY là luật DUY NHẤT có 0% chặn oan trên cả 7 dạng.**
+> · **BỎ luật ×1000 cũng NO_GO**: 2 đường đo độc lập — 36,5% giết oan (85,4% với câu đổi m→mm) / 82%-80%
+>   với dạng "chỉ dùng đơn vị đã quy đổi".
+> · **PER-CÂU không cải thiện gì** (15,0% y hệt ANY) vì câu bịa thường gói trong MỘT câu.
+>
+> **ĐÒN BẨY ĐÚNG LÀ LÀM SẠCH RỔ NEO — VÀ ĐÃ LÀM XONG.** Bằng chứng: lớp lỗi **id135 (bịa cao độ ÂM)** nay
+> có tỉ lệ lọt **0,0%**. Truy được nguyên nhân: trước bản vá hôm nay, **24/76 file có neo âm nằm đúng dải
+> cao độ, sinh THUẦN từ mã hiệu** (`DẦM D2-10` → −10). Gỡ 3 kênh neo bẩn = lấy đi chính những chiếc neo
+> cấp phép cho lớp lỗi đó. Mỗi neo bẩn gỡ đi làm vùng phủ (mỗi neo nở 3 bậc đơn vị) co lại **mà KHÔNG mất
+> một câu đúng nào** — khác hẳn việc đổi luật phán quyết.
+>
+> **HIỂU ĐÚNG VỀ ANY-GROUNDED:** nó CÓ điểm yếu thật (1 số truy được ⇒ bảo lãnh cả bài; demo:
+> rổ `{220}` + "Dầm rộng 220 mm, cao 9999 mm, dài 12345 mm" → LỌT). Nhưng đó là **đánh đổi CÓ CHỦ Ý** ghi
+> sẵn trong chú thích gốc ("chỉ từ chối khi câu bịa THUẦN"), và mọi phương án thay thế đều **tệ hơn về
+> tổng thể**. Điểm yếu đó phải xử bằng **thu hẹp rổ neo**, KHÔNG phải bằng đổi luật.
+>
+> **GHI SỔ, KHÔNG SỬA:** có bug parser thật ở dấu ngăn cách nghìn kiểu VN (`62.900` bị tách thành 62,9),
+> nhưng đo được luật ÷1000 đang **che hoàn toàn** (8/8 ca không đổi kết quả). Vá một bug đang bị vô hiệu
+> hoá = thêm rủi ro, đổi lại 0. Chỉ mở lại NẾU sau này có ai đổi luật ÷1000.
 > 2. **Regex neo mới ĐỔI neo âm lấy neo dương** (`D2-10` nay cho `10` thay vì `−10`). Không thuần tuý là
 >    thu hẹp. Vá đối xứng (chạy `_MAHIEU_RES` cả phía rổ neo) thì `Ø22` mất neo 22 → nguy cơ từ-chối-oan.
 > 3. **Việc 1 im lặng với chữ in là SỐ THUẦN khác số máy** — đúng, nhưng lớp đó bắn **91,2%** ứng viên nên
