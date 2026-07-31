@@ -2,7 +2,7 @@
   "project": "demo-doc-autocad-mcp (demo 2 — SẢN PHẨM CHÍNH)",
   "description": "Web app đọc + tính toán bản vẽ AutoCAD (.dwg/.dxf) QUA MCP (Model Context Protocol). LLM = Google Gemini. Kiến trúc TOOL-USE (KHÔNG training): code Python tất định đọc/tính số THẬT kèm handle; Gemini hiểu câu hỏi + gọi tool + diễn đạt. Triết lý BẤT DI: CHỐNG BỊA (thiếu->hỏi, không bịa; suy đoán->gắn cờ; số do CODE).",
   "stack": "Python 3.10 + Flask 3.1.3 + MCP 1.27 (FastMCP) + google-genai 2.10 (gemini-2.5-flash) + ezdxf 1.4.4 + matplotlib(Agg) + openpyxl + gunicorn + ODA File Converter + Docker + Render",
-  "testedAt": "2026-07-25",
+  "testedAt": "2026-07-31",
   "status_legend": "done = xong + có bằng chứng/test | partial = có phần, còn treo | planned = đã nghiên cứu/roadmap, chưa code | deferred = HOÃN chờ đối tác chốt",
   "features": [
     {
@@ -338,20 +338,56 @@
     {
       "id": "canh-bao-ghi-de-kich-thuoc",
       "name": "Canh bao chu IN tren duong kich thuoc khac so do (ghi de THAT)",
-      "status": "partial",
-      "evidence": "Thiet ke chot + luat _dang_chu_in da va 2 ho bao-dong-gia (luat tho bat 859 dim/17 file va co 2 file bat 100% OAN; luat chot 837/15). CHUA code. scratchpad/chot_vungmu.md"
+      "status": "done",
+      "evidence": "LIVE 138d104. `_dang_chu_in` + `_thu_thap_chu_in` + 3 co BOOL tren thong_tin_kich_thuoc + 1 cau prose SACH SO. DO THAT: luat bat 1.098 duong/26 file; co 'lan rong' bat 19/66 = 29% file co duong kich thuoc (duoi tran 45% -> GIU nguong). CA HAI menh de deu can: '02.Cap dien ngoai nha' luat bat 0 duong nhung 66/66 = 100% bi go de (chi nhanh 'hau het' thay). Con so 837 dim/15 file trong thiet ke cu KHONG tai lap duoc. test_chu_in_kich_thuoc 24 ca. KHONG doi bat ky so nao."
     },
     {
       "id": "co-chua-voi-toi-vung-nay",
       "name": "Co 'may chua voi toi vung nay' thay vi im lang tra 'khong co'",
-      "status": "partial",
-      "evidence": "Thiet ke chot: khop CHI tren to_unicode (khop raw cho 41 hit AO tren 04.Cong tuong rao + C1). Can sua _P_R5 moi co tac dung. CHUA code"
+      "status": "done",
+      "evidence": "LIVE 138d104 (+ siet o 5756b37). Co `co_o_vung_chua_doc` tren 4 tool (tim_kiem / dem_so_luong / tra_cuu_so_luong nhanh AM / liet_ke_so_luong). Ro bong = chu TEXT/MTEXT trong dinh nghia khoi DUOC CHEN (khong ATTDEF, khong khoi mo coi, khong trang in), khop CHI tren to_unicode. TI LE NHIEU 15,3% -> 0,0% sau khi siet ve 'chen >=2 lan' chi ap cho truy van MANG MA; sau do them CHAN MANH VUN ('100' khop ti le '1/100' o 11 file) va DOI DUNG DAU ('cua'!='cua', 'mac'!='mac tien trinh' — ten nguoi ky): ca bat co 20->5, khop mu dau 15->0. test_vung_chua_doc 44 ca."
     },
     {
       "id": "guard-so-dem",
       "name": "Hang rao chong bia cho SO DEM (hien chi soi so DO LUONG)",
+      "status": "done",
+      "evidence": "LIVE 5f21ae9. `_DEM_NUM_RE` (so + danh tu dem) vao `do_luong`, dat SAU `_MAHIEU_RES`. DO TRUOC-CODE tren 198 cau tra loi THAT, ro neo dung lai tu engine, cham bang NHAN DOC LAP `ky_vong`: 106/198=54% cau co khang dinh dem, **62/198=31% CHI co so dem** (hang rao bo qua hoan toan); trong 72 cau ban va cham toi: chan them 1, **GIET OAN 0**, bat dung 1 (id123 model noi '120 lan' trong khi dem_so_luong tra 5). Profile NGUOC HAN per-claim. 2 quyet dinh KHONG-LAM co so: bien the khong dau (+0/198) va ten LOAI DXF (1/198 va la BAO DONG GIA '01 TEXT' = ten layer). test_grounding_guard 50->56."
+    },
+    {
+      "id": "nguon-so-do-code42",
+      "status": "done",
+      "name": "Doc DUNG so do duong kich thuoc: he so ti le AM + duong do GOC + so do AutoCAD tu luu (code 42)",
+      "evidence": "LIVE 138d104. BA loi DOC LAP o nhanh DIMENSION. (1) He so ti le AM bi ap (loi do chinh commit DIMLFAC 6de1aaa sinh ra, khi do CHUA push): 1.882 duong/4 file thanh AM -> bi cac cong loc duong vut IM LANG trong khi so_duong_kich_thuoc van dem du; nang nhat 1.186/1.650 = 71,9% mot file. (2) Duong do GOC (dimtype&7 in 2,5) coi la mm — '01-TD' bao 35.970 mm cho GOC 359,7 do, kem cau TRAN AN rang so khop ban ve; loi CO TRUOC DIMLFAC. (3) Khong ai doc group code 42 (so do AutoCAD TU LUU, co mat 94,9%): phep thu khong thien vi 54.735 duong -> code42 dung RIENG 2.936 / engine dung RIENG **0**; dim dai-XIEN engine chi dung 37,2%. USER CHOT dung code42 lam nguon chinh. ⚠ code42 CHI dang tin khi HINH HOC CON DO NO: red-team bat duoc ban va dau 'cuu' ca hinh-hoc-suy-bien -> 66/607 ca BIA SO (ban ve in 10000, may phat 2136,3); nay chi cuu khi KHONG go de chu (529 ca cuu dung giu nguyen). Them dimtype 6 (do TOA DO) vao dien loai. TU KIEM NGUOC 73 file: 47 file doi so, 0 sinh so am, 34 file duoc cuu so do. test_so_do_dim 27 ca; test_ty_le_do 17->25."
+    },
+    {
+      "id": "neo-grounding-sach",
+      "status": "done",
+      "name": "Bit 3 kenh bom NEO GROUNDING tu ngoai noi dung ban ve (ma hieu / ten file / handle)",
+      "evidence": "LIVE 5548fe1 + 5756b37. (1) Gach noi trong MA HIEU sinh neo AM: 'DAM D2-10'->-10 · 68/76 file co >=1 neo am · 24/76 file co neo am nam DUNG dai cao do sinh THUAN tu ma hieu = ten dam cap phep bia cao do (dung lop loi id135). BAT DOI XUNG: phia CAU TRA LOI da strip ma-hieu, phia RO NEO thi khong. (2) TEN FILE lam bang chung: cung noi dung byte, doi ten thanh 'MC coc -13.7 va 7500.dxf' -> dung 2 cau bia mang so do chuyen tu CHAN sang LOT; kenh do NGUOI DUNG kiem soat 100%. (3) HANDLE (ma hex noi bo) — kenh RONG NHAT, MOI tool tra handle deu dinh: ket qua gom 3 handle + chu KHONG CO SO NAO van sinh ro neo [1,2,9,38,13876]. VA: `_strip_neo` = _strip_handle(_strip_ten_file(_strip_kb)). KHONG anh huong I1 (_collect_handles chay tren result tho). HIEU QUA DO DUOC: lop id135 (bia cao do AM) nay lot **0,0%**. test_neo_grounding 34 ca."
+    },
+    {
+      "id": "lo-cum-tu-choi-tat-guard",
+      "status": "done",
+      "name": "Cum TU CHOI trong cau tra loi khong con TAT hang rao chong bia toan bai",
+      "evidence": "LIVE 5756b37. `_guard_text` thoat som khi cau chua bat ky cum nao trong `_REFUSAL_MARKERS` -> moi so con lai di thang ra doi tac. Tai hien: 'Khong tim thay o phan may doc duoc, nhung cao do day dai coc la -13,7 m.' LOT du ro neo KHONG chua -13.7; bo 6 chu dau -> CHAN. PHAT HIEN THEN CHOT: dong do la MA CHET voi cau tu choi THUAN (dong `if not do_luong` ngay duoi da lo tron — 0/102 cau doi ke ca ro neo RONG), nen tac dung DUY NHAT con lai la mien tru dung phan nguy hiem. Ban kinh: 17/822 cau (2,1%) la nhom TRON; voi RO NEO THAT thi **0/793 cau doi**. `_apply_i1` GIU thoat som (chi noi canh bao). ⚠ DINH CHINH: con so '45% cau o trang thai khong-hang-rao' trong handoff la SAI — do lai 21,2% (mau chinh) / 14,5-17,5% (mau gop), phan lon VO HAI."
+    },
+    {
+      "id": "tim-chu-trong-ky-hieu",
+      "status": "done",
+      "name": "Tool #34 doc chu ben trong dinh nghia ky hieu/khoi DUOC CHEN",
+      "evidence": "LIVE 138d104. Thay cho viec 'doc chu trong khoi vao kho chu chung' (da BAC bang so). Chi gan co ma khong cho duong DOC = vua khang dinh CO, vua cam noi KHONG CO, vua khong dua du lieu = cong thuc EP BIA. KHONG truong dem (so doan chu trong dinh nghia khoi khong ung voi gi: 'g3' co 6 doan roi trong khoi chen 5 lan => hien that 30, engine doc 1), KHONG toa do (he NOI BO -> khoanh sai cho), khong khoi mo coi, khong trang in. CONG CUNG ngan sach ro neo do TRUOC khi viet: trung vi 6,0 neo so voi 19,0 cua tim_kiem -> DAT nen KHONG dua vao tuple loai-tru. E2E corpus that lay lai duoc chuoi truoc nay KHONG tool nao cham toi: 'l=1100'[38E9C/38EA5] · 'L=1600, SL:67'[3053A] · 'DN-01, L=15000, SL:02'[1C2F1E]. test_chu_trong_ky_hieu 26 ca."
+    },
+    {
+      "id": "kb-tra-nguoc-nghia-ky-hieu",
+      "status": "done",
+      "name": "Noi CUM TU tieng Viet cua doi tac voi KY HIEU tren ban ve (kienthuc.theo_nghia_don)",
+      "evidence": "LIVE 8156d47. Ban ve ghi ma bang KY HIEU, doi tac hoi bang TIENG VIET. Do: tra_cuu_so_luong('dai coc') tra **131** ('chi tiet noi coc voi dai') con **59 dai coc that** (DC-1 SL-19...) BIEN MAT; file khac tra RONG + cau khang dinh 'ban ve KHONG ghi san so luong' (SAI ma TU TIN). ⚠ Co che phan biet d/dj VAN DUNG ('DC' co dau->59 dai coc, khong dau->16 dam) — mo ta cu trong tai lieu la SAI. CHI tra nguoc **7/24 muc MOT NGHIA**; 15 muc DA NGHIA ('dam'->D-x lan DC-x, 'cua di'->CH/D-x/Dj-x) TUYET DOI khong (kho tu ghi ASK). KHONG GOP vao danh_sach_so_luong — de RIENG o 'theo_ky_hieu' + ghi chu cam cong (chong mo hinh cong 131+59=190). Loi ich: 10 cap (file x tu) tim them muc, deu DUNG loai. KB_HASH KHONG doi (ham thuan). test_kienthuc 15->30."
+    },
+    {
+      "id": "any-grounded-giu-nguyen",
       "status": "deferred",
-      "evidence": "Do voi ro neo RONG: 'Tong so coc la 156 coc.' LOT, 'Ban ve co 9999 cot.' LOT; cung luot 'Chieu dai dam 30 m' CHAN. Goc: _guard_text thoat som o `if not do_luong: return text`. Va duoc nhung dich so ca 36 suite -> lat RIENG"
+      "name": "⛔ Doi luat phan quyet ANY-GROUNDED sang PER-CLAIM — NO_GO CO SO, DUNG MO LAI",
+      "evidence": "Nghien cuu tron ven 2026-07-31 (wf_8a663cde-735, 8 agent + 3 phep do doc lap). (a) 'TY LE LOT' KHONG phai dai luong dung duoc de ra quyet dinh: 5 probe do CUNG dai luong ra 0%/23,8%/32,2%/37,9%/52-77,5%; tu kiem tren CUNG ro neo, chi doi BO SINH so bia -> 0,0% den 13,6%. DUNG trich con so nen nao lam can cu. (b) Do bang NHAN DOC LAP (ky_vong): do chinh xac per-claim = 0/25 va 1/30 = 3,3% -> 96,7-100% cau no giet la cau DUNG; giet oan 9,9-33,1%; ALL giet 82% cau co PHEP CONG (= viec CHINH cua phan mem boc tach) va 31% cau co so DEM. (c) BO luat x1000 cung NO_GO: 36,5% giet oan (85,4% voi cau doi m->mm). (d) PER-CAU khong cai thien gi. ANY la luat DUY NHAT co 0% chan oan tren ca 7 dang cau dung. DON BAY DUNG = LAM SACH RO NEO (da lam, xem neo-grounding-sach)."
     }
   ]
 }

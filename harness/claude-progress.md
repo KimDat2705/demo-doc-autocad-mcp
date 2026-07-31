@@ -9,6 +9,88 @@
 > Mới nhất ở TRÊN CÙNG. Bàn giao đầy đủ: `session-handoff.md`. Nhật ký chi tiết hơn nữa: `../GHI_CHU_HOAN_THIEN.md`.
 
 ---
+## Session 2026-07-31 — 🧱 NHÓM A: vá NỀN ĐỌC SỐ ĐO (3 lỗi độc lập) + 4 việc đợt vùng-mù + 4 lỗ hàng rào chống bịa + **NO_GO có số cho per-claim**
+> **CHỐT SỔ:** HEAD **`8156d47`** == origin, tree SẠCH. check.sh **[41/41] PASS · 34 MCP tool · 0 regress**
+> (272/107/31/61/51/44/24/26/63/28/27/21 không đổi). LIVE verify `/version` = `8156d47` ·
+> prompt_version **`2026.07.27-kb-l3`** hash **`239e8b7b…`** (thêm rồi GỠ vế `_P_R5` → về byte-identical) ·
+> kb_hash `e55ac112…` KHÔNG đổi · `/health` ok, `ram_mb` 135. **9 commit** đã push+deploy+verify.
+> ⚠ **pytest VẪN không chạy được** (`ValueError: I/O operation on closed file` → `no tests ran`) — cổng là
+> `check.sh`. **KHÔNG có `specs/specs.json`** → dùng `feature_list.json` (nay **64 mục**: 59 done · 4 deferred · 1 partial).
+>
+> **① NỀN ĐỌC SỐ ĐO SAI Ở 3 TẦNG ĐỘC LẬP — lộ ra khi rà lại TRƯỚC khi làm việc 1** (việc 1 chính là "so chữ
+> in với số máy đo", nên số máy sai thì việc 1 vô nghĩa). Commit `138d104`:
+> 1. **Hệ số tỉ lệ ÂM bị áp** — lỗi do CHÍNH commit DIMLFAC `6de1aaa` sinh ra (may mà chưa push). 1.882
+>    đường/4 file thành ÂM → bị các cổng lọc dương của dự án vứt **IM LẶNG**, trong khi `so_duong_kich_thuoc`
+>    vẫn đếm đủ = "đếm đủ mà mất số". Nặng nhất **1.186/1.650 = 71,9%** một file.
+> 2. **Đường đo GÓC coi là mm** (lỗi CÓ TRƯỚC DIMLFAC): `01-TD` báo **35.970 mm cho một GÓC 359,7°**, đồng
+>    thời in câu **TRẤN AN** rằng số này khớp bản vẽ.
+> 3. **Không ai đọc group code 42** (số đo AutoCAD TỰ LƯU, có mặt **94,9%**). Phép thử KHÔNG THIÊN VỊ trên
+>    54.735 đường: code42 đúng RIÊNG **2.936** ca / engine đúng RIÊNG **0** ca; dim dài-XIÊN engine chỉ đúng
+>    **37,2%**. **USER CHỐT** dùng code42 làm nguồn chính.
+> **TỰ KIỂM NGƯỢC 73 file** (thứ duy nhất chứng minh bản vá chạy — mọi suite đóng-băng-số vẫn xanh suốt):
+> 47 file đổi số · 0 sinh thêm số âm · 34 file được CỨU số đo. `01-TD`: `lon_nhat` **35.970,0 → 212,1** và
+> `nho_nhat` 0,3 → 0,7 — khớp ĐÚNG số AutoCAD tự lưu ở cả hai đầu.
+>
+> **② 4 VIỆC CỦA ĐỢT VÙNG-MÙ (user giao) — làm đủ, mỗi việc công bố số:**
+> - **Việc 1 — cờ chữ in ghi đè:** luật bắt 1.098 đường/26 file; cờ "lan rộng" bật **19/66 = 29%** file (dưới
+>   trần 45% → giữ ngưỡng). Con số `837 dim/15 file` trong thiết kế cũ **KHÔNG tái lập được**.
+> - **Việc 2 — cờ "chưa với tới vùng này"** (4 tool): nhiễu **15,3% → 0,0%**, giữ 4/4 ca dương.
+> - **Việc 3 — tool #34 `tim_chu_trong_ky_hieu`:** cổng cứng ngân sách rổ neo **6,0 vs `tim_kiem` 19,0** → ĐẠT.
+>   E2E lấy lại `l=1100`[38E9C/38EA5] · `L=1600, SL:67`[3053A] · `DN-01, L=15000, SL:02`[1C2F1E].
+> - **Việc 4 — `_P_R5`: THÊM RỒI GỠ.** A/B LIVE: prompt CŨ **4/8** gọi tool mới, MỚI **5/8** — chênh 1 ca,
+>   trong nhiễu (Fisher p=1,000). Đo tiếp thì thấy **HẠI**: trong ca cờ bật chỉ **5%** tool trả dữ liệu thật,
+>   **95%** câu trả lời ĐÚNG vẫn là "không có" mà vế ngoại lệ lại **CẤM nói** → cỗ máy ép bịa. **GỠ**, prompt
+>   về byte-identical. GIỮ phần CODE (cờ + tool) và **sửa nguyên nhân gốc**: đòi khớp ĐÚNG DẤU
+>   (`cửa`≠`của`, **`mác`≠`mạc tiến trình`** = TÊN NGƯỜI KÝ) → ca bật cờ **20→5**, khớp mù dấu **15→0**.
+>
+> **③ 4 LỖ HÀNG RÀO CHỐNG BỊA (3 kênh neo + 1 lỗ phạm vi)** — `5548fe1` + `5756b37` + `5f21ae9`:
+> - **Mã hiệu sinh neo ÂM**: `DẦM D2-10`→−10; **24/76 file** có neo âm nằm đúng dải cao độ sinh THUẦN từ mã
+>   hiệu ⇒ tên dầm cấp phép bịa cao độ (đúng lớp id135). Bất đối xứng: phía câu trả lời đã strip, phía rổ neo thì không.
+> - **TÊN FILE làm bằng chứng**: cùng byte, đổi tên → 2 câu bịa chuyển từ CHẶN sang LỌT. Kênh do NGƯỜI DÙNG
+>   kiểm soát 100%, không cần đụng bản vẽ.
+> - **HANDLE — kênh RỘNG NHẤT**: kết quả gồm 3 handle + chữ KHÔNG CÓ SỐ NÀO vẫn sinh rổ `[1,2,9,38,13876]`.
+>   **MỌI tool trả handle đều dính.**
+> - **Cụm TỪ CHỐI tắt guard TOÀN BÀI**: *"Không tìm thấy…, nhưng cao độ đáy đài cọc là −13,7 m."* LỌT dù rổ
+>   neo không chứa −13,7. Dòng thoát-sớm là **MÃ CHẾT** với câu từ chối thuần → tác dụng duy nhất là miễn trừ
+>   đúng phần nguy hiểm. Gỡ; với rổ neo THẬT **0/793 câu đổi**.
+> - **HÀNG RÀO CHO SỐ ĐẾM**: **62/198 = 31%** câu trả lời CHỈ có số đếm → hàng rào bỏ qua hoàn toàn
+>   (*"Tổng số cọc là 156 cọc."* LỌT). Vá: chặn thêm **1**, **giết oan 0**, bắt đúng **1**.
+> **HIỆU QUẢ GỘP, đo được:** lớp lỗi **id135 (bịa cao độ ÂM) nay lọt 0,0%**.
+>
+> **④ 1.05 — nối CỤM TỪ tiếng Việt với KÝ HIỆU** (`8156d47`): hỏi `"đài cọc"` → trả **131** (ghi chú khác),
+> **59 đài cọc thật biến mất**; file khác trả RỖNG + câu khẳng định SAI. ⚠ Cơ chế đ/d VẪN ĐÚNG (`ĐC`→59,
+> `DC`→16) — **mô tả trong tài liệu cũ SAI**. Vá bằng kho ký hiệu, CHỈ **7/24 mục MỘT NGHĨA**; 15 mục đa
+> nghĩa KHÔNG tra ngược. **KHÔNG GỘP** danh sách (chống mô hình cộng 131+59=190).
+>
+> **⑤ ⛔ NO_GO CÓ SỐ CHO PER-CLAIM — ĐỪNG MỞ LẠI** (`4c242b5`, workflow `wf_8a663cde-735`):
+> "tỉ lệ lọt" **KHÔNG phải đại lượng dùng được** (5 probe ra 0%/23,8%/32,2%/37,9%/52-77,5%; cùng rổ neo đổi
+> bộ sinh → 0,0%→13,6%). Đo bằng NHÃN ĐỘC LẬP: per-claim chính xác **0/25** và **1/30**, giết oan **9,9-33,1%**,
+> ALL giết **82% câu có PHÉP CỘNG**. **ANY là luật DUY NHẤT 0% chặn oan trên cả 7 dạng.** Đòn bẩy đúng =
+> **làm sạch rổ neo** (đã làm).
+>
+> **📌 BÀI HỌC ĐẮT NHẤT PHIÊN NÀY — RED-TEAM BẮT ĐƯỢC LỖI BỊA SỐ DO CHÍNH BẢN VÁ SINH RA.** Bản vá code42
+> đầu "cứu" MỌI đường đo-ra-0. Nhưng hình học suy biến ⇒ code42 **chắc chắn là số CŨ**. Đo 607 đường được
+> cứu: **529 chữ in RỖNG → cứu ĐÚNG** · **66 gõ đè SỐ KHÁC → BỊA** (bản vẽ in `10000`, máy phát `2136,3`) ·
+> 11 gõ đè ký hiệu. **Tệ HƠN lỗi gốc**: lỗi gốc chỉ làm rơi giá trị, cứu sai thì phát số tự tin VÀ số đó
+> thành NEO. **Cả 3 suite mới tự viết đều XANH** — điểm mù: ca test dựng đúng nhánh cứu nhưng CỐ Ý không gõ
+> đè chữ.
+>
+> **VIỆC CHỜ (phiên sau) — nhóm A, theo thứ tự đề nghị:**
+> 1. **1.06 sửa `tests/run_battery.py`** (~15 phút) — đang GHI ĐÈ kết quả lượt trước; là **điều kiện chặn** của Q2/Q3/Q4.
+> 2. **1.03 nắn phông VNI + TCVN3 còn sót** — `grep VNI` = 0; còn 545 chuỗi/21 file; mở khoá 1 bộ hồ sơ 6 file.
+> 3. **1.04 đơn vị inch/feet — ⚠ KHÔNG phải "thêm vào bảng tra".** Đo: 12/76 file khai đơn vị **MÂU THUẪN**
+>    với chính số đo (`2. KetCau MN GiaLoc` khai INCH nhưng vẽ mm; `04. Cong` khai FEET, trung vị 220 → 67m).
+>    Thêm ngây thơ = biến câu nhẹ "không khai đơn vị" thành câu SAI TỰ TIN. Việc đúng = **cross-check khai
+>    báo với độ lớn số đo và LỘ mâu thuẫn**.
+> 4. Q2 (chạy lại 198 câu 3-5 lượt, **tốn API**, phải định trước tiêu chí thắng/thua) · Q3 (4 câu bẫy) ·
+>    Q4 (bật lớp cảnh báo 2 của handle-guard — khuyến nghị để im).
+> 5. Chờ file: **F1** bản vẽ hạ tầng sâu ≥−5m từ đơn vị KHÁC · **F2** bảng bóc khối lượng làm tay của kỹ sư.
+> 6. Hoãn có cơ sở: R1 lớp-3 đơn vị ×1000 (34,9-41% FP) · R2 Pattern D/E (**mất mô tả**) · R3 bộ nhận biết vùng.
+> **⏳ RỦI RO TỒN DƯ:** rổ neo phình +6 ở ca đo 1.05 (số THẬT của bản vẽ nên phải là neo — chi phí thật của
+> tăng recall) · danh sách danh từ đếm dựa trên 198 câu/3 bản vẽ, corpus mới có thể thiếu (chiều hỏng là IM
+> LẶNG, không báo oan) · bug parser dấu nghìn VN (`62.900`) **đang bị luật ÷1000 che hoàn toàn** — ghi sổ, KHÔNG sửa.
+
+---
 ## Session 2026-07-30 (nối) — 📐 NHÓM A: rà soát lại toàn nhóm + **vá HỆ SỐ TỈ LỆ ĐO (DIMLFAC)** — 21,5% đường kích thước đang bị đọc SAI
 > **CHỐT SỔ:** HEAD **`6de1aaa`**, tree SẠCH. check.sh **[36/36] PASS · 33 tool · 0 regress** (272/107/50/31/63/28/44/24/26… KHÔNG đổi). ⚠ **`6de1aaa` CHƯA PUSH** — cố ý, xem "VIỆC CHỜ" #0. LIVE là `fb8a597` (mã nguồn y hệt `371d950`). Đo LIVE cuối phiên: `ram_mb` 135,5MB · `tu_choi` 0 · **`keepalive` ok=99 / lỗi=0** (99 cú giữ-thức liên tiếp không lỗi — bom 3 đã vá đúng trên máy thật).
 > **USER CHỐT 3 điều:** (1) giữ `READFILE_MAX_MB=45`; (2) **ĐỌC hệ số tỉ lệ đo** dù nó ĐỔI SỐ máy báo; (3) **CÓ sửa `_P_R5`** (chỉ dẫn AI) kèm đo A/B.

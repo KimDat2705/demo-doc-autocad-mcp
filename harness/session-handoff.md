@@ -12,7 +12,27 @@
 > **Muốn public thật sau này — ĐỪNG LÀM LẠI TỪ ĐẦU:** nhánh local **`public-ready`** đã có sẵn trọn gói (history sạch không .deb qua `git filter-repo` · Dockerfile tải ODA tuỳ chọn qua `ODA_DEB_URL` · thông báo .dxf-only thân thiện · .gitignore chặn .deb). Đánh đổi: cloud chỉ đọc .dxf tới khi đặt `ODA_DEB_URL`. Mirror backup: `D:/Dat-Antigravity/_backup_repo_truoc_khi_public_20260717/repo-mirror.git`.
 
 
-## 🏁 TRẠNG THÁI CHỐT PHIÊN 2026-07-31 — ĐỌC MỤC NÀY TRƯỚC
+## 🏁 CHỐT SỔ CUỐI PHIÊN 2026-07-31 — ĐỌC 12 DÒNG NÀY TRƯỚC
+> **HEAD `8156d47` == origin · tree SẠCH · check.sh [41/41] PASS · 34 MCP tool · 0 regress.**
+> **LIVE `8156d47`** verify: prompt `2026.07.27-kb-l3` / `239e8b7b…` (thêm rồi GỠ `_P_R5` → byte-identical
+> bản cũ) · kb `e55ac112…` KHÔNG đổi · `/health` ok · `ram_mb` 135. **9 commit** push+deploy+verify.
+> ⚠ **pytest KHÔNG chạy được** (`I/O operation on closed file` → `no tests ran`) — cổng = `check.sh`.
+> **KHÔNG có `specs/specs.json`** → `feature_list.json` (**64 mục**: 59 done · 4 deferred · 1 partial).
+>
+> **PHIÊN NÀY:** vá **nền đọc số đo** (3 lỗi độc lập) · làm đủ **4 việc đợt vùng-mù** · bịt **4 lỗ hàng rào
+> chống bịa** · **1.05** nối cụm-từ-Việt với ký-hiệu · chốt **NO_GO có số cho per-claim**. Chi tiết đầy đủ:
+> `claude-progress.md` entry đầu.
+>
+> **BƯỚC TIẾP (nhóm A, đúng thứ tự):** ① **1.06 sửa `tests/run_battery.py`** (~15', đang GHI ĐÈ kết quả lượt
+> trước — chặn Q2/Q3/Q4) → ② **1.03 nắn phông VNI** (545 chuỗi/21 file) → ③ **1.04 đơn vị inch/feet
+> ⚠ KHÔNG phải thêm bảng tra** (12/76 file khai đơn vị MÂU THUẪN với chính số đo — thêm ngây thơ = biến câu
+> nhẹ thành câu SAI TỰ TIN; việc đúng là **cross-check + LỘ mâu thuẫn**) → ④ Q2/Q3/Q4.
+>
+> **⛔ ĐỪNG MỞ LẠI (đã bác BẰNG SỐ trong phiên này):** per-claim / ALL-GROUNDED · bỏ luật ×1000 · per-câu ·
+> thêm vế ngoại lệ vào `_P_R5` · đọc chữ-trong-khối vào kho chữ chung · khối mồ côi + trang in · đọc bảng
+> DIMSTYLE thay `e.override()` · `_tok_bound` trần cho rổ bóng · vá bug parser dấu nghìn (đang bị ÷1000 che).
+
+## 🕘 TRẠNG THÁI GIỮA PHIÊN 2026-07-31
 > **HEAD `4c42a35` · tree SẠCH · check.sh [41/41] PASS · 34 MCP tool · 0 regress.**
 > **✅ ĐÃ PUSH + DEPLOY + VERIFY LIVE `0613591`** (user chốt push 2026-07-31): `/version` commit khớp ·
 > prompt_version **`2026.07.31-vung-chua-doc`** hash **`56177a5b…`** (đổi CÓ CHỦ ĐÍCH, xem việc 4) ·
