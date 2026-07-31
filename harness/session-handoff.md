@@ -12,6 +12,21 @@
 > **Muốn public thật sau này — ĐỪNG LÀM LẠI TỪ ĐẦU:** nhánh local **`public-ready`** đã có sẵn trọn gói (history sạch không .deb qua `git filter-repo` · Dockerfile tải ODA tuỳ chọn qua `ODA_DEB_URL` · thông báo .dxf-only thân thiện · .gitignore chặn .deb). Đánh đổi: cloud chỉ đọc .dxf tới khi đặt `ODA_DEB_URL`. Mirror backup: `D:/Dat-Antigravity/_backup_repo_truoc_khi_public_20260717/repo-mirror.git`.
 
 
+## 📏 1.04 XONG — ĐƠN VỊ inch/feet: ĐỐI CHIẾU + LỘ MÂU THUẪN (2026-07-31, nối phiên)
+> **Làm ĐÚNG như cảnh báo cũ: KHÔNG thêm bảng tra, KHÔNG tự quy đổi.** Đo `$INSUNITS` + phân bố số đo thật trên 86 file (1 file lỗi đọc):
+> **mm 40 · m 24 · không khai 10 · inch 9 · feet 1 · mile 1.**
+> **Khai báo sai theo CẢ HAI CHIỀU — đây là lý do không được tự sửa:**
+> · 9 file khai **inch** + 1 **feet** + 1 **mile** thực chất vẽ mm — bằng chứng: giá trị hay gặp NHẤT của chúng là `110, 220, 100, 200, 300, 1200, 3000, 3300, 3600, 4200` = **đúng bộ số mm kinh điển**; một file khai **mile**, trung vị 1700 → 2.736 km.
+> · NHƯNG ~9 file khai **m** thì ĐÚNG là mét thật (bản vẽ tuyến hạ tầng, trung vị 13,5–29,6 m) → với chúng, các trường `_mm` máy đang báo **lệch 1000×**. Trong đó có `01-TD tuyen ong ap luc` (trung vị 27,4) — chính file id135.
+> · `$MEASUREMENT` **VÔ DỤNG** làm tín hiệu: 28/38 file khai mm cũng để `MEASUREMENT=0` (English).
+> **CÁCH LÀM:** `_INSUNITS_TEN` nhận **đủ 17 mã** (trước chỉ 4/5/6, nên inch/feet/mile bị báo là *"bản vẽ KHÔNG khai $INSUNITS"* = **máy nói sai**) + `_doi_chieu_don_vi()` trả 2 cờ **BOOL, prose SẠCH SỐ**:
+> · `don_vi_khai_bao_khac_mm` — khai khác mm trong khi mọi trường đều mang hậu tố `_mm`.
+> · `khai_bao_don_vi_kho_tin` — quy trung vị theo ĐÚNG đơn vị khai báo ra độ lớn phi lý ⇒ **chính khai báo mới sai, ĐỪNG nhân/chia theo nó**.
+> Dải hợp lý `[0,005; 60] m` hiệu chuẩn từ corpus (nhóm mm: trung vị 0,014–5,6 m; nhóm mét-thật: 13,5–29,6 m).
+> **ĐO TỈ LỆ GẮN CỜ trên 85 file: im lặng 50 (59%) · mâu thuẫn 26 (31%) · khó tin 9 (11%)** — dưới trần nhiễu 45%.
+> **Test:** `test_takeoff_chong_bia` 272→**283** (W.10a-k). **KHÔNG đụng số máy báo** (chỉ thêm trường cờ).
+> **CÒN TỒN:** chưa phân biệt được file khai `inch` là "sai hoàn toàn" hay "thật" — cần tín hiệu độ-tròn của số đo, chưa đo. Hiện xếp vào `mâu thuẫn` (nói có xung đột) chứ KHÔNG dám gọi là khó tin.
+
 ## 🔤 1.03 XONG — NẮN PHÔNG CŨ (2026-07-31, nối phiên) · check.sh **[42/42]**
 > **⛔ ĐÍNH CHÍNH SỐ CŨ CỦA CHÍNH TÀI LIỆU NÀY:** "545 chuỗi/21 file" là **SAI** (không có script đo kèm). Đo lại toàn corpus `_khao_sat/_dxf` **86 file / 285.413 chuỗi**: thực tế **9.680 chuỗi / 73 file** còn garble — lệch ~18×.
 > **KẾT QUẢ (tự kiểm ngược TRƯỚC/SAU trên cả 86 file):** cứu **8.913** chuỗi · **HỎNG THÊM 0** · đổi-mà-cả-hai-sạch 285 · **số máy báo KHÔNG dịch** (cao độ KT −2.1/10.8 · KC −1.85/10.8 · HT **−14.26**/2.5 y nguyên; text count y nguyên) ⇒ lợi ích recall THUẦN.

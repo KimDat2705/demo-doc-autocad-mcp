@@ -804,6 +804,46 @@ def _nd(val):
             "do_tin_cay": "do_nguoi_dung", "giai_thich": "do đối tác cấp (không đọc từ file)"}
 
 
+# ---- 1.04 — ĐƠN VỊ KHAI BÁO ĐẦU FILE ($INSUNITS) vs ĐỘ LỚN SỐ ĐO THẬT ----------------------
+# Trước đây chỉ ánh xạ 4/5/6 -> mm/cm/m; MỌI giá trị khác (inch, feet, mile…) rơi vào nhánh
+# "bản vẽ KHÔNG khai $INSUNITS" — tức máy NÓI SAI: file CÓ khai, chỉ là khai đơn vị khác.
+_INSUNITS_TEN = {1: "inch", 2: "feet", 3: "mile", 4: "mm", 5: "cm", 6: "m", 7: "km",
+                 8: "microinch", 9: "mil", 10: "yard", 14: "dm", 15: "dam", 16: "hm",
+                 21: "feet (US survey)", 22: "inch (US survey)", 23: "yard (US survey)",
+                 24: "mile (US survey)"}
+_INSUNITS_SANG_M = {"inch": 0.0254, "feet": 0.3048, "mile": 1609.344, "mm": 0.001, "cm": 0.01,
+                    "m": 1.0, "km": 1000.0, "microinch": 2.54e-8, "mil": 2.54e-5, "yard": 0.9144,
+                    "dm": 0.1, "dam": 10.0, "hm": 100.0, "feet (US survey)": 0.30480061,
+                    "inch (US survey)": 0.02540005, "yard (US survey)": 0.91440183,
+                    "mile (US survey)": 1609.3472}
+# Dải HỢP LÝ cho kích thước TRUNG VỊ của một bản vẽ xây dựng, quy về MÉT.
+# Hiệu chuẩn từ corpus 86 file: nhóm khai mm (38 file) có trung vị 13,9-5.600 (mm) = 0,014-5,6 m;
+# nhóm khai m mà ĐÚNG là mét (bản vẽ tuyến hạ tầng) có trung vị 13,5-29,6 m. Nới biên -> [0,005; 60].
+_DON_VI_HOP_LY_M = (0.005, 60.0)
+
+
+def _doi_chieu_don_vi(don_vi, dim_vals):
+    """(mau_thuan, kho_tin). KHÔNG tự quy đổi số — chỉ LỘ ra để người đọc biết mà hỏi lại.
+      mau_thuan = khai báo KHÁC mm, trong khi mọi trường máy trả đều mang hậu tố '_mm'.
+      kho_tin   = quy trung vị số đo theo ĐÚNG đơn vị khai báo thì ra độ lớn phi lý
+                  => chính khai báo mới sai, ĐỪNG nhân/chia theo nó.
+    ⚠ CỐ Ý KHÔNG tự sửa: đo 86 file cho thấy khai báo sai theo CẢ HAI CHIỀU (9 file khai inch +
+    1 feet + 1 mile thực chất vẽ mm — giá trị hay gặp nhất là 110/220/1200/3000; nhưng cũng có
+    file khai m mà ĐÚNG là mét). Tự quy đổi = biến câu 'chưa chắc đơn vị' thành câu SAI TỰ TIN."""
+    if not don_vi:
+        return False, False
+    mau_thuan = (don_vi != "mm")
+    hs = _INSUNITS_SANG_M.get(don_vi)
+    if not hs or not dim_vals:
+        return mau_thuan, False
+    try:
+        giua = sorted(dim_vals)[len(dim_vals) // 2]
+    except Exception:
+        return mau_thuan, False
+    lo, hi = _DON_VI_HOP_LY_M
+    return mau_thuan, not (lo <= abs(giua) * hs <= hi)
+
+
 # I3-U(Lớp 2) — QUY ĐỔI ĐƠN VỊ ĐỘ DÀI tất định (CODE tính, KHÔNG để LLM/đối tác tự nhân ×1000).
 _UNIT_DAI_RE = re.compile(r"\s*(-?\d+(?:[.,]\d+)?)\s*(mm|cm|dm|m)\s*", re.IGNORECASE)
 _UNIT_DAI_HESO = {"mm": 1.0, "cm": 10.0, "dm": 100.0, "m": 1000.0}
@@ -2415,14 +2455,30 @@ class Drawing:
             insunits = int(self.doc.header.get("$INSUNITS", 0) or 0)
         except Exception:
             insunits = 0
-        don_vi = {4: "mm", 5: "cm", 6: "m"}.get(insunits)
-        ct = ("bản vẽ khai $INSUNITS=%d (%s)" % (insunits, don_vi) if don_vi
-              else "bản vẽ KHÔNG khai $INSUNITS -> đơn vị CHƯA CHẮC mm; giá trị RẤT LỚN có thể là toạ độ/khoảng, không phải kích thước cấu kiện")
+        don_vi = _INSUNITS_TEN.get(insunits)
+        # 1.04 — ĐỐI CHIẾU khai báo với ĐỘ LỚN SỐ ĐO THẬT, rồi LỘ mâu thuẫn. KHÔNG tự quy đổi.
+        mau_thuan, kho_tin = _doi_chieu_don_vi(don_vi, dv)
+        if don_vi:
+            ct = "bản vẽ khai đơn vị là %s" % don_vi
+            if kho_tin:
+                ct += ", NHƯNG độ lớn số đo trong file KHÔNG khớp với khai báo đó -> khai báo đầu file " \
+                      "KHÔNG đáng tin, ĐỪNG quy đổi theo nó"
+            elif mau_thuan:
+                ct += ", KHÁC với giả định mm mà các trường '_mm' đang dùng -> nếu khai báo đúng thì mọi " \
+                      "số dưới đây SAI THANG ĐO; hãy hỏi lại người lập bản vẽ trước khi dùng"
+        else:
+            ct = ("bản vẽ KHÔNG khai đơn vị -> đơn vị CHƯA CHẮC mm; giá trị RẤT LỚN có thể là toạ độ/khoảng, "
+                  "không phải kích thước cấu kiện")
         r = {"so_duong_kich_thuoc": len(self.dims),
              "nho_nhat_mm": dv[0] if dv else None, "lon_nhat_mm": dv[-1] if dv else None,
              "gia_tri_pho_bien_mm": pho_bien, "don_vi_khai_bao": don_vi,
              "ghi_chu": "Đường kích thước (DIMENSION); trường '_mm' theo GIẢ ĐỊNH mm (%s). gia_tri_pho_bien = giá trị "
                         "NHIỀU NHẤT (thường bước cột/nhịp); lớn nhất KHÔNG chắc là kích thước tổng công trình." % ct}
+        # Cờ BOOL + prose SẠCH SỐ (mọi số trong kết quả tool đều nở rổ neo grounding -> không thêm trường số).
+        if mau_thuan:
+            r["don_vi_khai_bao_khac_mm"] = True
+        if kho_tin:
+            r["khai_bao_don_vi_kho_tin"] = True
         # LỘ việc đã áp HỆ SỐ TỈ LỆ ĐO: cờ BOOL + prose SẠCH SỐ (số đếm nằm ngoài, KHÔNG đưa vào kết quả tool —
         # mọi số trong kết quả đều mở rộng rổ neo grounding). Người đọc cần biết vì số máy báo cho các đường này
         # KHÁC số đo hình học thô, và đó là CHỦ Ý: bản vẽ tự khai hệ số.

@@ -563,6 +563,39 @@ def main():
     _emit("thong_tin_kich_thuoc: có 'don_vi_khai_bao' + ghi_chu nêu 'GIẢ ĐỊNH'",
           "don_vi_khai_bao" in _tkt and "GIẢ ĐỊNH" in _tkt.get("ghi_chu", ""))
 
+    # ---- [W.10] 1.04 — ĐỐI CHIẾU đơn vị khai báo với ĐỘ LỚN SỐ ĐO THẬT ----
+    # Đo corpus 86 file: khai báo sai theo CẢ HAI CHIỀU — 9 file khai inch + 1 feet + 1 mile
+    # thực chất vẽ mm (giá trị hay gặp nhất là 110/220/1200/3000, đúng bộ số mm kinh điển);
+    # nhưng cũng có file khai 'm' mà ĐÚNG là mét (bản vẽ tuyến hạ tầng, trung vị 13,5-29,6).
+    # => TUYỆT ĐỐI không tự quy đổi; chỉ LỘ mâu thuẫn.
+    import tools_core as _TCu
+    _emit("W.10a mm + số đo cỡ mm -> IM LẶNG (không báo động giả trên 40 file khai mm)",
+          _TCu._doi_chieu_don_vi("mm", [1200.0] * 5) == (False, False))
+    _emit("W.10b KHÔNG khai -> im lặng (giữ nguyên hợp đồng câu 'CHƯA CHẮC mm')",
+          _TCu._doi_chieu_don_vi(None, [1200.0] * 5) == (False, False))
+    _emit("W.10c khai 'm' + trung vị ~27 (bản vẽ tuyến THẬT bằng mét) -> mâu thuẫn, KHÔNG chê khai báo",
+          _TCu._doi_chieu_don_vi("m", [27.4] * 5) == (True, False))
+    _emit("W.10d khai 'm' nhưng trung vị ~1088 (=1.088 km) -> khai báo KHÓ TIN",
+          _TCu._doi_chieu_don_vi("m", [1088.1] * 5) == (True, True))
+    _emit("W.10e khai 'feet' + trung vị 795 (=242 m) -> KHÓ TIN",
+          _TCu._doi_chieu_don_vi("feet", [795.0] * 5) == (True, True))
+    _emit("W.10f khai 'mile' + trung vị 1700 (=2.736 km) -> KHÓ TIN",
+          _TCu._doi_chieu_don_vi("mile", [1700.0] * 5) == (True, True))
+    _emit("W.10g khai 'inch' -> mâu thuẫn (không đủ căn cứ gọi là khó tin)",
+          _TCu._doi_chieu_don_vi("inch", [1500.0] * 5) == (True, False))
+    _emit("W.10h không có đường kích thước -> vẫn nêu mâu thuẫn, KHÔNG đoán bừa 'khó tin'",
+          _TCu._doi_chieu_don_vi("m", []) == (True, False))
+    _emit("W.10i inch/feet/mile KHÔNG còn bị báo là 'không khai' (máy từng NÓI SAI)",
+          _TCu._INSUNITS_TEN.get(1) == "inch" and _TCu._INSUNITS_TEN.get(2) == "feet"
+          and _TCu._INSUNITS_TEN.get(3) == "mile")
+    # Cờ phải là BOOL + prose SẠCH SỐ: mọi số trong kết quả tool đều nở rổ neo grounding.
+    _tkt2 = kc.thong_tin_kich_thuoc()
+    _emit("W.10j cờ đơn vị là BOOL, KHÔNG thêm trường số nào",
+          all(isinstance(_tkt2.get(k), bool)
+              for k in ("don_vi_khai_bao_khac_mm", "khai_bao_don_vi_kho_tin") if k in _tkt2))
+    _emit("W.10k ghi_chu KHÔNG chèn mã số $INSUNITS (số trần lọt rổ neo)",
+          "$INSUNITS" not in _tkt2.get("ghi_chu", ""))
+
     print("[X] P-1 (E1-E4): neo ứng viên + provenance xác nhận + đối chiếu + chống injection")
     import tools_core as _TCx
     # E4 — bộ dò CHỈ THỊ hướng-AI (chống prompt-injection qua nguyên văn ứng viên); note SẠCH KHÔNG bị cờ
