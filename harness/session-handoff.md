@@ -12,6 +12,26 @@
 > **Muốn public thật sau này — ĐỪNG LÀM LẠI TỪ ĐẦU:** nhánh local **`public-ready`** đã có sẵn trọn gói (history sạch không .deb qua `git filter-repo` · Dockerfile tải ODA tuỳ chọn qua `ODA_DEB_URL` · thông báo .dxf-only thân thiện · .gitignore chặn .deb). Đánh đổi: cloud chỉ đọc .dxf tới khi đặt `ODA_DEB_URL`. Mirror backup: `D:/Dat-Antigravity/_backup_repo_truoc_khi_public_20260717/repo-mirror.git`.
 
 
+## 🏁 CHỐT SỔ CUỐI PHIÊN 2026-08-01 — ĐỌC KHỐI NÀY TRƯỚC
+> **HEAD `b236b7e` == origin · tree SẠCH · check.sh [42/42] PASS · 34 MCP tool · 0 regress.**
+> **LIVE `b236b7ee`** verify: prompt `2026.07.27-kb-l3` / `239e8b7b…` **KHÔNG đổi** · kb `e55ac112…` **KHÔNG đổi** ·
+> `/health` ok · `ram_mb` 135,5 · trang chủ HTTP 200 đủ 4 chuỗi frontend. **11 commit** push+deploy+verify.
+> ⚠ **pytest VẪN không chạy được** — cổng là `check.sh`. **KHÔNG có `specs/specs.json`** → `feature_list.json` (**69 mục**: 62 done · 6 deferred · 1 partial).
+> Suite đổi số: takeoff 272→**283** · vntext 28→**53** · garble 26→**27** · **MỚI battery-runner 52**. Khác GIỮ NGUYÊN.
+>
+> **PHIÊN NÀY:** 1.06 dụng cụ đo · 1.03 nắn phông (**cứu 8.913 chuỗi, 0 hỏng thêm**) · 1.04 đơn vị · **Q2 baseline M3 = 13,0%** · soi id193 · **3 NO_GO có số**. Chi tiết: `claude-progress.md` entry đầu.
+>
+> **⛔ ĐỪNG LÀM LẠI (đã bác BẰNG SỐ trong phiên này):** bộ dò tổng-tập-con · vá bỏ sót bằng gợi-ý-trong-kết-quả-tool (2 vòng A/B) · thêm `tool_numbers` vào dict trả về `tra_loi_ai` (`app.py:625` `jsonify(r)` bơm số nội bộ ra trình duyệt — dùng **seam bọc `_guard_text` phía test**) · phủ quyết cả chuỗi khi thấy ký tự Unicode Việt (27 chuỗi hỏng thêm) · nhét `Ä/Å/Û/Φ` vào bảng `_TCVN3`.
+>
+> **BƯỚC TIẾP — ứng viên, CHƯA chốt (user chọn):**
+> ① **GHÉP NHÃN↔GIÁ TRỊ THEO VỊ TRÍ** (đọc bảng hàng/cột) — đây là nút thắt THẬT của recall, đã chứng minh bằng số; repo có tiền lệ `_gan_dim_cau_kien`. Việc LỚN, phải đo trước.
+> ② Luật **"câu có TỔNG + số không truy được nguồn"** — hình dạng đúng (2 bắt / 0 báo oan trên 25 câu) nhưng bằng chứng dương chỉ là **MỘT hiện tượng quan sát 2 lần**; cần mở rộng 198 câu × ≥2 lượt, và hành động phải là **GẮN CỜ, không thay câu trả lời**.
+> ③ Họ mã lạ `Ä/Å/Û/Φ` (768 chuỗi) — cần dựng bảng mã riêng + đo lại.
+> ④ Nhóm C (RAM/upload) vẫn HOÃN tới cuối dự án (tốn tiền túi).
+> **Dữ liệu để dùng lại:** `tests/battery_runs/run02|03|04` (Q2, 198 câu ×3) · `run09` (33 câu có rổ neo) · `run10-15` (probe recall, có `tool_goi`). **Gitignored, chỉ có trên máy dev.**
+>
+> **📌 BÀI HỌC MANG SANG PHIÊN SAU:** ba lần trong phiên này **bộ trích của chính tôi hỏng** và cả ba suýt cho kết luận NGƯỢC (regex vớ `"304"` trong `"INOX 304"` → "0 gắn cờ"; bộ dò từ-khoá đếm *"không tìm thấy lỗi font"* thành từ chối → thổi bỏ-sót 2%→13%; tổng-tập-con mù với tổng cộng SAI). **Số "0%" và số "quá đẹp" là dấu hiệu bộ trích hỏng, không phải tin mừng** — chạy nó lên ca đã biết đáp án trước khi tin.
+
 ## ⛔ VÁ BỎ SÓT BẰNG "GỢI Ý TRONG KẾT QUẢ TOOL" = **KHÔNG ĐẠT, ĐÃ GỠ — ĐỪNG LÀM LẠI Y HỆT** (2026-08-01)
 > **Tiêu chí chốt TRƯỚC khi chạy:** thắng = **≥3/11** câu bỏ sót lấy lại được **VÀ ≤2/17** câu bẫy bị phá.
 > **Đã thử 2 vòng, A/B trên đúng 28 câu (`run13` trước vs `run14`/`run15` sau):**

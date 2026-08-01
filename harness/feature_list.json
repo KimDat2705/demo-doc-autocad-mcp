@@ -1,393 +1,423 @@
 {
-  "project": "demo-doc-autocad-mcp (demo 2 — SẢN PHẨM CHÍNH)",
-  "description": "Web app đọc + tính toán bản vẽ AutoCAD (.dwg/.dxf) QUA MCP (Model Context Protocol). LLM = Google Gemini. Kiến trúc TOOL-USE (KHÔNG training): code Python tất định đọc/tính số THẬT kèm handle; Gemini hiểu câu hỏi + gọi tool + diễn đạt. Triết lý BẤT DI: CHỐNG BỊA (thiếu->hỏi, không bịa; suy đoán->gắn cờ; số do CODE).",
-  "stack": "Python 3.10 + Flask 3.1.3 + MCP 1.27 (FastMCP) + google-genai 2.10 (gemini-2.5-flash) + ezdxf 1.4.4 + matplotlib(Agg) + openpyxl + gunicorn + ODA File Converter + Docker + Render",
-  "testedAt": "2026-07-31",
-  "status_legend": "done = xong + có bằng chứng/test | partial = có phần, còn treo | planned = đã nghiên cứu/roadmap, chưa code | deferred = HOÃN chờ đối tác chốt",
-  "features": [
-    {
-      "id": "mcp-server",
-      "name": "MCP server chuẩn (FastMCP stdio, 28 tool)",
-      "status": "done",
-      "evidence": "mcp_server.py FastMCP('doc-autocad'); 28 @mcp.tool() (đếm được; +hoc_quy_uoc/thu_hoi_quy_uoc P3 + cao_do_min_max id135-recall + doc_bang_nhung U3 đọc bảng OLE nhúng + kiem_tra_handle I1 host-only); chạy stdio JSON-RPC -> cắm được client MCP bất kỳ (Claude Desktop/Cursor/CLI). Điểm HƠN demo 1 (kiến trúc chuẩn tái dùng)."
-    },
-    {
-      "id": "gemini-bridge",
-      "name": "Cầu nối Gemini<->MCP (phiên bền + vòng lặp chống bịa)",
-      "status": "done",
-      "evidence": "mcp_bridge.py class MCPBridge (asyncio nền + threading, KHÔNG teardown/request); tra_loi_ai() MAX_TURNS=14; SYSTEM_PROMPT 21 luật (I9: tách mảnh _INVARIANT/_VN_CONVENTION + version/hash, byte-identical); 2 chốt: ép-gọi-tool khi model nêu số chưa gọi, ép-trả-lời khi hết lượt (không bỏ cuộc). Tự viết bridge vì google-genai 2.10 deepcopy ClientSession lỗi."
-    },
-    {
-      "id": "read-ezdxf",
-      "name": "Đọc ezdxf + trích xuất (texts/dims/thép/qty/section/levels)",
-      "status": "done",
-      "evidence": "tools_core.py Drawing._extract (dòng ~521): giữ doc RAM để render; build qty_index/door_size_index/section_index/levels/stated_vol. Chiến lược readfile (chính xác 100%) + cổng chặn file > READFILE_MAX_MB."
-    },
-    {
-      "id": "dwg-convert",
-      "name": "Chuyển .dwg->.dxf trên server (ODA, Windows + Linux/xvfb)",
-      "status": "done",
-      "evidence": "dwgconv.py convert_dwg_to_dxf() + find_oda(); Drawing.__init__ tự gọi khi path .dwg. KHÔNG cần AutoCAD -> deploy cloud được."
-    },
-    {
-      "id": "vntext",
-      "name": "Chuẩn hoá text TCVN3 + mã AutoCAD/MTEXT",
-      "status": "done",
-      "evidence": "vntext.py to_unicode(): TCVN3->Unicode, %%C->Ø, mã \\f;; chỉ giải mã khi phát hiện font cũ (cổng chữ ký, không phá Unicode sẵn đúng)."
-    },
-    {
-      "id": "quantity",
-      "name": "Đọc số lượng cấu kiện (tra cứu/liệt kê/tổng/đếm chữ)",
-      "status": "done",
-      "evidence": "tra_cuu_so_luong/liet_ke_so_luong/tong_so_luong/dem_so_luong + _build_qty_index; đa quy ước (SL=/(số lượng N bộ)), fold font, ghép vị trí. Cửa D1=24, tổng 73. VÁ id84 [2026-07-16, LIVE c0b85af]: unaccent gộp đ→d nên 'ĐC'(đài) ≡ 'DC'(dầm) -> đếm 142 (đúng 59); vá field label_ma=_norm_ma (giữ đ/d) khớp mã + dedup _ma_key. VÁ DẦM double-count [2026-07-16, LIVE 95f4282] (residual id84): 'DẦM DR-6'(inline)+'DR-6'(spatial)=cùng 1 dầm nhưng không dedup -> over-count 2x (DM 40->20); vá dedup CÓ-LOẠI _ma_type/_ma_code/_ma_group_key (bare-code gộp loại DUY NHẤT, ≥2 loại tách -> giữ 'DẦM D1'≠'CỬA D1'). Test [id84] 12 ca."
-    },
-    {
-      "id": "steel",
-      "name": "Thống kê thép tròn + thép hình/inox (kg)",
-      "status": "done",
-      "evidence": "thong_ke_thep/thong_ke_thep_hinh + _acc_thep(_hinh); đọc block DK/SHOW, bỏ block tổng tránh đếm trùng; cảnh báo 'còn thép hình chưa cộng'. KC 67370.7 kg."
-    },
-    {
-      "id": "listing",
-      "name": "Tìm kiếm + liệt kê layer/block/sheet/đối tượng/kích thước",
-      "status": "done",
-      "evidence": "tim_kiem, liet_ke_layer/block/sheet, thong_ke_doi_tuong, thong_tin_kich_thuoc — mỗi tool có ghi_chu khai báo bản chất con số."
-    },
-    {
-      "id": "boc-tach",
-      "name": "Bóc tách số đo ghi chú tự do (KHÔNG tự tính vật liệu)",
-      "status": "done",
-      "evidence": "boc_tach_kich_thuoc (dòng ~855): trích 3D/L=/m2/m3/bề dày + NGUYÊN VĂN + handle; test [F][G] granit/gạch PASS."
-    },
-    {
-      "id": "floor-levels",
-      "name": "Thông tin tầng (cao độ->chiều cao tầng) + cao độ min/max (id135-recall)",
-      "status": "done",
-      "evidence": "thong_tin_tang + _build_levels; test [D] KC cao độ 3.6m/~3 tầng, 9T 3.3m/~10 tầng. + TOOL MỚI cao_do_min_max [2026-07-16, LIVE 97ffc60] (MCP #26, id135-recall): đọc RAW min/max marker cao độ (regex dấu +/-/± + 2-3 thập phân) KHÔNG lọc tần suất ≥4 như _build_levels (đó là lý do id135 bỏ sót mốc sâu). RIÊNG tool. G1 bắt buộc dấu; G3 loại layer thép khỏi min/max (LỘ canh_bao); G4/G5 flag nghi_ngo. Verify CT-A KC min=-1.85/max=+10.8; 9T KC min=-3.0 (loại -44.1 thép); -14.26 (2 thập phân) đọc đúng. Test test_cao_do_min_max.py 12 ca. ⚠ overfit: 2 firm, cần ≥3 firm. ⏳ id135-E2E VẪN CHỜ file hạ tầng ĐỘC LẬP [2026-07-24, sau khi ROLLBACK 1 overclaim]: battery LIVE trên rachmop.dxf (HT/CT-K, -14.26) -> Gemini đọc ĐÚNG -14.26m [1F601D] (bug gốc bịa -10m) = fix chạy đúng trên CA ĐÃ BIẾT. NHƯNG rachmop CHÍNH là file bug id135 đến từ đó + câu battery thiết kế quanh nó (ky_vong ghi cứng -14.26) -> KHÔNG chứng minh tổng quát hoá (có thể overfit). id135-E2E THẬT vẫn cần bản vẽ hạ tầng ĐỘC LẬP (nguồn khác, mốc sâu) — ĐANG XIN đối tác. KHÔNG đánh dấu id135 done. --- CẬP NHẬT TB6 [2026-07-24, user chốt 'chạy TB6 + xin file sâu']: đối tác gửi bộ hạ tầng ĐỘC LẬP THẬT (dự án thoát/cấp nước TB6, 26 file, input_files/03.TB6/, chưa từng thấy). E2E LIVE Gemini 2 file: TD-ống-áp-lực (tool -1.34m layer CD_Day, Gemini '-1.34m [24DBE3]') + MB-dịch-vụ (tool -2.49m, Gemini '-2.49m [7BA9E]'). CẢ 2: tool đọc ĐÚNG cao độ sâu nhất THẬT + Gemini KHÔNG bị SỐ-MỒI đánh lừa (đã lọc: 'cút hdpe D180-11,25 độ'=góc ống, 'block-25.3'=nhãn block layer Tex-ống-nước — tool đều bỏ qua đúng). => GENERALIZATION + chống-số-mồi VALIDATED trên file ĐỘC LẬP (thứ rachmop KHÔNG cho được). NHƯNG TB6 NÔNG (sâu nhất -2.49m, KHÔNG có mốc -14m) => CHƯA cover ca mốc SÂU trên file độc lập. TRẠNG THÁI id135: generalization OK trên infra nông + chống-mồi; deep-independent CÒN chờ (đối tác đang tìm file đào sâu ≥-5m). VẪN KHÔNG đánh dấu id135 done."
-    },
-    {
-      "id": "takeoff-engine",
-      "name": "Engine takeoff tinh_dai_luong + 12 công thức",
-      "status": "done",
-      "evidence": "_FORMULAS 12 mục (cửa/BT cột-dầm-sàn-móng/ván khuôn cột-dầm/xây/trát/đào/đắp/inox); tinh_dai_luong (dòng ~1145); đủ->tính+sơ đồ, thiếu->hỏi. Test [A-M]."
-    },
-    {
-      "id": "unit-cm-mm",
-      "name": "Suy đoán đơn vị cm/mm (ngưỡng 130) + ghép mã<->tiết diện theo toạ độ",
-      "status": "done",
-      "evidence": "_SECT_CM_MAX=130, _sect_to_mm, _build_section_index (ghép tọa độ, đọc BẢNG cột nhà 9T mà cách cùng-text bỏ sót). Test [I]: 9T C-3=80x80cm->23.04 m3 (KHỚP demo 1); CT-A mm 4.704 m3 không đổi; gắn cờ suy_doan_don_vi."
-    },
-    {
-      "id": "inox-mass",
-      "name": "Khối lượng thép hình/INOX = SL(đọc) x kg/bộ(đối tác cấp) — feedback đối tác",
-      "status": "done",
-      "evidence": "_FORMULAS.khoi_luong_thep_hinh; ánh xạ 'inox'/'thép hình' đầu _TEN_MAP (trước 'cửa'). inox S1=16x8.62=137.92 kg. kg/bộ CHỈ đối tác cấp (chống bịa liên kết). Test [J]."
-    },
-    {
-      "id": "tong-hop",
-      "name": "Tổng hợp khối lượng sơ bộ + TỔNG PHỤ theo (loại,đơn vị)",
-      "status": "done",
-      "evidence": "tong_hop_khoi_luong (dòng ~1298): cột NGUỒN + tong_phu (tổng cửa/BT/thép, không gộp nhầm m3) + can_bo_sung + gia_dinh. Test [D][M]."
-    },
-    {
-      "id": "excel",
-      "name": "Xuất Excel bảng tổng hợp (.xlsx)",
-      "status": "done",
-      "evidence": "xuat_excel (openpyxl) -> file_id + mục TỔNG PHỤ; route /file/<id>; test [D] file_id tồn tại. --- ✅ I2 MO RONG (LIVE 86776b9, 2026-07-25): them SHEET 2 \"Tien_luong\" (BOQ phang chuan du toan VN, copy-ready): [STT|Ma hieu(trong)|Ten cong tac|Don vi|Khoi luong|Dien giai(=nguon)|Ghi chu] nhom theo loai + subtotal, de QS cam thang vao phan mem du toan (G8/F1/Du toan GXD). AN TOAN: tai dung cung object th (2 sheet KHONG lech, verify subtotal khop tuyet doi tong_phu); create_sheet khong index + khong doi wb.active -> test_excel_content (doc wb.active) khong doi; subtotal lay truc tiep th[tong_phu] (khong double-count); LOAI quy_uoc_chua_xac_nhan (bat bien P4, verify 12.5 dang-day khong lot); return dict khong doi -> so Excel nam trong FILE khong vao grounding. PHAM VI: CHI khoi luong, KHONG don gia/thanh tien (du-toan-chi-phi VAN deferred). Test khoa +4 (khoi [C]) -> excel-content 17->21. Gate [25/25], qa 129, 0 regress. v2 HOAN: Dien-giai cong-thuc-song (can mo tong_hop mang toan hang), ma hieu dinh muc tu dong (can DB dinh muc)."
-    },
-    {
-      "id": "visual-highlight",
-      "name": "Render vùng + KHOANH ĐỎ cấu kiện trên ảnh (khác biệt cốt lõi)",
-      "status": "done",
-      "evidence": "render_region (matplotlib Agg) + highlight + _largest_cluster (dòng ~1430); MCP tool danh_dau_cau_kien; route /image/<id>. Điểm HƠN demo 1."
-    },
-    {
-      "id": "anti-bia",
-      "name": "Chống bịa nhiều lớp + hardening đối kháng",
-      "status": "done",
-      "evidence": "_cau_kien_hien_dien (mã không tồn tại->khong_tim_thay kể cả có inputs_bo_sung; vá GHOSTINOX toàn-chữ), _loai_tu_ban_ve (sai_loai), math.isfinite gates + _nd từ chối bool/inf/nan (chặn 'Infinity kg'), _rs_dien_tich_ghi_san không tự-vơ diện tích. Test [H][K][L]. + GROUNDING-GUARD id135 [2026-07-16, LIVE 3ca5102] (mcp_bridge.py): câu trả lời khẳng định số ĐO-LƯỜNG mà KHÔNG số nào truy được về RAW result tool -> thay bằng câu từ chối (chống bịa 'cao độ -10m'). KHÔNG dùng n_evidence=0 (60/198 câu ĐÚNG có n_ev=0 -> sẽ sập recall 30%); dùng grounding (số answer khớp số tool, dung sai ×1000 mm↔m + làm tròn); miễn số đếm trơn + mã-hiệu; chỉ từ chối khi MỌI số ungrounded. Vet chạy trên 198 câu -> FP=0. + luật SYSTEM_PROMPT cao độ. Test test_grounding_guard.py 32 ca."
-    },
-    {
-      "id": "web-ui",
-      "name": "Web UI Flask (upload + chat + ảnh + tải Excel + nhớ hội thoại)",
-      "status": "done",
-      "evidence": "app.py PAGE (HTML/JS nhúng); routes /,/upload,/ask,/image,/file,/config,/version; CHAT_HISTORY MAX_HISTORY_TURNS=6 (đối tác nhập bù số lượt sau). R11 (IDOR) VÁ: s['artifacts']+_artifact_owned -> /file//image chỉ phục vụ artifact CỦA phiên (cross-session 404), test_session [K.7]."
-    },
-    {
-      "id": "deploy",
-      "name": "Deploy cloud (Docker + Render) + /version verify",
-      "status": "done",
-      "evidence": "Dockerfile (python3.10-slim+ODA+xvfb, gunicorn 1w/4t/timeout600); render.yaml plan free (READFILE_MAX_MB=45 khớp RAM 512MB — ĐO THẬT: DXF/RAM ~5.8x); /version trả RENDER_GIT_COMMIT+sect_cm_max=130. Live doc-autocad-mcp-demo.onrender.com. ⏳ CONFIG NÂNG RAM SẴN [2026-07-16, commit 079c91c CHƯA PUSH]: render.yaml plan standard(2GB) + READFILE_MAX_MB=200 + MAX_UPLOAD_MB=220 — GIỮ chưa push, chờ user bật billing Render (nâng RAM=phí Render, KHÁC API key Gemini; đọc file local vẫn free ~vài trăm MB)."
-    },
-    {
-      "id": "tests",
-      "name": "Bộ test tất định (chống bịa takeoff + đọc dữ liệu)",
-      "status": "done",
-      "evidence": "check.sh HARNESS GATE [20/20] PASS (offline, 0 API) [2026-07-16]: import+26 MCP tool · no-key · takeoff 258 · model_fallback 22 · size-guard 9 · file-ttl 12 · session 25 · health 11 · hoc-log 20 · hoc-quy-uoc 2 · visual-highlight 15 · excel-content 17 · misc-tools 84 · vntext 28 · fuzz 36 · dwgconv 10 · MCP-stdio-thật 14 · app-routes 8 · +grounding-guard 32 (id135 chống bịa số) · +cao_do_min_max 12 (id135 recall). test_qa_data 129/129 (3 file khác domain). E2E-AI (tốn API, ngoài cổng): kichban_gd2 10/10 vs engine-truth + battery 198 câu (judge-panel; KPI ~1.1% bịa cứng — id84/id135 đã VÁ 2026-07-16)."
-    },
-    {
-      "id": "roadmap-A-E",
-      "name": "Củng cố: tổng phụ (A) + gợi ý m3 ghi sẵn (E)",
-      "status": "done",
-      "evidence": "tong_phu + goi_y_ghi_san (đào đất thiếu số -> nêu 'ĐÀO MÓNG 860 M3' [handle]); test [M]."
-    },
-    {
-      "id": "model-fallback",
-      "name": "Model fallback khi 429/503 kéo dài (chuỗi model phụ)",
-      "status": "done",
-      "evidence": "[2026-07-11(c)] mcp_bridge.py: MODELS=[MODEL]+env GEMINI_FALLBACK_MODELS (mặc định gemini-2.0-flash,gemini-1.5-flash; rỗng->hành vi cũ 1 model). _is_overloaded(e) (mã HTTP 429/500/502/503/504 hoặc chuỗi resource_exhausted/unavailable/quota/high demand; lỗi khác=False) + _gen_fallback(client,contents,cfg,state) thử MODELS[state.i:], gặp 429/503 -> model kế (fail-forward), state.i giữ model đang dùng qua các lượt/1 request. Cắm CẢ 2 chỗ generate_content (vòng tool-use + câu cuối, chung _mstate). Hết chuỗi ở vòng tool -> trả LỘ 'AI đang quá tải, thử lại sau' (không crash/bịa); lỗi không-quá-tải -> ném ngay (app.py bắt). Phân tầng: SDK HttpRetryOptions lo blip TẠM cùng model, H đổi model khi cạn SAU retry. app.py /version thêm 'models'. Test tests/test_model_fallback.py 20/20 (OFFLINE mock client, KHÔNG tốn API) + check.sh [4/4] PASS. Deploy nên set env GEMINI_FALLBACK_MODELS theo model account."
-    },
-    {
-      "id": "tru-lo-cua",
-      "name": "Trừ lỗ cửa/cửa sổ khi tính xây tường & trát (task B)",
-      "status": "done",
-      "evidence": "xay_tuong/dien_tich_trat nhận 'lo_cua' (list) trong inputs_bo_sung: mỗi lỗ {ma,sl} (tra door_size_index confident, có handle) HOẶC {rong,cao,sl} (mm, đối tác cấp); net = gross − Σ(R×C×SL)×(be_day|so_mat). SL do ĐỐI TÁC khai (không tự đoán cửa nào thuộc tường nào — mirror inox). CHỐNG BỊA: _resolve_lo_cua block mã giả (_cau_kien_hien_dien), mã không-confident (không đoán size), lỗ≥tường (net_raw>0 trước round, không âm), sl bẩn, lẫn đơn vị (_plausible_door_size), over-count (_door_qty_for), sai kiểu, cả-2-mode, lo_cua cho công thức khác. Backward-compat: không lo_cua -> số cũ y hệt. Test [N] 20 ca (offline)."
-    },
-    {
-      "id": "robustness-ops",
-      "name": "Tách state theo session + dọn file TTL + chặn file lớn sớm + keep-alive",
-      "status": "done",
-      "evidence": "I (chặn file lớn sớm) DONE [2026-07-11(d)]: tools_core.Drawing.__init__ kiểm raw_mb > READFILE_MAX_MB TRƯỚC convert_dwg_to_dxf (DWG lớn -> DXF chắc >= DWG -> loại ngay, khỏi ODA ~600s) + giữ check sau-convert cho DWG nén phình; app.py hằng READFILE_MAX_MB (khớp env) + upload check getsize sau save/truoc MCP -> 413 + os.remove (dọn file). Không đổi ngưỡng -> không false-reject. Test tests/test_size_guard.py 9/9 (offline, Flask test_client) + check.sh. J (dọn file TTL) DONE [2026-07-11(e)]: fileutil.py cleanup_old_files(dirs,ttl_min,keep) (nhẹ, import chéo web+subprocess; xoá file mtime>TTL, chỉ FILE không đệ quy, keep giữ file mới, ttl<=0=tắt, nuốt lỗi I/O); FILE_TTL_MIN env (60') app.py+tools_core; dọn opportunistic: mỗi upload dọn _uploads+_renders, sau mỗi render_region/xuat_excel dọn _renders (keep file mới). File active mtime-mới -> không bị dọn; query/render dùng RAM. Test tests/test_file_ttl.py 12/12 + check.sh. K (tách state theo session) DONE [2026-07-11(f)]: app.py SESSIONS dict theo cookie sid -> mỗi phiên có bridge (1 MCP subprocess/1 Drawing) + summary + history + lock RIÊNG (hết cảnh 2 người đạp nhau). get_session sweep TTL + enforce CAP (MAX_SESSIONS=4, đầy->đóng LRU) + SESSION_TTL_MIN=30 (đóng phiên nhàn rỗi, giải phóng subprocess); bridge tạo lười ở /upload; @app.after_request set cookie; _make_bridge() tách để test mock. KHÔNG đụng mcp_server/tools/anti-bịa. Test tests/test_session.py 17/17 (offline, Flask test_client + FakeBridge, không subprocess/không API) + check.sh. L (keep-alive + giám sát) DONE [2026-07-11(g)]: app.py /health JSON nhẹ (no API/no bản vẽ: ok/uptime_s/sessions/use_ai/model/metrics) cho Render healthCheckPath + monitor ngoài; _METRICS (uploads/asks/errors) tăng ở upload/ask; self-ping _keepalive_ping() GET RENDER_EXTERNAL_URL/health (traffic ngoài -> Render không ngủ, nuốt lỗi) mỗi KEEPALIVE_MIN(10'), _start_keepalive() chỉ chạy khi có URL (local/test không kích); render.yaml healthCheckPath -> /health. Test tests/test_health.py 11/11 + check.sh [8/8]. => ROBUSTNESS H-L HOÀN TẤT (mỗi mục 1 test offline trong cổng). Deploy: self-ping tự chạy, tắt bằng KEEPALIVE_MIN=0. | F-A (race concurrency) VÁ [kiểm thử 2026-07-13]: _try_close_session acquire-non-blocking -> LRU/TTL KHÔNG đóng subprocess GIỮA request đang chạy, test_session [K.8]. | Empty-response VÁ (E2E): tra_loi_ai nhắc-1-lần khi Gemini trả part 'thought' rỗng lượt đầu (thay bỏ cuộc ngay), test_model_fallback [H.10]."
-    },
-    {
-      "id": "liet-ke-dien-tich",
-      "name": "Liệt kê DIỆN TÍCH GHI SẴN (nhãn 'X m²' verbatim + handle) — task C",
-      "status": "done",
-      "evidence": "MCP tool liet_ke_dien_tich_ghi_san (21 tool); builder _build_stated_areas + self.stated_area (mirror stated_vol). Đọc mọi nhãn 'X m²' NGUYÊN VĂN + handle + layer + cờ co_tu_khoa_dien_tich (có 'diện tích'/'S='). CHỐNG BỊA/MISLABEL: KHÔNG phân loại 'diện tích sàn', KHÔNG suy hình học (0 nhãn -> goi_y đối tác CẤP), KHÔNG cộng gộp (tong_hop loại 'Diện tích (ghi sẵn)' vào _khong_cong). LỌC nhiễu: regex (?<![/.,\\d]) + normalize '/\\s+'->'/' chặn mật độ '/1m2'/'/ 1m2' & đuôi thập phân; mã DM2/mm2 tự loại; KHÔNG min (giữ 0.12m²). Kiểm chứng đối kháng 2 vòng (vòng 1 bắt bug bịa đuôi thập phân + density-space -> vá; vòng 2 xác nhận mọi vector BỊA đã kín, còn lại chỉ DROP-class an toàn có verbatim). Test [O] 15 ca offline (120/120). ROADMAP mục C."
-    },
-    {
-      "id": "ung-vien-goi-y",
-      "name": "Ứng viên GỢI Ý (kg/bộ + số đo gần mã) cho input thiếu — 1-click xác nhận, task D",
-      "status": "done",
-      "evidence": "Nhánh thiếu của tinh_dai_luong gắn 'ung_vien' vào TỪNG inputs_thieu[i] (chỉ khi non-empty -> additive). _ung_vien_kg_moi_bo: quét ghi chú 'X kg' (loại 'TỔNG', dedup handle, cờ per-unit _KG_PU_RE '(1 …)'/'kg/bộ' bền garble bộ->bé), verbatim+handle, KHÔNG proximity (note ở block xa); GT: inox 8.62 kg [67FFC] '(1 bé)'. _ung_vien_dim: dim GẦN MÃ (đòi code_toks, loại 0.0/phi lý, LUÔN 'thap'+khoảng cách). Dispatch theo RESOLVER (rs_name) không theo 'ten' (chieu_cao: _rs_chieu_cao_cot=cao độ KHÔNG gợi vs _rs_bs_only tường gợi được); so_mat & cao cột KHÔNG gợi. CHỐNG BỊA: ứng viên KHÔNG vào vals/da_co, KHÔNG lật co_ket_qua/can_bo_sung; CHỈ inputs_bo_sung (đối tác xác nhận) mới tính; kg KHÔNG khẳng định thuộc mã (chống bịa liên kết). Kiểm chứng đối kháng 27 probe/3 lens = 0 lỗ hổng (D1-D7). Test [P] 14 ca (134/134). ROADMAP mục D."
-    },
-    {
-      "id": "uoc-cao-cot",
-      "name": "Ước CHIỀU CAO CỘT theo cao độ (cột cao 1 tầng) ở luồng takeoff lẻ — task F",
-      "status": "done",
-      "evidence": "_rs_chieu_cao_cot: đối tác cấp -> override; else ƯỚC = typical_floor_h (suy từ cao độ) × 1000 mm, cờ gia_dinh_cao_tang + nguon 'suy_tu_cao_do' + chua_chac; _la_cot(ma) (NHÃN thắng prefix; c<digit> nếu không nhãn) chặn không-cột. MÓNG resolver RIÊNG _rs_chieu_cao_mong (luôn hỏi — chiều cao móng ≠ 1 tầng, hàng rào tất định ở tầng _FORMULAS). ghi_chu tách 'GIẢ ĐỊNH 1 tầng' khỏi 'GÁN VỊ TRÍ'. KHÔNG levels -> hỏi (không bịa). GT: KC C1 -> 4.704 (=test I.3 dùng 3600), 9T C-3 đa-cờ (giả định + suy đoán đơn vị). Kiểm chứng đối kháng 29 probe/3 lens = 0 lỗ (F1-F7). Test [Q] 14 ca (149/149). ⚠ ĐỔI HÀNH VI: cập nhật test B (C1 chưa cấp cao -> nay tính được). ROADMAP mục F."
-    },
-    {
-      "id": "cung-co-G",
-      "name": "Củng cố treo: mở rộng test đối kháng đa-domain (G)",
-      "status": "done",
-      "evidence": "Workflow probe 6-agent (KC/KT 9T + hạ tầng CT-K + gap-check CT-A + overfit-hunter) chạy engine THẬT offline -> phát hiện + TỰ KIỂM CHỨNG (repro độc lập) 3 BUG THẬT ở tầng tổng hợp/đọc: (A cao) tong_hop_khoi_luong.tong_phu GỘP thép tròn+thép hình thành 1 số kg (KC 67759.7=67370.7+389.0, KT 4110.7=564.8+3545.9) — vi phạm rule 8b (mcp_bridge:164); (C) gộp 'Số lượng' dị loại thành 835/191 bộ/cái vô nghĩa; (B latent) _rs_dien_tich_ghi_san dùng regex thô đọc mật độ '16 cọc/1m2' thành diện tích=1 (parity gap với _build_stated_areas — cơ chế thật, live-scan 0/4 file). VÁ (tools_core.py): tách loai thép tròn/hình + thêm 'Số lượng' vào _khong_cong + dùng _STATED_M2_RE (lookbehind) trong resolver. Test [R][S][T][U] + I.5/I.6 (9T KC F ước 10 tầng=21.12 + existence C999 vàng + typical 3.3m; 9T KT 193k obj recall 16 nhãn diện tích đủ handle + mã cửa giả vàng). Hoist 9T KC nạp 1 lần (trước nạp 2 lần, phí ~53s). check.sh PASS: takeoff 167/167 (was 149) + qa 129/129. RESIDUAL [2026-07-11(b)]: #1 recall SL 9T KT = BUG THẬT đã vá -> _build_schedule_qty_index đọc SL bảng thống kê theo cột TỔNG (ghép mã<->số theo hàng+cột, gated fail-silent: >=5 cặp duy nhất/|dy| chặt/mã sát trái, block bẩn -> bỏ; validate âm KC/KT CT-A+CT-K=0 bịa), liet_ke_so_luong 9T KT 6->28 mục, test [V] -> takeoff 177/177; #2 cờ suy_doan_don_vi cạnh <40 = BY-DESIGN no-fix (mm-interp <4cm phi thực). Còn: window S-code |dy| lỏng hơn -> đối chiếu thêm layout khác; concurrency (1 Drawing global) thuộc robustness K."
-    },
-    {
-      "id": "du-toan-chi-phi",
-      "name": "DỰ TOÁN CHI PHÍ (thành tiền = KL x đơn giá + định mức + thuế, mẫu Excel dự toán, mác BT/BOQ)",
-      "status": "deferred",
-      "evidence": "ROADMAP_DEMO2.md mục 4 'HOÃN — chờ đối tác chốt yêu cầu'. User chốt 2026-07-09: phạm vi demo = KHỐI LƯỢNG, không phải thành tiền."
-    },
-    {
-      "id": "ai-tu-hoc",
-      "name": "AI tự học từ đối tác (hỏi-để-học + log ứng viên + đối chiếu chéo + cổng duyệt)",
-      "status": "done",
-      "evidence": "NGHIEN_CUU_AI_TU_HOC.md (nguyên tắc) + KE_HOACH_AI_TU_HOC_CHI_TIET.md (bản KỸ THUẬT 2026-07-12: workflow 17-agent design-panel + red-team; kiến trúc eng-minimal + grafts safety-first; lộ trình P-1..P5). ✅ P-1 XONG [2026-07-12(c), commit 73990de, LIVE 5ecaca1]: vá 6 lỗ tồn tại E1-E6. ✅ P0-P1 XONG [2026-07-12(d), commit 6608edf]: đọc-thuần (read-only, KHÔNG học) — used_handles/residual + phan_loai_tin_hieu ①②③ + tool hoi_de_hoc/doi_chieu_nghi_ngo (23 tool); red-team bắt+vá classifier ngập nhiễu (thép/mác chuẩn), 9T KC 336→2 ứng viên; test [Y] 11 ca. ✅ P2 XONG [2026-07-13, commit 787b1e6]: log WORM append-only (hoclog.py CHỈ GHI, redact, cap+xoay; grep-guard khoá bất biến không-hồi-tiếp-inference; wiring tool-layer giữ core thuần); adversarial review 0 CONFIRMED cao/TB; test_hoc_log 20 ca, check.sh [9/9]. Còn P3 (mở kênh học, rủi ro cao) → P4/P5; P5 codify chặn tới khi có corpus >=3 firm. ✅ P-1.1 (vá R1: nhãn 'đáng tin' cho input chua_chac) + P3 MỞ KÊNH HỌC (hoc_quy_uoc/thu_hoi_quy_uoc ENUM template, học CÁCH ĐỌC theo phiên KHÔNG lưu số, §2.6 backstop số-học-không-thành-số-chốt, LLM bị chặn tool ghi R8) + P4 (rào tổng/Excel learned_handles fail-closed + cột chua_chac + mục 'chưa xác nhận') XONG & LIVE [commit 6933643→e9c4f80]. Red-team 2 tầng (thiết kế 119-agent + implementation 19-agent tự-repro). Test [Z]/[Z0] + test_hoc_quy_uoc (INV-10/12). ⏳ P5 (codify quy ước lên _build_* toàn cục) CHẶN tới khi có corpus ≥3 FIRM khác nhau (bản vẽ VN thật). Kênh học P3 hiện CHỈ qua MCP-client (chưa nối UI web — F-B chờ quyết)."
-    },
-    {
-      "id": "u3-doc-bang-ole-nhung",
-      "name": "U3 — Đọc BẢNG EXCEL NHÚNG (OLE) qua binary (MCP tool #27 doc_bang_nhung)",
-      "status": "done",
-      "evidence": "LIVE fd48b19 (verify /version+/health 2026-07-22 23:21). Trước đây bảng thống kê nằm trong OLE2Frame (Excel nhúng) -> ezdxf không đọc blob -> engine trả 0 (chỉ cảnh báo, bug C GĐ4). U3 = module oleexcel.py: ezdxf OLE2Frame.binary_data() -> tìm magic CFBF offset≠0 (header thừa) -> olefile -> xlrd (vá decode KHOAN DUNG cho vài .xls VN chết utf-16 surrogate) / openpyxl. Deps mới: olefile, xlrd. Probe corpus: ~89% OLE đọc được BINARY (KHÔNG cần OCR); file động lực 'Thong ke thep SUA' (engine cũ đọc 0 thanh) + THPT 67 bảng -> đọc hết. AN TOÀN CHỐNG BỊA (qua RED-TEAM 6 hướng / 26 finding / 8 CHẶN): máy KHÔNG tự chọn ô TỔNG/tự cộng — MCP tool #27 doc_bang_nhung chỉ trả HÀNG bảng + nguồn ole:<handle>:<sheet>; số ô OLE KHÔNG vào rổ grounding (mcp_bridge LOẠI doc_bang_nhung — nếu vào sẽ flooding sập guard chống bịa [red-team CHẶN]); _canh_bao_nhung tách đọc-được/ảnh; trần RAM 150k ô; giàu hoá ole_nhung (1 nguồn quét) thay vì thêm field (fake test cũ vẫn chạy). Commit 1cc84ad (module+probe+test, chưa cắm) + fd48b19 (wiring LIVE). Test tests/test_oleexcel.py 18/18 + ole-canh-bao 51; check.sh [22/22]->[23/23] PASS, qa 129, 0-OLE không đổi, 0 regress (baseline RE-VERIFY 2026-07-23: HARNESS GATE PASS, takeoff 258/qa 129/oleexcel 18). Fixture THEP_OLE ở tests/corpus_local (gitignored). ⏳ v2 CHƯA làm: OCR fallback tầng 2 cho ~11% OLE dạng ẢNH thật (StaticDib/PBrush/EMF); diễn giải bảng thép -> tổng kg (overfit, CHẶN tới ≥3 firm/P5). = roadmap U3 trong PHUONG_AN_NANG_CAP_DU_AN.md. ⚠ Entry GHI-BÙ (baseline + soạn tối 2026-07-23, commit 0cee9b6 sáng 2026-07-24) — phiên đêm 2026-07-22 crash trước khi kịp cập nhật ledger; code+push+LIVE đã xong đêm đó."
-    },
-    {
-      "id": "i1-guard-validate-handle",
-      "name": "I1 — Guard VALIDATE HANDLE (đối chiếu handle model trích dẫn vs tool phát/entitydb) — MCP tool #28 kiem_tra_handle",
-      "status": "done",
-      "evidence": "2026-07-24. Guard chống bịa TRƯỚC chỉ kiểm SỐ (grounding-guard id135); model vẫn có thể CHÉP/BỊA handle (vd chép '44C4' trong khi tool trả '449C4' — rớt 1 chữ số). I1 = ADDITIVE THUẦN (chỉ NỐI THÊM cảnh báo cuối câu, KHÔNG sửa/bỏ ký tự, KHÔNG từ chối). Cơ chế 3 tầng: (T1) handle ∈ tool đã phát -> IM (text byte-identical, không gọi bridge); (T2) ∉ tool nhưng CÓ trong entitydb file (vd handle lượt trước) -> IM; (T3) không đâu có -> nối ⚠ ('mã tham chiếu KHÔNG khớp đối tượng nào'), nếu trông giống MÃ HIỆU/nằm trong câu hỏi -> ℹ mềm. Cấu phần: mcp_bridge _collect_handles (gom handle THẬT mọi khoá chứa 'handle' + ole:h:, không rơi handle lồng như _evidence_from) + _handle_tokens (detector FORM A/B/C bám HÌNH THỨC trích dẫn + cờ echo, bài học _CD_INL) + _kiem_handle/_apply_i1; tools_core.Drawing.kiem_tra_handle (CHỈ ĐỌC, entitydb.get + _build_tok_ban_ve, trả dữ kiện THÔ trong_file/dxftype/text/co_trong_chu_ban_ve, KHÔNG phán quyết — chống tái sinh thap_nhat_dang_tin); mcp_server tool #28 (host-only, trong _TOOL_KHONG_CHO_LLM); app.py lưu answer_goc (SẠCH) vào history (chống model đọc lời tự-chê -> ngừng trích handle). QUY TRÌNH: workflow 15-agent probe+design+red-team-TRƯỚC-code (FP=0/854 câu thật, TP=2/854 — model chép hụt handle) -> GO_WITH_ADJUSTMENTS (siết FORM B nhãn-dính-sát chống FP 'handle nào cho cột C1'; mở miễn-trừ paperspace/block/layer/câu-hỏi; echo+grounded-value). Red-team IMPLEMENTATION (tự-repro engine thật file 26MB) bắt+vá F1 (kích thước '900x2200' trong ngoặc bị ⚠ nhầm -> _build_tok_ban_ve tách dãy số -> ℹ mềm) + F2 (câu từ chối tự nhiên bị nối ⚠ -> _apply_i1 bỏ qua _REFUSAL_MARKERS). BẤT BIẾN khoá test: KHÔNG ngưỡng độ dài/tần suất (handle 2 & 7 ký tự xử như nhau, chống tái sinh -22.75); FAIL-OPEN mọi lỗi/timeout; không trường phán quyết. Test tests/test_handle_guard.py 44/44 (A detector + B collect + C 3-tầng + D đối kháng + E positive-control + F red-team-impl). check.sh [23/23]->[24/24] PASS, takeoff 258/qa 129/grounding 34 KHÔNG đổi (I1 không đụng _guard_text), 0 regress. = roadmap I1 trong PHUONG_AN_NANG_CAP_DU_AN.md. ✅ I1b LIVE `b2a0ea5` (verify /version+/health 2026-07-24): vá lỗ THẬT của grounding-guard — _MAHIEU_RES[4] ('[A-Za-z]+\\d+') ĂN NHẦM đơn vị 'm2'/'m3' (Gemini viết SỐ thay mũ ²/³) -> do_luong rỗng -> guard MÙ với diện-tích/thể-tích BỊA dạng 'X m2'. Repro engine thật (giả thuyết FN5-handle-che-chở SAI, đọc dữ liệu thật ra gốc khác). Vá: chuẩn hoá 'm2'->'m²','m3'->'m³' (chỉ khi liền sau SỐ) TRƯỚC khi strip -> KHÔNG đụng nhãn trục 'M2', VẪN strip 'AxB mm' (section không sinh do_luong nhầm). LIVE battery bắt bug bản-vá-đầu (trích từ text gốc nuke 'Cột 220x220 mm' id77) -> sửa lại. Đo LIVE 2 lần: số câu TỪ CHỐI 4->1 (GIẢM, KHÔNG tăng); id77 hết bị nuke; câu mới từ chối duy nhất (id187) là variance Gemini không dính m2/m3. Test test_grounding_guard.py 34->46 ca (+I1b m2/m3 + khoá regression id77 section). check.sh grounding 46, 0 regress. ⏳ CÒN (sau): tầng-2 handle calibrate."
-    },
-    {
-      "id": "i3-bounds-check",
-      "name": "I3 — Bounds-check (I3-B Ø thép: LIVE; I3-U Lớp 1 sai-tự-tin: LIVE 21926c9; I3-U ngưỡng-sàn: NO_GO data thật; L2/L3: hoãn)",
-      "status": "partial",
-      "evidence": "THIẾT KẾ LẠI SAU NO_GO (workflow wf_e507ad48) — TÁCH 2 NHÁNH. ✅ I3-B LIVE `82951db` (verify /version+/health 2026-07-24): bound đường kính thép TRÒN trên Ô DK bảng thống kê (_dk_bat_kha: _to_num BARE, <=0 hoặc >60mm; KHÔNG bóc Ø/d chống '2Ø16'->216=FP; KHÔNG siết cận dưới -> lưới hàn D3/D4/D5 hợp lệ). LỘ nghi_ngo (BOOL) + prose KHÔNG số; cờ gắn trong _acc_thep (KHÔNG đụng kg/so_thanh/dai_m -> tong_kg BẤT BIẾN); surface ở thong_ke_thep nhánh TỔNG (co_nghi_ngo_duong_kinh + nghi_ngo per-cỡ) + HỎI-1-CỠ. KHÔNG-LỌT-GROUNDING (verify engine thật): biên 60 + đường-kính-bất-khả 1600 ∉ _collect_numbers (1600 CHỈ ở KEY 'Ø1600'; _collect_numbers không quét key; cờ bool bị bỏ). Red-team 4/4 lăng kính GO_WITH_ADJ. Test tests/test_i3_bounds.py 24/24; check.sh [24/24]->[25/25] PASS, misc 84/takeoff 258/qa 129 KHÔNG đổi. ⏳ I3-U (bug đơn-vị-1000×) HOÃN tới corpus ≥3 firm (user chốt 2026-07-24, đúng gate P5 chống overfit): red-team 4/4 GO_WITH_ADJ + verify CƠ CHẾ AN TOÀN (early-return TRƯỚC compute -> số sai 0.005 KHÔNG phát; _MM_FLOOR code-only, 'NEW numbers: []'), NHƯNG ngưỡng sàn (dưới MỌI mm hợp lệ) + tiền đề 'mọi mm nguyên' rút n=1 file = OVERFIT -> FP sàn/lớp mỏng 30-49mm + dim lẻ (grid-split 4237.5, imperial 101.6). HƯỚNG ĐÃ VET (code khi có đa-firm): neo dv=='mm'+nguon (không theo đại-lượng); early-return+HỎI (không tự quy đổi); CỬA-THOÁT xác-nhận-đơn-vị per-input (tránh recall dead-end); prose 'mét HOẶC cm'; CẤM trần-trên-theo-đại-lượng (tái sinh -22.75); chỉ bắt hướng XUỐNG. Memory [[project-i3-bounds-check-nogo]]. --- LỊCH SỬ NO_GO PLAN CŨ (2026-07-24, wf_ce788286): LỖI GỐC của plan cũ: gắn giới hạn vật lý vào TÊN Ô ('chieu_cao') thay vì Ý NGHĨA — slot 'chieu_cao'/mm mang 5 nghĩa vật lý khác nhau qua 8 công thức (cao cột ~3600 / cao tiết diện dầm / dày đế móng / cao tường / dày lớp đắp); áp dải cao-cột (300-100000) cho tất cả -> FP đo được 87.5% trên ca bóc tách VN thật (bê tông lót 100mm, đắp cát 200mm, móng đế 250mm ĐỀU bị cờ oan) = TÁI SINH vụ -22.75 (áp bound đại-lượng-A lên đại-lượng-B). Lan chuyền: hằng biên (300/100000) lọt vào rổ neo grounding qua CHUỖI so_do/ghi_chu -> câu bịa 'Móng sâu 100m' TRƯỚC bị chặn nay LỌT (5/6 câu bịa đổi CHẶN->GIỮ); companion-fix phá test R1 đang LIVE + dán nhãn 'CHƯA CHẮC' cho input sạch (phán quyết đội lốt dữ liệu). 2/3 ví dụ đặc tả gốc SAI sẵn: 'Ø6-51' áp lên chữ nổ vào mã dầm/đường-kính-cọc-cống (_norm 'D800'->ø800); 'kg thép/m3 BT' tử/mẫu khác phạm vi (thép toàn CT / 9 cột 1 tầng TẠM TÍNH). SỐNG SÓT: I3-B (bounds Ø thép trên Ô DK bảng thống kê — đo 0 FP/60 file) + gate provenance vững (0/275 tiết diện tái hiện -22.75). BUG THẬT còn nguyên (cần hướng khác giải): tinh_dai_luong(chieu_cao=3.6 gõ mét) -> 0.005 m3 vẫn dán 'đáng tin' (lệch 1000x). Chi tiết NO_GO: workflow wf_ce788286-914 + PHUONG_AN_NANG_CAP_DU_AN.md I3. HƯỚNG THIẾT KẾ LẠI (chưa vet): khoá bound theo (đại-lượng-vật-lý-THẬT do RESOLVER quyết, không theo ten_input); luật phân định 'chỉ cờ khi KHÔNG tồn tại cách đọc hợp lệ nào'; KHÔNG để số biên lọt rổ grounding; chỉ LỘ cờ, không nhãn tin cậy. --- ✅ I3-U LỚP 1 LIVE 21926c9 [2026-07-25] (phần LÀM-NGAY tách ra, corpus-independent, KHÔNG ngưỡng): vá 2 bug SAI-TỰ-TIN trong tinh_dai_luong. (1b) kết quả làm tròn về 0.0 dù mọi input dương (chieu_cao=3.6 gõ MÉT) TRƯỚC co_ket_qua=True+0.0 m3+\"đọc từ file (đáng tin)\"=lệch 1000x đóng nhãn đáng tin (repro SỐNG); nay kq<=0 -> co_ket_qua=False + cờ BOOL nghi_ngo_don_vi + prose SẠCH SỐ (mirror net<=0). (1a) input đối-tác-cấp (nguon=nguoi_dung_cung_cap) bị dán \"Mọi input đọc trực tiếp từ file\"=SAI provenance; nay co_dung_cap tách nhánh: giữ \"đáng tin\" (R1 pos-control xanh) bỏ khẳng định sai. Red-team-trước-code (12 công thức+độ làm tròn: 0 cấu kiện thật round 0.0=0 FP) + red-team-impl (repro engine thật). Test khoá +4 -> takeoff 258->262; gate [25/25]; qa 129; 0 regress. Prose sạch số+cờ bool -> KHÔNG lọt _collect_numbers. commit+push+deploy+verify LIVE 21926c9. ⛔ I3-U NGƯỠNG-SÀN = NO_GO CÓ SỐ CỨNG: firm-gate MỞ (8 đơn vị thiết kế phân biệt) nhưng đo THẬT 86 file/77083 dim -> FP dưới sàn toàn corpus <50mm=7.67%, chỉ-mm=4.64%, FILE GỐC-MÉT (hạ tầng) <30mm=34.9%/<50mm=37.3%/<100mm=41.0%; corpus dị chủng đơn vị (40mm/25mét/9inch), nhãn không đáng tin -> ngưỡng sàn tuyệt đối CHẾT kể cả đủ firm. Lớp 2 (unit-tag D+C: _nd nhận \"3.6m\", thiếu đơn vị->HỎI, degrade-safe) + Lớp 3 (cross-check A scale-invariant, đo tỷ-lệ-bắn trước-code) đã có kế hoạch, CHƯA code."
-    },
-    {
-      "id": "i4a-detector-bang-ve-net",
-      "name": "I4a — Detector bảng VẼ-BẰNG-NÉT (LINE grid + TEXT) + cảnh báo (recall miss âm thầm)",
-      "status": "done",
-      "evidence": "LIVE 6ff81cc (verify /version+/health 2026-07-25). Vá lỗ hổng RECALL miss-âm-thầm: probe hình học 65 file -> ~29% có bảng schedule vẽ-bằng-nét engine đọc 0 block thép; ~8 bản vẽ KẾT CẤU có bảng thống kê THÉP vẽ-bằng-nét -> thong_ke_thep trả thep_kg=0 + co_bang_thong_ke=False = bỏ sót toàn bộ âm thầm (gần 50/50 với block-ATTRIB). Theo tiền lệ U3/bug-C: I4a = DETECT+CẢNH BÁO (KHÔNG đọc nội dung; reader I4b overfit để sau). MCP tool #29 phat_hien_bang_ve_net: lazy-scan modelspace CAP=RENDER_MAX_ENTITIES; tín hiệu hình học cổng-VÀ LOCAL miễn nhiễm garble/đơn-vị: >=4 vạch-hàng ĐỒNG-ĐIỂM (lượng-tử THÍCH NGHI theo đơn-vị, KHÔNG mm tuyệt đối) + >=2 cột (TRẦN 15 loại lưới-trục cols=48) + >=3 chữ trong bbox; trả bool+so_vung+prose SẠCH SỐ; FAIL-OPEN. mcp_bridge LOẠI tên tool khỏi tool_numbers (tuple exclude, cơ chế U3) -> KHÔNG lọt grounding. SYSTEM_PROMPT rule 8d. Red-team-impl chạy engine THẬT đa-domain: DƯƠNG 6/6 (HIEP CAT/KC nha cong an/KET CAU THAN/Ninh Hai thép + kiến-trúc có bảng cửa/toạ-độ/thiết-bị thật); ÂM 2/2 (mặt-cắt 08.MAT CAT MUONG, bảng OLE 4.Thong ke thep SUA); lưới-trục cols=48 loại đúng. Test khoá synthetic test_bang_ve_net.py 9/9 (dương/âm/fail-open/grounding-exclude/prose-sạch-số). check.sh [25/25]->[26/26], grounding 46->47, 28->29 tool, qa 129, 0 regress. RECALL-FIRST: chỉ LỘ cờ mềm, KHÔNG tự đọc/cộng số. I4b (đọc nội dung->tổng kg) HOÃN tới corpus đa-firm (overfit cao theo style bảng)."
-    },
-    {
-      "id": "i5-tim-kiem-bicat",
-      "name": "I5 (thu gọn) — tim_kiem/liet_ke_chu_theo_layer lộ cờ bi_cat + nudge (recall)",
-      "status": "done",
-      "evidence": "LIVE 8f00510 (verify /version+/health 2026-07-25). Nghiên cứu PIVOT scope (probe chạy THẬT): pagination offset/cursor BỎ (ROI thấp — từ khoá ngữ-nghĩa max ~123 hits, không chạm trần 200, so_ket_qua luôn phơi tổng thật); dem_theo_block DEFER (value-probe: 2/3 file mọi block ngữ-nghĩa đã trong top-25 liet_ke_block, file thứ 3 block ngoài top-25 chủ yếu annotation + bẫy số-chèn≠số-cấu-kiện). CHỈ CÒN khe recall đo được: default gioi_han=40 < 76-123 cắt âm thầm. Vá: thêm cờ BOOL bi_cat (len(hits)>len(ket)) + nudge ghi_chu (gọi lại gioi_han cao hơn) cho tim_kiem VÀ liet_ke_chu_theo_layer; prose SẠCH SỐ (số ở field, không lọt grounding dù tim_kiem không bị loại tool_numbers); ADDITIVE (giữ default 40, giữ gioi_han âm->hien_thi=0). Red-team-impl chạy engine thật. Test khoá +8 (test_misc_tools kiem_tim_kiem_bicat KT/KC) -> misc 84->94. Gate [26/26], qa 129, 0 regress. Bài học: nghiên cứu-trước-code SAVE build 2 feature ROI thấp."
-    },
-    {
-      "id": "i9-tach-system-prompt",
-      "name": "I9 — Tách SYSTEM_PROMPT (luật bất-biến / quy-ước-VN) có version + hash",
-      "status": "done",
-      "evidence": "LIVE de69324 (verify /version: prompt_hash=bea17c6eec564361f3c2fca21fb1cdd458078b3cda45be1d7f61827100a70e18 + prompt_version=i9-2026.07.25 + commit=de69324 + /health ok, 2026-07-25). Gate [27/27] PASS, byte-identical (hash GIỮ NGUYÊN local Windows-CRLF + Render Linux-LF = xác nhận EOL-independent vì fragment dùng escape \\n, không phải newline vật lý). Chọn hướng qua workflow 9-agent (3 design A+/B/C + 5 red-team lăng kính chạy engine thật + synth): 5/5 lăng kính chọn A+. B (đảo thứ tự) BÁC vì (i) prompt là lõi chống-bịa, đổi text = cần đo LIVE mà LIVE KHÔNG chứng minh nổi non-regression: đo thật 2 run temp=0 trùng 0/173 câu trả lời + lệch 44% handle-set, nhóm an toàn 0/23 tái lập -> noise floor > effect size; (ii) 'tách thật' phần lớn ẢO — 34/39 mệnh đề chống-bịa (⛔) lồng trong thân rule VN, reorder header không dời được. C-external (prompt ra file) BÁC vì phá offline-import mà check.sh + 2 test prompt phụ thuộc. A+ = tách mảnh có TÊN (23 mảnh) gộp _INVARIANT(7)/_VN_CONVENTION(15)/_HEADER(1) + _EMIT_ORDER GIỮ NGUYÊN byte order -> SYSTEM_PROMPT byte-identical (0 rủi ro hành vi, KHÔNG cần đo LIVE), + PROMPT_VERSION/PROMPT_HASH lộ ở /version (audit: trước /version KHÔNG có định danh prompt). Fragment sinh bằng SLICE chuỗi đóng băng (KHÔNG gõ tay -> chống lỗi transcription ★/⛔/space). Docstring TRUNG THỰC: 'tách' là NHÃN/INDEX, KHÔNG phải tách rời điều khoản (nhiều mảnh VN vẫn chứa ⛔). Nguồn: 2 mảnh 8c trùng nhãn -> tách tên _P_R8c_OLE/_P_R8c_INOX (khử trùng ở source, GIỮ nhãn '8c.' byte-identical). Test test_prompt_taxonomy.py 24 ca (byte-lock sha256 + lắp ráp + phân hoạch + anchor regression) wired check.sh [26->27]. test_app_routes +2 (prompt_version/prompt_hash). check.sh [27/27], takeoff 262/misc 94/grounding 47/qa 129 KHÔNG đổi = 0 regress. Reorder sạch (Option B) hoãn = 1 dòng sửa _EMIT_ORDER rồi ĐO LIVE A/B với baseline đóng băng (chỉ khi muốn thử primacy, không phải kết luận sẵn). Workflow: wf_f1111f89-fa0."
-    },
-    {
-      "id": "i3u-l2-unit-tag-codeonly",
-      "name": "I3-U Lớp 2 (code-only) — quy đổi đơn vị độ dài tất định trong tinh_dai_luong",
-      "status": "done",
-      "evidence": "LIVE `9d90b25` (code). Helper `_quy_doi_don_vi_dai`: quy CHUỖI có TAG đơn-vị-độ-dài ('3.6m'/'360cm'/'36dm'/'3600mm'/'3,6m') → mm (re.fullmatch neo đầu-cuối). CODE tính KHÔNG để LLM/đối tác nhân ×1000. Cắm vào vòng dispatch tinh_dai_luong CHỈ khi dv=='mm' VÀ input là CHUỖI khớp tag → vá đường TỪ-CHỐI-OAN (trước: '3.6m' qua _nd giữ raw → cổng 'xau' đá vào so_lieu_khong_hop_le). LỘ giả định qua field quy_doi_don_vi (thất-bại-phải-lộ). **Robust cho MỌI MCP-client**: client trực tiếp (Claude Desktop/Cursor) KHÔNG có luật ×1000 của SYSTEM_PROMPT → '3.6m' tới thẳng tool bị từ-chối-oan; nay tool tự hiểu. **Chọn qua workflow probe 5 ứng viên nhóm A (wf_fc8788d7-dd2): CẢ 5 HOAN** (guard đã cực rộng tay từ-chối-oan≈0/198; lớp resolver bão hoà chống-bịa; detector-bỏ-sót báo động 90% mọi file; U2/U3-OCR blocked) = safe-cheap-A gần cạn; C4 code-only là giao điểm duy nhất (chạm recall/từ-chối-oan) × doable-now × không-blocked × rủi-ro-thấp. **AN TOÀN (red-team-impl chạy engine THẬT 54/54):** degrade-safe — số/'3600'/bare-3.6/kg/m²/'-3.6m'/'0m'/'3.6 m2' giữ hành vi cũ (0 regression); CHỈ tag tường minh + CHỈ dv=='mm' (gate dv, _rs_bs_only dùng chung bộ/kg/m² không đụng); KHÔNG đoán đơn vị số-trần (chống bịa đơn vị); KHÔNG động SYSTEM_PROMPT/grounding-guard → luồng Gemini KHÔNG đổi hành vi (không cần đo LIVE để ship); I3-U L1 vẫn hoạt động; note không tạo anchor grounding mới. Test +10 (I3-U L2 + C1-lite standing invariant) → takeoff 262→272; check.sh [27/27] PASS, 0 regress. commit+push+deploy+verify LIVE. **⏳ PHẦN CÒN LẠI (user CHỐT làm LẦN SAU + đo LIVE — NHẮC user):** đổi SYSTEM_PROMPT để CODE sở hữu unit-math (Gemini truyền 'giá-trị+đơn-vị verbatim', ngưng ×1000) + update tests/kichban_gd2.py (đang assert 3600) = mở khoá giá trị thật, đúng ethos 'code tính không LLM tính'."
-    },
-    {
-      "id": "recall-offline-abc",
-      "name": "Recall offline A/B/C — vá 7/9 ca recall-miss tool-bug (D2-x matching + thong_tin_file + bang_con subtotal)",
-      "status": "done",
-      "evidence": "LIVE `81b0a52` (code). Root-cause 60 ca recall-miss qua workflow `wf_0d021c50-125` (probe engine THẬT offline): 48/60 = GEMINI ROUTING (tool CÓ data, tim_kiem trả đúng, Gemini từ chối thay vì gọi) → vá PROMPT/tool-desc (LIVE); 9/60 = tool bug THẬT → 3 fix code; 3-4 = từ chối ĐÚNG; 13 hatang = chặn RAM 45MB (hạ tầng, file 81.6MB). A (_tok_bound): chuẩn hoá ĐỐI XỨNG token+label — strip gạch CHỮ→SỐ (C-1==C1), GIỮ gạch SỐ-SỐ ('D2-4') → 'D2-4' khớp 'd2-4' (recall id73/93/103 + cả LỚP mã D<số>-<số>); 'D2' (họ) VẪN khớp 'D2-n' qua ranh giới. ⚠ Gate BẮT 1 regress (strip-all phá 'D2' khớp họ: tong_so_luong 40→0) → sửa đối xứng. B (thong_tin_file, MCP tool #30): read-only wrap tom_tat() → vá id39/107 (metadata lúc hỏi). C (bang_con, thong_ke_thep_hinh): subtotal RIÊNG từng bảng (ô 'TỔNG KHỐI LƯỢNG (kG): N' KCS_THONGKE ghép tiêu đề gần nhất theo toạ độ) → vá id22/32 (2163.02, 161.21); đọc nguyên văn + handle, KHÔNG tự cộng. Red-team-impl engine THẬT (A: D2-4→SL5/D2-7→2/D2-2→2 + D2-họ + biên · B: name+dxfversion · C: 10 subtotal đúng). Test +13 (test_misc_tools 94→107). check.sh [27/27] PASS, takeoff 272, 30 tool, 0 regress. ✅ verify LIVE `81b0a52`. ⏳ CÒN (LIVE task riêng): ~35 routing-miss → vá SYSTEM_PROMPT gọi tim_kiem trước khi từ chối (R1-R5) + I3-U L2 prompt-half; 13 hatang → nâng RAM (nhóm C)."
-    },
-    {
-      "id": "live-routing-prompt-half",
-      "name": "LIVE bundle — routing prompt (R7b) + I3-U L2 prompt-half (đo LIVE A/B, GO)",
-      "status": "done",
-      "evidence": "LIVE `d244865`. Đổi 2 fragment SYSTEM_PROMPT (nền I9 tách mảnh): PROMPT_VERSION `2026.07.26-routing-l2`, hash `bea17c6e`→`e5e05d7d` (re-freeze test_prompt_taxonomy: FROZEN + emit 23→24 + VN 15→16). (1) ROUTING `_P_R7b` (VN_CONVENTION): tool CHUYÊN DÙNG rỗng cho câu VẬT LIỆU/GHI CHÚ/THÔNG SỐ → BẮT BUỘC gọi tim_kiem theo từ-khoá TRƯỚC khi kết luận 'không có'; hỏi tên/phiên bản file → thong_tin_file; GIỮ chống bịa (trích nguyên văn+handle, KHÔNG suy diễn luật 8, số truy được về tool). Vá cluster routing-miss (đòn bẩy recall lớn nhất: 48/60). (2) PROMPT-HALF `_P_R10`: đối tác cấp số thiếu → truyền NGUYÊN giá-trị+đơn-vị ('{chieu_cao:\"3.6m\"}'); CODE tự quy đổi mm (I3-U L2 code-only 9d90b25). **ĐO LIVE A/B (key user, harness live_measure.py) BASELINE vs NEW trên 43 routing + 26 trap anti-bịa + prompt-half:** RECALL refused 19→15 (~5 gain ĐÚNG có handle: mica 7 màu id48, phụ kiện cửa DW id49, độ dốc i= id197, D2-4 SL=5 id73 [Pattern A qua Gemini], đánh dấu bể PCCC id54; 0 bịa; 1 loss variance id187). ANTI-BỊA (soi từng delta): MỌI trap suy-diễn/lạc-đề VẪN từ chối đúng (chiều dài công trình id151, khoảng cách id153, toạ độ id154, hướng id155, giá dự toán id150); 0 trap lật sang loi_san bịa; vài trap NEW an toàn hơn (id12/30/100/122) → routing nudge KHÔNG phá chống bịa. PROMPT-HALF: Gemini truyền '3.6m'/'360cm' verbatim → code quy đổi → 4.704 m³ đúng; ca Gemini vẫn ×1000 (3600) vẫn đúng nhờ code backstop. ⇒ GO. **Caveat trung thực: 1 A/B run + Gemini variance (temp=0 vẫn biến) — hướng rõ ràng + an toàn, không overclaim.** check.sh [27/27], takeoff 272, 0 regress. ✅ commit+push+deploy+verify LIVE `d244865`. **⏳ CÒN nhóm A:** 13 hatang chặn RAM 45MB (→ nhóm C nâng RAM); vài ca recall biên (Pattern D/E rủi ro, hoãn); id135 deep chờ file; đo lặp A/B nhiều lần để firm-up nếu cần."
-    },
-    {
-      "id": "kb-l0-dispatch-gate",
-      "name": "L0 kho kiến thức — GATE DISPATCH-SIDE (chặn thi hành tool host-only/tên lạ trước bridge.call)",
-      "status": "done",
-      "evidence": "Pivot AI-tự-học 2026-07-26 (KE_HOACH_KHO_KIEN_THUC.md). Lỗ AN NINH HIỆN HỮU tự xác minh: _TOOL_KHONG_CHO_LLM (mcp_bridge:173) chỉ lọc DECLARATION (gemini_tools :177); vòng dispatch tra_loi_ai (:700) bridge.call(fc.name) thi hành MỌI tên tool model phát → model/chữ-trong-file gọi được hoc_quy_uoc/nap_ban_ve/thu_hoi_quy_uoc/kiem_tra_handle bằng cách phát đúng TÊN. Vá: _ten_tool_cho_llm(bridge.tools) + gate 'fc.name not in _ten_llm' TRƯỚC bridge.call → trả _loi_tool_host_only() (dict TƯƠI, SẠCH SỐ, KHÔNG chèn fc.name — tên do model phát có thể chứa chữ số lọt rổ grounding) + tự append FunctionResponse + continue (không qua nhánh evidence/_collect_numbers). Test tests/test_dispatch_gate.py 11/11 (G1 tập dispatch loại đủ 4 host-only + G2 khớp tập declaration + G3 từ-chối sạch-số đo THẬT qua _collect_numbers + G4 source-guard thứ tự gate-trước-call). check.sh [28]."
-    },
-    {
-      "id": "kb-l1-kienthuc-module",
-      "name": "L1 kho kiến thức — kienthuc.py 24 entry đợt đầu + validator bất biến + KB_VERSION/KB_HASH + kb_refreeze.sh + /version",
-      "status": "done",
-      "evidence": "Kho DEV-soạn đợt đầu 24 entry (ca đã-trả-giá + va-chạm đo được: cặp ĐC↔DC 2-tầng-khoá giữ đ/d; CH cửa/chiều-cao/cao-độ; họ D/Đ/C/T/S/V/K va TÊN TRỤC; vật liệu B/M; DK/TL/L/i phân-biệt-bằng-hình-thức (không hỏi); Km+ lý trình; cút góc ống; 'WORD - n.nnn'; mũi cọc≠đáy đài; word-like WC/GM cấm suppression). Bất biến validator kiem_tra_kho(): payload digit-free (chống lọt grounding) + identifier toàn chữ + on_collision ASK 100% + confusable phải có confirm_template với option khac_khong_chac + trùng khoá-sập phải có cạnh confusable_with. Data thuần không I/O, không import dự án; degrade-safe (thiếu file hệ chạy y cũ — CHƯA ai import ở L1). KB_HASH sha256 byte-lock kiểu I9 + lệnh harness/scripts/kb_refreeze.sh (tách chu kỳ sửa-kho khỏi sửa-prompt); /version lộ kb_version+kb_hash. Test tests/test_kienthuc.py 11/11 (K3 B5-lite: _collect_numbers(payload mọi entry)==RỖNG đo qua hàm THẬT; K5 tra cứu 2 tầng ĐC≠DC + kéo cạnh; K8 grep-guard data-thuần). check.sh [29]. ⏳ L2 strip '_kb' + L3 tra_ky_hieu + L4 graft-gate + L5 /xac-nhan theo KE_HOACH_KHO_KIEN_THUC.md."
-    },
-    {
-      "id": "kb-l4-graft-gate",
-      "name": "L4 kho kiến thức — graft có GATE bằng-chứng-dương vào phan_loai_tin_hieu/doi_chieu_nghi_ngo + móc 'WORD - n.nnn' cao_do_min_max",
-      "status": "done",
-      "evidence": "Graft kho vào 3 điểm đọc, ADDITIVE + fail-open tuyệt đối (try/except trả None — kho không bao giờ phá tool; thiếu kienthuc.py hệ chạy y cũ). GATE chống bão-hỏi (đo được 50-80% câu thừa nếu không gate): chỉ hỏi khi (a) entry confusable VÀ ((CẢ 2 dạng raw cùng tồn tại trong CHÍNH file qua cạnh confusable_with — vd ĐC-1 & DC-1) HOẶC (mã dính ≥2 LOẠI index section+door)) VÀ (b) engine CHƯA tự ghép đúng 1 loại VÀ (c) chưa hỏi (entry|mã) trong phiên; CAP 1 câu/lượt; trạng thái kb_hoi chống lặp (RT4-4); kb_da_phat ghi (entry,option) làm nền L5 xác nhận fail-closed; legend-note khi file có bảng chú thích. MỌI dữ liệu gốc-kho dưới key '_kb' (L2 strip trước rổ grounding); nguyên văn+handle file nằm NGOÀI '_kb' (không từ-chối-oan). Móc cb_am ('WORD - n.nnn') = đường kích hoạt thật ca CH-2.700 → câu hỏi cao_do_am vs chieu_cao. Test tests/test_kb_graft.py 18/18 (synthetic, offline) → check.sh [30]. RED-TEAM-IMPL corpus THẬT: file kết cấu móng C1 có cặp ĐC/DC thật → HỎI đúng (options dai_coc/dam/khac); file kết cấu thuần cột → 0/9 mã bị hỏi (không bão-hỏi); file KT khác → 1 ca fire là mâu-thuẫn 2-index THẬT (D1 vừa section vừa door = đúng bài học id84 DẦM D1≠CỬA D1). ⏳ L3 (tra_ky_hieu + _P_R18, cần A/B LIVE) + L5 (/xac-nhan + nút UI) theo KE_HOACH_KHO_KIEN_THUC.md."
-    },
-    {
-      "id": "kb-l5-xac-nhan",
-      "name": "L5 kho kiến thức — kênh xác nhận CONFIRM-ONLY: tool host-only + endpoint /xac-nhan + nút bấm web UI",
-      "status": "done",
-      "evidence": "User duyệt làm nút (AskUserQuestion 2026-07-26). Kênh xác nhận = NGƯỜI BẤM, KHÔNG qua chat/AI: (1) Drawing.xac_nhan_ky_hieu FAIL-CLOSED 3 lớp (kb_id tồn tại + option ∈ ENUM dev-soạn + (entry,option) ∈ kb_da_phat ĐÃ PHÁT trong phiên — không xác nhận khống); state per (entry|mã _norm_ma): da_xac_nhan (nhãn 'theo xác nhận trong phiên file này', KHÔNG đổi số nào) / khac_khong_chac (giữ trạng thái bí, không nhãn, suppress re-ask) / thu_hoi (gỡ nhãn + CHO hỏi lại); sống trên Drawing như hoc_phien → nạp file khác reset. (2) MCP tool #31 xac_nhan_ky_hieu HOST-ONLY 2 hàng rào (_TOOL_KHONG_CHO_LLM declaration-filter + L0 dispatch-gate — AI phát đúng tên cũng bị chặn) + WORM log xác nhận + log kb_id lúc PHÁT-HỎI (hoi_de_hoc) làm nhiên liệu dev codify. (3) mcp_bridge._kb_hoi_tu_result gom câu hỏi confirm ('_kb' có cau_hoi, top-level + nested nghi_ngo, dedupe, bỏ note) → tra_loi_ai trả 'kb_cau_hoi' ở mọi return thành công. (4) app.py POST /xac-nhan (session-lock, bridge.call thẳng, 400 khi chưa nạp) + PAGE JS kbHtml/xacNhanBtn render nút từ kb_cau_hoi (data-attribute + esc mở rộng escape dấu-nháy-kép chống chèn thuộc tính; caption 'Chỉ bạn bấm được — AI không tự chọn'). L4 helpers phát kèm 'ma' echo + check kb_xacnhan trước khi hỏi (đã xác nhận → nhãn, không hỏi lại). Test tests/test_kb_xacnhan.py 19/19 → check.sh [31]. ⏳ CÒN L3 (tra_ky_hieu + _P_R18 — đo A/B LIVE bằng key user đưa, user chốt KHÔNG đổi key) · L6 · L7 HOÃN."
-    },
-    {
-      "id": "kb-l3-tra-ky-hieu",
-      "name": "L3 kho kiến thức — tool #32 tra_ky_hieu + mảnh prompt _P_R18 (đo A/B LIVE GO)",
-      "status": "done",
-      "evidence": "Tool #32 tra_ky_hieu (PHƠI LLM — ngược xac_nhan host-only): tra kho read-only; khoá SẬP kéo NHÓM dễ-nhầm ('DC' kéo cả ĐC qua cạnh) + khop_chinh_xac giữ đ/d; FAIL-OPEN ngoài kho ('KHÔNG đoán'); injection vô hại; trạng thái đã-xác-nhận phiên; câu hỏi confirm CHỈ qua '_kb' CÓ GATE; LOẠI TOÀN PHẦN khỏi rổ grounding; WORM log ký-hiệu-MISS. _P_R18 (chỉ luật trình bày + định tuyến; chèn TRƯỚC _P_R9 tiền lệ R7b; emit 24→25, VN 16→17) → PROMPT_VERSION 2026.07.27-kb-l3, re-freeze FROZEN 239e8b7b… (taxonomy 24/24). Test test_tra_ky_hieu.py 13/13 → check.sh [32]; full gate [32/32] PASS. **ĐO A/B LIVE (key user, 15 câu × 2 vế, 2 bridge riêng chống nhiễu-state): routing 6/6 cả 2 vế (tool-desc tự lái; R18 = đai); TRAP CHỐNG-BỊA 5/5 GIỮ cả 2 vế (0 lật); recall giữ (24 bộ D1 [67CDF]); kb_cau_hoi=1 nổi đúng file cặp ĐC/DC; GIÁ TRỊ R18 THẬT = trình bày: nêu NGUYÊN VĂN câu hỏi + ĐỦ 4 phương án khớp nút bấm (A chỉ hỏi chung chung) + nêu đủ nghĩa + caveat 'kho ≠ bản vẽ này' → GO** (caveat: 1 run + Gemini variance, không overclaim). Kết quả JSONL ở scratchpad ab_l3_results.jsonl."
-    },
-    {
-      "id": "kb-l6-garble-dia",
-      "name": "L6 kho kiến thức chỉ điểm — fold garble ĐƯỜNG KÍNH ('ỉ/Ỉ' + '/g|/G' liền số → Ø) tầng code, có gông + đo corpus",
-      "status": "done",
-      "evidence": "Thiết kế từ red-team kho (RT2-4: alias garble CẤM vào kho — vá tầng CODE có gông + đo corpus). Bằng chứng ≥3 firm: 'kim thu sét ỉ20'/'dây tiếp địa ỉ14' (điện C1-PVT 18×) · 'cọc thép mạ đồng Ỉ16X2400' mà CÙNG FILE ghi 'Ø16 DÀI 2,4m' cùng đối tượng (Kẻ Sặt — chứng cứ chéo nội-file) · 'ống nhựa thông hơi ỉ50' (cỡ uPVC chuẩn) · '/g10' 67× cạnh rải a150 (Hiệp Cát) · 'MO/SC CA/M/RU /G8'=MÓC CẨU Ø8 (họ-slash PVT) · 'thép ỉ10 neo xà gồ' (KT CT-A). Cơ chế: _GARBLE_DIA_RE trong _garble_fold — fold TRƯỚC unaccent (unaccent sập ỉ→i mất phân biệt thép hình I10/độ dốc i); GÔNG: không dính CHỮ trước + LIỀN SỐ sau. ĐO: quét 53 file <20MB → 98 'ỉ' + 568 '/g' mở khoá, 0 PHẢN-KHỚP toàn corpus; Drawing-level trước/sau 4 file (CAPDIEN/KETCAU_CA/MONG/KT-control): thep_kg + qty + cao_do + so_text BẤT BIẾN 100%, recall tìm-Ø tăng đúng (KETCAU_CA Ø10 11→78; CAPDIEN Ø10 0→12; MONG Ø8 72→80; KT +1 hit XÁC MINH THẬT 'thép ỉ10 neo xà gồ'). Test test_garble_dia.py 26/26 (8 dương + 10 phản-khớp + canonical + engine synthetic + real-corpus guard + source-guard) → check.sh [33]. HỌ-SLASH ĐẦY ĐỦ (decode 'CO/M/ST THE/SP'→'CỐT THÉP'...) DEFER — 1 file/1 firm, mapping phức tạp, rủi ro 'kG//cm2'; subset '/G8'→Ø8 đã ăn theo fold này."
-    },
-    {
-      "id": "kb-l5-va-3-bug",
-      "name": "Vá 3 bug L5 (xác nhận ký hiệu): undo nói dối + cổng không khoá theo mã + thiếu nút Hoàn tác — kèm 7 vá từ red-team",
-      "status": "done",
-      "evidence": "User yêu cầu 2026-07-27 sau khi nghiên cứu L7 (BỎ) lộ 3 bug THẬT trong L5 đang LIVE; tôi TỰ tái hiện cả 3 bằng engine thật trước khi vá. (0) UNDO TRUNG THỰC: thu_hoi trước LUÔN trả ok=True + 'đã gỡ (nếu có)' -> trượt khoá đ/d ('DC-1' vs 'djc-1', bản vá id84) vẫn in '✔ Đã gỡ' trong khi state còn nguyên; nay pop CẢ kb_xacnhan LẪN kb_hoi, không gỡ được -> ok=False + tu_choi khong_co_gi_de_go, gỡ được -> loai_da_go xac_nhan|trang_thai_hoi với câu chữ ĐÚNG từng ca; frontend kiểm da_thu_hoi. (1) CỔNG KHOÁ THEO MÃ: kb_da_phat cặp (entry,option) -> BỘ BA (entry,option,ma_key); hỏi 1 mã KHÔNG còn mở khoá mọi mã (repro cũ: xác nhận 'MA-KHAC-999' lọt); kênh cao độ có hằng _KB_KENH_CAO_DO='@cao_do' riêng, hết lấn không gian khoá. (2) NÚT HOÀN TÁC + BẢNG: Drawing.danh_sach_xac_nhan + MCP tool #33 danh_sach_xac_nhan (HOST-ONLY) + GET /xac-nhan/danh-sach + frontend giữ khối nút, thêm '↩ Hoàn tác' + bảng #xnbox thường trực gỡ từng mục; 'khác/không chắc' GỠ ĐƯỢC -> câu hỏi quay lại (trước khoá tới hết phiên). RED-TEAM IMPL (workflow wf_5a1e6c98-979, 4 agent engine thật) verdict GO_WITH_ADJUSTMENTS, 0 CHẶN, bắt 3 CAO + 4 TB/THẤP ĐỀU ĐÃ VÁ: CAO-1 lệch khoá strip/truncate (hệ HỎI rồi TỪ CHỐI chính câu nó hỏi, mã >40 hoặc có khoảng trắng -> kẹt chết cả phiên) -> chuẩn hoá MỘT LẦN ở biên; CAO-2 route xác nhận TẠO phiên -> 4 GET vô danh đuổi phiên đang mở bản vẽ qua LRU -> thêm _phien_hien_co() (không tạo, chỉ tra cookie) cho CẢ 2 route; CAO-3 bảng thiếu/dư -> taiDanhSach() ở init + showSum; TB hoanTacDs nuốt lỗi -> kiểm da_thu_hoi; TB doi_chieu_nghi_ngo lật ngược 'cần XÁC NHẬN' NGAY SAU khi xác nhận (bug L5 gốc) -> loại cả cờ da_xac_nhan; THẤP bảng phơi khoá 'djc-1' -> kb_ma_goc giữ dạng người đọc; THẤP thu_hoi:'false' chuỗi truthy -> ép kiểu chặt; THẤP GET chờ khoá vô hạn -> acquire(timeout=3). Red-team KHÔNG phá được: xác nhận khống, va chạm khoá 2 chiều, undo 2 lần/trượt khoá, tất định vòng undo (deepcopy state), AI chặn 2 tầng cả 2 tool mới, _kb không lọt grounding, fail-open, XSS 5 payload, fuzz 40.000 chuỗi _norm_ma. Test test_kb_xacnhan.py 19->44 ca (X9-X18 khoá đúng từng lỗ); gate bắt 2 regress (test_kb_graft A6 khoá dạng cặp cũ; X6b ăn ké phiên do route tự tạo) -> cập nhật theo dạng MỚI chặt hơn. check.sh [33/33] PASS, 0 regress. 32->33 MCP tool."
-    },
-    {
-      "id": "chiu-tai-keepalive",
-      "name": "Keep-alive hết HỎNG THẦM (ping trước rồi ngủ, chu kỳ 5', bộ đếm ok/lỗi phơi ở /health)",
-      "status": "done",
-      "evidence": "LIVE eba4d67; test_health 11->23 (L.6/L.7 đồng hồ ảo); /health.keepalive ok=1 tại uptime 15s trên Render"
-    },
-    {
-      "id": "chiu-tai-bounded-lock",
-      "name": "3 route KHÔNG chờ khoá phiên VÔ HẠN + body từ chối đủ khoá cho frontend",
-      "status": "done",
-      "evidence": "LIVE eba4d67; test_session K.9 (25->36); đo trước vá: POST /xac-nhan nằm 11.60s"
-    },
-    {
-      "id": "chiu-tai-tran-ban-ve",
-      "name": "TRẦN SỐ BẢN VẼ trong RAM (MAX_BAN_VE) — chặn ở cửa vào thay vì tràn RAM",
-      "status": "done",
-      "evidence": "LIVE 371d950; test_admission.py 63 ca (A.1-A.17); /health ban_ve/max_ban_ve"
-    },
-    {
-      "id": "chiu-tai-mo-coi",
-      "name": "Dọn tiến trình con MỒ CÔI khi spawn quá hạn + call() không treo sau close()",
-      "status": "done",
-      "evidence": "LIVE 371d950; test_bridge_close.py 28 ca (B.1-B.6, spawn thật); 3-5 vòng 0 con sót"
-    },
-    {
-      "id": "chiu-tai-nap-that-bai",
-      "name": "Nạp thất bại phải LỘ (đọc res.isError; đòi dấu hiệu THÀNH CÔNG) + không bịa summary",
-      "status": "done",
-      "evidence": "LIVE 371d950; A.14 + B.6 qua đường truyền MCP thật; đóng luôn lỗ model tự bơm số vào rổ grounding"
-    },
-    {
-      "id": "chiu-tai-ram-quan-sat",
-      "name": "Phơi RAM Linux thật + số liệu gate ở /health (ram_mb, ban_ve, dang_nap, tu_choi)",
-      "status": "done",
-      "evidence": "LIVE 371d950; đo được ram_mb=135.3MB trên Render (lần đầu)"
-    },
-    {
-      "id": "chiu-tai-tran-file-theo-doi-tuong",
-      "name": "Trần đọc file bound theo SỐ ĐỐI TƯỢNG (cổng theo MB không bound được RAM)",
-      "status": "deferred",
-      "evidence": "Đo thật: 38.54MiB/35772 obj -> 260.3MB vs 39.28MiB/145807 obj -> 398.7MB. User chốt 2026-07-30 giữ READFILE_MAX_MB=45, chốt ngưỡng sau khi đọc ram_mb thật khi có bản vẽ nạp"
-    },
-    {
-      "id": "doc-he-so-ty-le-do",
-      "name": "Doc dung HE SO TI LE DO cua ban ve (DIMLFAC) — 21,5% duong kich thuoc dang bi doc sai",
-      "status": "done",
-      "evidence": "commit 6de1aaa (CHUA push); do that 40 file/15.608 duong: 3.352 duong (21,5%) khai he so !=1, 17/40 file; doi chieu chu in: khop 'so do x he so' 19 / khop tho 0; test_ty_le_do 17 ca, check.sh 35->36"
-    },
-    {
-      "id": "doc-chu-trong-khoi",
-      "name": "Doc chu trong DINH NGHIA KHOI vao kho chu chung",
-      "status": "deferred",
-      "evidence": "BAC BO co so cung (wf_0cdb83d4-bca): 71,6% la nhan DIMENSION da doc; 55,7% khoi la khoi CHET (khoi chet ghi '156 coc' vs ban ve song '131 COC'); ma cau kien chi 0,8%; loi ich +3,0% ma 19/71 file bang 0; toa do he noi bo -> khoanh do sai cho; cao_do KT -2.1 -> -94.44; id135 rachmop -14.26 -> -16.14 ma cong van XANH. THAY BANG tool doc rieng tim_chu_trong_ky_hieu (chua lam)"
-    },
-    {
-      "id": "canh-bao-ghi-de-kich-thuoc",
-      "name": "Canh bao chu IN tren duong kich thuoc khac so do (ghi de THAT)",
-      "status": "done",
-      "evidence": "LIVE 138d104. `_dang_chu_in` + `_thu_thap_chu_in` + 3 co BOOL tren thong_tin_kich_thuoc + 1 cau prose SACH SO. DO THAT: luat bat 1.098 duong/26 file; co 'lan rong' bat 19/66 = 29% file co duong kich thuoc (duoi tran 45% -> GIU nguong). CA HAI menh de deu can: '02.Cap dien ngoai nha' luat bat 0 duong nhung 66/66 = 100% bi go de (chi nhanh 'hau het' thay). Con so 837 dim/15 file trong thiet ke cu KHONG tai lap duoc. test_chu_in_kich_thuoc 24 ca. KHONG doi bat ky so nao."
-    },
-    {
-      "id": "co-chua-voi-toi-vung-nay",
-      "name": "Co 'may chua voi toi vung nay' thay vi im lang tra 'khong co'",
-      "status": "done",
-      "evidence": "LIVE 138d104 (+ siet o 5756b37). Co `co_o_vung_chua_doc` tren 4 tool (tim_kiem / dem_so_luong / tra_cuu_so_luong nhanh AM / liet_ke_so_luong). Ro bong = chu TEXT/MTEXT trong dinh nghia khoi DUOC CHEN (khong ATTDEF, khong khoi mo coi, khong trang in), khop CHI tren to_unicode. TI LE NHIEU 15,3% -> 0,0% sau khi siet ve 'chen >=2 lan' chi ap cho truy van MANG MA; sau do them CHAN MANH VUN ('100' khop ti le '1/100' o 11 file) va DOI DUNG DAU ('cua'!='cua', 'mac'!='mac tien trinh' — ten nguoi ky): ca bat co 20->5, khop mu dau 15->0. test_vung_chua_doc 44 ca."
-    },
-    {
-      "id": "guard-so-dem",
-      "name": "Hang rao chong bia cho SO DEM (hien chi soi so DO LUONG)",
-      "status": "done",
-      "evidence": "LIVE 5f21ae9. `_DEM_NUM_RE` (so + danh tu dem) vao `do_luong`, dat SAU `_MAHIEU_RES`. DO TRUOC-CODE tren 198 cau tra loi THAT, ro neo dung lai tu engine, cham bang NHAN DOC LAP `ky_vong`: 106/198=54% cau co khang dinh dem, **62/198=31% CHI co so dem** (hang rao bo qua hoan toan); trong 72 cau ban va cham toi: chan them 1, **GIET OAN 0**, bat dung 1 (id123 model noi '120 lan' trong khi dem_so_luong tra 5). Profile NGUOC HAN per-claim. 2 quyet dinh KHONG-LAM co so: bien the khong dau (+0/198) va ten LOAI DXF (1/198 va la BAO DONG GIA '01 TEXT' = ten layer). test_grounding_guard 50->56."
-    },
-    {
-      "id": "nguon-so-do-code42",
-      "status": "done",
-      "name": "Doc DUNG so do duong kich thuoc: he so ti le AM + duong do GOC + so do AutoCAD tu luu (code 42)",
-      "evidence": "LIVE 138d104. BA loi DOC LAP o nhanh DIMENSION. (1) He so ti le AM bi ap (loi do chinh commit DIMLFAC 6de1aaa sinh ra, khi do CHUA push): 1.882 duong/4 file thanh AM -> bi cac cong loc duong vut IM LANG trong khi so_duong_kich_thuoc van dem du; nang nhat 1.186/1.650 = 71,9% mot file. (2) Duong do GOC (dimtype&7 in 2,5) coi la mm — '01-TD' bao 35.970 mm cho GOC 359,7 do, kem cau TRAN AN rang so khop ban ve; loi CO TRUOC DIMLFAC. (3) Khong ai doc group code 42 (so do AutoCAD TU LUU, co mat 94,9%): phep thu khong thien vi 54.735 duong -> code42 dung RIENG 2.936 / engine dung RIENG **0**; dim dai-XIEN engine chi dung 37,2%. USER CHOT dung code42 lam nguon chinh. ⚠ code42 CHI dang tin khi HINH HOC CON DO NO: red-team bat duoc ban va dau 'cuu' ca hinh-hoc-suy-bien -> 66/607 ca BIA SO (ban ve in 10000, may phat 2136,3); nay chi cuu khi KHONG go de chu (529 ca cuu dung giu nguyen). Them dimtype 6 (do TOA DO) vao dien loai. TU KIEM NGUOC 73 file: 47 file doi so, 0 sinh so am, 34 file duoc cuu so do. test_so_do_dim 27 ca; test_ty_le_do 17->25."
-    },
-    {
-      "id": "neo-grounding-sach",
-      "status": "done",
-      "name": "Bit 3 kenh bom NEO GROUNDING tu ngoai noi dung ban ve (ma hieu / ten file / handle)",
-      "evidence": "LIVE 5548fe1 + 5756b37. (1) Gach noi trong MA HIEU sinh neo AM: 'DAM D2-10'->-10 · 68/76 file co >=1 neo am · 24/76 file co neo am nam DUNG dai cao do sinh THUAN tu ma hieu = ten dam cap phep bia cao do (dung lop loi id135). BAT DOI XUNG: phia CAU TRA LOI da strip ma-hieu, phia RO NEO thi khong. (2) TEN FILE lam bang chung: cung noi dung byte, doi ten thanh 'MC coc -13.7 va 7500.dxf' -> dung 2 cau bia mang so do chuyen tu CHAN sang LOT; kenh do NGUOI DUNG kiem soat 100%. (3) HANDLE (ma hex noi bo) — kenh RONG NHAT, MOI tool tra handle deu dinh: ket qua gom 3 handle + chu KHONG CO SO NAO van sinh ro neo [1,2,9,38,13876]. VA: `_strip_neo` = _strip_handle(_strip_ten_file(_strip_kb)). KHONG anh huong I1 (_collect_handles chay tren result tho). HIEU QUA DO DUOC: lop id135 (bia cao do AM) nay lot **0,0%**. test_neo_grounding 34 ca."
-    },
-    {
-      "id": "lo-cum-tu-choi-tat-guard",
-      "status": "done",
-      "name": "Cum TU CHOI trong cau tra loi khong con TAT hang rao chong bia toan bai",
-      "evidence": "LIVE 5756b37. `_guard_text` thoat som khi cau chua bat ky cum nao trong `_REFUSAL_MARKERS` -> moi so con lai di thang ra doi tac. Tai hien: 'Khong tim thay o phan may doc duoc, nhung cao do day dai coc la -13,7 m.' LOT du ro neo KHONG chua -13.7; bo 6 chu dau -> CHAN. PHAT HIEN THEN CHOT: dong do la MA CHET voi cau tu choi THUAN (dong `if not do_luong` ngay duoi da lo tron — 0/102 cau doi ke ca ro neo RONG), nen tac dung DUY NHAT con lai la mien tru dung phan nguy hiem. Ban kinh: 17/822 cau (2,1%) la nhom TRON; voi RO NEO THAT thi **0/793 cau doi**. `_apply_i1` GIU thoat som (chi noi canh bao). ⚠ DINH CHINH: con so '45% cau o trang thai khong-hang-rao' trong handoff la SAI — do lai 21,2% (mau chinh) / 14,5-17,5% (mau gop), phan lon VO HAI."
-    },
-    {
-      "id": "tim-chu-trong-ky-hieu",
-      "status": "done",
-      "name": "Tool #34 doc chu ben trong dinh nghia ky hieu/khoi DUOC CHEN",
-      "evidence": "LIVE 138d104. Thay cho viec 'doc chu trong khoi vao kho chu chung' (da BAC bang so). Chi gan co ma khong cho duong DOC = vua khang dinh CO, vua cam noi KHONG CO, vua khong dua du lieu = cong thuc EP BIA. KHONG truong dem (so doan chu trong dinh nghia khoi khong ung voi gi: 'g3' co 6 doan roi trong khoi chen 5 lan => hien that 30, engine doc 1), KHONG toa do (he NOI BO -> khoanh sai cho), khong khoi mo coi, khong trang in. CONG CUNG ngan sach ro neo do TRUOC khi viet: trung vi 6,0 neo so voi 19,0 cua tim_kiem -> DAT nen KHONG dua vao tuple loai-tru. E2E corpus that lay lai duoc chuoi truoc nay KHONG tool nao cham toi: 'l=1100'[38E9C/38EA5] · 'L=1600, SL:67'[3053A] · 'DN-01, L=15000, SL:02'[1C2F1E]. test_chu_trong_ky_hieu 26 ca."
-    },
-    {
-      "id": "kb-tra-nguoc-nghia-ky-hieu",
-      "status": "done",
-      "name": "Noi CUM TU tieng Viet cua doi tac voi KY HIEU tren ban ve (kienthuc.theo_nghia_don)",
-      "evidence": "LIVE 8156d47. Ban ve ghi ma bang KY HIEU, doi tac hoi bang TIENG VIET. Do: tra_cuu_so_luong('dai coc') tra **131** ('chi tiet noi coc voi dai') con **59 dai coc that** (DC-1 SL-19...) BIEN MAT; file khac tra RONG + cau khang dinh 'ban ve KHONG ghi san so luong' (SAI ma TU TIN). ⚠ Co che phan biet d/dj VAN DUNG ('DC' co dau->59 dai coc, khong dau->16 dam) — mo ta cu trong tai lieu la SAI. CHI tra nguoc **7/24 muc MOT NGHIA**; 15 muc DA NGHIA ('dam'->D-x lan DC-x, 'cua di'->CH/D-x/Dj-x) TUYET DOI khong (kho tu ghi ASK). KHONG GOP vao danh_sach_so_luong — de RIENG o 'theo_ky_hieu' + ghi chu cam cong (chong mo hinh cong 131+59=190). Loi ich: 10 cap (file x tu) tim them muc, deu DUNG loai. KB_HASH KHONG doi (ham thuan). test_kienthuc 15->30."
-    },
-    {
-      "id": "any-grounded-giu-nguyen",
-      "status": "deferred",
-      "name": "⛔ Doi luat phan quyet ANY-GROUNDED sang PER-CLAIM — NO_GO CO SO, DUNG MO LAI",
-      "evidence": "Nghien cuu tron ven 2026-07-31 (wf_8a663cde-735, 8 agent + 3 phep do doc lap). (a) 'TY LE LOT' KHONG phai dai luong dung duoc de ra quyet dinh: 5 probe do CUNG dai luong ra 0%/23,8%/32,2%/37,9%/52-77,5%; tu kiem tren CUNG ro neo, chi doi BO SINH so bia -> 0,0% den 13,6%. DUNG trich con so nen nao lam can cu. (b) Do bang NHAN DOC LAP (ky_vong): do chinh xac per-claim = 0/25 va 1/30 = 3,3% -> 96,7-100% cau no giet la cau DUNG; giet oan 9,9-33,1%; ALL giet 82% cau co PHEP CONG (= viec CHINH cua phan mem boc tach) va 31% cau co so DEM. (c) BO luat x1000 cung NO_GO: 36,5% giet oan (85,4% voi cau doi m->mm). (d) PER-CAU khong cai thien gi. ANY la luat DUY NHAT co 0% chan oan tren ca 7 dang cau dung. DON BAY DUNG = LAM SACH RO NEO (da lam, xem neo-grounding-sach)."
-    }
-  ]
+ "project": "demo-doc-autocad-mcp (demo 2 — SẢN PHẨM CHÍNH)",
+ "description": "Web app đọc + tính toán bản vẽ AutoCAD (.dwg/.dxf) QUA MCP (Model Context Protocol). LLM = Google Gemini. Kiến trúc TOOL-USE (KHÔNG training): code Python tất định đọc/tính số THẬT kèm handle; Gemini hiểu câu hỏi + gọi tool + diễn đạt. Triết lý BẤT DI: CHỐNG BỊA (thiếu->hỏi, không bịa; suy đoán->gắn cờ; số do CODE).",
+ "stack": "Python 3.10 + Flask 3.1.3 + MCP 1.27 (FastMCP) + google-genai 2.10 (gemini-2.5-flash) + ezdxf 1.4.4 + matplotlib(Agg) + openpyxl + gunicorn + ODA File Converter + Docker + Render",
+ "testedAt": "2026-07-31",
+ "status_legend": "done = xong + có bằng chứng/test | partial = có phần, còn treo | planned = đã nghiên cứu/roadmap, chưa code | deferred = HOÃN chờ đối tác chốt",
+ "features": [
+  {
+   "id": "mcp-server",
+   "name": "MCP server chuẩn (FastMCP stdio, 28 tool)",
+   "status": "done",
+   "evidence": "mcp_server.py FastMCP('doc-autocad'); 28 @mcp.tool() (đếm được; +hoc_quy_uoc/thu_hoi_quy_uoc P3 + cao_do_min_max id135-recall + doc_bang_nhung U3 đọc bảng OLE nhúng + kiem_tra_handle I1 host-only); chạy stdio JSON-RPC -> cắm được client MCP bất kỳ (Claude Desktop/Cursor/CLI). Điểm HƠN demo 1 (kiến trúc chuẩn tái dùng)."
+  },
+  {
+   "id": "gemini-bridge",
+   "name": "Cầu nối Gemini<->MCP (phiên bền + vòng lặp chống bịa)",
+   "status": "done",
+   "evidence": "mcp_bridge.py class MCPBridge (asyncio nền + threading, KHÔNG teardown/request); tra_loi_ai() MAX_TURNS=14; SYSTEM_PROMPT 21 luật (I9: tách mảnh _INVARIANT/_VN_CONVENTION + version/hash, byte-identical); 2 chốt: ép-gọi-tool khi model nêu số chưa gọi, ép-trả-lời khi hết lượt (không bỏ cuộc). Tự viết bridge vì google-genai 2.10 deepcopy ClientSession lỗi."
+  },
+  {
+   "id": "read-ezdxf",
+   "name": "Đọc ezdxf + trích xuất (texts/dims/thép/qty/section/levels)",
+   "status": "done",
+   "evidence": "tools_core.py Drawing._extract (dòng ~521): giữ doc RAM để render; build qty_index/door_size_index/section_index/levels/stated_vol. Chiến lược readfile (chính xác 100%) + cổng chặn file > READFILE_MAX_MB."
+  },
+  {
+   "id": "dwg-convert",
+   "name": "Chuyển .dwg->.dxf trên server (ODA, Windows + Linux/xvfb)",
+   "status": "done",
+   "evidence": "dwgconv.py convert_dwg_to_dxf() + find_oda(); Drawing.__init__ tự gọi khi path .dwg. KHÔNG cần AutoCAD -> deploy cloud được."
+  },
+  {
+   "id": "vntext",
+   "name": "Chuẩn hoá text TCVN3 + mã AutoCAD/MTEXT (1.03: mở rộng dấu hiệu + thứ tự + Ð + NFC)",
+   "status": "done",
+   "evidence": "2026-08-01 (1.03): dấu hiệu TCVN3 TẦNG 2 (22 chữ Latin không-phải-chữ-Việt; CỐ Ý loại Ø/×/÷ và chữ Việt hợp lệ) · đảo THỨ TỰ giải-mã-TCVN3 TRƯỚC / đổi-mã-AutoCAD SAU (trước đó %%C→Ø bị bộ giải mã nuốt vì 0xD8 = ô 'ỉ') · 'Ð' hai nghĩa tách theo VỊ TRÍ · gộp NFC. TỰ KIỂM NGƯỢC 86 file/285.413 chuỗi: cứu 8.913 · HỎNG THÊM 0 · Ø bị nuốt 152→0 · số máy báo KHÔNG dịch (cao độ KT −2.1/10.8, KC −1.85/10.8, HT −14.26/2.5). test_vntext 28→53. E2E LIVE: tìm 'mặt bích' 3→6, 'ống HDPE' 3→6, 'cống hiện có' 4→7. CÒN TỒN: 768 chuỗi mang Ä/Å/Û/Φ — HỌ MÃ KHÁC, không nằm trong bảng _TCVN3."
+  },
+  {
+   "id": "quantity",
+   "name": "Đọc số lượng cấu kiện (tra cứu/liệt kê/tổng/đếm chữ)",
+   "status": "done",
+   "evidence": "tra_cuu_so_luong/liet_ke_so_luong/tong_so_luong/dem_so_luong + _build_qty_index; đa quy ước (SL=/(số lượng N bộ)), fold font, ghép vị trí. Cửa D1=24, tổng 73. VÁ id84 [2026-07-16, LIVE c0b85af]: unaccent gộp đ→d nên 'ĐC'(đài) ≡ 'DC'(dầm) -> đếm 142 (đúng 59); vá field label_ma=_norm_ma (giữ đ/d) khớp mã + dedup _ma_key. VÁ DẦM double-count [2026-07-16, LIVE 95f4282] (residual id84): 'DẦM DR-6'(inline)+'DR-6'(spatial)=cùng 1 dầm nhưng không dedup -> over-count 2x (DM 40->20); vá dedup CÓ-LOẠI _ma_type/_ma_code/_ma_group_key (bare-code gộp loại DUY NHẤT, ≥2 loại tách -> giữ 'DẦM D1'≠'CỬA D1'). Test [id84] 12 ca."
+  },
+  {
+   "id": "steel",
+   "name": "Thống kê thép tròn + thép hình/inox (kg)",
+   "status": "done",
+   "evidence": "thong_ke_thep/thong_ke_thep_hinh + _acc_thep(_hinh); đọc block DK/SHOW, bỏ block tổng tránh đếm trùng; cảnh báo 'còn thép hình chưa cộng'. KC 67370.7 kg."
+  },
+  {
+   "id": "listing",
+   "name": "Tìm kiếm + liệt kê layer/block/sheet/đối tượng/kích thước",
+   "status": "done",
+   "evidence": "tim_kiem, liet_ke_layer/block/sheet, thong_ke_doi_tuong, thong_tin_kich_thuoc — mỗi tool có ghi_chu khai báo bản chất con số."
+  },
+  {
+   "id": "boc-tach",
+   "name": "Bóc tách số đo ghi chú tự do (KHÔNG tự tính vật liệu)",
+   "status": "done",
+   "evidence": "boc_tach_kich_thuoc (dòng ~855): trích 3D/L=/m2/m3/bề dày + NGUYÊN VĂN + handle; test [F][G] granit/gạch PASS."
+  },
+  {
+   "id": "floor-levels",
+   "name": "Thông tin tầng (cao độ->chiều cao tầng) + cao độ min/max (id135-recall)",
+   "status": "done",
+   "evidence": "thong_tin_tang + _build_levels; test [D] KC cao độ 3.6m/~3 tầng, 9T 3.3m/~10 tầng. + TOOL MỚI cao_do_min_max [2026-07-16, LIVE 97ffc60] (MCP #26, id135-recall): đọc RAW min/max marker cao độ (regex dấu +/-/± + 2-3 thập phân) KHÔNG lọc tần suất ≥4 như _build_levels (đó là lý do id135 bỏ sót mốc sâu). RIÊNG tool. G1 bắt buộc dấu; G3 loại layer thép khỏi min/max (LỘ canh_bao); G4/G5 flag nghi_ngo. Verify CT-A KC min=-1.85/max=+10.8; 9T KC min=-3.0 (loại -44.1 thép); -14.26 (2 thập phân) đọc đúng. Test test_cao_do_min_max.py 12 ca. ⚠ overfit: 2 firm, cần ≥3 firm. ⏳ id135-E2E VẪN CHỜ file hạ tầng ĐỘC LẬP [2026-07-24, sau khi ROLLBACK 1 overclaim]: battery LIVE trên rachmop.dxf (HT/CT-K, -14.26) -> Gemini đọc ĐÚNG -14.26m [1F601D] (bug gốc bịa -10m) = fix chạy đúng trên CA ĐÃ BIẾT. NHƯNG rachmop CHÍNH là file bug id135 đến từ đó + câu battery thiết kế quanh nó (ky_vong ghi cứng -14.26) -> KHÔNG chứng minh tổng quát hoá (có thể overfit). id135-E2E THẬT vẫn cần bản vẽ hạ tầng ĐỘC LẬP (nguồn khác, mốc sâu) — ĐANG XIN đối tác. KHÔNG đánh dấu id135 done. --- CẬP NHẬT TB6 [2026-07-24, user chốt 'chạy TB6 + xin file sâu']: đối tác gửi bộ hạ tầng ĐỘC LẬP THẬT (dự án thoát/cấp nước TB6, 26 file, input_files/03.TB6/, chưa từng thấy). E2E LIVE Gemini 2 file: TD-ống-áp-lực (tool -1.34m layer CD_Day, Gemini '-1.34m [24DBE3]') + MB-dịch-vụ (tool -2.49m, Gemini '-2.49m [7BA9E]'). CẢ 2: tool đọc ĐÚNG cao độ sâu nhất THẬT + Gemini KHÔNG bị SỐ-MỒI đánh lừa (đã lọc: 'cút hdpe D180-11,25 độ'=góc ống, 'block-25.3'=nhãn block layer Tex-ống-nước — tool đều bỏ qua đúng). => GENERALIZATION + chống-số-mồi VALIDATED trên file ĐỘC LẬP (thứ rachmop KHÔNG cho được). NHƯNG TB6 NÔNG (sâu nhất -2.49m, KHÔNG có mốc -14m) => CHƯA cover ca mốc SÂU trên file độc lập. TRẠNG THÁI id135: generalization OK trên infra nông + chống-mồi; deep-independent CÒN chờ (đối tác đang tìm file đào sâu ≥-5m). VẪN KHÔNG đánh dấu id135 done."
+  },
+  {
+   "id": "takeoff-engine",
+   "name": "Engine takeoff tinh_dai_luong + 12 công thức",
+   "status": "done",
+   "evidence": "_FORMULAS 12 mục (cửa/BT cột-dầm-sàn-móng/ván khuôn cột-dầm/xây/trát/đào/đắp/inox); tinh_dai_luong (dòng ~1145); đủ->tính+sơ đồ, thiếu->hỏi. Test [A-M]."
+  },
+  {
+   "id": "unit-cm-mm",
+   "name": "Suy đoán đơn vị cm/mm (ngưỡng 130) + ghép mã<->tiết diện theo toạ độ",
+   "status": "done",
+   "evidence": "_SECT_CM_MAX=130, _sect_to_mm, _build_section_index (ghép tọa độ, đọc BẢNG cột nhà 9T mà cách cùng-text bỏ sót). Test [I]: 9T C-3=80x80cm->23.04 m3 (KHỚP demo 1); CT-A mm 4.704 m3 không đổi; gắn cờ suy_doan_don_vi."
+  },
+  {
+   "id": "inox-mass",
+   "name": "Khối lượng thép hình/INOX = SL(đọc) x kg/bộ(đối tác cấp) — feedback đối tác",
+   "status": "done",
+   "evidence": "_FORMULAS.khoi_luong_thep_hinh; ánh xạ 'inox'/'thép hình' đầu _TEN_MAP (trước 'cửa'). inox S1=16x8.62=137.92 kg. kg/bộ CHỈ đối tác cấp (chống bịa liên kết). Test [J]."
+  },
+  {
+   "id": "tong-hop",
+   "name": "Tổng hợp khối lượng sơ bộ + TỔNG PHỤ theo (loại,đơn vị)",
+   "status": "done",
+   "evidence": "tong_hop_khoi_luong (dòng ~1298): cột NGUỒN + tong_phu (tổng cửa/BT/thép, không gộp nhầm m3) + can_bo_sung + gia_dinh. Test [D][M]."
+  },
+  {
+   "id": "excel",
+   "name": "Xuất Excel bảng tổng hợp (.xlsx)",
+   "status": "done",
+   "evidence": "xuat_excel (openpyxl) -> file_id + mục TỔNG PHỤ; route /file/<id>; test [D] file_id tồn tại. --- ✅ I2 MO RONG (LIVE 86776b9, 2026-07-25): them SHEET 2 \"Tien_luong\" (BOQ phang chuan du toan VN, copy-ready): [STT|Ma hieu(trong)|Ten cong tac|Don vi|Khoi luong|Dien giai(=nguon)|Ghi chu] nhom theo loai + subtotal, de QS cam thang vao phan mem du toan (G8/F1/Du toan GXD). AN TOAN: tai dung cung object th (2 sheet KHONG lech, verify subtotal khop tuyet doi tong_phu); create_sheet khong index + khong doi wb.active -> test_excel_content (doc wb.active) khong doi; subtotal lay truc tiep th[tong_phu] (khong double-count); LOAI quy_uoc_chua_xac_nhan (bat bien P4, verify 12.5 dang-day khong lot); return dict khong doi -> so Excel nam trong FILE khong vao grounding. PHAM VI: CHI khoi luong, KHONG don gia/thanh tien (du-toan-chi-phi VAN deferred). Test khoa +4 (khoi [C]) -> excel-content 17->21. Gate [25/25], qa 129, 0 regress. v2 HOAN: Dien-giai cong-thuc-song (can mo tong_hop mang toan hang), ma hieu dinh muc tu dong (can DB dinh muc)."
+  },
+  {
+   "id": "visual-highlight",
+   "name": "Render vùng + KHOANH ĐỎ cấu kiện trên ảnh (khác biệt cốt lõi)",
+   "status": "done",
+   "evidence": "render_region (matplotlib Agg) + highlight + _largest_cluster (dòng ~1430); MCP tool danh_dau_cau_kien; route /image/<id>. Điểm HƠN demo 1."
+  },
+  {
+   "id": "anti-bia",
+   "name": "Chống bịa nhiều lớp + hardening đối kháng",
+   "status": "done",
+   "evidence": "_cau_kien_hien_dien (mã không tồn tại->khong_tim_thay kể cả có inputs_bo_sung; vá GHOSTINOX toàn-chữ), _loai_tu_ban_ve (sai_loai), math.isfinite gates + _nd từ chối bool/inf/nan (chặn 'Infinity kg'), _rs_dien_tich_ghi_san không tự-vơ diện tích. Test [H][K][L]. + GROUNDING-GUARD id135 [2026-07-16, LIVE 3ca5102] (mcp_bridge.py): câu trả lời khẳng định số ĐO-LƯỜNG mà KHÔNG số nào truy được về RAW result tool -> thay bằng câu từ chối (chống bịa 'cao độ -10m'). KHÔNG dùng n_evidence=0 (60/198 câu ĐÚNG có n_ev=0 -> sẽ sập recall 30%); dùng grounding (số answer khớp số tool, dung sai ×1000 mm↔m + làm tròn); miễn số đếm trơn + mã-hiệu; chỉ từ chối khi MỌI số ungrounded. Vet chạy trên 198 câu -> FP=0. + luật SYSTEM_PROMPT cao độ. Test test_grounding_guard.py 32 ca."
+  },
+  {
+   "id": "web-ui",
+   "name": "Web UI Flask (upload + chat + ảnh + tải Excel + nhớ hội thoại)",
+   "status": "done",
+   "evidence": "app.py PAGE (HTML/JS nhúng); routes /,/upload,/ask,/image,/file,/config,/version; CHAT_HISTORY MAX_HISTORY_TURNS=6 (đối tác nhập bù số lượt sau). R11 (IDOR) VÁ: s['artifacts']+_artifact_owned -> /file//image chỉ phục vụ artifact CỦA phiên (cross-session 404), test_session [K.7]."
+  },
+  {
+   "id": "deploy",
+   "name": "Deploy cloud (Docker + Render) + /version verify",
+   "status": "done",
+   "evidence": "Dockerfile (python3.10-slim+ODA+xvfb, gunicorn 1w/4t/timeout600); render.yaml plan free (READFILE_MAX_MB=45 khớp RAM 512MB — ĐO THẬT: DXF/RAM ~5.8x); /version trả RENDER_GIT_COMMIT+sect_cm_max=130. Live doc-autocad-mcp-demo.onrender.com. ⏳ CONFIG NÂNG RAM SẴN [2026-07-16, commit 079c91c CHƯA PUSH]: render.yaml plan standard(2GB) + READFILE_MAX_MB=200 + MAX_UPLOAD_MB=220 — GIỮ chưa push, chờ user bật billing Render (nâng RAM=phí Render, KHÁC API key Gemini; đọc file local vẫn free ~vài trăm MB)."
+  },
+  {
+   "id": "tests",
+   "name": "Bộ test tất định (chống bịa takeoff + đọc dữ liệu)",
+   "status": "done",
+   "evidence": "check.sh HARNESS GATE [20/20] PASS (offline, 0 API) [2026-07-16]: import+26 MCP tool · no-key · takeoff 258 · model_fallback 22 · size-guard 9 · file-ttl 12 · session 25 · health 11 · hoc-log 20 · hoc-quy-uoc 2 · visual-highlight 15 · excel-content 17 · misc-tools 84 · vntext 28 · fuzz 36 · dwgconv 10 · MCP-stdio-thật 14 · app-routes 8 · +grounding-guard 32 (id135 chống bịa số) · +cao_do_min_max 12 (id135 recall). test_qa_data 129/129 (3 file khác domain). E2E-AI (tốn API, ngoài cổng): kichban_gd2 10/10 vs engine-truth + battery 198 câu (judge-panel; KPI ~1.1% bịa cứng — id84/id135 đã VÁ 2026-07-16)."
+  },
+  {
+   "id": "roadmap-A-E",
+   "name": "Củng cố: tổng phụ (A) + gợi ý m3 ghi sẵn (E)",
+   "status": "done",
+   "evidence": "tong_phu + goi_y_ghi_san (đào đất thiếu số -> nêu 'ĐÀO MÓNG 860 M3' [handle]); test [M]."
+  },
+  {
+   "id": "model-fallback",
+   "name": "Model fallback khi 429/503 kéo dài (chuỗi model phụ)",
+   "status": "done",
+   "evidence": "[2026-07-11(c)] mcp_bridge.py: MODELS=[MODEL]+env GEMINI_FALLBACK_MODELS (mặc định gemini-2.0-flash,gemini-1.5-flash; rỗng->hành vi cũ 1 model). _is_overloaded(e) (mã HTTP 429/500/502/503/504 hoặc chuỗi resource_exhausted/unavailable/quota/high demand; lỗi khác=False) + _gen_fallback(client,contents,cfg,state) thử MODELS[state.i:], gặp 429/503 -> model kế (fail-forward), state.i giữ model đang dùng qua các lượt/1 request. Cắm CẢ 2 chỗ generate_content (vòng tool-use + câu cuối, chung _mstate). Hết chuỗi ở vòng tool -> trả LỘ 'AI đang quá tải, thử lại sau' (không crash/bịa); lỗi không-quá-tải -> ném ngay (app.py bắt). Phân tầng: SDK HttpRetryOptions lo blip TẠM cùng model, H đổi model khi cạn SAU retry. app.py /version thêm 'models'. Test tests/test_model_fallback.py 20/20 (OFFLINE mock client, KHÔNG tốn API) + check.sh [4/4] PASS. Deploy nên set env GEMINI_FALLBACK_MODELS theo model account."
+  },
+  {
+   "id": "tru-lo-cua",
+   "name": "Trừ lỗ cửa/cửa sổ khi tính xây tường & trát (task B)",
+   "status": "done",
+   "evidence": "xay_tuong/dien_tich_trat nhận 'lo_cua' (list) trong inputs_bo_sung: mỗi lỗ {ma,sl} (tra door_size_index confident, có handle) HOẶC {rong,cao,sl} (mm, đối tác cấp); net = gross − Σ(R×C×SL)×(be_day|so_mat). SL do ĐỐI TÁC khai (không tự đoán cửa nào thuộc tường nào — mirror inox). CHỐNG BỊA: _resolve_lo_cua block mã giả (_cau_kien_hien_dien), mã không-confident (không đoán size), lỗ≥tường (net_raw>0 trước round, không âm), sl bẩn, lẫn đơn vị (_plausible_door_size), over-count (_door_qty_for), sai kiểu, cả-2-mode, lo_cua cho công thức khác. Backward-compat: không lo_cua -> số cũ y hệt. Test [N] 20 ca (offline)."
+  },
+  {
+   "id": "robustness-ops",
+   "name": "Tách state theo session + dọn file TTL + chặn file lớn sớm + keep-alive",
+   "status": "done",
+   "evidence": "I (chặn file lớn sớm) DONE [2026-07-11(d)]: tools_core.Drawing.__init__ kiểm raw_mb > READFILE_MAX_MB TRƯỚC convert_dwg_to_dxf (DWG lớn -> DXF chắc >= DWG -> loại ngay, khỏi ODA ~600s) + giữ check sau-convert cho DWG nén phình; app.py hằng READFILE_MAX_MB (khớp env) + upload check getsize sau save/truoc MCP -> 413 + os.remove (dọn file). Không đổi ngưỡng -> không false-reject. Test tests/test_size_guard.py 9/9 (offline, Flask test_client) + check.sh. J (dọn file TTL) DONE [2026-07-11(e)]: fileutil.py cleanup_old_files(dirs,ttl_min,keep) (nhẹ, import chéo web+subprocess; xoá file mtime>TTL, chỉ FILE không đệ quy, keep giữ file mới, ttl<=0=tắt, nuốt lỗi I/O); FILE_TTL_MIN env (60') app.py+tools_core; dọn opportunistic: mỗi upload dọn _uploads+_renders, sau mỗi render_region/xuat_excel dọn _renders (keep file mới). File active mtime-mới -> không bị dọn; query/render dùng RAM. Test tests/test_file_ttl.py 12/12 + check.sh. K (tách state theo session) DONE [2026-07-11(f)]: app.py SESSIONS dict theo cookie sid -> mỗi phiên có bridge (1 MCP subprocess/1 Drawing) + summary + history + lock RIÊNG (hết cảnh 2 người đạp nhau). get_session sweep TTL + enforce CAP (MAX_SESSIONS=4, đầy->đóng LRU) + SESSION_TTL_MIN=30 (đóng phiên nhàn rỗi, giải phóng subprocess); bridge tạo lười ở /upload; @app.after_request set cookie; _make_bridge() tách để test mock. KHÔNG đụng mcp_server/tools/anti-bịa. Test tests/test_session.py 17/17 (offline, Flask test_client + FakeBridge, không subprocess/không API) + check.sh. L (keep-alive + giám sát) DONE [2026-07-11(g)]: app.py /health JSON nhẹ (no API/no bản vẽ: ok/uptime_s/sessions/use_ai/model/metrics) cho Render healthCheckPath + monitor ngoài; _METRICS (uploads/asks/errors) tăng ở upload/ask; self-ping _keepalive_ping() GET RENDER_EXTERNAL_URL/health (traffic ngoài -> Render không ngủ, nuốt lỗi) mỗi KEEPALIVE_MIN(10'), _start_keepalive() chỉ chạy khi có URL (local/test không kích); render.yaml healthCheckPath -> /health. Test tests/test_health.py 11/11 + check.sh [8/8]. => ROBUSTNESS H-L HOÀN TẤT (mỗi mục 1 test offline trong cổng). Deploy: self-ping tự chạy, tắt bằng KEEPALIVE_MIN=0. | F-A (race concurrency) VÁ [kiểm thử 2026-07-13]: _try_close_session acquire-non-blocking -> LRU/TTL KHÔNG đóng subprocess GIỮA request đang chạy, test_session [K.8]. | Empty-response VÁ (E2E): tra_loi_ai nhắc-1-lần khi Gemini trả part 'thought' rỗng lượt đầu (thay bỏ cuộc ngay), test_model_fallback [H.10]."
+  },
+  {
+   "id": "liet-ke-dien-tich",
+   "name": "Liệt kê DIỆN TÍCH GHI SẴN (nhãn 'X m²' verbatim + handle) — task C",
+   "status": "done",
+   "evidence": "MCP tool liet_ke_dien_tich_ghi_san (21 tool); builder _build_stated_areas + self.stated_area (mirror stated_vol). Đọc mọi nhãn 'X m²' NGUYÊN VĂN + handle + layer + cờ co_tu_khoa_dien_tich (có 'diện tích'/'S='). CHỐNG BỊA/MISLABEL: KHÔNG phân loại 'diện tích sàn', KHÔNG suy hình học (0 nhãn -> goi_y đối tác CẤP), KHÔNG cộng gộp (tong_hop loại 'Diện tích (ghi sẵn)' vào _khong_cong). LỌC nhiễu: regex (?<![/.,\\d]) + normalize '/\\s+'->'/' chặn mật độ '/1m2'/'/ 1m2' & đuôi thập phân; mã DM2/mm2 tự loại; KHÔNG min (giữ 0.12m²). Kiểm chứng đối kháng 2 vòng (vòng 1 bắt bug bịa đuôi thập phân + density-space -> vá; vòng 2 xác nhận mọi vector BỊA đã kín, còn lại chỉ DROP-class an toàn có verbatim). Test [O] 15 ca offline (120/120). ROADMAP mục C."
+  },
+  {
+   "id": "ung-vien-goi-y",
+   "name": "Ứng viên GỢI Ý (kg/bộ + số đo gần mã) cho input thiếu — 1-click xác nhận, task D",
+   "status": "done",
+   "evidence": "Nhánh thiếu của tinh_dai_luong gắn 'ung_vien' vào TỪNG inputs_thieu[i] (chỉ khi non-empty -> additive). _ung_vien_kg_moi_bo: quét ghi chú 'X kg' (loại 'TỔNG', dedup handle, cờ per-unit _KG_PU_RE '(1 …)'/'kg/bộ' bền garble bộ->bé), verbatim+handle, KHÔNG proximity (note ở block xa); GT: inox 8.62 kg [67FFC] '(1 bé)'. _ung_vien_dim: dim GẦN MÃ (đòi code_toks, loại 0.0/phi lý, LUÔN 'thap'+khoảng cách). Dispatch theo RESOLVER (rs_name) không theo 'ten' (chieu_cao: _rs_chieu_cao_cot=cao độ KHÔNG gợi vs _rs_bs_only tường gợi được); so_mat & cao cột KHÔNG gợi. CHỐNG BỊA: ứng viên KHÔNG vào vals/da_co, KHÔNG lật co_ket_qua/can_bo_sung; CHỈ inputs_bo_sung (đối tác xác nhận) mới tính; kg KHÔNG khẳng định thuộc mã (chống bịa liên kết). Kiểm chứng đối kháng 27 probe/3 lens = 0 lỗ hổng (D1-D7). Test [P] 14 ca (134/134). ROADMAP mục D."
+  },
+  {
+   "id": "uoc-cao-cot",
+   "name": "Ước CHIỀU CAO CỘT theo cao độ (cột cao 1 tầng) ở luồng takeoff lẻ — task F",
+   "status": "done",
+   "evidence": "_rs_chieu_cao_cot: đối tác cấp -> override; else ƯỚC = typical_floor_h (suy từ cao độ) × 1000 mm, cờ gia_dinh_cao_tang + nguon 'suy_tu_cao_do' + chua_chac; _la_cot(ma) (NHÃN thắng prefix; c<digit> nếu không nhãn) chặn không-cột. MÓNG resolver RIÊNG _rs_chieu_cao_mong (luôn hỏi — chiều cao móng ≠ 1 tầng, hàng rào tất định ở tầng _FORMULAS). ghi_chu tách 'GIẢ ĐỊNH 1 tầng' khỏi 'GÁN VỊ TRÍ'. KHÔNG levels -> hỏi (không bịa). GT: KC C1 -> 4.704 (=test I.3 dùng 3600), 9T C-3 đa-cờ (giả định + suy đoán đơn vị). Kiểm chứng đối kháng 29 probe/3 lens = 0 lỗ (F1-F7). Test [Q] 14 ca (149/149). ⚠ ĐỔI HÀNH VI: cập nhật test B (C1 chưa cấp cao -> nay tính được). ROADMAP mục F."
+  },
+  {
+   "id": "cung-co-G",
+   "name": "Củng cố treo: mở rộng test đối kháng đa-domain (G)",
+   "status": "done",
+   "evidence": "Workflow probe 6-agent (KC/KT 9T + hạ tầng CT-K + gap-check CT-A + overfit-hunter) chạy engine THẬT offline -> phát hiện + TỰ KIỂM CHỨNG (repro độc lập) 3 BUG THẬT ở tầng tổng hợp/đọc: (A cao) tong_hop_khoi_luong.tong_phu GỘP thép tròn+thép hình thành 1 số kg (KC 67759.7=67370.7+389.0, KT 4110.7=564.8+3545.9) — vi phạm rule 8b (mcp_bridge:164); (C) gộp 'Số lượng' dị loại thành 835/191 bộ/cái vô nghĩa; (B latent) _rs_dien_tich_ghi_san dùng regex thô đọc mật độ '16 cọc/1m2' thành diện tích=1 (parity gap với _build_stated_areas — cơ chế thật, live-scan 0/4 file). VÁ (tools_core.py): tách loai thép tròn/hình + thêm 'Số lượng' vào _khong_cong + dùng _STATED_M2_RE (lookbehind) trong resolver. Test [R][S][T][U] + I.5/I.6 (9T KC F ước 10 tầng=21.12 + existence C999 vàng + typical 3.3m; 9T KT 193k obj recall 16 nhãn diện tích đủ handle + mã cửa giả vàng). Hoist 9T KC nạp 1 lần (trước nạp 2 lần, phí ~53s). check.sh PASS: takeoff 167/167 (was 149) + qa 129/129. RESIDUAL [2026-07-11(b)]: #1 recall SL 9T KT = BUG THẬT đã vá -> _build_schedule_qty_index đọc SL bảng thống kê theo cột TỔNG (ghép mã<->số theo hàng+cột, gated fail-silent: >=5 cặp duy nhất/|dy| chặt/mã sát trái, block bẩn -> bỏ; validate âm KC/KT CT-A+CT-K=0 bịa), liet_ke_so_luong 9T KT 6->28 mục, test [V] -> takeoff 177/177; #2 cờ suy_doan_don_vi cạnh <40 = BY-DESIGN no-fix (mm-interp <4cm phi thực). Còn: window S-code |dy| lỏng hơn -> đối chiếu thêm layout khác; concurrency (1 Drawing global) thuộc robustness K."
+  },
+  {
+   "id": "du-toan-chi-phi",
+   "name": "DỰ TOÁN CHI PHÍ (thành tiền = KL x đơn giá + định mức + thuế, mẫu Excel dự toán, mác BT/BOQ)",
+   "status": "deferred",
+   "evidence": "ROADMAP_DEMO2.md mục 4 'HOÃN — chờ đối tác chốt yêu cầu'. User chốt 2026-07-09: phạm vi demo = KHỐI LƯỢNG, không phải thành tiền."
+  },
+  {
+   "id": "ai-tu-hoc",
+   "name": "AI tự học từ đối tác (hỏi-để-học + log ứng viên + đối chiếu chéo + cổng duyệt)",
+   "status": "done",
+   "evidence": "NGHIEN_CUU_AI_TU_HOC.md (nguyên tắc) + KE_HOACH_AI_TU_HOC_CHI_TIET.md (bản KỸ THUẬT 2026-07-12: workflow 17-agent design-panel + red-team; kiến trúc eng-minimal + grafts safety-first; lộ trình P-1..P5). ✅ P-1 XONG [2026-07-12(c), commit 73990de, LIVE 5ecaca1]: vá 6 lỗ tồn tại E1-E6. ✅ P0-P1 XONG [2026-07-12(d), commit 6608edf]: đọc-thuần (read-only, KHÔNG học) — used_handles/residual + phan_loai_tin_hieu ①②③ + tool hoi_de_hoc/doi_chieu_nghi_ngo (23 tool); red-team bắt+vá classifier ngập nhiễu (thép/mác chuẩn), 9T KC 336→2 ứng viên; test [Y] 11 ca. ✅ P2 XONG [2026-07-13, commit 787b1e6]: log WORM append-only (hoclog.py CHỈ GHI, redact, cap+xoay; grep-guard khoá bất biến không-hồi-tiếp-inference; wiring tool-layer giữ core thuần); adversarial review 0 CONFIRMED cao/TB; test_hoc_log 20 ca, check.sh [9/9]. Còn P3 (mở kênh học, rủi ro cao) → P4/P5; P5 codify chặn tới khi có corpus >=3 firm. ✅ P-1.1 (vá R1: nhãn 'đáng tin' cho input chua_chac) + P3 MỞ KÊNH HỌC (hoc_quy_uoc/thu_hoi_quy_uoc ENUM template, học CÁCH ĐỌC theo phiên KHÔNG lưu số, §2.6 backstop số-học-không-thành-số-chốt, LLM bị chặn tool ghi R8) + P4 (rào tổng/Excel learned_handles fail-closed + cột chua_chac + mục 'chưa xác nhận') XONG & LIVE [commit 6933643→e9c4f80]. Red-team 2 tầng (thiết kế 119-agent + implementation 19-agent tự-repro). Test [Z]/[Z0] + test_hoc_quy_uoc (INV-10/12). ⏳ P5 (codify quy ước lên _build_* toàn cục) CHẶN tới khi có corpus ≥3 FIRM khác nhau (bản vẽ VN thật). Kênh học P3 hiện CHỈ qua MCP-client (chưa nối UI web — F-B chờ quyết)."
+  },
+  {
+   "id": "u3-doc-bang-ole-nhung",
+   "name": "U3 — Đọc BẢNG EXCEL NHÚNG (OLE) qua binary (MCP tool #27 doc_bang_nhung)",
+   "status": "done",
+   "evidence": "LIVE fd48b19 (verify /version+/health 2026-07-22 23:21). Trước đây bảng thống kê nằm trong OLE2Frame (Excel nhúng) -> ezdxf không đọc blob -> engine trả 0 (chỉ cảnh báo, bug C GĐ4). U3 = module oleexcel.py: ezdxf OLE2Frame.binary_data() -> tìm magic CFBF offset≠0 (header thừa) -> olefile -> xlrd (vá decode KHOAN DUNG cho vài .xls VN chết utf-16 surrogate) / openpyxl. Deps mới: olefile, xlrd. Probe corpus: ~89% OLE đọc được BINARY (KHÔNG cần OCR); file động lực 'Thong ke thep SUA' (engine cũ đọc 0 thanh) + THPT 67 bảng -> đọc hết. AN TOÀN CHỐNG BỊA (qua RED-TEAM 6 hướng / 26 finding / 8 CHẶN): máy KHÔNG tự chọn ô TỔNG/tự cộng — MCP tool #27 doc_bang_nhung chỉ trả HÀNG bảng + nguồn ole:<handle>:<sheet>; số ô OLE KHÔNG vào rổ grounding (mcp_bridge LOẠI doc_bang_nhung — nếu vào sẽ flooding sập guard chống bịa [red-team CHẶN]); _canh_bao_nhung tách đọc-được/ảnh; trần RAM 150k ô; giàu hoá ole_nhung (1 nguồn quét) thay vì thêm field (fake test cũ vẫn chạy). Commit 1cc84ad (module+probe+test, chưa cắm) + fd48b19 (wiring LIVE). Test tests/test_oleexcel.py 18/18 + ole-canh-bao 51; check.sh [22/22]->[23/23] PASS, qa 129, 0-OLE không đổi, 0 regress (baseline RE-VERIFY 2026-07-23: HARNESS GATE PASS, takeoff 258/qa 129/oleexcel 18). Fixture THEP_OLE ở tests/corpus_local (gitignored). ⏳ v2 CHƯA làm: OCR fallback tầng 2 cho ~11% OLE dạng ẢNH thật (StaticDib/PBrush/EMF); diễn giải bảng thép -> tổng kg (overfit, CHẶN tới ≥3 firm/P5). = roadmap U3 trong PHUONG_AN_NANG_CAP_DU_AN.md. ⚠ Entry GHI-BÙ (baseline + soạn tối 2026-07-23, commit 0cee9b6 sáng 2026-07-24) — phiên đêm 2026-07-22 crash trước khi kịp cập nhật ledger; code+push+LIVE đã xong đêm đó."
+  },
+  {
+   "id": "i1-guard-validate-handle",
+   "name": "I1 — Guard VALIDATE HANDLE (đối chiếu handle model trích dẫn vs tool phát/entitydb) — MCP tool #28 kiem_tra_handle",
+   "status": "done",
+   "evidence": "2026-07-24. Guard chống bịa TRƯỚC chỉ kiểm SỐ (grounding-guard id135); model vẫn có thể CHÉP/BỊA handle (vd chép '44C4' trong khi tool trả '449C4' — rớt 1 chữ số). I1 = ADDITIVE THUẦN (chỉ NỐI THÊM cảnh báo cuối câu, KHÔNG sửa/bỏ ký tự, KHÔNG từ chối). Cơ chế 3 tầng: (T1) handle ∈ tool đã phát -> IM (text byte-identical, không gọi bridge); (T2) ∉ tool nhưng CÓ trong entitydb file (vd handle lượt trước) -> IM; (T3) không đâu có -> nối ⚠ ('mã tham chiếu KHÔNG khớp đối tượng nào'), nếu trông giống MÃ HIỆU/nằm trong câu hỏi -> ℹ mềm. Cấu phần: mcp_bridge _collect_handles (gom handle THẬT mọi khoá chứa 'handle' + ole:h:, không rơi handle lồng như _evidence_from) + _handle_tokens (detector FORM A/B/C bám HÌNH THỨC trích dẫn + cờ echo, bài học _CD_INL) + _kiem_handle/_apply_i1; tools_core.Drawing.kiem_tra_handle (CHỈ ĐỌC, entitydb.get + _build_tok_ban_ve, trả dữ kiện THÔ trong_file/dxftype/text/co_trong_chu_ban_ve, KHÔNG phán quyết — chống tái sinh thap_nhat_dang_tin); mcp_server tool #28 (host-only, trong _TOOL_KHONG_CHO_LLM); app.py lưu answer_goc (SẠCH) vào history (chống model đọc lời tự-chê -> ngừng trích handle). QUY TRÌNH: workflow 15-agent probe+design+red-team-TRƯỚC-code (FP=0/854 câu thật, TP=2/854 — model chép hụt handle) -> GO_WITH_ADJUSTMENTS (siết FORM B nhãn-dính-sát chống FP 'handle nào cho cột C1'; mở miễn-trừ paperspace/block/layer/câu-hỏi; echo+grounded-value). Red-team IMPLEMENTATION (tự-repro engine thật file 26MB) bắt+vá F1 (kích thước '900x2200' trong ngoặc bị ⚠ nhầm -> _build_tok_ban_ve tách dãy số -> ℹ mềm) + F2 (câu từ chối tự nhiên bị nối ⚠ -> _apply_i1 bỏ qua _REFUSAL_MARKERS). BẤT BIẾN khoá test: KHÔNG ngưỡng độ dài/tần suất (handle 2 & 7 ký tự xử như nhau, chống tái sinh -22.75); FAIL-OPEN mọi lỗi/timeout; không trường phán quyết. Test tests/test_handle_guard.py 44/44 (A detector + B collect + C 3-tầng + D đối kháng + E positive-control + F red-team-impl). check.sh [23/23]->[24/24] PASS, takeoff 258/qa 129/grounding 34 KHÔNG đổi (I1 không đụng _guard_text), 0 regress. = roadmap I1 trong PHUONG_AN_NANG_CAP_DU_AN.md. ✅ I1b LIVE `b2a0ea5` (verify /version+/health 2026-07-24): vá lỗ THẬT của grounding-guard — _MAHIEU_RES[4] ('[A-Za-z]+\\d+') ĂN NHẦM đơn vị 'm2'/'m3' (Gemini viết SỐ thay mũ ²/³) -> do_luong rỗng -> guard MÙ với diện-tích/thể-tích BỊA dạng 'X m2'. Repro engine thật (giả thuyết FN5-handle-che-chở SAI, đọc dữ liệu thật ra gốc khác). Vá: chuẩn hoá 'm2'->'m²','m3'->'m³' (chỉ khi liền sau SỐ) TRƯỚC khi strip -> KHÔNG đụng nhãn trục 'M2', VẪN strip 'AxB mm' (section không sinh do_luong nhầm). LIVE battery bắt bug bản-vá-đầu (trích từ text gốc nuke 'Cột 220x220 mm' id77) -> sửa lại. Đo LIVE 2 lần: số câu TỪ CHỐI 4->1 (GIẢM, KHÔNG tăng); id77 hết bị nuke; câu mới từ chối duy nhất (id187) là variance Gemini không dính m2/m3. Test test_grounding_guard.py 34->46 ca (+I1b m2/m3 + khoá regression id77 section). check.sh grounding 46, 0 regress. ⏳ CÒN (sau): tầng-2 handle calibrate."
+  },
+  {
+   "id": "i3-bounds-check",
+   "name": "I3 — Bounds-check (I3-B Ø thép: LIVE; I3-U Lớp 1 sai-tự-tin: LIVE 21926c9; I3-U ngưỡng-sàn: NO_GO data thật; L2/L3: hoãn)",
+   "status": "partial",
+   "evidence": "THIẾT KẾ LẠI SAU NO_GO (workflow wf_e507ad48) — TÁCH 2 NHÁNH. ✅ I3-B LIVE `82951db` (verify /version+/health 2026-07-24): bound đường kính thép TRÒN trên Ô DK bảng thống kê (_dk_bat_kha: _to_num BARE, <=0 hoặc >60mm; KHÔNG bóc Ø/d chống '2Ø16'->216=FP; KHÔNG siết cận dưới -> lưới hàn D3/D4/D5 hợp lệ). LỘ nghi_ngo (BOOL) + prose KHÔNG số; cờ gắn trong _acc_thep (KHÔNG đụng kg/so_thanh/dai_m -> tong_kg BẤT BIẾN); surface ở thong_ke_thep nhánh TỔNG (co_nghi_ngo_duong_kinh + nghi_ngo per-cỡ) + HỎI-1-CỠ. KHÔNG-LỌT-GROUNDING (verify engine thật): biên 60 + đường-kính-bất-khả 1600 ∉ _collect_numbers (1600 CHỈ ở KEY 'Ø1600'; _collect_numbers không quét key; cờ bool bị bỏ). Red-team 4/4 lăng kính GO_WITH_ADJ. Test tests/test_i3_bounds.py 24/24; check.sh [24/24]->[25/25] PASS, misc 84/takeoff 258/qa 129 KHÔNG đổi. ⏳ I3-U (bug đơn-vị-1000×) HOÃN tới corpus ≥3 firm (user chốt 2026-07-24, đúng gate P5 chống overfit): red-team 4/4 GO_WITH_ADJ + verify CƠ CHẾ AN TOÀN (early-return TRƯỚC compute -> số sai 0.005 KHÔNG phát; _MM_FLOOR code-only, 'NEW numbers: []'), NHƯNG ngưỡng sàn (dưới MỌI mm hợp lệ) + tiền đề 'mọi mm nguyên' rút n=1 file = OVERFIT -> FP sàn/lớp mỏng 30-49mm + dim lẻ (grid-split 4237.5, imperial 101.6). HƯỚNG ĐÃ VET (code khi có đa-firm): neo dv=='mm'+nguon (không theo đại-lượng); early-return+HỎI (không tự quy đổi); CỬA-THOÁT xác-nhận-đơn-vị per-input (tránh recall dead-end); prose 'mét HOẶC cm'; CẤM trần-trên-theo-đại-lượng (tái sinh -22.75); chỉ bắt hướng XUỐNG. Memory [[project-i3-bounds-check-nogo]]. --- LỊCH SỬ NO_GO PLAN CŨ (2026-07-24, wf_ce788286): LỖI GỐC của plan cũ: gắn giới hạn vật lý vào TÊN Ô ('chieu_cao') thay vì Ý NGHĨA — slot 'chieu_cao'/mm mang 5 nghĩa vật lý khác nhau qua 8 công thức (cao cột ~3600 / cao tiết diện dầm / dày đế móng / cao tường / dày lớp đắp); áp dải cao-cột (300-100000) cho tất cả -> FP đo được 87.5% trên ca bóc tách VN thật (bê tông lót 100mm, đắp cát 200mm, móng đế 250mm ĐỀU bị cờ oan) = TÁI SINH vụ -22.75 (áp bound đại-lượng-A lên đại-lượng-B). Lan chuyền: hằng biên (300/100000) lọt vào rổ neo grounding qua CHUỖI so_do/ghi_chu -> câu bịa 'Móng sâu 100m' TRƯỚC bị chặn nay LỌT (5/6 câu bịa đổi CHẶN->GIỮ); companion-fix phá test R1 đang LIVE + dán nhãn 'CHƯA CHẮC' cho input sạch (phán quyết đội lốt dữ liệu). 2/3 ví dụ đặc tả gốc SAI sẵn: 'Ø6-51' áp lên chữ nổ vào mã dầm/đường-kính-cọc-cống (_norm 'D800'->ø800); 'kg thép/m3 BT' tử/mẫu khác phạm vi (thép toàn CT / 9 cột 1 tầng TẠM TÍNH). SỐNG SÓT: I3-B (bounds Ø thép trên Ô DK bảng thống kê — đo 0 FP/60 file) + gate provenance vững (0/275 tiết diện tái hiện -22.75). BUG THẬT còn nguyên (cần hướng khác giải): tinh_dai_luong(chieu_cao=3.6 gõ mét) -> 0.005 m3 vẫn dán 'đáng tin' (lệch 1000x). Chi tiết NO_GO: workflow wf_ce788286-914 + PHUONG_AN_NANG_CAP_DU_AN.md I3. HƯỚNG THIẾT KẾ LẠI (chưa vet): khoá bound theo (đại-lượng-vật-lý-THẬT do RESOLVER quyết, không theo ten_input); luật phân định 'chỉ cờ khi KHÔNG tồn tại cách đọc hợp lệ nào'; KHÔNG để số biên lọt rổ grounding; chỉ LỘ cờ, không nhãn tin cậy. --- ✅ I3-U LỚP 1 LIVE 21926c9 [2026-07-25] (phần LÀM-NGAY tách ra, corpus-independent, KHÔNG ngưỡng): vá 2 bug SAI-TỰ-TIN trong tinh_dai_luong. (1b) kết quả làm tròn về 0.0 dù mọi input dương (chieu_cao=3.6 gõ MÉT) TRƯỚC co_ket_qua=True+0.0 m3+\"đọc từ file (đáng tin)\"=lệch 1000x đóng nhãn đáng tin (repro SỐNG); nay kq<=0 -> co_ket_qua=False + cờ BOOL nghi_ngo_don_vi + prose SẠCH SỐ (mirror net<=0). (1a) input đối-tác-cấp (nguon=nguoi_dung_cung_cap) bị dán \"Mọi input đọc trực tiếp từ file\"=SAI provenance; nay co_dung_cap tách nhánh: giữ \"đáng tin\" (R1 pos-control xanh) bỏ khẳng định sai. Red-team-trước-code (12 công thức+độ làm tròn: 0 cấu kiện thật round 0.0=0 FP) + red-team-impl (repro engine thật). Test khoá +4 -> takeoff 258->262; gate [25/25]; qa 129; 0 regress. Prose sạch số+cờ bool -> KHÔNG lọt _collect_numbers. commit+push+deploy+verify LIVE 21926c9. ⛔ I3-U NGƯỠNG-SÀN = NO_GO CÓ SỐ CỨNG: firm-gate MỞ (8 đơn vị thiết kế phân biệt) nhưng đo THẬT 86 file/77083 dim -> FP dưới sàn toàn corpus <50mm=7.67%, chỉ-mm=4.64%, FILE GỐC-MÉT (hạ tầng) <30mm=34.9%/<50mm=37.3%/<100mm=41.0%; corpus dị chủng đơn vị (40mm/25mét/9inch), nhãn không đáng tin -> ngưỡng sàn tuyệt đối CHẾT kể cả đủ firm. Lớp 2 (unit-tag D+C: _nd nhận \"3.6m\", thiếu đơn vị->HỎI, degrade-safe) + Lớp 3 (cross-check A scale-invariant, đo tỷ-lệ-bắn trước-code) đã có kế hoạch, CHƯA code."
+  },
+  {
+   "id": "i4a-detector-bang-ve-net",
+   "name": "I4a — Detector bảng VẼ-BẰNG-NÉT (LINE grid + TEXT) + cảnh báo (recall miss âm thầm)",
+   "status": "done",
+   "evidence": "LIVE 6ff81cc (verify /version+/health 2026-07-25). Vá lỗ hổng RECALL miss-âm-thầm: probe hình học 65 file -> ~29% có bảng schedule vẽ-bằng-nét engine đọc 0 block thép; ~8 bản vẽ KẾT CẤU có bảng thống kê THÉP vẽ-bằng-nét -> thong_ke_thep trả thep_kg=0 + co_bang_thong_ke=False = bỏ sót toàn bộ âm thầm (gần 50/50 với block-ATTRIB). Theo tiền lệ U3/bug-C: I4a = DETECT+CẢNH BÁO (KHÔNG đọc nội dung; reader I4b overfit để sau). MCP tool #29 phat_hien_bang_ve_net: lazy-scan modelspace CAP=RENDER_MAX_ENTITIES; tín hiệu hình học cổng-VÀ LOCAL miễn nhiễm garble/đơn-vị: >=4 vạch-hàng ĐỒNG-ĐIỂM (lượng-tử THÍCH NGHI theo đơn-vị, KHÔNG mm tuyệt đối) + >=2 cột (TRẦN 15 loại lưới-trục cols=48) + >=3 chữ trong bbox; trả bool+so_vung+prose SẠCH SỐ; FAIL-OPEN. mcp_bridge LOẠI tên tool khỏi tool_numbers (tuple exclude, cơ chế U3) -> KHÔNG lọt grounding. SYSTEM_PROMPT rule 8d. Red-team-impl chạy engine THẬT đa-domain: DƯƠNG 6/6 (HIEP CAT/KC nha cong an/KET CAU THAN/Ninh Hai thép + kiến-trúc có bảng cửa/toạ-độ/thiết-bị thật); ÂM 2/2 (mặt-cắt 08.MAT CAT MUONG, bảng OLE 4.Thong ke thep SUA); lưới-trục cols=48 loại đúng. Test khoá synthetic test_bang_ve_net.py 9/9 (dương/âm/fail-open/grounding-exclude/prose-sạch-số). check.sh [25/25]->[26/26], grounding 46->47, 28->29 tool, qa 129, 0 regress. RECALL-FIRST: chỉ LỘ cờ mềm, KHÔNG tự đọc/cộng số. I4b (đọc nội dung->tổng kg) HOÃN tới corpus đa-firm (overfit cao theo style bảng)."
+  },
+  {
+   "id": "i5-tim-kiem-bicat",
+   "name": "I5 (thu gọn) — tim_kiem/liet_ke_chu_theo_layer lộ cờ bi_cat + nudge (recall)",
+   "status": "done",
+   "evidence": "LIVE 8f00510 (verify /version+/health 2026-07-25). Nghiên cứu PIVOT scope (probe chạy THẬT): pagination offset/cursor BỎ (ROI thấp — từ khoá ngữ-nghĩa max ~123 hits, không chạm trần 200, so_ket_qua luôn phơi tổng thật); dem_theo_block DEFER (value-probe: 2/3 file mọi block ngữ-nghĩa đã trong top-25 liet_ke_block, file thứ 3 block ngoài top-25 chủ yếu annotation + bẫy số-chèn≠số-cấu-kiện). CHỈ CÒN khe recall đo được: default gioi_han=40 < 76-123 cắt âm thầm. Vá: thêm cờ BOOL bi_cat (len(hits)>len(ket)) + nudge ghi_chu (gọi lại gioi_han cao hơn) cho tim_kiem VÀ liet_ke_chu_theo_layer; prose SẠCH SỐ (số ở field, không lọt grounding dù tim_kiem không bị loại tool_numbers); ADDITIVE (giữ default 40, giữ gioi_han âm->hien_thi=0). Red-team-impl chạy engine thật. Test khoá +8 (test_misc_tools kiem_tim_kiem_bicat KT/KC) -> misc 84->94. Gate [26/26], qa 129, 0 regress. Bài học: nghiên cứu-trước-code SAVE build 2 feature ROI thấp."
+  },
+  {
+   "id": "i9-tach-system-prompt",
+   "name": "I9 — Tách SYSTEM_PROMPT (luật bất-biến / quy-ước-VN) có version + hash",
+   "status": "done",
+   "evidence": "LIVE de69324 (verify /version: prompt_hash=bea17c6eec564361f3c2fca21fb1cdd458078b3cda45be1d7f61827100a70e18 + prompt_version=i9-2026.07.25 + commit=de69324 + /health ok, 2026-07-25). Gate [27/27] PASS, byte-identical (hash GIỮ NGUYÊN local Windows-CRLF + Render Linux-LF = xác nhận EOL-independent vì fragment dùng escape \\n, không phải newline vật lý). Chọn hướng qua workflow 9-agent (3 design A+/B/C + 5 red-team lăng kính chạy engine thật + synth): 5/5 lăng kính chọn A+. B (đảo thứ tự) BÁC vì (i) prompt là lõi chống-bịa, đổi text = cần đo LIVE mà LIVE KHÔNG chứng minh nổi non-regression: đo thật 2 run temp=0 trùng 0/173 câu trả lời + lệch 44% handle-set, nhóm an toàn 0/23 tái lập -> noise floor > effect size; (ii) 'tách thật' phần lớn ẢO — 34/39 mệnh đề chống-bịa (⛔) lồng trong thân rule VN, reorder header không dời được. C-external (prompt ra file) BÁC vì phá offline-import mà check.sh + 2 test prompt phụ thuộc. A+ = tách mảnh có TÊN (23 mảnh) gộp _INVARIANT(7)/_VN_CONVENTION(15)/_HEADER(1) + _EMIT_ORDER GIỮ NGUYÊN byte order -> SYSTEM_PROMPT byte-identical (0 rủi ro hành vi, KHÔNG cần đo LIVE), + PROMPT_VERSION/PROMPT_HASH lộ ở /version (audit: trước /version KHÔNG có định danh prompt). Fragment sinh bằng SLICE chuỗi đóng băng (KHÔNG gõ tay -> chống lỗi transcription ★/⛔/space). Docstring TRUNG THỰC: 'tách' là NHÃN/INDEX, KHÔNG phải tách rời điều khoản (nhiều mảnh VN vẫn chứa ⛔). Nguồn: 2 mảnh 8c trùng nhãn -> tách tên _P_R8c_OLE/_P_R8c_INOX (khử trùng ở source, GIỮ nhãn '8c.' byte-identical). Test test_prompt_taxonomy.py 24 ca (byte-lock sha256 + lắp ráp + phân hoạch + anchor regression) wired check.sh [26->27]. test_app_routes +2 (prompt_version/prompt_hash). check.sh [27/27], takeoff 262/misc 94/grounding 47/qa 129 KHÔNG đổi = 0 regress. Reorder sạch (Option B) hoãn = 1 dòng sửa _EMIT_ORDER rồi ĐO LIVE A/B với baseline đóng băng (chỉ khi muốn thử primacy, không phải kết luận sẵn). Workflow: wf_f1111f89-fa0."
+  },
+  {
+   "id": "i3u-l2-unit-tag-codeonly",
+   "name": "I3-U Lớp 2 (code-only) — quy đổi đơn vị độ dài tất định trong tinh_dai_luong",
+   "status": "done",
+   "evidence": "LIVE `9d90b25` (code). Helper `_quy_doi_don_vi_dai`: quy CHUỖI có TAG đơn-vị-độ-dài ('3.6m'/'360cm'/'36dm'/'3600mm'/'3,6m') → mm (re.fullmatch neo đầu-cuối). CODE tính KHÔNG để LLM/đối tác nhân ×1000. Cắm vào vòng dispatch tinh_dai_luong CHỈ khi dv=='mm' VÀ input là CHUỖI khớp tag → vá đường TỪ-CHỐI-OAN (trước: '3.6m' qua _nd giữ raw → cổng 'xau' đá vào so_lieu_khong_hop_le). LỘ giả định qua field quy_doi_don_vi (thất-bại-phải-lộ). **Robust cho MỌI MCP-client**: client trực tiếp (Claude Desktop/Cursor) KHÔNG có luật ×1000 của SYSTEM_PROMPT → '3.6m' tới thẳng tool bị từ-chối-oan; nay tool tự hiểu. **Chọn qua workflow probe 5 ứng viên nhóm A (wf_fc8788d7-dd2): CẢ 5 HOAN** (guard đã cực rộng tay từ-chối-oan≈0/198; lớp resolver bão hoà chống-bịa; detector-bỏ-sót báo động 90% mọi file; U2/U3-OCR blocked) = safe-cheap-A gần cạn; C4 code-only là giao điểm duy nhất (chạm recall/từ-chối-oan) × doable-now × không-blocked × rủi-ro-thấp. **AN TOÀN (red-team-impl chạy engine THẬT 54/54):** degrade-safe — số/'3600'/bare-3.6/kg/m²/'-3.6m'/'0m'/'3.6 m2' giữ hành vi cũ (0 regression); CHỈ tag tường minh + CHỈ dv=='mm' (gate dv, _rs_bs_only dùng chung bộ/kg/m² không đụng); KHÔNG đoán đơn vị số-trần (chống bịa đơn vị); KHÔNG động SYSTEM_PROMPT/grounding-guard → luồng Gemini KHÔNG đổi hành vi (không cần đo LIVE để ship); I3-U L1 vẫn hoạt động; note không tạo anchor grounding mới. Test +10 (I3-U L2 + C1-lite standing invariant) → takeoff 262→272; check.sh [27/27] PASS, 0 regress. commit+push+deploy+verify LIVE. **⏳ PHẦN CÒN LẠI (user CHỐT làm LẦN SAU + đo LIVE — NHẮC user):** đổi SYSTEM_PROMPT để CODE sở hữu unit-math (Gemini truyền 'giá-trị+đơn-vị verbatim', ngưng ×1000) + update tests/kichban_gd2.py (đang assert 3600) = mở khoá giá trị thật, đúng ethos 'code tính không LLM tính'."
+  },
+  {
+   "id": "recall-offline-abc",
+   "name": "Recall offline A/B/C — vá 7/9 ca recall-miss tool-bug (D2-x matching + thong_tin_file + bang_con subtotal)",
+   "status": "done",
+   "evidence": "LIVE `81b0a52` (code). Root-cause 60 ca recall-miss qua workflow `wf_0d021c50-125` (probe engine THẬT offline): 48/60 = GEMINI ROUTING (tool CÓ data, tim_kiem trả đúng, Gemini từ chối thay vì gọi) → vá PROMPT/tool-desc (LIVE); 9/60 = tool bug THẬT → 3 fix code; 3-4 = từ chối ĐÚNG; 13 hatang = chặn RAM 45MB (hạ tầng, file 81.6MB). A (_tok_bound): chuẩn hoá ĐỐI XỨNG token+label — strip gạch CHỮ→SỐ (C-1==C1), GIỮ gạch SỐ-SỐ ('D2-4') → 'D2-4' khớp 'd2-4' (recall id73/93/103 + cả LỚP mã D<số>-<số>); 'D2' (họ) VẪN khớp 'D2-n' qua ranh giới. ⚠ Gate BẮT 1 regress (strip-all phá 'D2' khớp họ: tong_so_luong 40→0) → sửa đối xứng. B (thong_tin_file, MCP tool #30): read-only wrap tom_tat() → vá id39/107 (metadata lúc hỏi). C (bang_con, thong_ke_thep_hinh): subtotal RIÊNG từng bảng (ô 'TỔNG KHỐI LƯỢNG (kG): N' KCS_THONGKE ghép tiêu đề gần nhất theo toạ độ) → vá id22/32 (2163.02, 161.21); đọc nguyên văn + handle, KHÔNG tự cộng. Red-team-impl engine THẬT (A: D2-4→SL5/D2-7→2/D2-2→2 + D2-họ + biên · B: name+dxfversion · C: 10 subtotal đúng). Test +13 (test_misc_tools 94→107). check.sh [27/27] PASS, takeoff 272, 30 tool, 0 regress. ✅ verify LIVE `81b0a52`. ⏳ CÒN (LIVE task riêng): ~35 routing-miss → vá SYSTEM_PROMPT gọi tim_kiem trước khi từ chối (R1-R5) + I3-U L2 prompt-half; 13 hatang → nâng RAM (nhóm C)."
+  },
+  {
+   "id": "live-routing-prompt-half",
+   "name": "LIVE bundle — routing prompt (R7b) + I3-U L2 prompt-half (đo LIVE A/B, GO)",
+   "status": "done",
+   "evidence": "LIVE `d244865`. Đổi 2 fragment SYSTEM_PROMPT (nền I9 tách mảnh): PROMPT_VERSION `2026.07.26-routing-l2`, hash `bea17c6e`→`e5e05d7d` (re-freeze test_prompt_taxonomy: FROZEN + emit 23→24 + VN 15→16). (1) ROUTING `_P_R7b` (VN_CONVENTION): tool CHUYÊN DÙNG rỗng cho câu VẬT LIỆU/GHI CHÚ/THÔNG SỐ → BẮT BUỘC gọi tim_kiem theo từ-khoá TRƯỚC khi kết luận 'không có'; hỏi tên/phiên bản file → thong_tin_file; GIỮ chống bịa (trích nguyên văn+handle, KHÔNG suy diễn luật 8, số truy được về tool). Vá cluster routing-miss (đòn bẩy recall lớn nhất: 48/60). (2) PROMPT-HALF `_P_R10`: đối tác cấp số thiếu → truyền NGUYÊN giá-trị+đơn-vị ('{chieu_cao:\"3.6m\"}'); CODE tự quy đổi mm (I3-U L2 code-only 9d90b25). **ĐO LIVE A/B (key user, harness live_measure.py) BASELINE vs NEW trên 43 routing + 26 trap anti-bịa + prompt-half:** RECALL refused 19→15 (~5 gain ĐÚNG có handle: mica 7 màu id48, phụ kiện cửa DW id49, độ dốc i= id197, D2-4 SL=5 id73 [Pattern A qua Gemini], đánh dấu bể PCCC id54; 0 bịa; 1 loss variance id187). ANTI-BỊA (soi từng delta): MỌI trap suy-diễn/lạc-đề VẪN từ chối đúng (chiều dài công trình id151, khoảng cách id153, toạ độ id154, hướng id155, giá dự toán id150); 0 trap lật sang loi_san bịa; vài trap NEW an toàn hơn (id12/30/100/122) → routing nudge KHÔNG phá chống bịa. PROMPT-HALF: Gemini truyền '3.6m'/'360cm' verbatim → code quy đổi → 4.704 m³ đúng; ca Gemini vẫn ×1000 (3600) vẫn đúng nhờ code backstop. ⇒ GO. **Caveat trung thực: 1 A/B run + Gemini variance (temp=0 vẫn biến) — hướng rõ ràng + an toàn, không overclaim.** check.sh [27/27], takeoff 272, 0 regress. ✅ commit+push+deploy+verify LIVE `d244865`. **⏳ CÒN nhóm A:** 13 hatang chặn RAM 45MB (→ nhóm C nâng RAM); vài ca recall biên (Pattern D/E rủi ro, hoãn); id135 deep chờ file; đo lặp A/B nhiều lần để firm-up nếu cần."
+  },
+  {
+   "id": "kb-l0-dispatch-gate",
+   "name": "L0 kho kiến thức — GATE DISPATCH-SIDE (chặn thi hành tool host-only/tên lạ trước bridge.call)",
+   "status": "done",
+   "evidence": "Pivot AI-tự-học 2026-07-26 (KE_HOACH_KHO_KIEN_THUC.md). Lỗ AN NINH HIỆN HỮU tự xác minh: _TOOL_KHONG_CHO_LLM (mcp_bridge:173) chỉ lọc DECLARATION (gemini_tools :177); vòng dispatch tra_loi_ai (:700) bridge.call(fc.name) thi hành MỌI tên tool model phát → model/chữ-trong-file gọi được hoc_quy_uoc/nap_ban_ve/thu_hoi_quy_uoc/kiem_tra_handle bằng cách phát đúng TÊN. Vá: _ten_tool_cho_llm(bridge.tools) + gate 'fc.name not in _ten_llm' TRƯỚC bridge.call → trả _loi_tool_host_only() (dict TƯƠI, SẠCH SỐ, KHÔNG chèn fc.name — tên do model phát có thể chứa chữ số lọt rổ grounding) + tự append FunctionResponse + continue (không qua nhánh evidence/_collect_numbers). Test tests/test_dispatch_gate.py 11/11 (G1 tập dispatch loại đủ 4 host-only + G2 khớp tập declaration + G3 từ-chối sạch-số đo THẬT qua _collect_numbers + G4 source-guard thứ tự gate-trước-call). check.sh [28]."
+  },
+  {
+   "id": "kb-l1-kienthuc-module",
+   "name": "L1 kho kiến thức — kienthuc.py 24 entry đợt đầu + validator bất biến + KB_VERSION/KB_HASH + kb_refreeze.sh + /version",
+   "status": "done",
+   "evidence": "Kho DEV-soạn đợt đầu 24 entry (ca đã-trả-giá + va-chạm đo được: cặp ĐC↔DC 2-tầng-khoá giữ đ/d; CH cửa/chiều-cao/cao-độ; họ D/Đ/C/T/S/V/K va TÊN TRỤC; vật liệu B/M; DK/TL/L/i phân-biệt-bằng-hình-thức (không hỏi); Km+ lý trình; cút góc ống; 'WORD - n.nnn'; mũi cọc≠đáy đài; word-like WC/GM cấm suppression). Bất biến validator kiem_tra_kho(): payload digit-free (chống lọt grounding) + identifier toàn chữ + on_collision ASK 100% + confusable phải có confirm_template với option khac_khong_chac + trùng khoá-sập phải có cạnh confusable_with. Data thuần không I/O, không import dự án; degrade-safe (thiếu file hệ chạy y cũ — CHƯA ai import ở L1). KB_HASH sha256 byte-lock kiểu I9 + lệnh harness/scripts/kb_refreeze.sh (tách chu kỳ sửa-kho khỏi sửa-prompt); /version lộ kb_version+kb_hash. Test tests/test_kienthuc.py 11/11 (K3 B5-lite: _collect_numbers(payload mọi entry)==RỖNG đo qua hàm THẬT; K5 tra cứu 2 tầng ĐC≠DC + kéo cạnh; K8 grep-guard data-thuần). check.sh [29]. ⏳ L2 strip '_kb' + L3 tra_ky_hieu + L4 graft-gate + L5 /xac-nhan theo KE_HOACH_KHO_KIEN_THUC.md."
+  },
+  {
+   "id": "kb-l4-graft-gate",
+   "name": "L4 kho kiến thức — graft có GATE bằng-chứng-dương vào phan_loai_tin_hieu/doi_chieu_nghi_ngo + móc 'WORD - n.nnn' cao_do_min_max",
+   "status": "done",
+   "evidence": "Graft kho vào 3 điểm đọc, ADDITIVE + fail-open tuyệt đối (try/except trả None — kho không bao giờ phá tool; thiếu kienthuc.py hệ chạy y cũ). GATE chống bão-hỏi (đo được 50-80% câu thừa nếu không gate): chỉ hỏi khi (a) entry confusable VÀ ((CẢ 2 dạng raw cùng tồn tại trong CHÍNH file qua cạnh confusable_with — vd ĐC-1 & DC-1) HOẶC (mã dính ≥2 LOẠI index section+door)) VÀ (b) engine CHƯA tự ghép đúng 1 loại VÀ (c) chưa hỏi (entry|mã) trong phiên; CAP 1 câu/lượt; trạng thái kb_hoi chống lặp (RT4-4); kb_da_phat ghi (entry,option) làm nền L5 xác nhận fail-closed; legend-note khi file có bảng chú thích. MỌI dữ liệu gốc-kho dưới key '_kb' (L2 strip trước rổ grounding); nguyên văn+handle file nằm NGOÀI '_kb' (không từ-chối-oan). Móc cb_am ('WORD - n.nnn') = đường kích hoạt thật ca CH-2.700 → câu hỏi cao_do_am vs chieu_cao. Test tests/test_kb_graft.py 18/18 (synthetic, offline) → check.sh [30]. RED-TEAM-IMPL corpus THẬT: file kết cấu móng C1 có cặp ĐC/DC thật → HỎI đúng (options dai_coc/dam/khac); file kết cấu thuần cột → 0/9 mã bị hỏi (không bão-hỏi); file KT khác → 1 ca fire là mâu-thuẫn 2-index THẬT (D1 vừa section vừa door = đúng bài học id84 DẦM D1≠CỬA D1). ⏳ L3 (tra_ky_hieu + _P_R18, cần A/B LIVE) + L5 (/xac-nhan + nút UI) theo KE_HOACH_KHO_KIEN_THUC.md."
+  },
+  {
+   "id": "kb-l5-xac-nhan",
+   "name": "L5 kho kiến thức — kênh xác nhận CONFIRM-ONLY: tool host-only + endpoint /xac-nhan + nút bấm web UI",
+   "status": "done",
+   "evidence": "User duyệt làm nút (AskUserQuestion 2026-07-26). Kênh xác nhận = NGƯỜI BẤM, KHÔNG qua chat/AI: (1) Drawing.xac_nhan_ky_hieu FAIL-CLOSED 3 lớp (kb_id tồn tại + option ∈ ENUM dev-soạn + (entry,option) ∈ kb_da_phat ĐÃ PHÁT trong phiên — không xác nhận khống); state per (entry|mã _norm_ma): da_xac_nhan (nhãn 'theo xác nhận trong phiên file này', KHÔNG đổi số nào) / khac_khong_chac (giữ trạng thái bí, không nhãn, suppress re-ask) / thu_hoi (gỡ nhãn + CHO hỏi lại); sống trên Drawing như hoc_phien → nạp file khác reset. (2) MCP tool #31 xac_nhan_ky_hieu HOST-ONLY 2 hàng rào (_TOOL_KHONG_CHO_LLM declaration-filter + L0 dispatch-gate — AI phát đúng tên cũng bị chặn) + WORM log xác nhận + log kb_id lúc PHÁT-HỎI (hoi_de_hoc) làm nhiên liệu dev codify. (3) mcp_bridge._kb_hoi_tu_result gom câu hỏi confirm ('_kb' có cau_hoi, top-level + nested nghi_ngo, dedupe, bỏ note) → tra_loi_ai trả 'kb_cau_hoi' ở mọi return thành công. (4) app.py POST /xac-nhan (session-lock, bridge.call thẳng, 400 khi chưa nạp) + PAGE JS kbHtml/xacNhanBtn render nút từ kb_cau_hoi (data-attribute + esc mở rộng escape dấu-nháy-kép chống chèn thuộc tính; caption 'Chỉ bạn bấm được — AI không tự chọn'). L4 helpers phát kèm 'ma' echo + check kb_xacnhan trước khi hỏi (đã xác nhận → nhãn, không hỏi lại). Test tests/test_kb_xacnhan.py 19/19 → check.sh [31]. ⏳ CÒN L3 (tra_ky_hieu + _P_R18 — đo A/B LIVE bằng key user đưa, user chốt KHÔNG đổi key) · L6 · L7 HOÃN."
+  },
+  {
+   "id": "kb-l3-tra-ky-hieu",
+   "name": "L3 kho kiến thức — tool #32 tra_ky_hieu + mảnh prompt _P_R18 (đo A/B LIVE GO)",
+   "status": "done",
+   "evidence": "Tool #32 tra_ky_hieu (PHƠI LLM — ngược xac_nhan host-only): tra kho read-only; khoá SẬP kéo NHÓM dễ-nhầm ('DC' kéo cả ĐC qua cạnh) + khop_chinh_xac giữ đ/d; FAIL-OPEN ngoài kho ('KHÔNG đoán'); injection vô hại; trạng thái đã-xác-nhận phiên; câu hỏi confirm CHỈ qua '_kb' CÓ GATE; LOẠI TOÀN PHẦN khỏi rổ grounding; WORM log ký-hiệu-MISS. _P_R18 (chỉ luật trình bày + định tuyến; chèn TRƯỚC _P_R9 tiền lệ R7b; emit 24→25, VN 16→17) → PROMPT_VERSION 2026.07.27-kb-l3, re-freeze FROZEN 239e8b7b… (taxonomy 24/24). Test test_tra_ky_hieu.py 13/13 → check.sh [32]; full gate [32/32] PASS. **ĐO A/B LIVE (key user, 15 câu × 2 vế, 2 bridge riêng chống nhiễu-state): routing 6/6 cả 2 vế (tool-desc tự lái; R18 = đai); TRAP CHỐNG-BỊA 5/5 GIỮ cả 2 vế (0 lật); recall giữ (24 bộ D1 [67CDF]); kb_cau_hoi=1 nổi đúng file cặp ĐC/DC; GIÁ TRỊ R18 THẬT = trình bày: nêu NGUYÊN VĂN câu hỏi + ĐỦ 4 phương án khớp nút bấm (A chỉ hỏi chung chung) + nêu đủ nghĩa + caveat 'kho ≠ bản vẽ này' → GO** (caveat: 1 run + Gemini variance, không overclaim). Kết quả JSONL ở scratchpad ab_l3_results.jsonl."
+  },
+  {
+   "id": "kb-l6-garble-dia",
+   "name": "L6 kho kiến thức chỉ điểm — fold garble ĐƯỜNG KÍNH ('ỉ/Ỉ' + '/g|/G' liền số → Ø) tầng code, có gông + đo corpus",
+   "status": "done",
+   "evidence": "Thiết kế từ red-team kho (RT2-4: alias garble CẤM vào kho — vá tầng CODE có gông + đo corpus). Bằng chứng ≥3 firm: 'kim thu sét ỉ20'/'dây tiếp địa ỉ14' (điện C1-PVT 18×) · 'cọc thép mạ đồng Ỉ16X2400' mà CÙNG FILE ghi 'Ø16 DÀI 2,4m' cùng đối tượng (Kẻ Sặt — chứng cứ chéo nội-file) · 'ống nhựa thông hơi ỉ50' (cỡ uPVC chuẩn) · '/g10' 67× cạnh rải a150 (Hiệp Cát) · 'MO/SC CA/M/RU /G8'=MÓC CẨU Ø8 (họ-slash PVT) · 'thép ỉ10 neo xà gồ' (KT CT-A). Cơ chế: _GARBLE_DIA_RE trong _garble_fold — fold TRƯỚC unaccent (unaccent sập ỉ→i mất phân biệt thép hình I10/độ dốc i); GÔNG: không dính CHỮ trước + LIỀN SỐ sau. ĐO: quét 53 file <20MB → 98 'ỉ' + 568 '/g' mở khoá, 0 PHẢN-KHỚP toàn corpus; Drawing-level trước/sau 4 file (CAPDIEN/KETCAU_CA/MONG/KT-control): thep_kg + qty + cao_do + so_text BẤT BIẾN 100%, recall tìm-Ø tăng đúng (KETCAU_CA Ø10 11→78; CAPDIEN Ø10 0→12; MONG Ø8 72→80; KT +1 hit XÁC MINH THẬT 'thép ỉ10 neo xà gồ'). Test test_garble_dia.py 26/26 (8 dương + 10 phản-khớp + canonical + engine synthetic + real-corpus guard + source-guard) → check.sh [33]. HỌ-SLASH ĐẦY ĐỦ (decode 'CO/M/ST THE/SP'→'CỐT THÉP'...) DEFER — 1 file/1 firm, mapping phức tạp, rủi ro 'kG//cm2'; subset '/G8'→Ø8 đã ăn theo fold này."
+  },
+  {
+   "id": "kb-l5-va-3-bug",
+   "name": "Vá 3 bug L5 (xác nhận ký hiệu): undo nói dối + cổng không khoá theo mã + thiếu nút Hoàn tác — kèm 7 vá từ red-team",
+   "status": "done",
+   "evidence": "User yêu cầu 2026-07-27 sau khi nghiên cứu L7 (BỎ) lộ 3 bug THẬT trong L5 đang LIVE; tôi TỰ tái hiện cả 3 bằng engine thật trước khi vá. (0) UNDO TRUNG THỰC: thu_hoi trước LUÔN trả ok=True + 'đã gỡ (nếu có)' -> trượt khoá đ/d ('DC-1' vs 'djc-1', bản vá id84) vẫn in '✔ Đã gỡ' trong khi state còn nguyên; nay pop CẢ kb_xacnhan LẪN kb_hoi, không gỡ được -> ok=False + tu_choi khong_co_gi_de_go, gỡ được -> loai_da_go xac_nhan|trang_thai_hoi với câu chữ ĐÚNG từng ca; frontend kiểm da_thu_hoi. (1) CỔNG KHOÁ THEO MÃ: kb_da_phat cặp (entry,option) -> BỘ BA (entry,option,ma_key); hỏi 1 mã KHÔNG còn mở khoá mọi mã (repro cũ: xác nhận 'MA-KHAC-999' lọt); kênh cao độ có hằng _KB_KENH_CAO_DO='@cao_do' riêng, hết lấn không gian khoá. (2) NÚT HOÀN TÁC + BẢNG: Drawing.danh_sach_xac_nhan + MCP tool #33 danh_sach_xac_nhan (HOST-ONLY) + GET /xac-nhan/danh-sach + frontend giữ khối nút, thêm '↩ Hoàn tác' + bảng #xnbox thường trực gỡ từng mục; 'khác/không chắc' GỠ ĐƯỢC -> câu hỏi quay lại (trước khoá tới hết phiên). RED-TEAM IMPL (workflow wf_5a1e6c98-979, 4 agent engine thật) verdict GO_WITH_ADJUSTMENTS, 0 CHẶN, bắt 3 CAO + 4 TB/THẤP ĐỀU ĐÃ VÁ: CAO-1 lệch khoá strip/truncate (hệ HỎI rồi TỪ CHỐI chính câu nó hỏi, mã >40 hoặc có khoảng trắng -> kẹt chết cả phiên) -> chuẩn hoá MỘT LẦN ở biên; CAO-2 route xác nhận TẠO phiên -> 4 GET vô danh đuổi phiên đang mở bản vẽ qua LRU -> thêm _phien_hien_co() (không tạo, chỉ tra cookie) cho CẢ 2 route; CAO-3 bảng thiếu/dư -> taiDanhSach() ở init + showSum; TB hoanTacDs nuốt lỗi -> kiểm da_thu_hoi; TB doi_chieu_nghi_ngo lật ngược 'cần XÁC NHẬN' NGAY SAU khi xác nhận (bug L5 gốc) -> loại cả cờ da_xac_nhan; THẤP bảng phơi khoá 'djc-1' -> kb_ma_goc giữ dạng người đọc; THẤP thu_hoi:'false' chuỗi truthy -> ép kiểu chặt; THẤP GET chờ khoá vô hạn -> acquire(timeout=3). Red-team KHÔNG phá được: xác nhận khống, va chạm khoá 2 chiều, undo 2 lần/trượt khoá, tất định vòng undo (deepcopy state), AI chặn 2 tầng cả 2 tool mới, _kb không lọt grounding, fail-open, XSS 5 payload, fuzz 40.000 chuỗi _norm_ma. Test test_kb_xacnhan.py 19->44 ca (X9-X18 khoá đúng từng lỗ); gate bắt 2 regress (test_kb_graft A6 khoá dạng cặp cũ; X6b ăn ké phiên do route tự tạo) -> cập nhật theo dạng MỚI chặt hơn. check.sh [33/33] PASS, 0 regress. 32->33 MCP tool."
+  },
+  {
+   "id": "chiu-tai-keepalive",
+   "name": "Keep-alive hết HỎNG THẦM (ping trước rồi ngủ, chu kỳ 5', bộ đếm ok/lỗi phơi ở /health)",
+   "status": "done",
+   "evidence": "LIVE eba4d67; test_health 11->23 (L.6/L.7 đồng hồ ảo); /health.keepalive ok=1 tại uptime 15s trên Render"
+  },
+  {
+   "id": "chiu-tai-bounded-lock",
+   "name": "3 route KHÔNG chờ khoá phiên VÔ HẠN + body từ chối đủ khoá cho frontend",
+   "status": "done",
+   "evidence": "LIVE eba4d67; test_session K.9 (25->36); đo trước vá: POST /xac-nhan nằm 11.60s"
+  },
+  {
+   "id": "chiu-tai-tran-ban-ve",
+   "name": "TRẦN SỐ BẢN VẼ trong RAM (MAX_BAN_VE) — chặn ở cửa vào thay vì tràn RAM",
+   "status": "done",
+   "evidence": "LIVE 371d950; test_admission.py 63 ca (A.1-A.17); /health ban_ve/max_ban_ve"
+  },
+  {
+   "id": "chiu-tai-mo-coi",
+   "name": "Dọn tiến trình con MỒ CÔI khi spawn quá hạn + call() không treo sau close()",
+   "status": "done",
+   "evidence": "LIVE 371d950; test_bridge_close.py 28 ca (B.1-B.6, spawn thật); 3-5 vòng 0 con sót"
+  },
+  {
+   "id": "chiu-tai-nap-that-bai",
+   "name": "Nạp thất bại phải LỘ (đọc res.isError; đòi dấu hiệu THÀNH CÔNG) + không bịa summary",
+   "status": "done",
+   "evidence": "LIVE 371d950; A.14 + B.6 qua đường truyền MCP thật; đóng luôn lỗ model tự bơm số vào rổ grounding"
+  },
+  {
+   "id": "chiu-tai-ram-quan-sat",
+   "name": "Phơi RAM Linux thật + số liệu gate ở /health (ram_mb, ban_ve, dang_nap, tu_choi)",
+   "status": "done",
+   "evidence": "LIVE 371d950; đo được ram_mb=135.3MB trên Render (lần đầu)"
+  },
+  {
+   "id": "chiu-tai-tran-file-theo-doi-tuong",
+   "name": "Trần đọc file bound theo SỐ ĐỐI TƯỢNG (cổng theo MB không bound được RAM)",
+   "status": "deferred",
+   "evidence": "Đo thật: 38.54MiB/35772 obj -> 260.3MB vs 39.28MiB/145807 obj -> 398.7MB. User chốt 2026-07-30 giữ READFILE_MAX_MB=45, chốt ngưỡng sau khi đọc ram_mb thật khi có bản vẽ nạp"
+  },
+  {
+   "id": "doc-he-so-ty-le-do",
+   "name": "Doc dung HE SO TI LE DO cua ban ve (DIMLFAC) — 21,5% duong kich thuoc dang bi doc sai",
+   "status": "done",
+   "evidence": "commit 6de1aaa (CHUA push); do that 40 file/15.608 duong: 3.352 duong (21,5%) khai he so !=1, 17/40 file; doi chieu chu in: khop 'so do x he so' 19 / khop tho 0; test_ty_le_do 17 ca, check.sh 35->36"
+  },
+  {
+   "id": "doc-chu-trong-khoi",
+   "name": "Doc chu trong DINH NGHIA KHOI vao kho chu chung",
+   "status": "deferred",
+   "evidence": "BAC BO co so cung (wf_0cdb83d4-bca): 71,6% la nhan DIMENSION da doc; 55,7% khoi la khoi CHET (khoi chet ghi '156 coc' vs ban ve song '131 COC'); ma cau kien chi 0,8%; loi ich +3,0% ma 19/71 file bang 0; toa do he noi bo -> khoanh do sai cho; cao_do KT -2.1 -> -94.44; id135 rachmop -14.26 -> -16.14 ma cong van XANH. THAY BANG tool doc rieng tim_chu_trong_ky_hieu (chua lam)"
+  },
+  {
+   "id": "canh-bao-ghi-de-kich-thuoc",
+   "name": "Canh bao chu IN tren duong kich thuoc khac so do (ghi de THAT)",
+   "status": "done",
+   "evidence": "LIVE 138d104. `_dang_chu_in` + `_thu_thap_chu_in` + 3 co BOOL tren thong_tin_kich_thuoc + 1 cau prose SACH SO. DO THAT: luat bat 1.098 duong/26 file; co 'lan rong' bat 19/66 = 29% file co duong kich thuoc (duoi tran 45% -> GIU nguong). CA HAI menh de deu can: '02.Cap dien ngoai nha' luat bat 0 duong nhung 66/66 = 100% bi go de (chi nhanh 'hau het' thay). Con so 837 dim/15 file trong thiet ke cu KHONG tai lap duoc. test_chu_in_kich_thuoc 24 ca. KHONG doi bat ky so nao."
+  },
+  {
+   "id": "co-chua-voi-toi-vung-nay",
+   "name": "Co 'may chua voi toi vung nay' thay vi im lang tra 'khong co'",
+   "status": "done",
+   "evidence": "LIVE 138d104 (+ siet o 5756b37). Co `co_o_vung_chua_doc` tren 4 tool (tim_kiem / dem_so_luong / tra_cuu_so_luong nhanh AM / liet_ke_so_luong). Ro bong = chu TEXT/MTEXT trong dinh nghia khoi DUOC CHEN (khong ATTDEF, khong khoi mo coi, khong trang in), khop CHI tren to_unicode. TI LE NHIEU 15,3% -> 0,0% sau khi siet ve 'chen >=2 lan' chi ap cho truy van MANG MA; sau do them CHAN MANH VUN ('100' khop ti le '1/100' o 11 file) va DOI DUNG DAU ('cua'!='cua', 'mac'!='mac tien trinh' — ten nguoi ky): ca bat co 20->5, khop mu dau 15->0. test_vung_chua_doc 44 ca."
+  },
+  {
+   "id": "guard-so-dem",
+   "name": "Hang rao chong bia cho SO DEM (hien chi soi so DO LUONG)",
+   "status": "done",
+   "evidence": "LIVE 5f21ae9. `_DEM_NUM_RE` (so + danh tu dem) vao `do_luong`, dat SAU `_MAHIEU_RES`. DO TRUOC-CODE tren 198 cau tra loi THAT, ro neo dung lai tu engine, cham bang NHAN DOC LAP `ky_vong`: 106/198=54% cau co khang dinh dem, **62/198=31% CHI co so dem** (hang rao bo qua hoan toan); trong 72 cau ban va cham toi: chan them 1, **GIET OAN 0**, bat dung 1 (id123 model noi '120 lan' trong khi dem_so_luong tra 5). Profile NGUOC HAN per-claim. 2 quyet dinh KHONG-LAM co so: bien the khong dau (+0/198) va ten LOAI DXF (1/198 va la BAO DONG GIA '01 TEXT' = ten layer). test_grounding_guard 50->56."
+  },
+  {
+   "id": "nguon-so-do-code42",
+   "status": "done",
+   "name": "Doc DUNG so do duong kich thuoc: he so ti le AM + duong do GOC + so do AutoCAD tu luu (code 42)",
+   "evidence": "LIVE 138d104. BA loi DOC LAP o nhanh DIMENSION. (1) He so ti le AM bi ap (loi do chinh commit DIMLFAC 6de1aaa sinh ra, khi do CHUA push): 1.882 duong/4 file thanh AM -> bi cac cong loc duong vut IM LANG trong khi so_duong_kich_thuoc van dem du; nang nhat 1.186/1.650 = 71,9% mot file. (2) Duong do GOC (dimtype&7 in 2,5) coi la mm — '01-TD' bao 35.970 mm cho GOC 359,7 do, kem cau TRAN AN rang so khop ban ve; loi CO TRUOC DIMLFAC. (3) Khong ai doc group code 42 (so do AutoCAD TU LUU, co mat 94,9%): phep thu khong thien vi 54.735 duong -> code42 dung RIENG 2.936 / engine dung RIENG **0**; dim dai-XIEN engine chi dung 37,2%. USER CHOT dung code42 lam nguon chinh. ⚠ code42 CHI dang tin khi HINH HOC CON DO NO: red-team bat duoc ban va dau 'cuu' ca hinh-hoc-suy-bien -> 66/607 ca BIA SO (ban ve in 10000, may phat 2136,3); nay chi cuu khi KHONG go de chu (529 ca cuu dung giu nguyen). Them dimtype 6 (do TOA DO) vao dien loai. TU KIEM NGUOC 73 file: 47 file doi so, 0 sinh so am, 34 file duoc cuu so do. test_so_do_dim 27 ca; test_ty_le_do 17->25."
+  },
+  {
+   "id": "neo-grounding-sach",
+   "status": "done",
+   "name": "Bit 3 kenh bom NEO GROUNDING tu ngoai noi dung ban ve (ma hieu / ten file / handle)",
+   "evidence": "LIVE 5548fe1 + 5756b37. (1) Gach noi trong MA HIEU sinh neo AM: 'DAM D2-10'->-10 · 68/76 file co >=1 neo am · 24/76 file co neo am nam DUNG dai cao do sinh THUAN tu ma hieu = ten dam cap phep bia cao do (dung lop loi id135). BAT DOI XUNG: phia CAU TRA LOI da strip ma-hieu, phia RO NEO thi khong. (2) TEN FILE lam bang chung: cung noi dung byte, doi ten thanh 'MC coc -13.7 va 7500.dxf' -> dung 2 cau bia mang so do chuyen tu CHAN sang LOT; kenh do NGUOI DUNG kiem soat 100%. (3) HANDLE (ma hex noi bo) — kenh RONG NHAT, MOI tool tra handle deu dinh: ket qua gom 3 handle + chu KHONG CO SO NAO van sinh ro neo [1,2,9,38,13876]. VA: `_strip_neo` = _strip_handle(_strip_ten_file(_strip_kb)). KHONG anh huong I1 (_collect_handles chay tren result tho). HIEU QUA DO DUOC: lop id135 (bia cao do AM) nay lot **0,0%**. test_neo_grounding 34 ca."
+  },
+  {
+   "id": "lo-cum-tu-choi-tat-guard",
+   "status": "done",
+   "name": "Cum TU CHOI trong cau tra loi khong con TAT hang rao chong bia toan bai",
+   "evidence": "LIVE 5756b37. `_guard_text` thoat som khi cau chua bat ky cum nao trong `_REFUSAL_MARKERS` -> moi so con lai di thang ra doi tac. Tai hien: 'Khong tim thay o phan may doc duoc, nhung cao do day dai coc la -13,7 m.' LOT du ro neo KHONG chua -13.7; bo 6 chu dau -> CHAN. PHAT HIEN THEN CHOT: dong do la MA CHET voi cau tu choi THUAN (dong `if not do_luong` ngay duoi da lo tron — 0/102 cau doi ke ca ro neo RONG), nen tac dung DUY NHAT con lai la mien tru dung phan nguy hiem. Ban kinh: 17/822 cau (2,1%) la nhom TRON; voi RO NEO THAT thi **0/793 cau doi**. `_apply_i1` GIU thoat som (chi noi canh bao). ⚠ DINH CHINH: con so '45% cau o trang thai khong-hang-rao' trong handoff la SAI — do lai 21,2% (mau chinh) / 14,5-17,5% (mau gop), phan lon VO HAI."
+  },
+  {
+   "id": "tim-chu-trong-ky-hieu",
+   "status": "done",
+   "name": "Tool #34 doc chu ben trong dinh nghia ky hieu/khoi DUOC CHEN",
+   "evidence": "LIVE 138d104. Thay cho viec 'doc chu trong khoi vao kho chu chung' (da BAC bang so). Chi gan co ma khong cho duong DOC = vua khang dinh CO, vua cam noi KHONG CO, vua khong dua du lieu = cong thuc EP BIA. KHONG truong dem (so doan chu trong dinh nghia khoi khong ung voi gi: 'g3' co 6 doan roi trong khoi chen 5 lan => hien that 30, engine doc 1), KHONG toa do (he NOI BO -> khoanh sai cho), khong khoi mo coi, khong trang in. CONG CUNG ngan sach ro neo do TRUOC khi viet: trung vi 6,0 neo so voi 19,0 cua tim_kiem -> DAT nen KHONG dua vao tuple loai-tru. E2E corpus that lay lai duoc chuoi truoc nay KHONG tool nao cham toi: 'l=1100'[38E9C/38EA5] · 'L=1600, SL:67'[3053A] · 'DN-01, L=15000, SL:02'[1C2F1E]. test_chu_trong_ky_hieu 26 ca."
+  },
+  {
+   "id": "kb-tra-nguoc-nghia-ky-hieu",
+   "status": "done",
+   "name": "Noi CUM TU tieng Viet cua doi tac voi KY HIEU tren ban ve (kienthuc.theo_nghia_don)",
+   "evidence": "LIVE 8156d47. Ban ve ghi ma bang KY HIEU, doi tac hoi bang TIENG VIET. Do: tra_cuu_so_luong('dai coc') tra **131** ('chi tiet noi coc voi dai') con **59 dai coc that** (DC-1 SL-19...) BIEN MAT; file khac tra RONG + cau khang dinh 'ban ve KHONG ghi san so luong' (SAI ma TU TIN). ⚠ Co che phan biet d/dj VAN DUNG ('DC' co dau->59 dai coc, khong dau->16 dam) — mo ta cu trong tai lieu la SAI. CHI tra nguoc **7/24 muc MOT NGHIA**; 15 muc DA NGHIA ('dam'->D-x lan DC-x, 'cua di'->CH/D-x/Dj-x) TUYET DOI khong (kho tu ghi ASK). KHONG GOP vao danh_sach_so_luong — de RIENG o 'theo_ky_hieu' + ghi chu cam cong (chong mo hinh cong 131+59=190). Loi ich: 10 cap (file x tu) tim them muc, deu DUNG loai. KB_HASH KHONG doi (ham thuan). test_kienthuc 15->30."
+  },
+  {
+   "id": "any-grounded-giu-nguyen",
+   "status": "deferred",
+   "name": "⛔ Doi luat phan quyet ANY-GROUNDED sang PER-CLAIM — NO_GO CO SO, DUNG MO LAI",
+   "evidence": "Nghien cuu tron ven 2026-07-31 (wf_8a663cde-735, 8 agent + 3 phep do doc lap). (a) 'TY LE LOT' KHONG phai dai luong dung duoc de ra quyet dinh: 5 probe do CUNG dai luong ra 0%/23,8%/32,2%/37,9%/52-77,5%; tu kiem tren CUNG ro neo, chi doi BO SINH so bia -> 0,0% den 13,6%. DUNG trich con so nen nao lam can cu. (b) Do bang NHAN DOC LAP (ky_vong): do chinh xac per-claim = 0/25 va 1/30 = 3,3% -> 96,7-100% cau no giet la cau DUNG; giet oan 9,9-33,1%; ALL giet 82% cau co PHEP CONG (= viec CHINH cua phan mem boc tach) va 31% cau co so DEM. (c) BO luat x1000 cung NO_GO: 36,5% giet oan (85,4% voi cau doi m->mm). (d) PER-CAU khong cai thien gi. ANY la luat DUY NHAT co 0% chan oan tren ca 7 dang cau dung. DON BAY DUNG = LAM SACH RO NEO (da lam, xem neo-grounding-sach)."
+  },
+  {
+   "id": "don-vi-insunits-doi-chieu",
+   "name": "1.04 — Đối chiếu đơn vị khai báo ($INSUNITS) với độ lớn số đo, LỘ mâu thuẫn",
+   "status": "done",
+   "evidence": "2026-08-01: _INSUNITS_TEN nhận đủ 17 mã (trước chỉ 4/5/6 nên inch/feet/mile bị báo SAI là 'không khai') + _doi_chieu_don_vi() trả 2 cờ BOOL prose SẠCH SỐ. KHÔNG tự quy đổi: đo 86 file cho thấy khai báo sai theo CẢ HAI CHIỀU (9 inch + 1 feet + 1 mile thực chất vẽ mm — giá trị hay gặp nhất 110/220/1200/3000; nhưng ~9 file khai 'm' thì ĐÚNG là mét). $MEASUREMENT vô dụng làm tín hiệu (28/38 file mm cũng để 0). Tỉ lệ gắn cờ 85 file: im lặng 59% · mâu thuẫn 31% · khó tin 11%. test_takeoff 272→283 (W.10a-k)."
+  },
+  {
+   "id": "battery-runner-1-06",
+   "name": "1.06 — Dụng cụ đo bộ 198 câu: append-only, chống trộn phiên bản, đo độ ổn định N-lượt",
+   "status": "done",
+   "evidence": "2026-08-01: run_battery.py viết lại (mode 'w' cũ XOÁ SẠCH lượt trước). Mỗi lượt 1 file battery_runs/runNN.jsonl + sidecar meta ghi 1 lần; mỗi dòng tự khai prompt/kb/code/battery hash; --tiep chỉ hỏi câu thiếu và TỪ CHỐI khi định danh đã đổi; 'hợp lệ' nhận biết bằng CẤU TRÚC ('answer_goc' in r) không bằng chuỗi tiếng Việt; ép tắt chuỗi model dự phòng. MỚI do_on_dinh.py (5 rổ, trung bình C(N,2) cặp, KHÔNG đặt ngưỡng đạt/không). test_battery_runner 52; tự kiểm ngược: gỡ bản vá -> 7 ca ĐỎ. Seam --ghi-ro-neo / --ghi-tool (0 dòng code sản phẩm)."
+  },
+  {
+   "id": "q2-baseline-on-dinh",
+   "name": "Q2 — Baseline độ ổn định N=3 trên bộ 198 câu",
+   "status": "done",
+   "evidence": "2026-08-01: tiêu chí đăng ký TRƯỚC ở harness/Q2_TIEU_CHI_TRUOC_KHI_CHAY.md (commit aae3109). 3 lượt 198/198, hỏng hạ tầng 0/0/0,5%. M1 mâu thuẫn số 4,3% · M2 trả-lời-vs-từ-chối 8,7% · M3 13,0% · macro-average 7,3%. ⚠ M3 KHÔNG phải thước đo chất lượng: bỏ sót ỔN ĐỊNH (sai giống nhau mọi lượt) thì M3 không thấy được."
+  },
+  {
+   "id": "recall-goi-y-tool-nogo",
+   "name": "⛔ Vá bỏ sót bằng GỢI Ý trong kết quả tool = KHÔNG ĐẠT, đã gỡ",
+   "status": "deferred",
+   "evidence": "2026-08-01: tiêu chí chốt trước ≥3/11. Vòng 1 (3 tool chuyên dụng) 1/11, vòng 2 (thêm tim_kiem) 1/11, phá bẫy 0/17 cả hai. GỠ. LÝ DO: model ĐÃ NGHE LỜI (id37 gọi cả tim_kiem('lavabo') = từ khoá tìm ra 2 kết quả thật) nhưng chuỗi 'lavabo trẻ em' KHÔNG chứa chiều cao — số 400/450mm ở Ô KHÁC của bảng. Nút thắt thật = GHÉP NHÃN↔GIÁ TRỊ THEO VỊ TRÍ (đọc bảng hàng/cột), prompt/nhắc-nhở vô hiệu ở lớp này."
+  },
+  {
+   "id": "tong-tap-con-nogo",
+   "name": "⛔ Bộ dò 'model tự cộng số' kiểu TỔNG-TẬP-CON = NO_GO có số",
+   "status": "deferred",
+   "evidence": "2026-08-01: đo 595 câu thật, gắn cờ 25 (4,2%) mà gần như không ca nào là tự-cộng thật (8=1+2+5 bốn lần; 51841=2+10+51842 là HANDLE). Hỏng CẤU TRÚC: chỉ bắt được tổng cộng ĐÚNG, MÙ với tổng cộng SAI — mà tổng sai mới gây hại. Hướng thay thế 'câu có TỔNG + số không truy được nguồn' đo được 2 gắn cờ / 0 báo động giả trên 25 câu, nhưng 2 ca cùng MỘT hiện tượng ⇒ chưa đủ bằng chứng để cài."
+  }
+ ]
 }

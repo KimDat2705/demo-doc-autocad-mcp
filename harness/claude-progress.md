@@ -9,6 +9,36 @@
 > Mới nhất ở TRÊN CÙNG. Bàn giao đầy đủ: `session-handoff.md`. Nhật ký chi tiết hơn nữa: `../GHI_CHU_HOAN_THIEN.md`.
 
 ---
+## Session 2026-07-31→08-01 — 🔤 NHÓM A: 1.06 dụng cụ đo + 1.03 nắn phông (cứu 8.913 chuỗi) + 1.04 đơn vị + **Q2 baseline** + **3 NO_GO có số**
+> **CHỐT SỔ:** HEAD **`b236b7e`** == origin, tree SẠCH. check.sh **[42/42] PASS · 34 MCP tool · 0 regress**.
+> Suite đổi số: takeoff 272→**283** · vntext 28→**53** · garble-dia 26→**27** · **MỚI battery-runner 52**. Mọi suite khác GIỮ NGUYÊN.
+> LIVE verify `/version` = `b236b7ee` · prompt **`2026.07.27-kb-l3`** hash `239e8b7b…` **KHÔNG đổi** · kb `e55ac112…` **KHÔNG đổi** · `/health` ok · `ram_mb` 135,5 · trang chủ HTTP 200 đủ 4 chuỗi frontend. **11 commit** push+deploy+verify.
+> `feature_list.json` **64→69 mục** (62 done · 6 deferred · 1 partial). ⚠ pytest VẪN không chạy được · KHÔNG có `specs/specs.json`.
+>
+> **① 1.06 — DỤNG CỤ ĐO BỘ 198 CÂU (`68b5fcc`).** `run_battery.py` mở file bằng mode `"w"` ⇒ chạy một lần là **xoá sạch lượt trước** (và xoá luôn bản ghi lịch sử 24/07); docstring hứa "không mất tiến độ nếu gián đoạn" là **nói dối**. Viết lại: append-only tuyệt đối · mỗi lượt 1 file + sidecar meta ghi-một-lần · **mỗi dòng tự khai `prompt/kb/code/battery` hash** · `--tiep` chỉ hỏi câu thiếu và **TỪ CHỐI khi định danh đã đổi** · "hợp lệ" nhận biết bằng **CẤU TRÚC** (`"answer_goc" in r`, có ở 2 đường trả lời thật, KHÔNG có ở cả 4 đường hỏng) chứ không bằng chuỗi tiếng Việt · ép TẮT chuỗi model dự phòng. **MỚI** `do_on_dinh.py` (5 rổ, trung bình C(N,2) cặp, **không đặt ngưỡng đạt/không**). Tự kiểm ngược: gỡ bản vá → **7 ca ĐỎ**.
+> 📌 **LỖI TỐN TIỀN DO CHÍNH BẢN VÁ:** `parse_args([] if argv is None else argv)` ⇒ chạy từ DÒNG LỆNH thì **mọi tham số bị vứt im lặng**, `--chay-thu` vô hiệu → chạy thật, **tiêu API 42 câu**. **49 ca test tự viết đều XANH** vì ca nào cũng truyền argv tường minh. Ca khoá `[R.11]` đi đúng đường `sys.argv`.
+>
+> **② 1.03 — NẮN PHÔNG CŨ (`aaea3ec`), 3 lỗi độc lập.** Ghi chú dự án nói "545 chuỗi/21 file" — **SAI ~18×**; đo lại 86 file/285.413 chuỗi: **9.680 chuỗi/73 file**. (a) **Dò quá HẸP** — `_SIG` cũ chỉ phủ ô TCVN3 hiện ra KÝ HIỆU Latin-1 nên chuỗi có mọi ô ở dải 0xC6-0xFE không bị phát hiện (`diÖn tÝch`, `THÐP`, `cèt thÐp`); thêm 22 chữ Latin không-phải-chữ-Việt, **cố ý loại `Ø` `×` `÷` + chữ Việt hợp lệ**. (b) **TỰ NUỐT Ø** — `_autocad_codes` chạy trước biến `%%C`→`Ø`(0xD8) rồi bộ giải mã ăn luôn vì 0xD8 = ô `ỉ`; **chuỗi `'thép ỉ10 neo xà gồ'` — bằng chứng chủ lực của lát L6 — là DO MÁY MÌNH TẠO RA** (raw thật `'thÐp %%C10 neo xµ gå'`). (c) **`Ð` hai nghĩa** (ô TCVN3 `é` vs chữ `Đ` viết nhái), tách theo VỊ TRÍ. + gộp NFC.
+> **TỰ KIỂM NGƯỢC toàn corpus: cứu 8.913 · HỎNG THÊM 0 · Ø bị nuốt 152→0 · SỐ MÁY BÁO KHÔNG DỊCH** (cao độ KT −2.1/10.8 · KC −1.85/10.8 · HT **−14.26**/2.5). **E2E LIVE trên máy thật:** tìm "mặt bích" **3→6** · "ống HDPE" **3→6** · "cống hiện có" **4→7**, 0 mẩu garble sót.
+> 📌 **BẪY ĐÃ MẮC RỒI MỚI THOÁT:** chốt *"chuỗi đã có ký tự Unicode Việt thì bỏ qua cả chuỗi"* nghe rất hợp lý nhưng làm **27 chuỗi HỎNG THÊM** — bản vẽ đổi **PHÔNG GIỮA CHỪNG** nên một chuỗi có thể nửa TCVN3 nửa Unicode.
+> **CÒN TỒN:** 768 chuỗi mang `Ä Å Û Φ † „ ‚ Š` — **KHÔNG trong bảng `_TCVN3`** ⇒ họ mã KHÁC (có thể VNI-Windows); **đừng nhét vào `_TCVN3`**.
+>
+> **③ 1.04 — ĐƠN VỊ (`7022aad`).** Làm ĐÚNG cảnh báo cũ: **không thêm bảng tra, không tự quy đổi**. `$INSUNITS` 86 file: mm 40 · m 24 · không khai 10 · inch 9 · feet 1 · mile 1. **Khai báo sai theo CẢ HAI CHIỀU** — 9 inch + 1 feet + 1 mile thực chất vẽ mm (giá trị hay gặp nhất `110, 220, 100, 200, 300, 1200, 3000` = bộ số mm kinh điển; một file khai **mile**, trung vị 1700 → 2.736 km), NHƯNG ~9 file khai `m` thì ĐÚNG là mét (tuyến hạ tầng, trung vị 13,5-29,6 m — gồm `01-TD` chính là file id135, tức trường `_mm` đang lệch **1000×**). `$MEASUREMENT` **vô dụng** (28/38 file mm cũng để 0). Vá: `_INSUNITS_TEN` đủ 17 mã (trước inch/feet/mile bị báo là *"bản vẽ KHÔNG khai"* = **máy nói sai**) + 2 cờ BOOL prose sạch số. Tỉ lệ gắn cờ: im lặng 59% · mâu thuẫn 31% · khó tin 11%.
+>
+> **④ Q2 — BASELINE ĐỘ ỔN ĐỊNH N=3 (`aae3109` tiêu chí + `fcfaf6d` kết quả).** Tiêu chí đăng ký **TRƯỚC** khi chạy lượt nào (`harness/Q2_TIEU_CHI_TRUOC_KHI_CHAY.md`). 3 lượt 198/198, hỏng hạ tầng 0/0/0,5%. **M1 mâu thuẫn số 4,3% · M2 trả-lời-vs-từ-chối 8,7% · M3 = 13,0%** · macro-average 12 nhóm 7,3%. **M2 gấp ĐÔI M1** ⇒ hàng rào chống bịa đang giữ, cái chập chờn là **RECALL**. Nhóm `thep` 0%/0%.
+>
+> **⑤ id193 SOI XONG (`b7c8b93`) — 2 lỗi TÁCH BIỆT, cái nặng hơn thì M3 KHÔNG THẤY.** (A) đáp án nằm nguyên ở handle **`60E44`** (*"khối lượng inox lan can (inox 304): tay vịn d60 = 80,52 kg…"*), **cả 3 lượt Y HỆT 10 handle, không lượt nào có `60E44`**; truy được: model hỏi `"TỔNG KHỐI LƯỢNG"` (trả đúng 10/10 handle nó dùng) trong khi **mọi** truy vấn bám chủ đề đều ra hạng 1-2 (`lan can cầu thang` 2kq hạng 1 · `khối lượng inox` 10kq hạng 2). **Tool KHÔNG có lỗi.** (B) `_P_R2` cấm "tự cộng" nhưng model phá luật 2/3 lượt và **khi phá thì sai 1/2 số lần** (1344,33 và 1384,33 so với tổng đúng 1384,83).
+>
+> **⑥ BA NO_GO CÓ SỐ (`1e10d83`, `7923817`, `b236b7e`) — ĐỪNG LÀM LẠI:**
+> · **Tổng-tập-con** bắt "model tự cộng": 25/595 gắn cờ mà gần như 0 ca thật (`8=1+2+5` bốn lần; `51841=2+10+51842` là **HANDLE**). Hỏng CẤU TRÚC: chỉ bắt tổng cộng ĐÚNG, **mù với tổng cộng SAI** — mà tổng sai mới gây hại.
+> · **Thêm `tool_numbers` vào dict trả về `tra_loi_ai`** để đo: `app.py:625` làm `jsonify(r)` ⇒ **bơm toàn bộ số nội bộ của tool ra trình duyệt**. Thay bằng **seam bọc `_guard_text` phía test** (0 dòng code sản phẩm).
+> · **Vá bỏ sót bằng GỢI Ý trong kết quả tool** (2 vòng A/B, tiêu chí chốt trước ≥3/11): **1/11 · phá bẫy 0/17** cả hai vòng → GỠ. **Model ĐÃ NGHE LỜI** (id37 gọi cả `tim_kiem('lavabo')` = từ khoá tìm ra 2 kết quả thật) nhưng chuỗi `lavabo trẻ em` **không chứa chiều cao** — số 400/450mm ở **Ô KHÁC của bảng**. ⇒ **Nút thắt thật = GHÉP NHÃN↔GIÁ TRỊ THEO VỊ TRÍ**, prompt/nhắc-nhở vô hiệu ở lớp này.
+>
+> **📌 BÀI HỌC LỚN NHẤT PHIÊN NÀY — BA LẦN BỘ TRÍCH CỦA CHÍNH TÔI HỎNG, CẢ BA SUÝT CHO KẾT LUẬN NGƯỢC:**
+> (a) regex `tổng…{0,40}(\d)` ra **"0 gắn cờ"** nghe như luật hoàn hảo — thực ra vớ phải **"304" trong "INOX 304"** nên **luật không bao giờ kích**; (b) bộ dò từ-khoá đếm *"**không tìm thấy** thông tin cho thấy chữ 'Cọc' bị lỗi font"* (một KHẲNG ĐỊNH DƯƠNG) thành "từ chối" → thổi bỏ-sót từ ~2% lên **13%**; (c) luật tổng-tập-con mù với đúng ca gây hại. ⇒ **Số "0%" và số "quá đẹp" đều là dấu hiệu bộ trích hỏng, không phải tin mừng.** Đã ghi vào `clean-state-checklist.md`.
+> **⏳ RỦI RO / VIỆC CHỜ:** xem `session-handoff.md` khối đầu.
+
+---
 ## Session 2026-07-31 — 🧱 NHÓM A: vá NỀN ĐỌC SỐ ĐO (3 lỗi độc lập) + 4 việc đợt vùng-mù + 4 lỗ hàng rào chống bịa + **NO_GO có số cho per-claim**
 > **CHỐT SỔ:** HEAD **`8156d47`** == origin, tree SẠCH. check.sh **[41/41] PASS · 34 MCP tool · 0 regress**
 > (272/107/31/61/51/44/24/26/63/28/27/21 không đổi). LIVE verify `/version` = `8156d47` ·
