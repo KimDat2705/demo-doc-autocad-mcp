@@ -68,6 +68,28 @@ THU_LAI_TOI_DA = 2        # trần cứng số lần hỏi lại 1 câu trong C�
 _NEO = {"n": None, "khong_neo_do": None, "khong_neo_tat_ca": None}
 
 
+# ---- SEAM ghi LỆNH GỌI TOOL (tuỳ chọn, --ghi-tool) -----------------------------------------
+# Muốn chữa "bỏ sót" thì phải biết lượt THÀNH CÔNG đã hỏi khác lượt THẤT BẠI chỗ nào — mà hiện
+# không ai ghi lại. Bọc `br.call` (mcp_bridge.py:167) từ PHÍA TEST; vòng dispatch gọi nó ở :934.
+# Vẫn 0 dòng code sản phẩm bị chạm.
+_TOOL = {"goi": []}
+
+
+def _boc_bridge(br):
+    goc = getattr(br, "call", None)
+    if goc is None or getattr(goc, "_la_spy_battery", False):
+        return br
+    def spy(name, args, timeout=120):
+        try:
+            _TOOL["goi"].append({"tool": name, "args": args})
+        except Exception:
+            pass
+        return goc(name, args, timeout=timeout)
+    spy._la_spy_battery = True
+    br.call = spy
+    return br
+
+
 def _bat_ro_neo():
     goc = mcp_bridge._guard_text
     if getattr(goc, "_la_spy_battery", False):
@@ -264,6 +286,8 @@ def main(argv=None, hoi=None, tao_bridge=None, files=None):
                     help="kiểm mọi điều kiện + chốt đường dẫn rồi DỪNG, không gọi API")
     ap.add_argument("--ghi-ro-neo", action="store_true",
                     help="ghi thêm thông tin RỔ NEO grounding vào bản ghi (bọc _guard_text phía test)")
+    ap.add_argument("--ghi-tool", action="store_true",
+                    help="ghi lại MỌI lệnh gọi tool của từng câu (bọc br.call phía test)")
     # ⚠ PHẢI là parse_args(argv). Viết `[] if argv is None else argv` thì khi chạy TỪ DÒNG LỆNH
     # (argv=None) argparse nhận danh sách RỖNG -> MỌI tham số bị vứt IM LẶNG -> `--chay-thu` không
     # có tác dụng và script chạy thật, TIÊU TIỀN API. Đã mắc đúng lỗi này ngày 2026-07-31 (42 câu).
@@ -375,6 +399,8 @@ def main(argv=None, hoi=None, tao_bridge=None, files=None):
     try:
         br = (tao_bridge or (lambda: mcp_bridge.MCPBridge(["mcp_server.py"],
                                                           env={"READFILE_MAX_MB": "300"})))()
+        if a.ghi_tool:
+            br = _boc_bridge(br)
         hoi_fn = hoi or mcp_bridge.tra_loi_ai
         print("Bridge OK, %d tool. USE_AI=%s" % (len(getattr(br, "tools", []) or []), mcp_bridge.USE_AI))
         for f in ORDER:
@@ -392,9 +418,12 @@ def main(argv=None, hoi=None, tao_bridge=None, files=None):
                     done += 1
                     t = time.time()
                     _NEO.update({"n": None, "khong_neo_do": None, "khong_neo_tat_ca": None})
+                    _TOOL["goi"] = []
                     try:
                         r = hoi_fn(br, q.get("cau_hoi", ""), summary)
                         rec = ban_ghi(q, f, r, luot, lan, dd, time.time() - t)
+                        if a.ghi_tool:
+                            rec["tool_goi"] = list(_TOOL["goi"])
                         if a.ghi_ro_neo:
                             rec["ro_neo_n"] = _NEO["n"]
                             rec["so_do_luong_khong_neo"] = _NEO["khong_neo_do"]

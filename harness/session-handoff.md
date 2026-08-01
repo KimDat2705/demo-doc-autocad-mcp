@@ -12,6 +12,24 @@
 > **Muốn public thật sau này — ĐỪNG LÀM LẠI TỪ ĐẦU:** nhánh local **`public-ready`** đã có sẵn trọn gói (history sạch không .deb qua `git filter-repo` · Dockerfile tải ODA tuỳ chọn qua `ODA_DEB_URL` · thông báo .dxf-only thân thiện · .gitignore chặn .deb). Đánh đổi: cloud chỉ đọc .dxf tới khi đặt `ODA_DEB_URL`. Mirror backup: `D:/Dat-Antigravity/_backup_repo_truoc_khi_public_20260717/repo-mirror.git`.
 
 
+## 🎯 BỎ SÓT (recall) — ĐÃ TRUY RA NGUYÊN NHÂN BẰNG LỆNH GỌI TOOL THẬT (2026-08-01)
+> **SEAM MỚI `--ghi-tool`** (bọc `br.call` phía test, **0 dòng code sản phẩm**) — lần đầu nhìn được model đã gọi tool NÀO với THAM SỐ GÌ. Dữ liệu: `run10|11|12` (26 câu chập chờn ×3) + `run13` (28 câu từ-chối-ổn-định).
+>
+> **⛔ HAI CON SỐ CŨ CỦA CHÍNH TÔI LÀ ẢO — ĐÍNH CHÍNH:**
+> · *"13% bỏ sót chứng minh được"* → **SAI**. Bộ dò từ-khoá của tôi đếm nhầm khác-CÁCH-NÓI thành khác-NỘI-DUNG. Ví dụ id144: một lượt *"đọc được chữ 'Cọc'… không có lỗi font"*, lượt kia *"**không tìm thấy** thông tin cho thấy chữ 'Cọc' bị lỗi font"* — **cùng kết luận**, bị đếm là lệch. Đo lại 26 câu chập chờn ×2 lượt mới: **69% gọi tool Y HỆT · 73% ra CÙNG tập số** ⇒ lệch nội dung thật chỉ ~4-5 câu ≈ **2%**.
+> · *"~43% bất ổn do ROUTING"* (suy từ biến thiên `n_evidence`) → **SAI**. Nhìn lệnh gọi THẬT: trên 6 câu lệch, **5/6 gọi tool y hệt cùng tham số** mà một lượt trả lời một lượt từ chối. Routing chỉ 1/6.
+>
+> **VẤN ĐỀ THẬT LÀ BỎ SÓT *ỔN ĐỊNH* — mọi phép so-lượt đều MÙ với nó.** 28/197 câu cả 3 lượt đều từ chối; đọc `ky_vong` thì **~17 câu từ chối là ĐÚNG** (câu bẫy `bay_ao_giac`/`bay_lac_de`), còn **~11 câu là bỏ sót THẬT**. Tự kiểm 5 ca trên bản vẽ — **dữ liệu CÓ và tìm ra dễ**: `Thép Ø10 L=6cm` (2 kq, đúng nguyên văn ky_vong) · `lavabo trẻ em` (2) · `nilon lót chống mất nước` (6) · `Sơn phản quang màu trắng` (3) · `phòng học` (16). ⇒ quy mô ≈ **11/197 ổn định + ~4 chập chờn ≈ 8%**.
+>
+> **NGUYÊN NHÂN — 2 NHÁNH, đọc thẳng từ `tool_goi`:**
+> **(A) 6/11 — chọn tool CHUYÊN DỤNG, tool trả rỗng, rồi KẾT LUẬN "không có" mà KHÔNG BAO GIỜ thử tìm theo chữ:**
+> `id30` chỉ `tra_cuu_so_luong('phòng học')` (mà chữ "phòng học" có 16 lần) · `id37` chỉ `boc_tach_kich_thuoc('lavabo trẻ em')` · `id94` chỉ `tra_cuu_so_luong('Lanh to LT-1200B')` · `id130` chỉ `thong_ke_thep(duong_kinh='O10')` (đáp án là CHỮ "Thép Ø10 L=6cm") · `id131` chỉ `tra_cuu_so_luong` ×2 · `id179` **0 lệnh gọi nào**.
+> **(B) 5/11 — CÓ tìm theo chữ nhưng dùng CẢ CỤM CÂU HỎI thay vì từ khoá đặc trưng:**
+> `id136` tìm `'He so mai taluy (m)'` → 0; bản vẽ ghi `m = 2.0` · `id142` tìm `'biển báo sơn màu'` → 0; bản vẽ ghi `Sơn phản quang màu trắng` (tìm `'phản quang'` ra 3) · id81/id58/id187 tương tự.
+>
+> **THIẾT KẾ ĐỀ XUẤT (chưa cài):** nhánh (A) vá ở **TẦNG TOOL, không phải prompt** — khi tool chuyên dụng trả **0 kết quả**, chính kết quả tool kèm thêm trường gợi ý *"chưa thử tìm theo chữ; hãy gọi `tim_kiem` với từ khoá NGẮN"*. Model đọc nó **đúng lúc cần**, mạnh hơn hẳn một luật prompt toàn cục (lịch sử `_P_R5`: nudge prompt đo A/B ra 4/8 vs 5/8 = trong nhiễu). Nhánh (B) khó hơn, cần hướng dẫn tách từ khoá — **để sau**, đo (A) trước.
+> ⚠ Chạm `tools_core.py` = code sản phẩm ⇒ theo nếp dự án phải red-team + A/B trước khi ship. **CHƯA CÀI GÌ.**
+
 ## 🟡 (b2) LUẬT "CÂU CÓ *TỔNG* + SỐ KHÔNG TRUY ĐƯỢC NGUỒN" — **HỨA HẸN, CHƯA ĐỦ BẰNG CHỨNG ĐỂ CÀI**
 > **Đo bằng dữ liệu THẬT có rổ neo, lần đầu.** Chạy 33 câu (những câu từng sinh khẳng định "tổng") = **223 giây**, 33/33, 0 hỏng → `tests/battery_runs/run09.jsonl`.
 > **CÁCH LẤY RỔ NEO — 0 DÒNG CODE SẢN PHẨM:** bọc `mcp_bridge._guard_text` **từ phía test** (`run_battery.py --ghi-ro-neo`); nó nhận đúng `tool_numbers` ở `mcp_bridge.py:986` và `:1006`.
