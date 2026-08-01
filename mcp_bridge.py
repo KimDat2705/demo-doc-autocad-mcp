@@ -680,6 +680,34 @@ REFUSE_MESSAGE = "Không có thông tin này trong bản vẽ."
 KHONG_TRA_DUOC = ("Chưa tra được thông tin này từ các công cụ có số liệu của bản vẽ. "
                   "Bạn thử hỏi lại cụ thể hơn (nêu tên cấu kiện hoặc loại số liệu cần tra).")
 _TOOL_DIEN_GIAI = frozenset(("tra_ky_hieu", "doc_chu_trang_in"))
+# ── ĐÃ KIỂM LẠI việc xếp lớp này (2026-08-01, `wf_d32aae4a-708`) — KẾT LUẬN: GIỮ. Căn cứ: ────────────
+#  · CƠ CHẾ (mạnh nhất, không phụ thuộc tỉ lệ dạng câu hỏi): vế đầu của A2 là `guarded == REFUSE_MESSAGE`,
+#    mà `_guard_text` THOÁT SỚM ở `if not do_luong: return text`. Câu KHẲNG ĐỊNH VẮNG MẶT hầu như không
+#    mang số ⇒ A2 gần như KHÔNG CÓ CỬA làm câu trả lời tệ đi. Đo trên văn phong THẬT (832 câu → 40 câu
+#    vắng-mặt-thuần): A2 chỉ đổi 5/40 = 12,5%.
+#  · Soi 5 ca đó: CẢ 5 mang số từ khuôn OLE do CHÍNH `_P_R8c_OLE` ép ra — mà R8c lại CẤM nói "bản vẽ
+#    KHÔNG có bảng" khi có `canh_bao_nhung`. Tức trong đúng 5 ca A2 kích, `REFUSE_MESSAGE` VI PHẠM luật
+#    của chính dự án còn A2 thì không.
+#  · Bắt nguyên văn TRƯỚC guard trên 5 ca: 5/5 model TRÍCH NGUYÊN VĂN payload kèm handle THẬT, 0/5 bịa.
+#    Không có A2, 5 câu ĐÚNG-CÓ-HANDLE đó thành "Không có thông tin này trong bản vẽ." = nói dối ngay
+#    trên thứ máy vừa đọc được.
+#  · Probe LIVE quần thể đáng lo nhất (tool trả RỖNG): 4/4 model gọi MỘT MÌNH `doc_chu_trang_in` nhưng
+#    viết vắng mặt SẠCH SỐ ⇒ `do_luong=[]` ⇒ guard giữ nguyên ⇒ 0/4 A2 kích.
+#  · Kênh NHỎ có thể âm (đã đo, không lật kết luận): `file_summary` do HOST bơm thẳng vào
+#    `system_instruction` KHÔNG bao giờ vào rổ neo ⇒ 2/198 câu battery có thể sinh câu vắng-mặt ĐÚNG mà
+#    A2 hạ xuống "chưa tra được". Phát biểu đúng là "dương trong 5/5 quan sát, kèm 1 kênh nhỏ có thể âm".
+# ⛔⛔ RÀNG BUỘC SỐNG CÒN — AN TOÀN Ở ĐÂY DO MỘT **TÌNH CỜ** GIỮ, KHÔNG DO THIẾT KẾ:
+#    `doc_chu_trang_in` là tool HIẾM HOI **KHÔNG gọi `_gan_canh_bao_nhung`** (14 chỗ khác trong
+#    tools_core.py CÓ gọi). Nếu ai đó gắn `canh_bao_nhung` vào nó — nghe rất hợp lý theo tinh thần R8c
+#    "máy không đọc được ≠ không có" — thì MỌI câu vắng-mặt trên file OLE sẽ tự động mang "N đối tượng
+#    nhúng" ⇒ `do_luong` khác rỗng ⇒ REFUSE ⇒ A2 kích, và lớp lỗi "A2 làm câu ĐÚNG tệ đi" chuyển từ
+#    **0 ca** sang **phổ biến**. ⇒ ĐỘNG VÀO ĐIỂM ĐÓ THÌ PHẢI ĐO LẠI VIỆC XẾP LỚP NÀY.
+#    (Có ca test khoá bất biến này ở `tests/test_neo_rong_tu_choi.py`.)
+# ⚠ VẤN ĐỀ TO HƠN, KHÔNG PHẢI LỖI A2 — GHI SỔ, CHƯA VÁ: vì tool #35 nằm trong tuple loại-trừ rổ neo nên
+#    MỌI trích dẫn có chữ số từ nó đều bị `_guard_text` từ chối, mà **60,8% (975/1.604) chuỗi trang in
+#    CÓ chữ số**. Probe đo: guard xoá **5/8 câu trả lời ĐÚNG** của tool #35. Trên `rachmop`,
+#    'Hoàn trả đường dân sinh - B=1.5m - L=394,5m' đọc ĐÚNG nhưng KHÔNG BAO GIỜ tới người dùng.
+#    ⇒ A2 chỉ hạ "nói dối" xuống "vô dụng"; nó KHÔNG lấy lại câu trả lời. Hạng mục riêng, cần đo riêng.
 _REFUSAL_MARKERS = ("không có thông tin", "chưa hỗ trợ", "không hỗ trợ", "không tìm thấy",
                     "không có trong bản vẽ", "không đưa ra", "quá tải")
 # ⚠ DẤU TRỪ GIẢ — gạch nối trong MÃ HIỆU / DẢI SỐ không phải dấu âm.

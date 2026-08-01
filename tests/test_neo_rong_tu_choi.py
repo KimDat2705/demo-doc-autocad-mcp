@@ -160,6 +160,23 @@ def main():
     ok("M6: đối chứng ÂM — chuỗi có số thì TRƯỢT M1/M2 (bộ kiểm phân biệt được)",
        any(ch.isdigit() for ch in xau) and B._answer_numbers(xau) != ([], []))
 
+    # ══ [K] KHOÁ RÀNG BUỘC "AN TOÀN DO TÌNH CỜ" (kiểm lại xếp lớp, wf_d32aae4a-708) ═══════════════
+    # Việc xếp `doc_chu_trang_in` vào _TOOL_DIEN_GIAI được GIỮ sau khi đo (5/40 = 12,5% câu vắng-mặt
+    # bị A2 đổi; cả 5 ca đó REFUSE_MESSAGE vi phạm chính _P_R8c_OLE; 5/5 model trích nguyên văn có
+    # handle THẬT, 0/5 bịa). NHƯNG an toàn ở đây do MỘT TÌNH CỜ giữ: tool #35 KHÔNG gọi
+    # `_gan_canh_bao_nhung`. Nếu ai gắn cảnh báo nhúng vào nó (rất hợp lý theo tinh thần R8c) thì mọi
+    # câu vắng-mặt trên file OLE sẽ mang "N đối tượng nhúng" -> do_luong -> REFUSE -> A2 kích, và lớp
+    # lỗi "A2 làm câu ĐÚNG tệ đi" chuyển từ 0 ca sang PHỔ BIẾN.
+    print("\n-- [K] khoá ràng buộc: tool #35 KHÔNG được gắn cảnh báo nhúng --")
+    tsrc = open(os.path.join(ROOT, "tools_core.py"), encoding="utf-8").read()
+    than = tsrc.split("def doc_chu_trang_in")[1].split("def _trang_in_kho")[0] if "def doc_chu_trang_in" in tsrc else ""
+    ok("K1: doc_chu_trang_in KHÔNG gọi _gan_canh_bao_nhung (nếu đổi -> PHẢI đo lại xếp lớp A2)",
+       "_gan_canh_bao_nhung" not in than, than[:80])
+    ok("K2: đối chứng — hàm đó CÓ tồn tại và ĐANG được các tool khác dùng (ca K1 không tautology)",
+       tsrc.count("_gan_canh_bao_nhung") >= 5, str(tsrc.count("_gan_canh_bao_nhung")))
+    ok("K3: ràng buộc được ghi ngay cạnh _TOOL_DIEN_GIAI để người sau đọc thấy",
+       "_gan_canh_bao_nhung" in src.split("_TOOL_DIEN_GIAI")[1][:3000])
+
     print("\n%d PASS / %d FAIL" % (PASS, FAIL))
     return 1 if FAIL else 0
 
