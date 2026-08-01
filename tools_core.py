@@ -822,6 +822,25 @@ _INSUNITS_SANG_M = {"inch": 0.0254, "feet": 0.3048, "mile": 1609.344, "mm": 0.00
 _DON_VI_HOP_LY_M = (0.005, 60.0)
 
 
+# ---- BỎ SÓT (recall) — ĐÃ THỬ VÁ Ở TẦNG TOOL, KHÔNG ĐẠT. ĐỪNG LÀM LẠI Y HỆT --------------------
+# Đo 2026-08-01 (seam `--ghi-tool`): 11/197 câu bị TỪ CHỐI cả 3 lượt trong khi dữ liệu CÓ trong bản vẽ.
+# Cơ chế nghi ngờ: model gọi MỘT tool chuyên dụng, nó trả rỗng, rồi kết luận "không có" mà không tìm
+# theo chữ. Đã thử: gắn GỢI Ý ngay trong kết quả rỗng của tra_cuu_so_luong / thong_ke_thep /
+# boc_tach_kich_thuoc ("hãy gọi tim_kiem với từ khoá NGẮN"), rồi thêm gợi ý "rút ngắn từ khoá" vào
+# chính tim_kiem khi 0 kết quả.
+# KẾT QUẢ A/B trên đúng 28 câu (11 bỏ sót + 17 câu bẫy), tiêu chí chốt TRƯỚC là ≥3/11:
+#     vòng 1 (chỉ tool chuyên dụng) : lấy lại 1/11 · phá bẫy 0/17
+#     vòng 2 (thêm cả tim_kiem)     : lấy lại 1/11 · phá bẫy 0/17
+# ⇒ KHÔNG ĐẠT. Đã GỠ, giữ code sạch.
+# ⚠ LÝ DO THẤT BẠI — QUAN TRỌNG, ĐỌC TRƯỚC KHI THỬ HƯỚNG KHÁC: model ĐÃ NGHE LỜI. id136 thêm
+# tim_kiem('taluy'), id130 thêm tim_kiem('O10'), id37 leo lên 4 lệnh có cả tim_kiem('lavabo')
+# (từ khoá này tìm ra 2 kết quả thật). Nó tìm ĐÚNG rồi VẪN trả "không có" — vì chuỗi 'lavabo trẻ em'
+# CÓ tồn tại nhưng KHÔNG chứa chiều cao; số 400/450mm nằm ở Ô KHÁC của bảng. Máy tìm được NHÃN mà
+# không nối được sang GIÁ TRỊ.
+# ⇒ Nút thắt thật là GHÉP HAI MẨU CHỮ RỜI NHAU THEO VỊ TRÍ (đọc bảng theo hàng/cột), KHÔNG phải
+#   "không chịu tìm". Mọi bản vá kiểu nhắc-nhở/prompt đều sẽ vô hiệu ở lớp này.
+# ⇒ Và cần nói rõ: nhiều câu "không có" ở đây là TRUNG THỰC — máy thấy nhãn, không thấy số, nên
+#   không đoán. Đó là hàng rào chống bịa đang chạy đúng, không phải lỗi.
 def _doi_chieu_don_vi(don_vi, dim_vals):
     """(mau_thuan, kho_tin). KHÔNG tự quy đổi số — chỉ LỘ ra để người đọc biết mà hỏi lại.
       mau_thuan = khai báo KHÁC mm, trong khi mọi trường máy trả đều mang hậu tố '_mm'.
@@ -2178,7 +2197,7 @@ class Drawing:
             # (Bản vá đầu của tôi bỏ nhánh này, tự soát bắt được.)
             return self._vcd_gan_co(self._gan_canh_bao_nhung(_am), tk, True)
         _am["ghi_chu"] = ("Bản vẽ KHÔNG ghi sẵn số lượng cho '%s'. KHÔNG lấy số lần xuất hiện làm số lượng. "
-                          "Thử mã cấu kiện ngắn (vd 'D1'). Nếu thật sự không ghi -> cần bóc tách." % tk)
+                          "Thử mã cấu kiện ngắn. Nếu thật sự không ghi -> cần bóc tách." % tk)
         return self._vcd_gan_co(self._gan_canh_bao_nhung(_am), tk, False)
 
     def liet_ke_so_luong(self, loc=None, **_):

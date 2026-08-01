@@ -12,6 +12,21 @@
 > **Muốn public thật sau này — ĐỪNG LÀM LẠI TỪ ĐẦU:** nhánh local **`public-ready`** đã có sẵn trọn gói (history sạch không .deb qua `git filter-repo` · Dockerfile tải ODA tuỳ chọn qua `ODA_DEB_URL` · thông báo .dxf-only thân thiện · .gitignore chặn .deb). Đánh đổi: cloud chỉ đọc .dxf tới khi đặt `ODA_DEB_URL`. Mirror backup: `D:/Dat-Antigravity/_backup_repo_truoc_khi_public_20260717/repo-mirror.git`.
 
 
+## ⛔ VÁ BỎ SÓT BẰNG "GỢI Ý TRONG KẾT QUẢ TOOL" = **KHÔNG ĐẠT, ĐÃ GỠ — ĐỪNG LÀM LẠI Y HỆT** (2026-08-01)
+> **Tiêu chí chốt TRƯỚC khi chạy:** thắng = **≥3/11** câu bỏ sót lấy lại được **VÀ ≤2/17** câu bẫy bị phá.
+> **Đã thử 2 vòng, A/B trên đúng 28 câu (`run13` trước vs `run14`/`run15` sau):**
+> · vòng 1 — gắn gợi ý *"hãy gọi `tim_kiem` với từ khoá NGẮN"* vào kết quả RỖNG của `tra_cuu_so_luong` / `thong_ke_thep` / `boc_tach_kich_thuoc` → **lấy lại 1/11 · phá bẫy 0/17**
+> · vòng 2 — thêm gợi ý *"rút ngắn từ khoá"* vào chính `tim_kiem` khi 0 kết quả → **lấy lại 1/11 · phá bẫy 0/17**
+> ⇒ **KHÔNG ĐẠT ngưỡng đã chốt. GỠ cả hai** (giữ code sạch, không để lại rác chưa chứng minh).
+>
+> **📌 LÝ DO THẤT BẠI — ĐỌC TRƯỚC KHI THỬ HƯỚNG KHÁC. MODEL ĐÃ NGHE LỜI:**
+> `id136` thêm `tim_kiem('taluy')` · `id130` thêm `tim_kiem('O10')` · `id37` leo lên **4 lệnh** có cả `tim_kiem('lavabo')` — **đúng từ khoá đã tự xác minh là tìm ra 2 kết quả**. Nó tìm ĐÚNG rồi **vẫn** trả "không có".
+> Vì chuỗi `lavabo trẻ em` CÓ tồn tại nhưng **KHÔNG chứa chiều cao**; số `400/450mm` nằm ở **Ô KHÁC của bảng**. Máy tìm được **NHÃN** mà không nối được sang **GIÁ TRỊ**.
+> ⇒ **Nút thắt thật = GHÉP HAI MẨU CHỮ RỜI NHAU THEO VỊ TRÍ (đọc bảng theo hàng/cột)**, KHÔNG phải "không chịu tìm". **Mọi bản vá kiểu nhắc-nhở/prompt đều sẽ vô hiệu ở lớp này** — đừng tốn thêm lượt A/B cho hướng đó.
+> ⇒ Và phải nói rõ: **nhiều câu "không có" ở đây là TRUNG THỰC** — máy thấy nhãn, không thấy số, nên không đoán. Đó là hàng rào chống bịa chạy ĐÚNG, không phải lỗi. Con số "8% bỏ sót" vì thế **một phần là GIỚI HẠN NĂNG LỰC (đọc bảng theo vị trí), không phải bug**.
+> **GIỮ LẠI 1 thay đổi duy nhất:** bỏ chuỗi `(vd 'D1')` khỏi prose `tra_cuu_so_luong` — nó bơm `1.0` vào rổ neo. Thuộc "làm sạch rổ neo" = đòn bẩy DUY NHẤT đã chứng minh có tác dụng.
+> **NẾU QUAY LẠI:** hướng còn lại là **ghép nhãn↔giá trị theo toạ độ** (đã có tiền lệ `_gan_dim_cau_kien` trong repo). Đó là việc LỚN, phải đo trước như mọi lần.
+
 ## 🎯 BỎ SÓT (recall) — ĐÃ TRUY RA NGUYÊN NHÂN BẰNG LỆNH GỌI TOOL THẬT (2026-08-01)
 > **SEAM MỚI `--ghi-tool`** (bọc `br.call` phía test, **0 dòng code sản phẩm**) — lần đầu nhìn được model đã gọi tool NÀO với THAM SỐ GÌ. Dữ liệu: `run10|11|12` (26 câu chập chờn ×3) + `run13` (28 câu từ-chối-ổn-định).
 >
