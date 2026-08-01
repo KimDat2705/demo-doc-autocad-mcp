@@ -703,11 +703,18 @@ _TOOL_DIEN_GIAI = frozenset(("tra_ky_hieu", "doc_chu_trang_in"))
 #    nhúng" ⇒ `do_luong` khác rỗng ⇒ REFUSE ⇒ A2 kích, và lớp lỗi "A2 làm câu ĐÚNG tệ đi" chuyển từ
 #    **0 ca** sang **phổ biến**. ⇒ ĐỘNG VÀO ĐIỂM ĐÓ THÌ PHẢI ĐO LẠI VIỆC XẾP LỚP NÀY.
 #    (Có ca test khoá bất biến này ở `tests/test_neo_rong_tu_choi.py`.)
-# ⚠ VẤN ĐỀ TO HƠN, KHÔNG PHẢI LỖI A2 — GHI SỔ, CHƯA VÁ: vì tool #35 nằm trong tuple loại-trừ rổ neo nên
-#    MỌI trích dẫn có chữ số từ nó đều bị `_guard_text` từ chối, mà **60,8% (975/1.604) chuỗi trang in
-#    CÓ chữ số**. Probe đo: guard xoá **5/8 câu trả lời ĐÚNG** của tool #35. Trên `rachmop`,
-#    'Hoàn trả đường dân sinh - B=1.5m - L=394,5m' đọc ĐÚNG nhưng KHÔNG BAO GIỜ tới người dùng.
-#    ⇒ A2 chỉ hạ "nói dối" xuống "vô dụng"; nó KHÔNG lấy lại câu trả lời. Hạng mục riêng, cần đo riêng.
+# ⚠ VẤN ĐỀ TO HƠN, KHÔNG PHẢI LỖI A2: vì tool #35 nằm trong tuple loại-trừ rổ neo nên trích dẫn CÓ SỐ
+#    ĐO-LƯỜNG từ nó bị `_guard_text` từ chối ⇒ A2 chỉ hạ "nói dối" xuống "trung thực", KHÔNG lấy lại câu
+#    trả lời. Xử lý ở A3 ngay dưới.
+#    ⛔ ĐÍNH CHÍNH 2 SỐ TÔI TỪNG GHI Ở ĐÂY — CẢ HAI SAI, đã đo lại bằng CHÍNH `Drawing._trang_in_kho`:
+#      · "60,8% (975/1.604) chuỗi trang in CÓ chữ số" — **SAI ĐƠN VỊ**: nó đo "CÓ CHỮ SỐ", không đo
+#        "BỊ GIẾT". Số nguyên trơn (`581000`), tỉ lệ (`TL 1:150`) và chữ-dính-số (`Đ-0.01`) đều cho
+#        `do_luong=[]` ⇒ guard THOÁT SỚM ⇒ chúng KHÔNG BAO GIỜ bị giết. Đúng: **20/621 = 3,2%** chuỗi
+#        riêng biệt · **34/2.180 = 1,6%** theo lượt.
+#      · "2.721 chuỗi / 24 file" — **SAI MẪU SỐ**: bộ quét riêng của tôi chui vào ATTRIB của INSERT,
+#        `_trang_in_kho()` thì KHÔNG (vd `Ket Sat 3T12P`: bộ quét 313 vs kho thật **3**).
+#        Kho THẬT = **18 file / 2.180 lượt / 621 chuỗi riêng biệt**.
+#      · "5/8" từ probe là mẫu nhỏ, câu tự soạn. Số đúng đơn vị của repo: **3/1699 = 0,18% từ-chối-oan**.
 _REFUSAL_MARKERS = ("không có thông tin", "chưa hỗ trợ", "không hỗ trợ", "không tìm thấy",
                     "không có trong bản vẽ", "không đưa ra", "quá tải")
 # ⚠ DẤU TRỪ GIẢ — gạch nối trong MÃ HIỆU / DẢI SỐ không phải dấu âm.
@@ -937,6 +944,148 @@ def _a2_khong_tra_duoc(guarded, text_goc, tool_numbers, ten_tool):
     return guarded
 
 
+# ============================================================
+# A3 — NEO-THEO-TRÍCH-DẪN cho chữ TRANG IN (tool #35). Lấy lại câu ĐÚNG mà guard xoá oan.
+# ============================================================
+# BÀI TOÁN, đo bằng CHÍNH `Drawing._trang_in_kho` (18 file / 2.180 lượt / 621 chuỗi riêng biệt):
+#   **20/621 = 3,2%** chuỗi riêng biệt (34/2.180 = 1,6% theo lượt) khi được TRÍCH NGUYÊN VĂN đủ kích
+#   `do_luong` ⇒ rổ neo rỗng vì CHÍNH SÁCH ⇒ REFUSE ⇒ A2 hạ xuống KHONG_TRA_DUOC.
+#   ĐỌC TAY 20/20: **0 lưới toạ độ · 0 số tờ · 0 tỉ lệ · 0 mã hiệu** — chúng cho `do_luong=[]` nên guard
+#   THOÁT SỚM, KHÔNG BAO GIỜ vào tập này. Tập bị giết bị làm giàu ĐÚNG PHẦN CÓ NGHĨA:
+#     · 7 kích thước THẬT  — 'Hoàn trả đường dân sinh - B=1.5m - L=394,5m' · 'S= 1740.4m2' ·
+#       'Thảm đá dày 30cm…' · 'Tim đường đá mi B=1.5m…' · 'd315-HDPE-l421m-I=0.33%'
+#     · 6 danh tính công trình (số ĐẾM thật) — '3 TẦNG 12 PHÒNG' · 'NHÀ LỚP HỌC 3 TẦNG 21 PHÒNG' ·
+#       'Nhà mái bằng 1 tầng, 2 tầng' (chuỗi bị giết NHIỀU NHẤT: 10 lượt)
+#     · 7 rác — mã cọc 'CỌC 4.1-30' · 'HỐ GA 6.3-23' · 'loại 1,2' · 'Tel: 0220.3855952' · '+1.63'
+#   Trên VĂN PHONG MODEL THẬT (probe LIVE bắt nguyên văn TRƯỚC guard): guard xoá 5/5 câu ĐÚNG-CÓ-HANDLE,
+#   0/5 bịa — người dùng hỏi "bản vẽ này là công trình gì?" và nhận "Chưa tra được…" trong khi máy vừa
+#   đọc ĐÚNG. Quy mô đúng đơn vị: **3/1699 = 0,18% lượt**. ⇒ ĐÁNG LÀM nhưng ƯU TIÊN THẤP, không gấp.
+#
+# ⛔ VÌ SAO KHÔNG ĐƠN GIẢN BỎ TOOL #35 KHỎI TUPLE LOẠI-TRỪ — đo lại, không phải phòng xa:
+#   MỘT lượt `doc_chu_trang_in(gioi_han=15)` trên `rachmop.dxf` bơm 10 số vào rổ neo, TRONG ĐÓ **-7.0**
+#   (sinh THUẦN từ SỐ TỜ '… -7/10') = đúng nguyên liệu lớp lỗi id135. Tuple loại-trừ GIỮ NGUYÊN.
+# ⛔ VÌ SAO `all(...)` CHỨ KHÔNG `any(...)`: bản ANY để lọt 10-12/12 ca ĂN THEO — model trích đúng một
+#   chuỗi rồi CHỞ THÊM số bịa; ANY-GROUNDED bảo lãnh cả câu.
+# ⛔ VÌ SAO GỘP VÙNG **RIÊNG TỪNG CHUỖI**: bản gộp-chung để lọt ca KHÂU VÁ — ghép đuôi chuỗi A
+#   ('…trải mái m=3') với đầu chuỗi B ('1.5m - L=394,5m') ĐẺ RA số MỚI **31.5** không có ở đâu cả.
+# ⛔ SỐ CỦA A3 **KHÔNG** VÀO `tool_numbers` — khác biệt CƠ CHẾ, không phải tỉ lệ: nó không để lại
+#   "giấy phép" cho các lượt SAU trong cùng phiên; hiệu lực chỉ trong đúng câu vừa trích.
+# 📌 RỦI RO TỒN DƯ, KHÔNG CHẶN HẾT ĐƯỢC: model có thể trích ĐÚNG nhưng GÁN SAI NGHĨA
+#    ('Tel: 0220.3855952' → "chiều dài tuyến 220,38 m"). 4/17 số cấp phép được thuộc loại này.
+#    Cờ `CO_TRANG_IN` + `ghi_chu` của tool là thứ duy nhất giảm nhẹ. Phải nêu khi báo cáo.
+# 📌 GIỚI HẠN CỐ Ý: chuỗi < _A3_K ký tự không bao giờ cứu được ('+1.63', 5 kt). Đo: 19/20 chuỗi bị giết
+#    vẫn cứu được, chỉ mất đúng chuỗi đó.
+CO_TRANG_IN = ("ℹ Nội dung trên trích NGUYÊN VĂN chữ đặt trên TRANG IN (khung tên / tiêu đề tờ / "
+               "danh mục) — CHƯA đối chiếu được với vùng vẽ, KHÔNG dùng làm khối lượng/kích thước.")
+_A3_K = 12            # đo A/B trên 5 lượt LIVE: K=8 -> 5/5 · K=12 -> 5/5 · K=16 -> 3/5 · K=20 -> 3/5
+_A3_NHOM = "doc_chu_trang_in"
+_A3_MAX_LEN = 20000   # chặn chi phí O(len(s)·len(text)) trên câu bất thường
+_A3_M2 = re.compile(r"(\d\s*m)2(?![0-9A-Za-z²³])")   # BẢO TOÀN ĐỘ DÀI (khác _I1B_M2_RE)
+_A3_M3 = re.compile(r"(\d\s*m)3(?![0-9A-Za-z²³])")
+
+
+def _a3_blank(m):
+    return " " * (m.end() - m.start())
+
+
+def _a3_do_luong_vitri(text):
+    """Bản GIỮ-VỊ-TRÍ của `_answer_numbers(text)[1]`: MỌI phép thay đều BẢO TOÀN ĐỘ DÀI nên chỉ số trả
+    về khớp `text` GỐC. BẤT BIẾN (có ca test khoá): bộ GIÁ TRỊ trả về phải TRÙNG `_answer_numbers`.
+    ⚠ Ai sửa `_MAHIEU_RES` / `_I1B_*` / `_DEM_NUM_RE` PHẢI chạy lại ca bất biến đó — đây là logic
+    NHÂN BẢN nằm trong đường chống-bịa, chỗ nguy hiểm nhất để hai bản trôi lệch nhau."""
+    t = " " + (text or "") + " "
+    t = _A3_M2.sub(lambda m: m.group(1) + "²", t)
+    t = _A3_M3.sub(lambda m: m.group(1) + "³", t)
+    for rx in _MAHIEU_RES:
+        t = rx.sub(_a3_blank, t)
+    out = []
+    for rx, gi in ((_UNIT_NUM_RE, 1), (_DECIMAL_RE, 0), (_DEM_NUM_RE, 1)):
+        for m in rx.finditer(t):
+            f = _to_f(m.group(gi))
+            if f is not None:
+                out.append((f, m.start(gi) - 1, m.end(gi) - 1))
+    return out
+
+
+def _a3_chuan(s):
+    """casefold + gộp khoảng trắng; trả (chuỗi chuẩn, ánh xạ chỉ-số-GỐC -> chỉ-số-CHUẨN)."""
+    out, mp, ws = [], [0] * (len(s) + 1), False
+    for i, ch in enumerate(s):
+        mp[i] = len(out)
+        if ch.isspace():
+            if ws:
+                continue
+            out.append(" "); ws = True
+        else:
+            out.append(ch.casefold()); ws = False
+    mp[len(s)] = len(out)
+    return "".join(out), mp
+
+
+def _a3_vung(nt, s, K):
+    """Các đoạn của `nt` trùng NGUYÊN VĂN >=K ký tự với MỘT chuỗi `s`. Gộp RIÊNG từng chuỗi —
+    KHÔNG gộp chung nhiều chuỗi (lý do 'khâu vá' ở khối chú thích trên)."""
+    ns, _ = _a3_chuan(s)
+    if len(ns) < K:
+        return []
+    mk = []
+    for k in range(len(ns) - K + 1):
+        g = ns[k:k + K]
+        p = nt.find(g)
+        while p != -1:
+            mk.append((p, p + K)); p = nt.find(g, p + 1)
+    if not mk:
+        return []
+    mk.sort()
+    out = [list(mk[0])]
+    for a, b in mk[1:]:
+        if a <= out[-1][1]:
+            out[-1][1] = max(out[-1][1], b)
+        else:
+            out.append([a, b])
+    return [tuple(x) for x in out]
+
+
+def _a3_trich_trang_in(guarded, text_goc, tool_numbers, ten_tool, evidence):
+    """A3 — guard vừa xoá một câu mà MỌI số đo-lường của nó nằm TRỌN trong đoạn TRÍCH NGUYÊN VĂN một
+    chuỗi `doc_chu_trang_in` ĐÃ trả trong CHÍNH lượt này ⇒ trả lại câu + gắn cờ `CO_TRANG_IN`.
+
+    NĂM VẾ CỔNG — 4 vế đầu là ĐÚNG cổng của A2 (A3 KHÔNG mở rộng phạm vi nào so với thứ đang LIVE),
+    vế 5 lọc theo NHÓM: chỉ chuỗi của tool #35 mới được làm nguồn trích dẫn.
+      ⚠ CỐ Ý lọc theo nhóm chứ KHÔNG dựa vào "tình cờ `tra_ky_hieu` không phát handle" — dự án đã trả
+        giá một lần cho kiểu an-toàn-do-tình-cờ (xem ràng buộc `_gan_canh_bao_nhung` ở trên).
+    ĐẶT TRƯỚC `_a2_khong_tra_duoc`: A3 trả text != REFUSE_MESSAGE ⇒ vế 1 của A2 TỰ TẮT nên A2 không ghi
+    đè câu vừa cứu; ca A3 không cứu thì rơi xuống A2 y như trước.
+    FAIL-CLOSED: mọi lỗi -> GIỮ NGUYÊN lời từ chối (ngược `_apply_i1`, vì đây là hàng rào chống bịa)."""
+    try:
+        if not (guarded == REFUSE_MESSAGE and text_goc != REFUSE_MESSAGE
+                and not tool_numbers and ten_tool and set(ten_tool) <= _TOOL_DIEN_GIAI):
+            return guarded
+        if not text_goc or len(text_goc) > _A3_MAX_LEN:
+            return guarded
+        chuoi = [(e.get("text") or "") for e in (evidence or [])
+                 if (e.get("nhom") or "").split(":", 1)[0].strip() == _A3_NHOM
+                 and (e.get("text") or "").strip()]
+        if not chuoi:
+            return guarded
+        nums = _a3_do_luong_vitri(text_goc)
+        if not nums:
+            return guarded
+        nt, mp = _a3_chuan(text_goc)
+        vung = []
+        for s in chuoi:
+            vung.extend(_a3_vung(nt, s, _A3_K))
+        if not vung:
+            return guarded
+        for _v, i, j in nums:
+            a, b = mp[i], mp[j]
+            if not any(x <= a and b <= y for x, y in vung):
+                return guarded          # có MỘT số nằm ngoài mọi đoạn trích -> KHÔNG cứu (all, không any)
+        return text_goc.rstrip() + "\n\n" + CO_TRANG_IN
+    except Exception:
+        return guarded
+
+
 def _msg_finish(fr):
     n = getattr(fr, "name", str(fr)) if fr is not None else None
     if n == "MAX_TOKENS": return "AI bị cắt do trả lời quá dài. Hãy hỏi hẹp hơn."
@@ -1070,6 +1219,7 @@ def tra_loi_ai(bridge, q, file_summary="", history=None):
             return {"answer": "AI không đưa ra nội dung, vui lòng thử lại.",
                     "evidence": _flat_ev(evidence), "anh_id": anh_id, "file_id": file_id, "ai": True}
         _goc = _guard_text(text, tool_numbers)               # id135: chặn bịa số đo-lường không nguồn
+        _goc = _a3_trich_trang_in(_goc, text, tool_numbers, ten_tool_da_goi, evidence)  # A3: cứu câu TRÍCH NGUYÊN VĂN chữ trang in
         _goc = _a2_khong_tra_duoc(_goc, text, tool_numbers, ten_tool_da_goi)
         _ans, _hk = _apply_i1(_goc, tool_handles, tool_numbers, bridge, q)   # I1: đối chiếu handle trích dẫn (nối cảnh báo)
         return {"answer": _ans, "answer_goc": _goc, "handle_kiem": _hk, "kb_cau_hoi": kb_cau_hoi,
@@ -1091,6 +1241,7 @@ def tra_loi_ai(bridge, q, file_summary="", history=None):
         text = "".join(getattr(p, "text", "") or "" for p in parts if not getattr(p, "thought", False)).strip()
         if text:
             _goc = _guard_text(text, tool_numbers)               # id135: chặn bịa số đo-lường không nguồn
+            _goc = _a3_trich_trang_in(_goc, text, tool_numbers, ten_tool_da_goi, evidence)  # A3
             _goc = _a2_khong_tra_duoc(_goc, text, tool_numbers, ten_tool_da_goi)
             _ans, _hk = _apply_i1(_goc, tool_handles, tool_numbers, bridge, q)   # I1: đối chiếu handle trích dẫn
             return {"answer": _ans, "answer_goc": _goc, "handle_kiem": _hk, "kb_cau_hoi": kb_cau_hoi,

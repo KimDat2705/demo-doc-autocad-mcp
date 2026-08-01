@@ -32,6 +32,40 @@
 >
 > **📌 BÀI HỌC MANG SANG PHIÊN SAU:** ba lần trong phiên này **bộ trích của chính tôi hỏng** và cả ba suýt cho kết luận NGƯỢC (regex vớ `"304"` trong `"INOX 304"` → "0 gắn cờ"; bộ dò từ-khoá đếm *"không tìm thấy lỗi font"* thành từ chối → thổi bỏ-sót 2%→13%; tổng-tập-con mù với tổng cộng SAI). **Số "0%" và số "quá đẹp" là dấu hiệu bộ trích hỏng, không phải tin mừng** — chạy nó lên ca đã biết đáp án trước khi tin.
 
+## ✅ A3 — NEO-THEO-TRÍCH-DẪN: lấy lại câu ĐÚNG mà hàng rào xoá oan (2026-08-02) · gate **[47/47]** · `wf_c748163d-28b`
+> ### 🔴 GIẢ THUYẾT CỦA TÔI ("bị giết là vô hại") **SAI** — nhưng sai theo hướng có lợi
+> Đọc tay **20/20** chuỗi thực sự bị giết (đo bằng CHÍNH `Drawing._trang_in_kho`):
+> | loại | số |
+> |---|---|
+> | kích thước **THẬT** (`B=1.5m - L=394,5m` · `S= 1740.4m2` · `d315-HDPE-l421m-I=0.33%` · `Thảm đá dày 30cm` · `Tim đường đá mi B=1.5m`) | **7** |
+> | **danh tính công trình** — số ĐẾM thật (`3 TẦNG 12 PHÒNG` · `NHÀ LỚP HỌC 3 TẦNG 21 PHÒNG` · `Nhà mái bằng 1 tầng, 2 tầng` = chuỗi bị giết NHIỀU NHẤT, 10 lượt) | **6** |
+> | rác (mã cọc `CỌC 4.1-30` · `HỐ GA 6.3-23` · `loại 1,2` · `Tel: 0220.3855952` · `+1.63`) | **7** |
+> | **lưới toạ độ `581000` · số tờ `-7/10` · tỉ lệ `TL 1:150` · mã hiệu `Đ-0.01`** | **0** |
+> **Lý do 0:** chúng cho `do_luong=[]` ⇒ `_guard_text` **THOÁT SỚM** ⇒ **không bao giờ** vào tập bị giết. Tập bị giết **tự lọc về đúng phần có nghĩa**: 13/20 là dữ liệu thật.
+>
+> ### ⛔ HAI SỐ TÔI GHI VÀO CODE ĐỀU SAI — ĐÃ SỬA Ở 3 CHỖ (`mcp_bridge` · `tools_core` · `test_trang_in`)
+> · **"60,8% (975/1.604) chuỗi trang in CÓ chữ số"** — **SAI ĐƠN VỊ**: đo *"CÓ CHỮ SỐ"*, không đo *"BỊ GIẾT"*. Đúng: **20/621 = 3,2%** chuỗi riêng biệt · **34/2.180 = 1,6%** theo lượt.
+> · **"2.721 chuỗi / 24 file"** — **SAI MẪU SỐ**: bộ quét riêng của tôi chui vào **ATTRIB của INSERT**, `_trang_in_kho()` thì KHÔNG (`Ket Sat 3T12P`: quét **313** vs kho thật **3**). Kho THẬT = **18 file / 2.180 lượt / 621 chuỗi riêng biệt**. (Tôi **tự đo lại** bằng chính hàm sản phẩm, ra khớp chính xác — đây là lần thứ **6** trong phiên một phép đo của tôi lệch, và là lần đầu số sai đã kịp vào code.)
+> · "5/8" từ probe là mẫu nhỏ, câu tự soạn. Số đúng đơn vị: **3/1699 = 0,18% lượt**.
+>
+> ### BẢN VÁ `_a3_trich_trang_in` (`mcp_bridge.py:~940`), cắm ở **CẢ HAI** call-site, **TRƯỚC** A2
+> Giữ câu khi **MỌI** số đo-lường của nó nằm **TRỌN** trong đoạn trích **NGUYÊN VĂN ≥`_A3_K`=12 ký tự** khớp một chuỗi `doc_chu_trang_in` đã trả **trong CHÍNH lượt này** ⇒ trả lại câu + gắn cờ `CO_TRANG_IN`. **KHÔNG** bơm số vào `tool_numbers`. **FAIL-CLOSED** (mọi lỗi → giữ lời từ chối). 5 vế cổng: 4 vế đầu **đúng cổng A2** (không mở rộng phạm vi), vế 5 lọc theo **NHÓM** `doc_chu_trang_in` — cố ý lọc theo nhóm chứ KHÔNG dựa vào *"tình cờ `tra_ky_hieu` không phát handle"*.
+> **BA QUYẾT ĐỊNH, mỗi cái vì bản ngây thơ ĐÃ ĐO RA HỎNG:**
+> · **`all` chứ KHÔNG `any`** — bản ANY để lọt **10-12/12 ca ĂN THEO** (trích đúng 1 chuỗi rồi chở thêm số bịa; ANY-GROUNDED bảo lãnh cả câu). → ca `G1`
+> · **gộp vùng RIÊNG TỪNG CHUỖI** — gộp chung thì khâu đuôi `'…trải mái m=3'` với đầu `'1.5m - L=394,5m'` **ĐẺ RA số MỚI 31.5 không có ở đâu cả**. → ca `G2`
+> · **số A3 KHÔNG vào rổ neo** — khác biệt CƠ CHẾ: không để lại "giấy phép" cho lượt SAU trong cùng phiên.
+> **K=12 là ĐO, không phải hằng số hiển nhiên:** K=8→5/5 · **K=12→5/5** · K=16→**3/5** · K=20→3/5.
+> **⛔ KHÔNG bỏ tool #35 khỏi tuple loại-trừ** — đo lại: MỘT lượt `doc_chu_trang_in(15)` trên `rachmop` bơm 10 số vào rổ neo, **trong đó `-7.0`** (sinh thuần từ SỐ TỜ) = đúng nguyên liệu id135.
+>
+> ### ⚠ CHỖ NGUY HIỂM NHẤT CỦA BẢN VÁ — LOGIC NHÂN BẢN TRONG ĐƯỜNG CHỐNG-BỊA
+> `_a3_do_luong_vitri` là **bản nhân bản GIỮ-VỊ-TRÍ** của `_answer_numbers`. Ai sửa `_MAHIEU_RES` / `_I1B_*` / `_DEM_NUM_RE` mà quên ⇒ **hai bản trôi lệch ÂM THẦM**. Khoá bằng ca bất biến `M1`; **tự đo trên 2.042 chuỗi/câu → 0 lệch**, trong đó **326** câu CÓ số đo-lường (⇒ phép đo **không tautology**).
+> ### 📌 RỦI RO TỒN DƯ, KHÔNG CHẶN HẾT ĐƯỢC
+> Model trích **ĐÚNG** nhưng **GÁN SAI NGHĨA**: `'Tel: 0220.3855952'` → *"chiều dài tuyến 220,38 m"*. **4/17** số cấp phép được thuộc loại này. Cờ `CO_TRANG_IN` + `ghi_chu` tool là thứ **duy nhất** giảm nhẹ. **Phải nêu khi báo cáo.**
+> ### 📌 NÓI THẲNG VỀ ĐÁNH ĐỔI
+> Quy mô **0,18% lượt**, và **KHÔNG phải lỗi an toàn** (A2 đã hạ "nói dối" → "trung thực"). Đổi lại là một cơ chế **khá nặng** trong đường chống-bịa. Thiết kế tự đánh giá **"ĐÁNG LÀM nhưng ƯU TIÊN THẤP"**. Nếu xếp lại ưu tiên thì **bảng mã VNI** (1.422 chuỗi đọc sai hoàn toàn) đáng làm trước nhiều.
+> **TEST** `tests/test_a3_trich_trang_in.py` **21 ca** (D phân-biệt-được · G chống-hồi-quy · M bất-biến · S source-guard), check.sh 46→**47**. **Tự kiểm ngược:** gỡ A3 → D1/D2/D3 **ĐỎ**, G5 (id135) **XANH cả hai phía**. Gate: **0 suite cũ đổi số**, tổng ca 1.563→1.584.
+> **📌 Lần thứ 7 assert của tôi sai mà code đúng:** ca `G6` dùng *"5 cống hộp"* — `"cống"` KHÔNG nằm trong `_DEM_TU` nên `do_luong=[]`, câu **chưa bao giờ bị chặn**. Đổi sang *"5 bộ cửa"* + thêm `G6b` khoá luôn hành vi đó. **Cùng khuôn lỗi với `G3` của suite A2** — tôi liên tục giả định một câu kích guard trong khi nó không kích.
+
 ## ⛔ CỜ "SỐ DO MÁY TỰ TÍNH" = **NO_GO** (không đạt ngưỡng ĐẶT TRƯỚC) + ✅ KIỂM LẠI XẾP LỚP TOOL #35 = **GIỮ** — 2026-08-01 `wf_d32aae4a-708`
 > ### ⛔ VIỆC 1 — cờ "số do máy tự tính": **NO_GO**, thiết kế đã siết và ĐÓNG BĂNG (lấy ra dùng khi có corpus mới)
 > | ngưỡng ĐẶT TRƯỚC khi chạy | đo được | |

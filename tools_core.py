@@ -2143,8 +2143,11 @@ class Drawing:
     # E2(b) — ĐỌC CHỮ TRÊN TRANG IN (paperspace). Tool #35.
     # ============================================================
     # QUÉT ĐỦ 95/98 file .dxf (2026-08-01, lần đầu KHÔNG bỏ file lớn) — con số quyết định thiết kế:
-    #  · 2.721 chuỗi chỉ tồn tại trên trang in, ở 24/95 file. Hôm nay MỌI tool đều mù với chúng và
-    #    máy trả "không có" bằng giọng chắc chắn -> đúng loại THẤT BẠI IM LẶNG dự án đã cấm.
+    #  · Bộ QUÉT RIÊNG đếm 2.721 chuỗi / 24 file. ⛔ ĐÍNH CHÍNH: đó KHÔNG phải kho của tool này —
+    #    bộ quét đó chui vào ATTRIB của INSERT, `_trang_in_kho()` thì KHÔNG (vd `Ket Sat 3T12P`:
+    #    quét 313 vs kho thật 3). KHO THẬT, đo bằng chính hàm này: **18 file / 2.180 lượt /
+    #    621 chuỗi riêng biệt**. Hôm nay MỌI tool khác đều mù với chúng và máy trả "không có" bằng
+    #    giọng chắc chắn -> đúng loại THẤT BẠI IM LẶNG dự án đã cấm.
     #  · NHƯNG chỉ 10/2.721 chuỗi MANG GIÁ TRỊ ĐO, và 9/10 nằm trong rachmop.dxf (file id135 đã có
     #    trong battery). Ngoài rachmop, TOÀN corpus còn đúng 1 chuỗi: 'd315-HDPE-l421m-I=0.33%'.
     #    => Tool này KHÔNG giúp bóc khối lượng. Giá trị của nó là TIÊU ĐỀ / DANH MỤC / KHUNG TÊN,
