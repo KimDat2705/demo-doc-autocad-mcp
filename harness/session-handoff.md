@@ -32,6 +32,28 @@
 >
 > **📌 BÀI HỌC MANG SANG PHIÊN SAU:** ba lần trong phiên này **bộ trích của chính tôi hỏng** và cả ba suýt cho kết luận NGƯỢC (regex vớ `"304"` trong `"INOX 304"` → "0 gắn cờ"; bộ dò từ-khoá đếm *"không tìm thấy lỗi font"* thành từ chối → thổi bỏ-sót 2%→13%; tổng-tập-con mù với tổng cộng SAI). **Số "0%" và số "quá đẹp" là dấu hiệu bộ trích hỏng, không phải tin mừng** — chạy nó lên ca đã biết đáp án trước khi tin.
 
+## ✅ A2 — RỔ NEO RỖNG *VÌ CHÍNH SÁCH* KHÔNG ĐƯỢC KHẲNG ĐỊNH "BẢN VẼ KHÔNG CÓ" (2026-08-01) · gate **[46/46]**
+> **Lỗi:** model **CHỈ** gọi tool trong tuple loại-trừ rổ neo ⇒ `tool_numbers` RỖNG ⇒ `_guard_text` trả *"Không có thông tin này trong bản vẽ."* = **KHẲNG ĐỊNH VỀ BẢN VẼ**, và nó **SAI** khi bản vẽ có dữ liệu. Đo **3/1699 = 0,18%**; id69 gọi `tra_ky_hieu` → từ chối, trong khi `ky_vong` = *"Thép tròn, 4817 thanh / 25752.6 kg"*; **cùng câu** lượt gọi `thong_ke_thep` thì **trả lời ĐÚNG** ⇒ nguyên nhân là **ROUTING**.
+>
+> **⛔ HAI PHƯƠNG ÁN HIỂN NHIÊN ĐỀU NO_GO — ĐỪNG LÀM LẠI:**
+> · **(A) điều kiện rộng "rổ neo rỗng + `da_goi`"**: bắn trúng **đúng lớp lỗi id135** (`tim_kiem` chạy THẬT trả `{}` rồi model bịa `-10m` — ở đó REFUSE là câu **ĐÚNG**) ⇒ **làm vỡ `test_grounding_guard:137`**, cổng 232→231 PASS/1 FAIL · bắn trúng câu hỏi **TỒN TẠI** (id139, `ky_vong` đòi nguyên văn *"PHẢI NÓI RÕ KHÔNG CÓ"*, `loi_san='ảo giác'`) · **ghi đè lời từ chối TRUNG THỰC do chính model viết** (REFUSE_MESSAGE nằm trong SYSTEM_PROMPT + cả 2 câu nhắc đều dạy model nói đúng chuỗi đó). **Lý do cấu trúc:** `REFUSE_MESSAGE` **gánh HAI vai** — **≥22/36 lượt** REFUSE toàn corpus nằm trên id mà `ky_vong` **ĐÒI** khẳng định-vắng-mặt ⇒ một thông điệp không phục vụ được cả hai quần thể.
+> · **(B) ép model gọi lại tool có số**: giả định cốt lõi (*"model đổi routing sau lời nhắc"*) có **0 phép đo** · số lợi ích "3/3 id có lượt đúng nhờ routing khác" là **TAUTOLOGY** (≈10 lượt/id ⇒ "tồn tại ≥1 lượt đúng" gần như chắc chắn theo cấu tạo mẫu; nó đo **biến thiên routing**, không đo **hiệu lực câu nhắc**) · **bằng chứng ngược:** câu **ĐỊNH TÍNH** đúng của id69 **đã đi qua hàng rào sẵn** khi không kèm số ⇒ bệnh là *"một con số tình cờ"*, không phải *"thiếu số liệu"* ⇒ (B) **ép model NHÉT SỐ vào câu vốn định tính** = đúng lớp rủi ro đã NO_GO ở `_VCD_CAU_NUDGE` · chi phí **+2 lượt gọi/ca** (không phải +1) · **không cắm được vào call-site thứ hai** vì `cfg_final` **không truyền `tools=`**.
+>
+> **✅ (A2) — BIẾN THỂ HẸP, ĐÃ LÀM.** Phát hiện then chốt: **tuple loại-trừ chứa HAI LỚP NGỮ NGHĨA NGƯỢC NHAU**.
+> | lớp | tool | rổ neo rỗng vì | câu đúng |
+> |---|---|---|---|
+> | **DIỄN GIẢI** | `tra_ky_hieu`, `doc_chu_trang_in` | **CHÍNH SÁCH** (payload là giải nghĩa/tiêu đề, không phải nguồn số) | *"chưa tra được"* |
+> | **PHÁT HIỆN TỒN TẠI** | `doc_bang_nhung`, `phat_hien_bang_ve_net` | đầu ra HỢP LỆ **chính là** "có/không có bảng" | **khẳng định vắng mặt** ⇒ giữ REFUSE |
+> Hàm `_a2_khong_tra_duoc` (`mcp_bridge.py:890`), cắm ở **CẢ HAI** call-site. **4 vế**, mỗi vế chặn một rủi ro đo được: `guarded == REFUSE_MESSAGE` · **`text_goc != REFUSE_MESSAGE`** (chặn ghi đè lời từ chối trung thực — vế `guarded` một mình KHÔNG phân biệt được vì `_guard_text(REFUSE, set())` trả lại chính nó) · `not tool_numbers` · **`ten_tool <= _TOOL_DIEN_GIAI`** (vế chặn id135 + câu hỏi tồn tại; tập RỖNG cũng không kích vì đòi `ten_tool` truthy).
+> `ten_tool_da_goi` ghi **mọi** `fc.name` **kể cả tool bị L0 chặn** — **lệch về phía AN TOÀN**: tên lạ sẽ không ⊆ `_TOOL_DIEN_GIAI` ⇒ bản vá không kích.
+> **`_apply_i1` (`:641`) đã vá tường minh** thành `in (REFUSE_MESSAGE, KHONG_TRA_DUOC)`. Đo được hôm nay nó **vô hại** (không khớp `_REFUSAL_MARKERS` nên chạy tiếp, nhưng `_handle_tokens` rỗng ⇒ `n_call=0`) — **vẫn vá, KHÔNG dựa vào may**. ⛔ **KHÔNG thêm "chưa tra được" vào `_REFUSAL_MARKERS`**: đó là bộ lọc **ngôn ngữ tự nhiên** áp lên câu do MODEL viết, thêm cụm phổ biến sẽ miễn kiểm-handle cho một tập câu chưa đo được kích thước.
+> **Hình dạng thông điệp đã ĐO trước khi viết:** 0 chữ số · `_answer_numbers` → `([], [])` · **ĐIỂM BẤT ĐỘNG** (`_guard_text(msg, set()) == msg`, không tự huỷ ở vòng sau) · không khẳng định gì về bản vẽ.
+> **TEST** `tests/test_neo_rong_tu_choi.py` **23 ca**, check.sh 45→**46**. **Tự kiểm ngược:** gỡ bản vá thì **D1/D2/D3 ĐỎ**, còn **G1 (id135) XANH cả hai phía** ⇒ suite **phân biệt được**, không phải cổng-xanh-vô-nghĩa.
+> ⚠ **Helper `run_e2e` của `test_grounding_guard.py:44` HARD-CODE tool `"tim_kiem"`** — đó là lý do **6 file test hiện có đều MÙ** với lớp lỗi này. Suite mới dùng helper **có tham số tên tool** + bridge trả kết quả **theo từng tool**.
+> **📌 GIÁ TRỊ THẬT, NÓI THẲNG:** bản vá **KHÔNG lấy lại câu trả lời đúng nào** (0/5 lượt kích). Nó chỉ đổi một **khẳng định SAI về bản vẽ** thành câu **trung thực**. Đừng trích nó như một cải thiện recall.
+> **⛔ ĐÍNH CHÍNH đề bài tôi giao (đã đo):** call-site là **`:992`/`:1012`** (không phải `:994`/`:1008`) · **6** file test tham chiếu `REFUSE_MESSAGE` (không phải 5) · điều kiện kích cần **3 vế**, không phải 2 (phải thêm "câu thô có ≥1 số ĐO-LƯỜNG": `_guard_text("Thép Ø10 là thép tròn.", set())` **GIỮ NGUYÊN** vì `do_luong` rỗng) · trong 3 ca "từ-chối-oan" thì **chỉ id69 là oan thật**, id139 KHÔNG oan, id103 guard **không hề chạm**.
+> **CÒN LẠI:** `doc_chu_trang_in` có **0/162 lượt gọi** trong mọi log ⇒ xếp nó vào `_TOOL_DIEN_GIAI` là **suy luận ngữ nghĩa, chưa đo** — món phải kiểm ở lượt battery đầy đủ kế tiếp.
+
 ## ✅ E2(b) TOOL #35 `doc_chu_trang_in` + ⛔ NO_GO "câu tổng-hợp bị giết" — 2026-08-01 · gate **[45/45]** · 35 tool
 > **① QUÉT ĐỦ CORPUS LẦN ĐẦU (95/98 file — trước đây luôn thiếu file to nhất) — LẬT NGƯỢC CẢ HAI GIẢ ĐỊNH:**
 > · chuỗi chỉ-ở-trang-in **851/893 → 2.721** (3×), ở **24/95 file** — "cận dưới" là đúng.

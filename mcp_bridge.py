@@ -638,7 +638,13 @@ def _kiem_handle(text, tool_handles, tool_numbers, bridge, cau_hoi=""):
 def _apply_i1(guarded, tool_handles, tool_numbers, bridge, cau_hoi):
     """Gate I1: tắt bằng env I1_KIEM_HANDLE=0; bỏ qua câu đã bị từ chối. FAIL-OPEN mọi lỗi."""
     if os.environ.get("I1_KIEM_HANDLE", "1") == "0": return guarded, {}
-    if guarded == REFUSE_MESSAGE: return guarded, {}
+    # A2: + KHONG_TRA_DUOC. Đo được hôm nay nó VÔ HẠI (không khớp `_REFUSAL_MARKERS` nào nên chạy tiếp,
+    # nhưng `_handle_tokens` rỗng ⇒ `_kiem_handle` trả về trước mọi `bridge.call`, đo `n_call=0`).
+    # VẪN vá tường minh — KHÔNG dựa vào may: nếu `_apply_i1` về sau nối thêm gì cho câu không-từ-chối
+    # thì thông điệp mới sẽ dính, và cổng này là lớp chặn DUY NHẤT.
+    # ⛔ KHÔNG thêm "chưa tra được" vào `_REFUSAL_MARKERS`: đó là bộ lọc NGÔN NGỮ TỰ NHIÊN áp lên câu do
+    # MODEL viết; thêm một cụm phổ biến như vậy sẽ miễn kiểm-handle cho một tập câu chưa đo được kích thước.
+    if guarded in (REFUSE_MESSAGE, KHONG_TRA_DUOC): return guarded, {}
     if any(m in (guarded or "").lower() for m in _REFUSAL_MARKERS): return guarded, {}   # F2: câu TỪ CHỐI (ngôn ngữ tự nhiên) -> không nối cảnh báo
     try:
         return _kiem_handle(guarded, tool_handles, tool_numbers, bridge, cau_hoi)
@@ -654,6 +660,26 @@ def _apply_i1(guarded, tool_handles, tool_numbers, bridge, cau_hoi):
 # đếm) đều KHÔNG truy được -> bịa thuần (vd id135 'cao độ -10m' trong khi không tool nào lộ -10).
 # ============================================================
 REFUSE_MESSAGE = "Không có thông tin này trong bản vẽ."
+# ── A2 (2026-08-01): RỔ NEO RỖNG VÌ *CHÍNH SÁCH* ⇒ KHÔNG được khẳng định "bản vẽ không có" ──────────
+# Tuple loại-trừ rổ neo (dưới, ~:975) chứa HAI LỚP NGỮ NGHĨA NGƯỢC NHAU — đây là chỗ bản vá ngây thơ sai:
+#   · DIỄN GIẢI (`tra_ky_hieu`, `doc_chu_trang_in`): payload là GIẢI NGHĨA / TIÊU ĐỀ, KHÔNG phải nguồn số.
+#     Rổ neo rỗng ở đây là do CHÍNH SÁCH ⇒ câu đúng là "chưa tra được", KHÔNG phải "bản vẽ không có".
+#   · PHÁT HIỆN TỒN TẠI (`doc_bang_nhung`, `phat_hien_bang_ve_net`): đầu ra HỢP LỆ của chúng CHÍNH LÀ
+#     "có / không có bảng" ⇒ khẳng định vắng mặt MỚI là đáp án ⇒ PHẢI giữ REFUSE_MESSAGE (ca id139,
+#     `ky_vong` đòi nguyên văn "PHẢI NÓI RÕ KHÔNG CÓ", `loi_san='ảo giác'`).
+# ⛔ VÌ SAO KHÔNG DÙNG ĐIỀU KIỆN RỘNG "rổ neo rỗng + đã gọi tool" (đã đo, NO_GO):
+#   · nó bắn trúng ĐÚNG lớp lỗi id135 — `tim_kiem` chạy THẬT trả `{}` rồi model bịa "-10m": ở đó
+#     "Không có thông tin này trong bản vẽ." là câu ĐÚNG. Cổng rộng làm vỡ `test_grounding_guard:137`.
+#   · rổ neo rỗng còn đến từ đường bắt lỗi M4 (~:945) vốn CỐ Ý sạch số.
+#   · REFUSE_MESSAGE gánh HAI vai: ≥22/36 lượt REFUSE toàn corpus nằm trên id mà `ky_vong` ĐÒI câu
+#     khẳng định-vắng-mặt. Một thông điệp không phục vụ được cả hai quần thể.
+# ĐO TRƯỚC KHI VIẾT CHỮ: `_answer_numbers(KHONG_TRA_DUOC)` → ([], []) · `_handle_tokens` → [] ·
+# `_guard_text(KHONG_TRA_DUOC, set()) == KHONG_TRA_DUOC` (ĐIỂM BẤT ĐỘNG, không tự huỷ ở vòng sau) · 0 chữ số.
+# 📌 GIÁ TRỊ THẬT, NÓI THẲNG: bản vá này KHÔNG lấy lại câu trả lời đúng nào (0/5 lượt kích đo được).
+#    Nó chỉ đổi một KHẲNG ĐỊNH SAI VỀ BẢN VẼ thành một câu TRUNG THỰC. Tần suất 3/1699 = 0,18%.
+KHONG_TRA_DUOC = ("Chưa tra được thông tin này từ các công cụ có số liệu của bản vẽ. "
+                  "Bạn thử hỏi lại cụ thể hơn (nêu tên cấu kiện hoặc loại số liệu cần tra).")
+_TOOL_DIEN_GIAI = frozenset(("tra_ky_hieu", "doc_chu_trang_in"))
 _REFUSAL_MARKERS = ("không có thông tin", "chưa hỗ trợ", "không hỗ trợ", "không tìm thấy",
                     "không có trong bản vẽ", "không đưa ra", "quá tải")
 # ⚠ DẤU TRỪ GIẢ — gạch nối trong MÃ HIỆU / DẢI SỐ không phải dấu âm.
@@ -861,6 +887,28 @@ def _guard_text(text, tool_numbers):
     return REFUSE_MESSAGE
 
 
+def _a2_khong_tra_duoc(guarded, text_goc, tool_numbers, ten_tool):
+    """A2 — guard vừa từ chối, nhưng rổ neo rỗng vì CHÍNH SÁCH (model CHỈ gọi tool DIỄN GIẢI) ⇒ đổi sang
+    câu TRUNG THỰC thay vì khẳng định "bản vẽ không có". Đặt SAU `_guard_text` nên chỉ chạy khi guard
+    THỰC SỰ từ chối — nhờ vậy ca `tinh_dai_luong` (câu hữu ích, guard không chạm) tự động không bị đụng.
+
+    BỐN VẾ, mỗi vế chặn một rủi ro ĐO ĐƯỢC:
+      · `guarded == REFUSE_MESSAGE`      — chỉ can thiệp khi guard đã từ chối
+      · `text_goc != REFUSE_MESSAGE`     — KHÔNG ghi đè lời từ chối TRUNG THỰC do CHÍNH model viết.
+        (REFUSE_MESSAGE nằm trong SYSTEM_PROMPT và cả 2 câu nhắc đều DẠY model nói đúng chuỗi này;
+         `_guard_text(REFUSE, set())` trả lại chính nó nên vế `guarded` một mình KHÔNG phân biệt được.)
+      · `not tool_numbers`               — rổ neo thật sự rỗng
+      · `ten_tool <= _TOOL_DIEN_GIAI`    — và RỖNG VÌ CHÍNH SÁCH, không phải vì tool đọc-dữ-liệu trả rỗng.
+        Đây là vế chặn lớp lỗi id135 (`tim_kiem` chạy thật trả `{}` rồi model bịa) và ca hỏi-TỒN-TẠI
+        (`doc_bang_nhung`/`phat_hien_bang_ve_net`, nơi khẳng định vắng mặt MỚI là đáp án).
+        Tập RỖNG cũng không kích: `set() <= frozenset(...)` là True nên phải có `ten_tool` truthy.
+    """
+    if (guarded == REFUSE_MESSAGE and text_goc != REFUSE_MESSAGE
+            and not tool_numbers and ten_tool and set(ten_tool) <= _TOOL_DIEN_GIAI):
+        return KHONG_TRA_DUOC
+    return guarded
+
+
 def _msg_finish(fr):
     n = getattr(fr, "name", str(fr)) if fr is not None else None
     if n == "MAX_TOKENS": return "AI bị cắt do trả lời quá dài. Hãy hỏi hẹp hơn."
@@ -904,6 +952,9 @@ def tra_loi_ai(bridge, q, file_summary="", history=None):
     tool_handles = set()          # I1: MỌI handle THẬT tool đã phát -> validate handle model trích dẫn
     kb_cau_hoi = []               # L5: câu hỏi confirm-only từ '_kb' của tool results -> frontend render nút bấm
     da_goi, da_nhac, da_nhac_rong = False, False, False
+    # A2: TÊN mọi tool model YÊU CẦU — ghi kể cả tool bị L0 chặn (tên lạ/host-only). Ghi cả như vậy là
+    # LỆCH VỀ PHÍA AN TOÀN: tên lạ sẽ KHÔNG ⊆ _TOOL_DIEN_GIAI ⇒ bản vá KHÔNG kích.
+    ten_tool_da_goi = set()
 
     for _ in range(MAX_TURNS):
         try:
@@ -922,6 +973,7 @@ def tra_loi_ai(bridge, q, file_summary="", history=None):
         fcalls = [p.function_call for p in parts if getattr(p, "function_call", None)]
         if fcalls:
             da_goi = True
+            ten_tool_da_goi |= {getattr(x, "name", "") or "" for x in fcalls}   # A2
             contents.append(cand.content)
             rparts = []
             for fc in fcalls:
@@ -990,6 +1042,7 @@ def tra_loi_ai(bridge, q, file_summary="", history=None):
             return {"answer": "AI không đưa ra nội dung, vui lòng thử lại.",
                     "evidence": _flat_ev(evidence), "anh_id": anh_id, "file_id": file_id, "ai": True}
         _goc = _guard_text(text, tool_numbers)               # id135: chặn bịa số đo-lường không nguồn
+        _goc = _a2_khong_tra_duoc(_goc, text, tool_numbers, ten_tool_da_goi)
         _ans, _hk = _apply_i1(_goc, tool_handles, tool_numbers, bridge, q)   # I1: đối chiếu handle trích dẫn (nối cảnh báo)
         return {"answer": _ans, "answer_goc": _goc, "handle_kiem": _hk, "kb_cau_hoi": kb_cau_hoi,
                 "evidence": _flat_ev(evidence), "anh_id": anh_id, "file_id": file_id, "ai": True}
@@ -1010,6 +1063,7 @@ def tra_loi_ai(bridge, q, file_summary="", history=None):
         text = "".join(getattr(p, "text", "") or "" for p in parts if not getattr(p, "thought", False)).strip()
         if text:
             _goc = _guard_text(text, tool_numbers)               # id135: chặn bịa số đo-lường không nguồn
+            _goc = _a2_khong_tra_duoc(_goc, text, tool_numbers, ten_tool_da_goi)
             _ans, _hk = _apply_i1(_goc, tool_handles, tool_numbers, bridge, q)   # I1: đối chiếu handle trích dẫn
             return {"answer": _ans, "answer_goc": _goc, "handle_kiem": _hk, "kb_cau_hoi": kb_cau_hoi,
                     "evidence": _flat_ev(evidence), "anh_id": anh_id, "file_id": file_id, "ai": True}
