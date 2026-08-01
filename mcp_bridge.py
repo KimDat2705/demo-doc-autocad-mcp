@@ -956,7 +956,13 @@ def tra_loi_ai(bridge, q, file_summary="", history=None):
                 # KHÔNG phải chứng cứ số) + _strip_kb loại key '_kb' cho MỌI tool còn lại (2 tầng độc lập).
                 # + _strip_ten_file loại key 'name' (TÊN FILE do người dùng đặt = kênh bơm neo ngoài bản vẽ).
                 # Cả hai gộp trong _strip_neo -> mọi nguồn KHÔNG được làm bằng chứng đi qua đúng 1 cửa.
-                if isinstance(result, dict) and fc.name not in ("doc_bang_nhung", "phat_hien_bang_ve_net", "tra_ky_hieu"):
+                # E2(b): + 'doc_chu_trang_in'. KHÔNG phải phòng xa — ĐO ĐƯỢC trên 95/98 file: chữ trang in
+                # bơm 141 số riêng biệt vào rổ neo, trong đó DÃY ÂM LIỀN -1,0 … -10,0 sinh THUẦN từ SỐ TỜ
+                # ('… LƯU VỰC TB.6 -7/10'), cộng lưới toạ độ 581000+ và tỉ lệ 1:150. Dãy âm đó bảo lãnh cho
+                # CAO ĐỘ ÂM TRÒN BỊA (-2,0m / -5,0m) = đúng lớp lỗi id135. Tool này là kênh đọc TIÊU ĐỀ,
+                # KHÔNG phải nguồn số -> vào rổ neo là nới hàng rào chống bịa mà không đổi lấy gì.
+                if isinstance(result, dict) and fc.name not in ("doc_bang_nhung", "phat_hien_bang_ve_net",
+                                                                "tra_ky_hieu", "doc_chu_trang_in"):
                     tool_numbers |= _collect_numbers(_strip_neo(result))
                 _kb_hoi_tu_result(result, kb_cau_hoi)   # L5: gom câu hỏi confirm-only cho frontend (nút bấm)
                 rparts.append(types.Part(function_response=types.FunctionResponse(name=fc.name, response=result)))

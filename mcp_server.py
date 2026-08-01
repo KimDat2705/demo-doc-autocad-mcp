@@ -359,6 +359,15 @@ def tim_chu_trong_ky_hieu(tu_khoa: str, gioi_han: int = 20) -> dict:
 
 
 @mcp.tool()
+def doc_chu_trang_in(tu_khoa: str = "", gioi_han: int = 15) -> dict:
+    """Đọc chữ đặt trên TRANG IN (khung tên, tiêu đề tờ, danh mục bản vẽ) — vùng mà tim_kiem và mọi
+    tool khác KHÔNG với tới. Dùng cho câu hỏi "bản vẽ này là gì / tên công trình / gồm những tờ nào",
+    hoặc khi tìm mãi không ra mà nghi thông tin nằm ở khung tên. Bỏ trống tu_khoa để liệt kê.
+    TUYỆT ĐỐI KHÔNG lấy số ở đây làm khối lượng/kích thước — phần lớn số là SỐ TỜ, LƯỚI TOẠ ĐỘ, TỈ LỆ."""
+    return _need() or DRAWING.doc_chu_trang_in(tu_khoa=tu_khoa, gioi_han=gioi_han)
+
+
+@mcp.tool()
 def kiem_tra_handle(handles: str = "") -> dict:
     """HOST-ONLY (I1, KHÔNG dành cho LLM — nằm trong _TOOL_KHONG_CHO_LLM ở mcp_bridge): đối chiếu 1 danh sách
     handle (ngăn phẩy) với đối tượng THẬT trong file đang mở. CHỈ ĐỌC, trả DỮ KIỆN THÔ (trong_file/dxftype/

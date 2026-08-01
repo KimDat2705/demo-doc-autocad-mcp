@@ -32,6 +32,38 @@
 >
 > **📌 BÀI HỌC MANG SANG PHIÊN SAU:** ba lần trong phiên này **bộ trích của chính tôi hỏng** và cả ba suýt cho kết luận NGƯỢC (regex vớ `"304"` trong `"INOX 304"` → "0 gắn cờ"; bộ dò từ-khoá đếm *"không tìm thấy lỗi font"* thành từ chối → thổi bỏ-sót 2%→13%; tổng-tập-con mù với tổng cộng SAI). **Số "0%" và số "quá đẹp" là dấu hiệu bộ trích hỏng, không phải tin mừng** — chạy nó lên ca đã biết đáp án trước khi tin.
 
+## ✅ E2(b) TOOL #35 `doc_chu_trang_in` + ⛔ NO_GO "câu tổng-hợp bị giết" — 2026-08-01 · gate **[45/45]** · 35 tool
+> **① QUÉT ĐỦ CORPUS LẦN ĐẦU (95/98 file — trước đây luôn thiếu file to nhất) — LẬT NGƯỢC CẢ HAI GIẢ ĐỊNH:**
+> · chuỗi chỉ-ở-trang-in **851/893 → 2.721** (3×), ở **24/95 file** — "cận dưới" là đúng.
+> · nhưng chuỗi **MANG GIÁ TRỊ ĐO** chỉ **10/2.721**, và **9/10 nằm trong `rachmop.dxf`** (id135, đã có trong battery). **Ngoài rachmop, TOÀN corpus còn ĐÚNG 1 chuỗi:** `d315-HDPE-l421m-I=0.33%`.
+> · 🔴 **File 202MB tên `XR-CAP NUOC …-trangin-chiHoa.dxf` — thứ HAI vòng nghiên cứu trước đều DỪNG LẠI ĐỂ CHỜ — đo ra `chỉ-trang-in = 0`. Điều kiện tiên quyết cũ đuổi theo một CHỖ TRỐNG.**
+> · file đóng góp nhiều nhất (`XR-KHAO SAT TKCS`, 1.517 chuỗi = 56%) có **46,3% là LƯỚI TOẠ ĐỘ** (`581000`, `581200`…) ⇒ trần mặc định phải THẤP.
+> **📌 BỘ TRÍCH CỦA TÔI LẠI CẮT CỤT (lần 4 trong phiên):** lưu tối đa 400 chuỗi/file nên bảng phân loại đầu chạy trên 1.604/2.721; **toàn bộ 1.117 chuỗi mất đều thuộc ĐÚNG một file**. Đã quét lại riêng file đó bỏ trần.
+>
+> **② TOOL #35 `doc_chu_trang_in` — LÀM XONG.** E2E file thật: hỏi `"lưu vực"` → **15 kết quả**, cùng từ khoá `tim_kiem` → **0**. Chỉ trả chuỗi **KHÔNG có ở modelspace** (tránh đếm trùng + tránh bơm neo cửa hai) · kho dựng **LƯỜI**, **KHÔNG nạp vào `self.texts`** (nạp vào là đổi mọi index/rổ neo toàn hệ — đúng thứ đã BÁC khi làm chữ-trong-khối) · trần 40, mặc định 15 · chặn khớp **mù dấu** · fail-open.
+> **⛔ ĐIỀU KIỆN SỐNG CÒN ĐÃ CÀI CÙNG LÁT:** tool nằm trong tuple loại-trừ rổ neo `mcp_bridge.py:958`. **KHÔNG phải phòng xa — đo LIVE:** nếu không loại, tool bơm **DÃY ÂM LIỀN `-1,0 … -10,0`** vào rổ neo, sinh **THUẦN từ SỐ TỜ** (`… LƯU VỰC TB.6 -7/10`), cộng lưới toạ độ `581000+` và tỉ lệ `1:150`. Dãy âm đó bảo lãnh **cao độ âm TRÒN bịa** (−2,0m / −5,0m) = **đúng lớp lỗi id135**.
+> **NÓI THẲNG VỀ GIÁ TRỊ:** tool này **KHÔNG giúp bóc khối lượng** (1 chuỗi mang giá trị đo trên toàn corpus ngoài file đã phủ). Nó trả lời *"bản vẽ này là gì / gồm những tờ nào / tên công trình"*. Làm vì nó đóng một **thất bại im lặng** thật.
+> **TEST** `tests/test_trang_in.py` **20 ca**, check.sh 44→**45**. Ca `T3b` **chứng minh việc loại-trừ là CẦN THIẾT** chứ không chỉ khẳng định nó tồn tại.
+>
+> **③ ⛔ NO_GO — "câu tổng-hợp ĐÚNG bị hàng rào giết" (`wf_028146eb-439`): GIẢ THUYẾT CỦA TÔI SAI.**
+> Tôi từng ghi *"câu tổng cộng đúng viết bằng `Ø` đang bị hàng rào giết"*. **Ba đối chứng bác thẳng:**
+> | thử | kết quả | ý nghĩa |
+> |---|---|---|
+> | `"…Ø6, Ø8, Ø10 là 24331.67 kg."` | CHẶN | ca tôi nêu |
+> | `"…là 24331.67 kg."` (**không có Ø nào**) | **CHẶN Y HỆT** | ⇒ **strip mã-hiệu KHÔNG phải nguyên nhân** |
+> | `"…Φ6, Φ8, Φ10 là 99999.99 kg."` (**bịa thuần**) | **ĐI QUA** | ⇒ nhánh `Φ` là **LỖ**, không phải hành vi đúng |
+> ⇒ Tôi đã **lấy một LỖ HỔNG làm chuẩn mực** rồi kết luận hành vi đúng là sai. Vá theo hướng đó = **nhân bản lỗ sang `Ø`**.
+> **BẢN CHẤT THẬT — model PHÁ LUẬT `_P_R2` (cấm tự cộng), hàng rào chạy ĐÚNG.** Bằng chứng dứt điểm: id193 trên **CÙNG một bản vẽ** cho **6 giá trị khác nhau** qua các lượt (`1344.33` · `3545.9` · `1384.83` · `161.21` · `80,52` · `76.9`) ⇒ tối thiểu **5/6 SAI**; và `tool_goi` cho thấy model **đã gọi đúng** `thong_ke_thep_hinh`, mà tool đó **ĐÃ trả sẵn `tong_khoi_luong_kg`** (`tools_core.py:2532`) kèm ghi chú *"KHÔNG tự cộng bảng con"*.
+> **CHI PHÍ NẾU VÁ:** cứu **0 câu**, đổi lấy **8,3%** câu được cấp neo miễn phí + **17,8% bịa lọt thêm** (tích chéo 20 câu bịa × 137 rổ neo thật; mẫu hiện thực nhất 64-67%). Soi "người bảo lãnh" trong mô phỏng: chữ số hex của **HANDLE** `[126EA6]`→6.0 · tiết diện `40x80x2mm`→2.0 · mác `M200`→200.0. **Mảnh vụn vô nghĩa đi bảo lãnh cho khẳng định khối lượng**; không có cách chỉnh để chỉ cứu bên phải.
+> **Vế 1 (strip quá tay) đo ra BẰNG 0:** `Ø<số>` xuất hiện 144/1699 câu (8,5%) nhưng `Φ/φ/Ф/⌀`+số xuất hiện **0/1699** — kênh Φ là lý thuyết, **chưa từng sống**. **Vế 2 NGƯỢC CHIỀU:** hàng rào đang **THẢ** chứ không giết — **9/157 = 5,7%** câu PASS mang số đo-lường **không truy được nguồn**, gồm đúng `1344.33` và `1384.83` của id193.
+>
+> ### 🔴 LỖI THẬT ĐO ĐƯỢC — VÀ **BẢN VÁ CỦA CHÍNH TÔI VỪA NỚI BỀ MẶT CỦA NÓ**
+> Khi model **CHỈ** gọi một tool nằm trong **tuple loại-trừ rổ neo** thì `tool_numbers` **RỖNG** ⇒ mọi khẳng định có số bị chặn ⇒ trả *"Không có thông tin này trong bản vẽ."* — **một câu SAI SỰ THẬT**. Đo: **3/1699 lượt** là từ-chối-oan thật, ca id69 (`tra_ky_hieu`, `ro_neo_n=0`) trong khi `ky_vong` = *"Thép tròn, 4817 thanh / 25752.6 kg"*; cùng câu đó lượt gọi `thong_ke_thep` (`ro_neo_n=4`) thì **trả lời ĐÚNG**.
+> ⚠ **Danh sách loại-trừ vừa đi từ 3 → 4 tool vì tôi thêm `doc_chu_trang_in`.** Việc loại trừ vẫn ĐÚNG và BẮT BUỘC (không loại thì dãy âm −1..−10 vào rổ neo), nhưng **không miễn phí** — ghi rõ ở đây để phiên sau không tự vấp.
+> **HƯỚNG SỬA (lát riêng, chưa làm):** KHÔNG nới rổ neo, mà **đổi nhánh xử lý** — rổ neo rỗng **VÀ** đã gọi ≥1 tool ⇒ ép gọi lại tool có số (cơ chế nhắc-lại đã có ở `mcp_bridge.py:971-978`, tối đa 1 lần/câu), hoặc trả thông điệp trung thực *"chưa tra được từ công cụ có số liệu"*. **Rủi ro:** thông điệp mới **TUYỆT ĐỐI không được chứa số nào** (nới cửa = tái sinh id135) · sẽ làm nhiều suite đóng-băng-số đổi ⇒ **phải tự kiểm ngược bằng số TRƯỚC**, liệt kê từng ca đổi kèm lý do, rồi mới sửa suite.
+> **⛔ ĐÍNH CHÍNH MỘT KHUYẾN NGHỊ ĐANG LƯU HÀNH TRONG DỰ ÁN:** `answer_goc` **KHÔNG phải** văn bản TRƯỚC hàng rào — `mcp_bridge.py:994` và `:1008` đều gán `_goc = _guard_text(text, tool_numbers)`, tức **ĐẦU RA** của guard. Ghi `answer_goc` vào log để phân tích hàng rào là **vô ích**. Chỗ đúng: seam `_bat_ro_neo` ở `tests/run_battery.py:93` **đã bọc `_guard_text` và đang nhận `text` nguyên bản**.
+> **CÒN CHƯA BIẾT:** **26/36** ca REFUSE **không phân loại được** (không có rổ neo trong bản ghi) — đó mới là kích thước thật của vùng chưa biết, **không phải 0**. Có bằng chứng suy đoán trước đây **sai 50%**: id105/id189 từng bị quy oan cho hàng rào, thực ra `do_luong` rỗng ⇒ guard **thoát sớm** ở `:859` ⇒ model **tự** từ chối.
+
 ## ⛔ BA NO_GO CÓ SỐ — C1 (Φ) · B1 (Ø/Ü vào `_SIG`) · E2 (cờ trang in khớp-từ-khoá) — 2026-08-01 `wf_3e934400-206`
 > **Cả 3 phản biện đều `bac_bo=true`, và agent thiết kế TỰ CHẠY LẠI 4 phép đo quyết định — cả 4 đứng về phía phản biện.** Đây là kết quả TỐT: 3 hướng sai đã đóng bằng số, 0 dòng code sản phẩm bị chạm.
 >

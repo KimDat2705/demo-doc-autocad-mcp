@@ -324,6 +324,7 @@ _V1_CAU_CANH_BAO = (
 #  · Khớp theo RANH GIỚI TỪ (_tok_bound) chứ không substring trần: đo được giảm nhiễu mà không mất ca dương nào.
 _VCD_SAU_TOI_DA = 8          # chặn độ sâu lồng khối (khối tự tham chiếu -> không treo)
 _VCD_CAP = 200000            # trần số chuỗi giữ trong rổ bóng
+_TIK_CAP = 4000              # tran so chuoi kho TRANG IN (file nhieu nhat: 1.517)
 _VCD_VONG_TOI_DA = 20000     # trần số bước lan toả (chống nổ tổ hợp trên file bệnh lý)
 
 
@@ -1321,6 +1322,7 @@ class Drawing:
         self.kb_da_phat = set()                                # L4/L5: (entry_id, option_key) ĐÃ PHÁT trong phiên — L5 xác nhận fail-closed CHỈ nhận option đã phát
         self.kb_xacnhan = {}                                   # L5: xác nhận NGƯỜI BẤM per (entry|mã) — nhãn diễn giải PHIÊN-FILE, KHÔNG đổi số; đổi file = reset
         self.kb_ma_goc = {}                                    # RT-fix: khoá -> mã dạng NGƯỜI ĐỌC ('ĐC-1'), để bảng không phơi khoá nội bộ 'djc-1'
+        self._tik = None                                       # E2(b): kho chu TRANG IN, dung LUOI
         self._kb_khoa_file = None                              # L4 lazy: tập khoá mã có mặt trong file (bằng chứng 'cả 2 dạng raw')
         self._kb_co_chu_thich = False                          # L4 lazy: file có bảng chú thích (legend-first tối giản)
 
@@ -2136,6 +2138,107 @@ class Drawing:
                             "đồng nghĩa 'nhìn thấy trên bản in' (chưa xét layer tắt/đóng băng, ngoài vùng in). "
                             "Máy KHÔNG biết chuỗi này hiện mấy lần trên bản in — TUYỆT ĐỐI không dùng làm số "
                             "lượng cấu kiện. Không có toạ độ nên không khoanh được vị trí.")}
+
+    # ============================================================
+    # E2(b) — ĐỌC CHỮ TRÊN TRANG IN (paperspace). Tool #35.
+    # ============================================================
+    # QUÉT ĐỦ 95/98 file .dxf (2026-08-01, lần đầu KHÔNG bỏ file lớn) — con số quyết định thiết kế:
+    #  · 2.721 chuỗi chỉ tồn tại trên trang in, ở 24/95 file. Hôm nay MỌI tool đều mù với chúng và
+    #    máy trả "không có" bằng giọng chắc chắn -> đúng loại THẤT BẠI IM LẶNG dự án đã cấm.
+    #  · NHƯNG chỉ 10/2.721 chuỗi MANG GIÁ TRỊ ĐO, và 9/10 nằm trong rachmop.dxf (file id135 đã có
+    #    trong battery). Ngoài rachmop, TOÀN corpus còn đúng 1 chuỗi: 'd315-HDPE-l421m-I=0.33%'.
+    #    => Tool này KHÔNG giúp bóc khối lượng. Giá trị của nó là TIÊU ĐỀ / DANH MỤC / KHUNG TÊN,
+    #       tức trả lời "bản vẽ này là gì", không phải "bao nhiêu".
+    #  · File 202MB tên '...-trangin-chiHoa.dxf' — thứ cả hai vòng nghiên cứu trước đều chờ — đo ra
+    #    **0 chuỗi chỉ-ở-trang-in**. Điều kiện tiên quyết cũ đuổi theo một chỗ trống.
+    #  · Nội dung KHÔNG đồng nhất: file đóng góp nhiều nhất (XR-KHAO SAT TKCS, 1.517 chuỗi = 56%)
+    #    có 46,3% là LƯỚI TOẠ ĐỘ ('581000', '581200'…). Vì vậy trần mặc định phải THẤP.
+    #
+    # ⛔ VÌ SAO BẮT BUỘC LOẠI KHỎI RỔ NEO (mcp_bridge tuple loại-trừ) — đo được, không phải phòng xa:
+    #    chữ trang in bơm 141 số riêng biệt vào rổ neo, TRONG ĐÓ DÃY ÂM LIỀN -1,0 … -10,0 sinh THUẦN
+    #    từ SỐ TỜ ('… LƯU VỰC TB.6 -7/10'). Dãy đó bảo lãnh cho CAO ĐỘ ÂM TRÒN BỊA (-2,0m / -5,0m) —
+    #    đúng lớp lỗi id135 mà dự án tốn nhiều công mới đóng. Cộng lưới toạ độ 581000+ và tỉ lệ 1:150.
+    def doc_chu_trang_in(self, tu_khoa=None, gioi_han=15, **_):
+        """ĐỌC chữ đặt trên TRANG IN (layout/paperspace) — vùng mà mọi tool khác KHÔNG với tới.
+
+        KHÔNG dùng cho khối lượng: đo toàn corpus, chỉ 10/2.721 chuỗi mang giá trị đo và 9 trong số
+        đó thuộc một file đã được phủ. Đây là kênh đọc TIÊU ĐỀ BẢN VẼ / DANH MỤC / KHUNG TÊN.
+
+        CHỈ trả chuỗi KHÔNG có ở modelspace — chuỗi đã đọc được bằng tim_kiem thì không trả lại
+        (tránh đếm trùng và tránh bơm lại số vào rổ neo qua cửa thứ hai).
+        """
+        tk = (tu_khoa or "").strip()
+        try:
+            cap = max(0, min(int(gioi_han or 15), 40))
+        except Exception:
+            cap = 15
+        ra, bi_cat = [], False
+        try:
+            ds = self._trang_in_kho()
+            toks = [t for t in _norm(tk).split() if t] if tk else []
+            co_dau = [w for w in _garble_fold(tk).lower().split() if w and w != unaccent(w)] if tk else []
+            for it in ds:
+                if co_dau and not all(self._vcd_dau_khop(w, it["vn"]) for w in co_dau):
+                    continue                      # chặn khớp MÙ DẤU ('cửa'≠'của') — cùng luật tool #34
+                if toks and not all(self._vcd_tok_khop(t, it["hay"]) for t in toks):
+                    continue
+                if len(ra) >= cap:
+                    bi_cat = True; break
+                ra.append({"handle": it["handle"], "trang": it["layout"], "text": it["vn"],
+                           "co_chi_thi_dang_ngo": bool(_co_chi_thi_dang_ngo(it["vn"]))})
+        except Exception:
+            ra, bi_cat = [], False                # fail-open: rỗng chứ KHÔNG ném
+        return {"tu_khoa": tk or None, "co_ket_qua": bool(ra), "ket_qua": ra, "bi_cat": bool(bi_cat),
+                "ghi_chu": ("Chữ đặt trên TRANG IN (khung tên, tiêu đề tờ, danh mục bản vẽ, ghi chú in "
+                            "kèm) — KHÔNG phải nội dung bảng và KHÔNG phải chữ trong vùng vẽ. TUYỆT ĐỐI "
+                            "không lấy số ở đây làm khối lượng/kích thước: đo được nhiều chuỗi chỉ là SỐ "
+                            "TỜ ('-7/10'), LƯỚI TOẠ ĐỘ và TỈ LỆ. Có tiêu đề một bảng ở đây KHÔNG có nghĩa "
+                            "thân bảng tồn tại trong file — đã gặp ca tiêu đề có mà thân bảng không có ở "
+                            "đâu cả; không được suy diễn nội dung bảng từ tiêu đề.")}
+
+    def _trang_in_kho(self):
+        """Kho chữ trang in, dựng LƯỜI (chỉ khi tool được gọi) và nhớ lại. KHÔNG nạp vào self.texts:
+        nạp vào đó là đổi mọi index/rổ neo của toàn hệ, đúng thứ đã BÁC BỎ khi làm chữ-trong-khối."""
+        if getattr(self, "_tik", None) is not None:
+            return self._tik
+        ra = []
+        try:
+            co_o_model = set()
+            for t in self.texts:
+                v = (t.get("vn") or "").strip()
+                if v:
+                    co_o_model.add(v)
+            for lay in self.doc.layouts:
+                if (lay.name or "").lower() == "model":
+                    continue
+                for e in lay:
+                    try:
+                        t = e.dxftype()
+                        if t == "TEXT":
+                            raw = e.dxf.text or ""
+                        elif t == "MTEXT":
+                            raw = e.text or ""
+                        elif t in ("ATTRIB", "ATTDEF"):
+                            raw = e.dxf.text or ""
+                        else:
+                            continue
+                        vn = to_unicode(raw)
+                        if not vn or not vn.strip() or vn.strip() in co_o_model:
+                            continue            # đã đọc được ở modelspace -> KHÔNG trả lại
+                        ra.append({"handle": e.dxf.handle, "layout": lay.name, "vn": vn,
+                                   "hay": _norm(vn) + " \x01 " + _norm(_tho_khop(raw))})
+                        if len(ra) >= _TIK_CAP:
+                            raise StopIteration
+                    except StopIteration:
+                        raise
+                    except Exception:
+                        continue
+        except StopIteration:
+            pass
+        except Exception:
+            ra = []
+        self._tik = ra
+        return ra
 
     def dem_so_luong(self, tu_khoa=None, **_):
         tk = (tu_khoa or "").strip()
