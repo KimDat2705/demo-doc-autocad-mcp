@@ -22,7 +22,7 @@ from ezdxf.addons.drawing import RenderContext, Frontend
 from ezdxf.addons.drawing.matplotlib import MatplotlibBackend
 from ezdxf.addons.drawing.config import Configuration, HatchPolicy
 
-from vntext import to_unicode
+from vntext import to_unicode, ma_ve_trang
 from dwgconv import convert_dwg_to_dxf
 from fileutil import cleanup_old_files          # Robustness J — dọn file TTL
 
@@ -65,6 +65,26 @@ def _garble_fold(s):
     return _GARBLE_DIA_RE.sub("ø", (s or "").translate(_GARBLE_FOLD))
 def _norm(s): return _DIAM_RE.sub(lambda m: "ø" + m.group(1), unaccent(_garble_fold(s)))
 def _norm_label(s): return unaccent(_garble_fold(s))
+
+
+def _tho_khop(s):
+    """A3 — chuỗi THÔ dùng để SO KHỚP: gỡ mã định dạng trước, vì tên phông / mã màu / mã AutoCAD
+    KHÔNG BAO GIỜ là chữ người đọc thấy trên bản vẽ, nên không thể là mục tiêu tìm kiếm hợp lệ.
+    Đo được: 11,5% toàn bộ hit là hit chỉ-do-nhánh-thô, 61-73/86-92 file dính; hit ảo còn hoá
+    thành SỐ qua dem_so_luong và thành Ô KHOANH ĐỎ qua danh_dau. Chú thích ở khối _vcd (dòng ~301)
+    đã ghi nhận đây là "lỗi CÓ SẴN của search_texts" từ đợt trước — nay vá.
+
+    ⚠ FAIL-OPEN: lỗi thì trả CHUỖI GỐC (về đúng hành vi cũ), KHÔNG trả rỗng — với công cụ tra cứu
+    thì MẤT kết quả nguy hiểm hơn THỪA kết quả.
+    ⚠ Cổng rẻ: chỉ 0,37% chuỗi corpus mang mã, 99,6% còn lại không trả tiền regex (search_texts
+    duyệt tới ~1M chuỗi mỗi truy vấn, và dự án đang sát trần RAM/thời gian trên Render).
+    ⚠ KHÔNG được cache kết quả này vào self.texts: thêm 1 chuỗi × 1M mục = nổ RAM."""
+    if not s or ("\\" not in s and "{" not in s and "%%" not in s):
+        return s
+    try:
+        return ma_ve_trang(s)
+    except Exception:
+        return s
 
 def _to_num(s):
     try:
@@ -1822,7 +1842,12 @@ class Drawing:
         for t in texts:
             nv = _norm_label(t["vn"])
             info.append({"t": t, "x": t.get("x", 0.0), "y": t.get("y", 0.0), "nv": nv,
-                         "qty": _qty_match(nv + " " + _norm_label(t.get("text", ""))),
+                         # A3: BỎ nhánh THÔ. _norm_label KHÔNG gỡ mã định dạng, nên _QTY_RE hút được
+                         # CHỮ SỐ của chính mã phông. Đo 2 lần độc lập, khớp tuyệt đối: 1/1.014.291
+                         # chuỗi đổi kết quả, và ca đó là BỊA — '{\f.VnAvantH|b1|i1|c0|p34;Tæng céng}'
+                         # cho '|b1|' -> đẻ ra "Tổng cộng = 1". Đây là đường DUY NHẤT nhánh thô
+                         # sinh ra SỐ trong kết quả tool (các đường khác chỉ sinh HIT).
+                         "qty": _qty_match(nv),
                          "title": _looks_like_title(nv), "code": bool(_CODE_TOKEN_RE.search(nv))})
         idx = []
         for i, it in enumerate(info):
@@ -2001,7 +2026,7 @@ class Drawing:
         for tx in self.texts:
             if ly is not None and ly not in unaccent(tx.get("layer") or ""): continue
             if not toks: out.append(tx); continue
-            hay = _norm(tx["vn"]) + " \x01 " + _norm(tx["text"])
+            hay = _norm(tx["vn"]) + " \x01 " + _norm(_tho_khop(tx["text"]))
             if all(t in hay for t in toks): out.append(tx)
         return out
 

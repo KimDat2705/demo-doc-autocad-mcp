@@ -52,11 +52,58 @@ def _autocad_codes(s):
     return s
 
 
-def _mtext_codes(s):
-    s = s.replace("\\P", " ")
-    s = re.sub(r"\\[A-Za-z][^;\\]*;", "", s)   # \f..; \W..; \A1; \H..; \p..;
-    s = re.sub(r"\\[A-Za-z]", "", s)
-    return s.replace("{", "").replace("}", "")
+# --- Ma dinh dang MTEXT, tach 3 ho vi CHUNG PHAI XU LY KHAC NHAU (A3, 2026-08-01) ---
+# TOGGLE (bat/tat gach chan, gach tren, gach giua...): KHONG co tham so, KHONG co dau ';' ket thuc.
+#   ⚠ PHAI go TRUOC ho THAM SO. Neu de _MT_PARAM chay truoc, no khop '\L' roi an tham tiep toi dau ';'
+#   KE TIEP trong cau va NUOT LUON CHU THAT. Do corpus: '{\Lchi tiEt ch«n cèng btct d400; l=2m}'
+#   -> to_unicode CU tra ve ' l=2m' (mat tron tieu de). 6 doan / 6 file bi nuot kieu nay.
+_MT_TOGGLE = re.compile(r"\\[LlOoKkXx]")
+# STACK '\S...;' = PHAN SO / CHI SO TREN-DUOI. Day la DU LIEU chu khong phai ma trinh bay:
+#   '\S19/3;' = ngay 19/3  ·  '\S^ 1;' = chi so duoi 1  ·  '\S2^ ;' = mu 2 (cm2)
+#   Bang cu xoa SACH chung: do duoc 406 doan \S / 81 chuoi / 7 file dang mat du lieu.
+#   '^' = vach ngang chong tang (bo) · '#' = vach cheo phan so (-> '/').
+_MT_STACK = re.compile(r"\\S([^;\\]*);")
+_MT_PARAM = re.compile(r"\\[A-Za-z][^;\\]*;")   # \f..; \F..; \C..; \H..; \W..; \A..; \p..; \T..; \Q..;
+
+
+def _stack_noi_dung(m):
+    return m.group(1).replace("^", "").replace("#", "/").strip()
+
+
+def _mtext_codes(s, sep=""):
+    """Go ma dinh dang MTEXT.
+
+    sep="" (MAC DINH — dung cho to_unicode): DAN lien. BAT BUOC phai la rong o day, vi nguoi ve
+      hay che MOT tu/MOT so qua nhieu doan phong. Do mo phong bang khoang trang tren 3.491 chuoi
+      mang ma: 24 chuoi / 6 file bi CHE DOI SO THAT — 'm¸c 200#'->'mac 2 0 0#' · '1760'->'176 0' ·
+      '0.95'->'0.9'+'5' (dai so CAO DO) · 'F14'->'F 14'. Do la BIA so, nang hon loi dang vá.
+    sep=" " (CHI dung cho NHANH THO cua so khop, qua ma_ve_trang): CHONG DINH chu. Neu go thanh
+      rong o nhanh tho thi DE RA CHU KHONG CO THAT:
+      '{\\f..;WC C}Hç{\\f..; T}HÊ{\\f..;P N}HÊ{\\f..;T LÀ }2700' -> 'wc cchcthepnhet la 2700'
+      = tu nhien moc ra chu 'thep' giua mot ghi chu hoan thien kien truc, roi khop luon truy van
+      'thep' / 'thong ke thep'. Nhanh 'vn' da ghep lien ho nen sep=" " o day KHONG lam mat gi.
+    """
+    s = s.replace("\\P", " ").replace("\\~", " ")   # \P xuong dong, \~ khoang trang khong ngat: DEU la khoang trang
+    s = _MT_TOGGLE.sub(sep, s)
+    s = _MT_STACK.sub(lambda m: sep + _stack_noi_dung(m) + sep, s)
+    s = _MT_PARAM.sub(sep, s)
+    s = re.sub(r"\\[A-Za-z]", sep, s)
+    return s.replace("{", sep).replace("}", sep)
+
+
+def ma_ve_trang(s):
+    """CHI dung cho NHANH THO cua so khop (tools_core.search_texts). KHONG dung de HIEN THI.
+
+    Ly do ton tai: search_texts ghep ca chuoi THO vao ro so khop de con tim duoc chu ma
+    _looks_tcvn3 lo tay lam hong (ban ve doi PHONG GIUA CHUNG). Nhung chuoi tho con nguyen
+    ma dinh dang, nen TEN PHONG tro thanh CHU de khop:
+      '\\fVNI-Helve-Condense|b0|i0|c0|p34;' -> 'Con-DE-nse' cho token 'de'
+      -> tim_kiem('nha de xe') khop vao 'NHAØ XE GIAÙO VIEÂN' du ban ve KHONG co chu 'de'.
+    Doi ca '%%' vi '%%C10' -> _norm -> '%%c10' nuot tron ma cau kien 'C1' (29.728 luot / 45 file).
+    """
+    if not s:
+        return s
+    return _autocad_codes(_mtext_codes(s, sep=" "))
 
 
 # Ky tu "dau hieu" TCVN3 — gan nhu KHONG xuat hien trong tieng Viet Unicode chuan.

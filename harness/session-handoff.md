@@ -26,11 +26,87 @@
 > **BƯỚC TIẾP — ứng viên, CHƯA chốt (user chọn):**
 > ① **GHÉP NHÃN↔GIÁ TRỊ THEO VỊ TRÍ** (đọc bảng hàng/cột) — đây là nút thắt THẬT của recall, đã chứng minh bằng số; repo có tiền lệ `_gan_dim_cau_kien`. Việc LỚN, phải đo trước.
 > ② Luật **"câu có TỔNG + số không truy được nguồn"** — hình dạng đúng (2 bắt / 0 báo oan trên 25 câu) nhưng bằng chứng dương chỉ là **MỘT hiện tượng quan sát 2 lần**; cần mở rộng 198 câu × ≥2 lượt, và hành động phải là **GẮN CỜ, không thay câu trả lời**.
-> ③ Họ mã lạ `Ä/Å/Û/Φ` (768 chuỗi) — cần dựng bảng mã riêng + đo lại.
+> ③ ~~Họ mã lạ `Ä/Å/Û/Φ` (768 chuỗi) — cần dựng bảng mã riêng + đo lại.~~ → **ĐÃ TRUY RA 2026-08-01: đây CHÍNH LÀ vế VNI của mục 1.03, không phải việc riêng.** Xem khối "1.02 & 1.03 CHƯA XONG" ngay dưới. Số "768" cũng sai — cận dưới là **1.422**.
 > ④ Nhóm C (RAM/upload) vẫn HOÃN tới cuối dự án (tốn tiền túi).
 > **Dữ liệu để dùng lại:** `tests/battery_runs/run02|03|04` (Q2, 198 câu ×3) · `run09` (33 câu có rổ neo) · `run10-15` (probe recall, có `tool_goi`). **Gitignored, chỉ có trên máy dev.**
 >
 > **📌 BÀI HỌC MANG SANG PHIÊN SAU:** ba lần trong phiên này **bộ trích của chính tôi hỏng** và cả ba suýt cho kết luận NGƯỢC (regex vớ `"304"` trong `"INOX 304"` → "0 gắn cờ"; bộ dò từ-khoá đếm *"không tìm thấy lỗi font"* thành từ chối → thổi bỏ-sót 2%→13%; tổng-tập-con mù với tổng cộng SAI). **Số "0%" và số "quá đẹp" là dấu hiệu bộ trích hỏng, không phải tin mừng** — chạy nó lên ca đã biết đáp án trước khi tin.
+
+## ✅ A3 XONG — MÃ ĐỊNH DẠNG KHÔNG CÒN LÀM MỒI KHỚP ẢO (2026-08-01) · gate **[43/43]** · ⏳ CHƯA COMMIT
+> **Bug:** `search_texts` ghép nhánh **THÔ** (chưa gỡ mã) vào rổ so khớp — `hay = _norm(vn) + " \x01 " + _norm(text)`. Tên phông / mã màu / mã AutoCAD thành **chữ để khớp**. Dự án **đã biết từ đợt trước** (chú thích `tools_core.py:301-303`: *"lỗi CÓ SẴN của search_texts"*, đo được `'C1'` → 41 hit ảo) nhưng chưa ai quay lại vá.
+> **Kênh mồi lớn nhất KHÔNG phải tên phông mà là `%%C`:** `%%C10/%%C12/%%C16` → `_norm` → `%%c10…` **chứa `c1`** ⇒ hỏi cột **"C1"** trả về **mọi ghi chú thép Ø10/Ø12/Ø16**. Một mình nó = **9.147/11.597** hit ảo bị loại.
+>
+> **VÁ 3 CHỖ, MỘT LÁT (ship lẻ = ship lỗi — đo: chỉ vá thô mất 2/9 ca đúng; chỉ vá `vn` còn 4/7 ca ảo):**
+> · **P1** `vntext._mtext_codes` — tách 3 họ mã: **TOGGLE gỡ TRƯỚC** (`\L\O\K` đang bị regex tham số ăn tới dấu `;` kế tiếp và **nuốt chữ thật**), **GIỮ nội dung `\S`** (phân số/chỉ số là DỮ LIỆU), thêm tham số `sep` + hàm public `ma_ve_trang()`. Chữ ký `to_unicode` **không đổi**.
+> · **P2** `tools_core.search_texts:2004` — nhánh thô qua `_tho_khop` (gỡ mã → **KHOẢNG TRẮNG**, đổi `%%`), **fail-open** (lỗi → chuỗi gốc, KHÔNG rỗng), **cổng rẻ** (99,6% chuỗi không trả tiền regex). **GIỮ nhánh thô** — có hit đúng chỉ nó tìm ra.
+> · **P3** `tools_core._build_qty_index:1825` — **BỎ** nhánh thô. Đây là đường **DUY NHẤT** nhánh thô sinh **SỐ** ra kết quả tool: `'{\f.VnAvantH|b1|i1|…;Tæng céng}'` → `_QTY_RE` hút chữ số của `|b1|` → **đẻ ra "Tổng cộng = 1"**.
+>
+> **⚠ HAI CHỖ GỠ MÃ THEO HAI CÁCH NGƯỢC NHAU — ĐỪNG "SỬA CHO ĐỒNG BỘ":**
+> · nhánh **THÔ** = **khoảng trắng**. Gỡ thành rỗng thì **DÁN CHỮ và ĐẺ RA CHỮ KHÔNG CÓ THẬT**: `'{\f..;WC C}Hç{\f..; T}HÊ{\f..;P N}HÊ{\f..;T LÀ }2700'` → `…cthepn…` = **mọc chữ "thép"** giữa ghi chú hoàn thiện kiến trúc, khớp luôn `thép` / `thống kê thép`.
+> · **`to_unicode`** = **GIỮ RỖNG**. Khoảng trắng ở đây **CHẺ SỐ THẬT**: `mác 200#`→`mác 2 0 0#` · `1760`→`176 0` · `0.95`→`0.9`+`5` (dải cao độ) · `F14`→`F 14`.
+>
+> **TỰ KIỂM NGƯỢC — 95 file / 2.652.196 chuỗi (cổng xanh không đủ, và lần này cổng ĐÚNG LÀ mù: 0/35 lời gọi `search_texts` trong 3 suite cũ phụ thuộc nhánh thô):**
+> | đại lượng | kết quả | ngưỡng |
+> |---|---|---|
+> | `vn` đổi | **437** (0,0165% corpus) | — |
+> | đổi **ngoài** 2 họ dự kiến | **0** | =0 ✅ |
+> | `vn` **ngắn đi** (mất dữ liệu) | **0/437** | =0 ✅ |
+> | `cao_do`·`thep_kg`·`thephinh_kg`·`n_sheet`·`n_qty`·`n_text` | **lệch 0**, 15/15 file | delta=0 ✅ |
+> | hit từ khoá **chữ thuần** | 6.680→6.661 = **−0,3%**, toàn bộ mức giảm là `nha de xe` (chính bug) | ✅ |
+> | hit từ khoá **có chữ số** | 36.706→25.109 = **−31,6%** (`C1` −9.147 · `C2` −1.799 · `A1` −471 · `T1` −91) | kênh ảo ✅ |
+> | regex gỡ mã có khớp chữ thật? | 4.989 lượt, **10/10 chữ cái đều là mã MTEXT chuẩn, 0 lượt khớp chữ lạ** | ✅ |
+> | entity `TEXT` (không phải MTEXT) chứa `\` | 3, **0 cái bị đổi** | ✅ |
+>
+> **LỢI ÍCH PHỤ — CỨU DỮ LIỆU:** cả 437 ca đều **dài ra**, đều là ký hiệu thép lấy lại chỉ số dưới: `(D)`→`(D1)/(D2)/(D3)` (trước đây **3 mã khác nhau SẬP THÀNH MỘT**) · `L ³ 3Dd`→`Lneo1 ³ 3Dd1` · `H < 40D`→`Hcv < 40D`. Nguồn của `D1 +15`, `D2 +15`.
+> **RỦI RO ĐÃ ĐÓNG:** 313/437 chuỗi **sinh thêm chữ số** ⇒ nguy cơ neo giả / cao độ giả. Đã đo: **6 đại lượng số lệch 0**. (253/437 nằm trong định nghĩa khối, không vào `self.texts`; 184 chạm đường sản phẩm.)
+>
+> **TEST:** `tests/test_ma_dinh_dang.py` **35 ca / 6 nhóm**, check.sh **42→43 bước**. Chạy **TRƯỚC** khi vá đã ĐỎ đúng chỗ (A1 `nhà để xe`=1 hit ảo; B3-B8 chứng minh `to_unicode` **đang xoá dữ liệu thật**). 40 suite cũ **giữ nguyên từng con số**, tổng ca 1.467→1.502.
+>
+> **📌 HAI LẦN BỘ KIỂM CỦA CHÍNH TÔI HỎNG TRONG LÁT NÀY (cùng họ bài học 2026-07-31):**
+> ① bộ phân loại "mất oan" định nghĩa mất-oan = *token có trong `vn`* — nhưng token có trong `vn` thì haystack MỚI (vốn chứa `vn`) vẫn khớp ⇒ hit không thể biến mất ⇒ **luôn trả 0 bất kể bản vá an toàn hay không**. Số "0 mất oan" đầu tiên là **TAUTOLOGY**.
+> ② bộ kiểm "đoạn bị xoá có phải mã không" cũng gần tautology (`_mtext_codes` chỉ xoá được đúng cái regex nó khớp) **và** quá chặt — `difflib` cắt span tuỳ tiện nên `{\H0.7x;\S^` bị gắn cờ oan.
+> ⇒ Câu hỏi **có giá trị** là: ***regex gỡ mã có bao giờ khớp vào chữ người đọc thấy không?*** — trả lời được bằng số thật: **0/4.989**.
+> ③ Ngoài ra 2 ca test tự viết bị hỏng, tự bắt: A7 đậu vì chuỗi **thiếu token** chứ không nhờ bản vá; E2 so `None == None` = **xanh vĩnh viễn**.
+>
+> **⛔ TÁCH KHỎI LÁT NÀY, CÓ LÝ DO SỐ (đừng gộp):** `tools_core.py:1764` `_tok_ban_ve` (nhánh thô bơm +2.328…2.694 token giả/77 file, **155 token có dạng handle** → nới cảnh báo handle-bịa; **chiều "vá xong có nổ oan không" CHƯA AI ĐO** ⇒ NO_GO) · `:1283` `%%U` nhận diện sheet (nhánh thô ở đây là **BẮT BUỘC**; có lỗi thật **1.162 chuỗi `%%u` chữ thường lọt** do `startswith` phân biệt hoa-thường, nhưng sửa là đổi **danh sách sheet mọi file** → lát riêng) · `:1122/1126` ATTRIB bảng thép (20 ô/26.755, đổi **KHOÁ bảng thép**) · `vntext._looks_tcvn3` misfire chuỗi trộn phông (**gốc rễ** khiến nhánh thô còn phải sống; đụng `vn` toàn corpus → lát riêng).
+> **CHƯA CHỨNG MINH:** chưa đo xuôi dòng qua Gemini, chưa chạy `battery.json`, chưa A/B. Chỉ được nói *"bớt N hit ảo, giữ nguyên mọi số"* — **KHÔNG** được nói *"cải thiện chất lượng trả lời"*.
+
+## ⛔ 1.02 & 1.03 **CHƯA XONG** — HAI NHÃN "done" LÀ SAI, ĐÃ SỬA (2026-08-01, `wf_4efbe809-21b`)
+> **Bối cảnh:** user hỏi *"1.02 và 1.03 đã đều xong rồi đúng không?"*. Tôi trả lời "1.03 ✅ xong" — **SAI**. Cho chạy 4 phép đo + 4 phản biện đối kháng (**0/4 phép đo bị bác**, nhưng phản biện sửa số ở 4 chỗ). Kết quả: **cả hai đều chưa xong.** `feature_list.json` đã sửa: `vntext` **done → partial**, thêm mục mới `doc-chu-trang-in-paperspace`, cập nhật `doc-chu-trong-khoi` (70 mục: 61 done · 2 partial · 7 deferred).
+>
+> **📌 VÌ SAO LỌT — DẠNG MỚI CỦA "CỔNG XANH KHÔNG ĐỦ", NGUY HIỂM HƠN CÁC LẦN TRƯỚC:** hai lần trước là *bản vá chạy mà cổng mù*. Lần này là **một PHẦN VIỆC CHƯA BAO GIỜ BẮT ĐẦU mà cổng vẫn xanh**. Mục 1.03 có tiêu đề **ba vế** — *"nắn phông cũ (**VNI**, phần TCVN3 còn sót, ký hiệu Ø vỡ)"* — được đánh dấu done+LIVE khi mới làm 2 vế. `test_vntext` **53 PASS nhưng 0/53 ca chạm VNI**, nên cổng **không thể đỏ**. ⇒ **LUẬT MỚI: đầu mục có tiêu đề nhiều vế (dấu phẩy / "và" / ngoặc liệt kê) thì phải tách từng vế và đòi MỘT CON SỐ cho MỖI vế trước khi đánh dấu xong; và hỏi "suite hiện có bao nhiêu ca chạm vế này?" — nếu 0 thì cổng xanh không nói gì về vế đó.** Tương tự, đầu mục bị **THAY bằng cách làm khác** (1.02 → tool riêng thay kho chữ chung) phải hỏi lại **phần nào của mục tiêu GỐC vẫn chưa đạt**.
+>
+> ### 1.03 — 3 vế, mới làm 2
+> | vế | trạng thái | số |
+> |---|---|---|
+> | **VNI** | ❌ **0 dòng code** | `grep VNI` = 2 hit **đều là chú thích** (`vntext.py:138`, `tools_core.py:1948`); bảng mã trong `to_unicode` **chỉ 1** (`_TCVN3`); nắn đúng **0/1.422 = 0,0%**; **0/53 ca test** chạm VNI |
+> | TCVN3 còn sót | ✅ phần lớn, **còn 3 chỗ rò** | đúng **107.764/132.203 = 81,5%** (trước vá 70,9%), **+16.571 cứu / −0 hỏng** |
+> | ký hiệu Ø vỡ | ✅ `%%C`, ❌ `Φ` | `%%C`: **0 mất / 1.754 lượt** · `Φ` U+03A6 **130 lượt/3 file chưa xử lý** |
+>
+> **Hệ quả thật (chạy engine thật, 3 đơn vị vẽ):** gõ **"phòng" → 0 kết quả** trên file kiến trúc có **34 đoạn ghi `PHOØNG HOÏC 1…18`** · **"giáo dục" → 0** dù bản vẽ ghi `PHOØNG GIAÙO DUÏC VAØ ÑAØO TAÏO HUYEÄN GIA LOÄC` · **cùng file đó "phòng" (phần TCVN3) = 51** ⇒ **engine KHÔNG hỏng, thiếu bảng mã**. 9 từ khoá có đáp án biết trước đều 0: PHOØNG 0/109 · THEÙP 0/112 · HOÏC 0/91 · MAËT BAÈNG 0/40.
+> **🔴 NẶNG HƠN BỎ SÓT — KHỚP SAI TỰ TIN (= việc A3):** `tim_kiem('nhà để xe')` = **3 kết quả**, khớp vào `NHAØ XE GIAÙO VIEÂN` trong khi bản vẽ **KHÔNG có chữ "để"**; token `de` đến từ **mã phông `\fVNI-Helve-Condense`** lọt vào nhánh raw của rổ tìm kiếm. **BÁC TRỰC TIẾP** chú thích `tools_core.py:1948` (*"chữ garble sẽ KHÔNG khớp được → chiều an toàn"*): file VNI **vừa bỏ sót VỪA BỊA**.
+> **Còn rò ở vế TCVN3:** `Ø/ø` **278 lượt/19 file** (`p.nghØ gv` = "p.nghỉ gv") vì `Ø` **cố ý bị loại khỏi `_SIG`** — cả thước đo của dự án lẫn của agent đo đều mù với ca này · `Ü/ü` **66 lượt/3 file** (`nghÜa trang`) · **DIMENSION/TOLERANCE 31 lượt/4 file**, thuộc vùng **7.583 chuỗi CHƯA TỪNG được soi** (mọi phép đo trước chỉ quét TEXT/MTEXT/ATTRIB/ATTDEF, trong khi sản phẩm CÓ đọc — `tools_core.py:1128`).
+> **`Φ`** nằm đúng dòng `- Trọng lượng thép có đường kính Φ10 = 4385.64 kg`. **Chú thích `vntext.py:136-142` xếp `Φ` vào "họ mã khác" là SAI** — `Φ` nằm trong chuỗi Unicode tiếng Việt **đúng**, là lỗi **KÝ HIỆU** không phải lỗi **BẢNG MÃ**.
+>
+> ### 1.02 — 2 vế, một nửa xong, một mù hoàn toàn
+> · **Khối ĐƯỢC CHÈN** ✅ **9.105** chuỗi (4.732 vô hình với `tim_kiem`)/70 file — nhưng qua **tool riêng #34**, ***không phải kho chữ chung*** (`self.texts` vẫn chỉ gom modelspace, `tools_core.py:1100→1263`).
+> · **Khối MỒ CÔI** ❌ 5.738 chuỗi/30 file — ⚠ **50,5% con số đó là MỘT file toàn mã escape `%%199`**, không phải nội dung thật ⇒ trừ ra còn **~1.900–2.500**. **Đừng lấy 5.738 làm cớ**, phải đo chất lượng nội dung trước.
+> · **Chữ TRANG IN** ❌ **MÙ HOÀN TOÀN, không tool nào đọc** — **851** chuỗi riêng biệt (685 vô hình)/24 file; bộ trích thô độc lập 100/100 file đếm **3.252 đối tượng**/25 file. Đang bị nuốt: `MẶT BẰNG TỔNG THỂ TUYẾN CỐNG DỊCH VỤ LƯU VỰC TB.6 -10/10` · `DANH MỤC BẢN VẼ PHẦN KẾT CẤU ĐƠN NGUYÊN 1: 3 TẦNG 12 PHÒNG` — tức **tiêu đề bản vẽ / danh mục / khung tên**.
+> **🔴 THẤT BẠI IM LẶNG (phát hiện mới của phản biện):** với **khối mồ côi và chữ trang in**, `co_o_vung_chua_doc = **None**` ⇒ máy trả 0 kết quả mà **KHÔNG bật cả cờ cảnh báo** (chỉ khối ĐƯỢC CHÈN mới bật). Xác nhận corpus thật (`00.So do vi tri.dxf`): 3 chuỗi chỉ-có-ở-trang-in đều `tim_kiem=0, dem_so_luong=0, #34=False`, **không cờ**. Đúng thứ dự án đã chốt là không chấp nhận được.
+>
+> ### ⛔ BỐN SỐ CŨ CỦA CHÍNH DỰ ÁN BỊ PHẢN BIỆN SỬA
+> · *"768 chuỗi `Ä/Å/Û/Φ`"* → khối lượng VNI thật chỉ có **cận dưới 1.422**, cận trên ~14.381 — **chưa ai đo chính xác**.
+> · *"21/92 file khai phông VNI (22,8%)"* → **thổi phồng**; file thật sự **chứa chữ mã VNI** chỉ **10/91 (11%)**. `03.CTN ngoai nha.dxf` khai `VNI-Helve-Condense.TTF` nhưng ruột là TCVN3 và **đang nắn ĐÚNG**.
+> · *"907/907 = 100% còn dấu hiệu VNI"* → **TAUTOLOGY** (bộ dò chọn theo `[AEIOUY]+[ÙÚÛ]`, mà 0xD9–0xDB không có trong `_TCVN3` nên **về cấu trúc không thể ra khác 100%**). Ruột vẫn đúng qua đường không-vòng-tròn: 0/1.422.
+> · *"0 chuỗi hỏng thêm"* (commit `aaea3ec`) → **không chính xác tuyệt đối**: **944 chuỗi VNI** bị đem giải mã TCVN3 (`CÖÛA SOÅ`→`CỆÛA SOÅ`). Tổng hoà **vô hại** (chỉ **8,6% xa đáp án hơn**, 46 chuỗi GẦN hơn, độ giống TB 0,7065→0,7055 = phẳng) — *"đổi" ≠ "tệ hơn"* — nhưng **cơ chế CÓ THẬT**.
+> · Mẫu 1.02 khai *"đã phủ 88/88 file"* → trên đĩa có **100 file .dxf**; đo nốt 12 file thiếu: tổng mù **5.145 → 5.745 (+11,7%)**. Khe hở này chỉ làm số mù **TĂNG** nên không lật kết luận.
+>
+> ### KHÔNG ĐO ĐƯỢC (nói thẳng, không lấp)
+> khối lượng VNI thật (chỉ có cận dưới/cận trên) · **tỉ lệ model THỰC SỰ gọi tool #34** — điều 5 ép gọi **đã bị GỠ** khỏi `SYSTEM_PROMPT` (`mcp_bridge.py:298-308`) vì A/B lợi ích ≈ 0, nên phép đo chỉ nói **khả năng đọc của code**, không nói mức dùng thật · ATTDEF trong khối mồ côi (`_vcd_bong` cố ý bỏ, `tools_core.py:1891`) · `chinhcaodo.dxf` **code sản phẩm không mở được** (`DXFStructureError: missing ENDSEC`) mà file này CÓ `VNI-Helve` trong byte thô · **92 file `.dwg` gốc chưa convert** ở `input_files/` · DIMENSION/LEADER trên trang in · ⚠ **mẫu số tổng chuỗi lệch giữa các lần đo** (1.141.092 vs 285.413 vs 2.285.049 tuỳ phạm vi/bộ trích) ⇒ **mọi so sánh % "trước/sau 1.03" giữa HAI LẦN ĐO KHÁC NHAU là KHÔNG hợp lệ**; chỉ so được tỉ lệ nội bộ cùng một lần đo.
+>
+> ### VIỆC CÒN LẠI — thứ tự rẻ-mà-đau trước
+> **1. A3 ✅ XONG (xem khối riêng ngay dưới)** → **2. E2** bật cờ `co_o_vung_chua_doc` cho khối mồ côi + trang in *(NHỎ, 43/87 file — hết im lặng)* → **3. C1** `Φ`→`Ø` *(1 dòng, 130 lượt)* → **4. B1** `Ø/Ü` TCVN3 còn rò *(NHỎ–TRUNG; `Ø` vừa là đường kính vừa là dấu huyền ⇒ phải phân biệt bằng ngữ cảnh, Ø-trước-chữ-số = đường kính)* → **5. D1+B2** thêm ca VNI vào `test_vntext` + mở phạm vi đo sang DIMENSION *(đóng cổng đo)* → **6. E1** đọc trang in *(TRUNG BÌNH — cần quyết: kho chung hay tool riêng thứ hai)* → **7. A1+A2** dựng bảng mã VNI *(**LỚN, rủi ro cao nhất**)* → **8. E3/F1** cần đo thêm hoặc cần user quyết.
+> **⚠ RÀNG BUỘC SỐNG CÒN CHO A1 (VNI):** nhận diện **PHẢI** dùng **dấu hiệu CẤU TRÚC** (dấu đặt **SAU** nguyên âm: **73,6%** ở phông VNI vs **9,3%** ở TCVN3), **TUYỆT ĐỐI KHÔNG dùng TÊN PHÔNG** — **11 file** tên `vn_vni.shx` nhưng **ruột là TCVN3 và đang nắn ĐÚNG**; đụng vào sẽ **phá 107.764 chuỗi đang chạy tốt**.
 
 ## ⛔ VÁ BỎ SÓT BẰNG "GỢI Ý TRONG KẾT QUẢ TOOL" = **KHÔNG ĐẠT, ĐÃ GỠ — ĐỪNG LÀM LẠI Y HỆT** (2026-08-01)
 > **Tiêu chí chốt TRƯỚC khi chạy:** thắng = **≥3/11** câu bỏ sót lấy lại được **VÀ ≤2/17** câu bẫy bị phá.
