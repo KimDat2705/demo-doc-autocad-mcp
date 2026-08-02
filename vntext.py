@@ -142,6 +142,146 @@ def _eth_lookalike(s):
     return _ETH_DAU_TU.sub("Đ", s)
 
 
+# ==================================== HO MA VNI-Windows ====================================
+# ⛔ CAU TRUC KHAC HAN TCVN3 — day la ly do chu thich cu ghi "KHONG nhet vao _TCVN3":
+#    TCVN3 la bang 1:1 THAY KY TU. VNI la he [NGUYEN AM ASCII goc] + [KY TU DAU DUNG SAU]:
+#       'PHOØNG' = P,H,O,Ø,N,G -> 'PHÒNG'   ·  'GIAÙO' = G,I,A,Ù,O -> 'GIÁO'
+#    Ngoai ra co 5 ky tu la CHU DUC SAN dung MOT MINH (Ñ Ô Ö Æ Ò) — do la ly do 'NGHÆ'->'NGHỈ'
+#    KHONG theo khuon nguyen-am+dau.
+# QUY MO: 415 chuoi VNI. Truoc ban va: nan dung 0/415 = 0,0%; go "phong" ra 0 ket qua tren file
+#    kien truc co 34 doan ghi 'PHOØNG HOÏC 1..18', trong khi CUNG file do "phong" (phan TCVN3) = 51
+#    => engine KHONG hong, THIEU BANG MA. Suite test_vntext 53 PASS nhung 0/53 ca cham VNI
+#    => cong KHONG THE do du ve nay chua bat dau.
+_CIRC = "̂"; _BREVE = "̆"; _HORN = "̛"
+_ACUTE = "́"; _GRAVE = "̀"; _HOOK = "̉"; _TILDE = "̃"; _DOT = "̣"
+
+# --- BANG DAU: CHI 15 muc CO BANG CHUNG CHEO-FILE (tu giai ra phai xuat hien o FILE KHAC duoi
+#     dang da dung). So cap kiem chung ghi kem. KHONG muc nao lay tu tri nho. ---
+_VNI_DAU_HOA = {
+    "Ù": ("", _ACUTE),        # Ù sac         (110 cap)  GIAÙO -> GIÁO
+    "Ø": ("", _GRAVE),        # Ø huyen       ( 65)      PHOØNG -> PHÒNG
+    "Û": ("", _HOOK),         # Û hoi         ( 49)      SÔÛ -> SỞ
+    "Õ": ("", _TILDE),        # Õ nga         ( 19)      LOÃ -> LỖ
+    "Ï": ("", _DOT),          # Ï nang        ( 62)      HOÏC -> HỌC
+    "Â": (_CIRC, ""),         # Â mu          ( 56)      VIEÂN -> VIÊN
+    "Á": (_CIRC, _ACUTE),     # Á mu+sac      ( 68)      KEÁT -> KẾT
+    "À": (_CIRC, _GRAVE),     # À mu+huyen    ( 37)      TAÀNG -> TẦNG
+    "Å": (_CIRC, _HOOK),      # Å mu+hoi      ( 21)      ÑEÅ -> ĐỂ
+    "Ã": (_CIRC, _TILDE),     # Ã mu+nga      (  6)      NGUYEÃN -> NGUYỄN
+    "Ä": (_CIRC, _DOT),       # Ä mu+nang     ( 48)      HUYEÄN -> HUYỆN
+    "Ê": (_BREVE, ""),        # Ê trang       ( 10)      VAÊN -> VĂN
+    "É": (_BREVE, _ACUTE),    # É trang+sac   ( 11)      SAÉT -> SẮT
+    "È": (_BREVE, _GRAVE),    # È trang+huyen (  3)      BAÈNG -> BẰNG
+    "Ë": (_BREVE, _DOT),      # Ë trang+nang  (  6)      MAËT -> MẶT
+}
+# ⛔ CO Y KHONG CO — HAI O SUY DOAN, do duoc la 0 BANG CHUNG (de rieng, KHONG dua vao):
+#     0xCC 'Ì' = trang+hoi   ·   0xCD 'Í' = trang+nga
+#   Do toan corpus: 0 luot chuoi co cap [a/A]+[Ì/Í] => them vao doi 0 chuoi o corpus NAY,
+#   NHUNG tren ho so khac se BAN vao chu Viet DUNG: KÍCH 76 · KÍNH 33 · TRÌNH 27 · BÌNH 19.
+#   Muon them: PHAI co cap raw->dung KIEM CHUNG DUOC. KHONG duoc them "cho doi xung ho trang".
+# ⛔ Cac o khac cung da xet va LOAI vi 0 hoac NGUOC bang chung: Þ(0xDE) · Ó(0xD3) · Ú(0xDA) ·
+#   '≥' · '·' (la dau dau dong; 724 chuoi TCVN3 dung no voi nghia 'ã') · 'Ư' (1 chung, va chuoi
+#   lam chung do la chuoi TRON phong).
+
+# --- CHU DUC SAN, dung MOT MINH, KHONG bam vao nguyen am truoc (5 muc, deu co bang chung) ---
+_VNI_CHU_HOA = {
+    "Ñ": "Đ",            # Ñ -> Đ   (65 cap)
+    "Ô": "O" + _HORN,         # Ô -> Ơ   (60)
+    "Ö": "U" + _HORN,         # Ö -> Ư   (63)
+    "Æ": "I" + _HOOK,         # Æ -> Ỉ   ( 6)   NGHÆ -> NGHỈ
+    "Ò": "I" + _DOT,          # Ò -> Ị   ( 9)
+}
+_VNI_DAU = {}
+for _k, _v in _VNI_DAU_HOA.items():
+    _VNI_DAU[_k] = _v; _VNI_DAU[_k.lower()] = _v
+_VNI_CHU = {}
+for _k, _v in _VNI_CHU_HOA.items():
+    _VNI_CHU[_k] = _v; _VNI_CHU[_k.lower()] = _v.lower()
+_VNI_KY_TU = set(_VNI_DAU) | set(_VNI_CHU)
+
+_NGUYEN_AM = set("aeiouyAEIOUY")
+_NEN_VNI = _NGUYEN_AM | set("ÔÖôö")     # 'TRÖÔØNG': Ø bam vao 'Ô' vua giai ra 'Ơ'
+_NEN_CIRC = set("aeoAEO")               # mu CHI dat tren a/e/o
+_NEN_BREVE = set("aA")                  # trang CHI dat tren a
+
+# BANG CHUNG CUNG: ky tu VNI ma KHONG THE la chu cai tieng Viet hop le. SUY RA, khong chon tay:
+#   _VNI_KY_TU tru chu Viet Latin-1 (À Á Â Ã È É Ê Ì Í Ò Ó Ô Õ Ù Ú Ý), roi TRU THEM 'Ø'.
+# ⛔ TRU 'Ø' vi chinh file nay da ghi: "Ø la ky hieu DUONG KINH THEP, co mat khap noi — them vao
+#   la pha du lieu quan trong nhat". Do duoc: giu Ø lam bang-chung-cung thi
+#   'TOÀ NHÀ HOÀ Ø20' bi nan thanh 'TỒ NHÀ HỒ Ø20' (pha chu Viet DUNG).
+_VNI_CUNG = set("ÛÏÅÄËÑÖÆ")
+_VNI_CUNG |= {c.lower() for c in _VNI_CUNG}
+
+# Ky tu CHI thuoc TCVN3 (khong trung VNI) -> co mat la NHUONG nhanh TCVN3.
+_VNI_VETO_TCVN3 = ({chr(k) for k in _TCVN3} | _SIG) - _VNI_KY_TU
+# Chu Viet Unicode NGOAI Latin-1 -> chuoi DA la Unicode dung, KHONG dung cham.
+_VNI_VETO_UNICODE = set(
+    "ĂăĐđĨĩŨũƠơƯư"
+    "ẠạẢảẤấẦầẨẩẪẫẬậẮắẰằẲẳẴẵẶặẸẹẺẻẼẽẾếỀềỂểỄễỆệ"
+    "ỈỉỊịỌọỎỏỐốỒồỔổỖỗỘộỚớỜờỞởỠỡỢợỤụỦủỨứỪừỬửỮữỰự"
+    "ỲỳỴỵỶỷỸỹ")
+
+_DAU_KEP = re.compile(r"([̛̣̀́̃̉̂̆])\1+")
+
+
+def _dem_cap_vni(s):
+    """Dem so cap [nguyen am][ky tu dau] HOP LE VE CHINH TA (cung kieu chu HOA/thuong, mu chi tren
+    a/e/o, trang chi tren a). Day la DAU HIEU CAU TRUC — KHONG doc TEN PHONG o bat ky dau nao.
+    ⛔ VI SAO KHONG DUOC DUNG TEN PHONG: 11 file khai phong 'vn_vni.shx'/'VNI-Helve-Condense.TTF'
+      nhung RUOT LA TCVN3 va dang duoc nan DUNG. Dung ten phong lam cong = pha 107.764 chuoi dang
+      chay tot. Va con BO SOT: 3/16 file duoc cuu KHONG he khai phong VNI."""
+    n = 0
+    for i in range(1, len(s)):
+        c, p = s[i], s[i - 1]
+        if c not in _VNI_DAU or p not in _NEN_VNI:
+            continue
+        mod, _tone = _VNI_DAU[c]
+        if mod == _CIRC and p not in _NEN_CIRC:
+            continue
+        if mod == _BREVE and p not in _NEN_BREVE:
+            continue
+        if c.isupper() != p.isupper():
+            continue
+        n += 1
+    return n
+
+
+def _looks_vni(s):
+    """3 PHU QUYET + 2 dieu kien duong. Moi dieu kien co SO do duoc:
+    · veto Unicode  : chuoi da dung -> khong dung cham
+    · veto TCVN3    : co ky tu CHI-thuoc-TCVN3 -> nhuong nhanh TCVN3 (do: 5/5 ca TCVN3 ra y het ban cu)
+    · BANG CHUNG CUNG: phai co >=1 ky tu KHONG THE la chu Viet -> chan ho 'TOÀ/HOÀ' (ca phan chung
+      that ma phan bien tim ra: 'TOÀ NHÀ HOÀ BÌNH' -> 'TỒ NHÀ HỒ BÌNH' o bien the KHONG co dieu kien nay)
+    · NGUONG >=2 cap: ha xuong 1 do duoc PHA 316 luot ('CHñ NHIÖM THIÕT KÕ' -> 'CHĐ NHIƯM THĨT KÕ',
+      24 luot/18 file)."""
+    if any(c in _VNI_VETO_UNICODE for c in s):
+        return False
+    if any(c in _VNI_VETO_TCVN3 for c in s):
+        return False
+    if not any(c in _VNI_CUNG for c in s):
+        return False
+    return _dem_cap_vni(s) >= 2
+
+
+def _decode_vni(s):
+    out = []
+    for c in s:
+        if c in _VNI_CHU:                     # chu duc san: KHONG bam vao ky tu truoc do
+            out.append(_VNI_CHU[c]); continue
+        if c in _VNI_DAU and out:
+            base = out[-1]
+            if base and base[0] in _NGUYEN_AM:
+                mod, tone = _VNI_DAU[c]
+                if (mod != _CIRC or base[0] in _NEN_CIRC) and (mod != _BREVE or base[0] in _NEN_BREVE):
+                    out[-1] = base + mod + tone
+                    continue
+        out.append(c)                         # ky tu NGOAI bang -> GIU NGUYEN, KHONG doan
+    r = unicodedata.normalize("NFD", "".join(out))
+    r = _DAU_KEP.sub(r"\1", r)                # nguoi ve go dau HAI LAN ('GIÔÙÙI'); do: 4 luot/1 file
+    return unicodedata.normalize("NFC", r)
+# ================================== het khoi VNI ==================================
+
+
 def _looks_tcvn3(s):
     # ⚠ KHONG duoc phu quyet kieu "chuoi da co ky tu Unicode Viet thi bo qua ca chuoi".
     # Da thu va DO duoc la SAI: ban ve doi PHONG GIUA CHUNG ('{\f.VnTimeH…®…\fArial…Ư…}') nen
@@ -158,12 +298,23 @@ def to_unicode(s):
         return s
     s = _mtext_codes(s)
     s = _eth_lookalike(s)      # 'Ðang' -> 'Đang' TRUOC khi Ð duoc dung lam dau hieu TCVN3
-    # ⚠ THU TU QUAN TRONG: giai ma TCVN3 TRUOC, doi ma AutoCAD SAU.
+    # ⛔ NFC PHAI DUNG O DAY — TRUOC khi do dau hieu, khong duoc de o CUOI nhu ban truoc.
+    #   Corpus co chuoi luu dang NFD ('CỐT' = C,O,U+0302,U+0301). Do dau hieu tren chuoi THO thi
+    #   'BẢNG THỐNG KÊ CỐT THÉP' bi nan thanh 'BẢNG THỚNG KÊ CỚT THÉP'. Do: hong them 0 -> 19 luot.
+    s = unicodedata.normalize("NFC", s)
+    # ⚠ THU TU QUAN TRONG: giai ma phong cu TRUOC, doi ma AutoCAD SAU.
     # Truoc day _autocad_codes chay truoc, bien '%%C' thanh 'Ø' (U+00D8) — ma 0xD8 lai la o
     # 'i-hoi' trong bang TCVN3, nen buoc giai ma NUOT LUON ky tu duong kinh minh vua tao ra:
     # 'mÆt b»ng %%C20' -> 'mặt bằng ỉ20'. Tu pha du lieu cua chinh minh. '%%C' la ASCII thuan
     # nen di qua _decode_tcvn3 nguyen ven; doi sau thi an toan.
-    if _looks_tcvn3(s):
+    # ⛔ VNI PHAI DUNG TRUOC TCVN3, va la 'elif' chu KHONG phai 2 lenh roi:
+    #   350/415 chuoi VNI co mang it nhat 1 ky tu _SIG, nen truoc ban va chung DANG di nham nhanh
+    #   TCVN3 va ra rac ('TRÖÔØNG…' -> 'TRỆỄỈNG…'). Dat VNI SAU la ban va VO HIEU tren ~84% ca.
+    #   Hai nhanh KHONG va nhau THEO CAU TRUC: _looks_vni phu quyet moi ky tu CHI-thuoc-TCVN3.
+    if _looks_vni(s):
+        s = _decode_vni(s)
+        s = _fix_case(s)
+    elif _looks_tcvn3(s):
         s = _decode_tcvn3(s)
         s = _fix_case(s)
     s = _autocad_codes(s)

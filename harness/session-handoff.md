@@ -32,6 +32,47 @@
 >
 > **📌 BÀI HỌC MANG SANG PHIÊN SAU:** ba lần trong phiên này **bộ trích của chính tôi hỏng** và cả ba suýt cho kết luận NGƯỢC (regex vớ `"304"` trong `"INOX 304"` → "0 gắn cờ"; bộ dò từ-khoá đếm *"không tìm thấy lỗi font"* thành từ chối → thổi bỏ-sót 2%→13%; tổng-tập-con mù với tổng cộng SAI). **Số "0%" và số "quá đẹp" là dấu hiệu bộ trích hỏng, không phải tin mừng** — chạy nó lên ca đã biết đáp án trước khi tin.
 
+## ✅ BẢNG MÃ VNI-Windows — VIỆC NHÓM A LỚN NHẤT ĐÃ XONG (2026-08-02) · gate **[48/48]** · `wf_5543e990-f82`
+> Đóng vế còn thiếu của mục 1.03 (tiêu đề BA VẾ, trước đây mới làm 2). Vế VNI có **0 dòng code**; nắn đúng **0/415 = 0,0%**; gõ *"phòng"* → **0 kết quả** trên file có **34 đoạn `PHOØNG HOÏC 1…18`**, trong khi CÙNG file *"phòng"* (phần TCVN3) = **51** ⇒ engine KHÔNG hỏng, **thiếu bảng mã**.
+>
+> ### CẤU TRÚC — vì sao KHÔNG nhét được vào `_TCVN3`
+> `_TCVN3` là bảng **1:1 thay ký tự**. VNI là **[NGUYÊN ÂM] + [KÝ TỰ DẤU ĐỨNG SAU]**: `PHOØNG` = P,H,O,**Ø**,N,G → `PHÒNG` · `GIAÙO` = G,I,A,**Ù**,O → `GIÁO`. Cộng **5 CHỮ ĐÚC SẴN** đứng một mình (`Ñ Ô Ö Æ Ò`) — đó là lý do `NGHÆ`→`NGHỈ` **không theo khuôn** nguyên-âm+dấu. ⇒ thuật toán khác hẳn `_decode_tcvn3`.
+> **Bảng: 15 mục dấu + 5 chữ đúc sẵn, MỖI mục có BẰNG CHỨNG CHÉO-FILE** (số cặp kiểm chứng ghi kèm trong code). **⛔ 2 ô bị LOẠI có chủ đích:** `Ì`(0xCC), `Í`(0xCD) — nghe rất hợp lý để thêm "cho đối xứng họ trăng" nhưng **0 bằng chứng**, và thêm vào sẽ **bắn vào chữ Việt ĐÚNG**: `KÍCH` 76 · `KÍNH` 33 · `TRÌNH` 27 · `BÌNH` 19. Các ô khác cũng đã xét và loại vì 0 hoặc NGƯỢC bằng chứng: `Þ` · `Ó` · `Ú` · `≥` · `·` (là dấu đầu dòng; **724 chuỗi TCVN3** dùng nó với nghĩa `ã`) · `Ư`.
+>
+> ### 🔴 PHẢN BIỆN BÁC ĐƯỢC CỔNG TỐT NHẤT BẰNG CA PHẢN CHỨNG THẬT
+> Biến thể mà 4 nhóm đo hội tụ về — trông đã chặt — vẫn **PHÁ CHỮ VIỆT ĐÚNG**: `TOÀ NHÀ HOÀ BÌNH` → **`TỒ NHÀ HỒ BÌNH`** (vì `O`+`À` trong VNI đúng là `Ồ`, nhưng `TOÀ`/`HOÀ` là tiếng Việt viết đúng sẵn).
+> **Cách chặn: điều kiện BẰNG CHỨNG CỨNG** — chuỗi phải có ≥1 ký tự **KHÔNG THỂ là chữ Việt hợp lệ** (`Û Ï Å Ä Ë Ñ Ö Æ`). Tập này **SUY RA chứ không chọn tay**, và **cố ý TRỪ `Ø`** vì `Ø` là ký hiệu **đường kính thép** (chính `vntext.py` đã ghi *"thêm vào là phá dữ liệu quan trọng nhất"*; đo: giữ `Ø` thì `TOÀ NHÀ HOÀ Ø20` → `TỒ NHÀ HỒ Ø20`).
+> ⇒ Loại **cả một LỚP phá theo CẤU TRÚC**, không chỉ vá vài ca đã biết: vùng rủi ro **85 lượt → 0**.
+>
+> ### CỔNG: 3 PHỦ QUYẾT + 2 ĐIỀU KIỆN DƯƠNG — mỗi vế có SỐ hậu quả nếu ai đổi
+> veto Unicode-đúng · veto ký-tự-CHỈ-thuộc-TCVN3 · **bằng chứng cứng** · **ngưỡng ≥2 cặp** (hạ xuống 1 **phá 316 lượt**: `CHñ NHIÖM THIÕT KÕ`→`CHĐ NHIƯM THĨT KÕ`) · ký tự ĐƠN không tính vào ngưỡng (tính vào **phá 3.237 lượt**).
+> **⛔ TUYỆT ĐỐI KHÔNG dùng TÊN PHÔNG làm cổng:** 11 file khai `vn_vni.shx`/`VNI-Helve-Condense.TTF` nhưng **ruột TCVN3** và đang nắn ĐÚNG ⇒ dùng tên phông = **phá 107.764 chuỗi đang chạy tốt**; và còn **BỎ SÓT** — 3/16 file được cứu **KHÔNG hề khai** phông VNI.
+>
+> ### BA PHÁT HIỆN VỀ THỨ TỰ ÁP
+> · **NFC phải chạy TRƯỚC khi dò** (bản cũ để ở CUỐI): corpus có chuỗi lưu dạng NFD ⇒ dò trên chuỗi thô làm `BẢNG THỐNG KÊ CỐT THÉP` → `BẢNG THỚNG KÊ CỚT THÉP`; hỏng thêm **0 → 19 lượt**.
+> · **VNI phải TRƯỚC TCVN3, và là `elif`**: **350/415** chuỗi VNI mang ≥1 ký tự `_SIG` nên **đang đi nhầm nhánh TCVN3** và ra rác. Đặt sau ⇒ bản vá **vô hiệu trên ~84% ca**. (Tự đo xác nhận ở quy mô lớn hơn: **773/852** chuỗi đổi cũng khớp `_looks_tcvn3`, và nhánh đó cho `MAẬT CAẪT II-II` thay vì `MẶT CẮT II-II`.)
+> · Hai nhánh **không va nhau THEO CẤU TRÚC**: `_looks_vni` phủ quyết mọi ký tự chỉ-thuộc-TCVN3.
+>
+> ### TỰ KIỂM NGƯỢC — 910.574 chuỗi / 98 file, MỘT lượt đọc tính cả trước lẫn sau
+> | ngưỡng CỨNG | kết quả |
+> |---|---|
+> | chuỗi **thiếu bằng chứng cứng** trong tập bị đổi | **0/852** ✅ (bảo đảm CẤU TRÚC: `truoc` chắc chắn là garble) |
+> | ca **"sau tệ hơn"** | **0** ✅ |
+> | **delta SỐ** (`cao_do`·`thep_kg`·`thephinh_kg`·`n_sheet`·`n_qty`·`n_text`·`n_dim`) | **lệch 0**, 15/15 file ✅ |
+> | gate | **[48/48] PASS · 0 suite cũ đổi số** dù bản vá chạm `to_unicode` |
+> **Cứu 852 chuỗi riêng biệt / 15 file.** Ví dụ: `MAẬT CAẪT II-II`→`MẶT CẮT II-II` · `PHOỈNG HOẼP`→`PHÒNG HỌP` · `TRỆỄỈNG TRUNG HOẼC`→`TRƯỜNG TRUNG HỌC` · `SOÁ 17, DỆỄNG VAẤN AN…`→`SỐ 17, DƯƠNG VĂN AN…`
+>
+> ### ⚠ GIÁ PHẢI TRẢ, ĐO ĐƯỢC VÀ ĐÃ KHOÁ BẰNG CA TEST
+> Điều kiện bằng-chứng-cứng làm **bỏ sót 93/945 = 9,8%** chuỗi VNI mà **mọi ký tự dấu đều trùng chữ Việt hợp lệ**: `PHOØNG AÊN` · `THEÙP SAØN` · `BEÂ TOÂNG LOÙT` · `CHI TIEÁT DAÀM` · `THIEÁT KEÁ`.
+> Đây là **ĐÁNH ĐỔI CÓ Ý THỨC — đúng-đắn đổi lấy recall.** Khoá bằng ca `E3`: ai muốn "vớt thêm" phải sửa **có ý thức** và **đo lại lớp `TOÀ/HOÀ`**.
+>
+> ### 📌 LẦN THỨ 7 BỘ PHÂN LOẠI CỦA TÔI HỎNG — VÀ LẦN NÀY SUÝT CHO KẾT LUẬN **NGƯỢC HẲN**
+> Bản đo đầu báo **"HỎNG THÊM = 1101"** và **"2190 chuỗi bị chạm ở file bẫy"** — nghe như phải **huỷ bản vá ngay**. Nhưng chính ví dụ nó gắn cờ là `'CHI TIEÁT MUẾI COẼC'`→`'CHI TIẾT MŨI CỌC'`, tức **CỨU ĐÚNG**. Hai lỗi ĐỊNH NGHĨA:
+> · gọi *"file bẫy"* = mọi file khai phông VNI — nhưng file bẫy THẬT là **khai VNI mà RUỘT TCVN3**; file khai VNI *và* ruột VNI chính là **mục tiêu hợp lệ**;
+> · định nghĩa *"sạch"* = không có ký tự lạ — nhưng **VNI DÙNG LẠI chính chữ Việt hợp lệ làm DẤU** (`GIAÙO` = A+Ù+O, cả ba hợp lệ) ⇒ **mọi bản cứu bị tính thành hỏng**.
+> **Nếu tin con số đầu tiên, tôi đã vứt một bản vá ĐÚNG.** ⇒ Bài học mở rộng: *"số quá xấu"* cũng là dấu hiệu bộ trích hỏng, không chỉ *"số quá đẹp"*.
+> **TEST** `tests/test_vni.py` **43 ca** (A giải-mã · B chống-tái-phát · C không-được-đụng · D source-guard 8 ca khoá từng quyết định kèm số hậu quả · E đối-chứng + giới-hạn). check.sh 47→**48**, tổng ca 1.584→**1.627**.
+
 ## ✅ A3 — NEO-THEO-TRÍCH-DẪN: lấy lại câu ĐÚNG mà hàng rào xoá oan (2026-08-02) · gate **[47/47]** · `wf_c748163d-28b`
 > ### 🔴 GIẢ THUYẾT CỦA TÔI ("bị giết là vô hại") **SAI** — nhưng sai theo hướng có lợi
 > Đọc tay **20/20** chuỗi thực sự bị giết (đo bằng CHÍNH `Drawing._trang_in_kho`):
