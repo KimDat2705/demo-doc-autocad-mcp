@@ -71,7 +71,18 @@
 > · gọi *"file bẫy"* = mọi file khai phông VNI — nhưng file bẫy THẬT là **khai VNI mà RUỘT TCVN3**; file khai VNI *và* ruột VNI chính là **mục tiêu hợp lệ**;
 > · định nghĩa *"sạch"* = không có ký tự lạ — nhưng **VNI DÙNG LẠI chính chữ Việt hợp lệ làm DẤU** (`GIAÙO` = A+Ù+O, cả ba hợp lệ) ⇒ **mọi bản cứu bị tính thành hỏng**.
 > **Nếu tin con số đầu tiên, tôi đã vứt một bản vá ĐÚNG.** ⇒ Bài học mở rộng: *"số quá xấu"* cũng là dấu hiệu bộ trích hỏng, không chỉ *"số quá đẹp"*.
+> ### ✅ E2E QUA ĐƯỜNG SẢN PHẨM — LIVE `45acd2f`, đo trên ĐÚNG file đã dùng để chứng minh lỗi
+> `TKTC-THPT NHI CHIEU-KHOI LOP HOC_15112023_F.dxf`, 12 từ khoá người dùng thật sẽ gõ:
+> | từ khoá | trước | sau | | từ khoá | trước | sau |
+> |---|---|---|---|---|---|---|
+> | **phòng** | **0** | **33** | | trần | 0 | 25 |
+> | phòng học | 0 | 25 | | mặt cắt | 0 | 16 |
+> | tường | 4 | 43 | | chi tiết | 0 | 14 |
+> | mặt bằng | 0 | 13 | | thép | 0 | 12 |
+> | giáo viên | 0 | 3 | | kết cấu | 0 | 2 |
+> **TỔNG 11 → 194.** **0 từ khoá đi xuống.** ⚠ Đây là MỘT file (file gốc của vấn đề) — đừng trích như số toàn corpus; số toàn corpus là **852 chuỗi/15 file**.
 > **TEST** `tests/test_vni.py` **43 ca** (A giải-mã · B chống-tái-phát · C không-được-đụng · D source-guard 8 ca khoá từng quyết định kèm số hậu quả · E đối-chứng + giới-hạn). check.sh 47→**48**, tổng ca 1.584→**1.627**.
+> **⇒ MỤC 1.03 NAY TRỌN CẢ BA VẾ** (TCVN3 ✅ · Ø `%%C` ✅ · VNI ✅; `Φ` = NO_GO có số). `feature_list` `vntext` **partial → done** BẰNG SỐ, không bằng nhãn.
 
 ## ✅ A3 — NEO-THEO-TRÍCH-DẪN: lấy lại câu ĐÚNG mà hàng rào xoá oan (2026-08-02) · gate **[47/47]** · `wf_c748163d-28b`
 > ### 🔴 GIẢ THUYẾT CỦA TÔI ("bị giết là vô hại") **SAI** — nhưng sai theo hướng có lợi
