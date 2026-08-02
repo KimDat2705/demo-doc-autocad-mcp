@@ -27,7 +27,7 @@ gián đoạn" là NÓI DỐI — gián đoạn rồi chạy lại là mất tr�
 
 Đo độ ổn định giữa các lượt: tests/do_on_dinh.py
 """
-import os, sys, io, json, time, glob, hashlib, argparse, traceback, datetime
+import os, re, sys, io, json, time, glob, hashlib, argparse, traceback, datetime
 
 os.environ["READFILE_MAX_MB"] = "300"
 # ⚠ PHẢI đặt TRƯỚC `import mcp_bridge` — MODELS được chốt lúc import (mcp_bridge.py:56).
@@ -65,7 +65,7 @@ THU_LAI_TOI_DA = 2        # trần cứng số lần hỏi lại 1 câu trong C�
 # ⛔ KHÔNG thêm nó vào dict trả về: `app.py` làm `return jsonify(r)` -> mọi số nội bộ của tool
 #    sẽ bị đẩy thẳng ra trình duyệt ở MỌI câu hỏi. Thay vào đó bọc `_guard_text` TỪ PHÍA TEST
 #    (nó nhận đúng tham số đó, mcp_bridge.py:986 và :1006) -> 0 dòng code sản phẩm bị chạm.
-_NEO = {"n": None, "khong_neo_do": None, "khong_neo_tat_ca": None}
+_NEO = {"n": None, "khong_neo_do": None, "khong_neo_tat_ca": None, "answer_truoc_guard": None}
 
 
 # ---- SEAM ghi LỆNH GỌI TOOL (tuỳ chọn, --ghi-tool) -----------------------------------------
@@ -80,11 +80,30 @@ def _boc_bridge(br):
     if goc is None or getattr(goc, "_la_spy_battery", False):
         return br
     def spy(name, args, timeout=120):
+        # PA-0 (wf_06b6cf5e): ghi ca TOM TAT KET QUA per-call — vi 117/179 hang REFUSE legacy khong
+        # phan loai duoc do thieu dung truong nay ("tool loai-tru tra payload giau hay tra rong {}?").
+        # Ghi SAU khi goi de co result; goi loi thi van ghi (loi=...) roi nem lai.
+        rec = {"tool": name, "args": args}
         try:
-            _TOOL["goi"].append({"tool": name, "args": args})
+            r = goc(name, args, timeout=timeout)
+        except Exception as e:
+            rec["loi"] = str(e)[:120]
+            try:
+                _TOOL["goi"].append(rec)
+            except Exception:
+                pass
+            raise
+        try:
+            rec["rong"] = (not r) or (isinstance(r, dict) and (not r or bool(r.get("loi"))))
+            _d = json.dumps(r, ensure_ascii=False, default=str)[:20000] if r is not None else ""
+            rec["co_so"] = bool(re.search(r"\d", _d))
+            _TOOL["goi"].append(rec)
         except Exception:
-            pass
-        return goc(name, args, timeout=timeout)
+            try:
+                _TOOL["goi"].append(rec)   # toi thieu van giu {tool, args}
+            except Exception:
+                pass
+        return r
     spy._la_spy_battery = True
     br.call = spy
     return br
@@ -101,6 +120,10 @@ def _bat_ro_neo():
             _NEO["n"] = len(pool)
             _NEO["khong_neo_do"] = sorted({x for x in do_luong if not mcp_bridge._is_grounded(x, pool)})
             _NEO["khong_neo_tat_ca"] = sorted({x for x in tat_ca if not mcp_bridge._is_grounded(x, pool)})
+            # PA-0: text vao day la NGUYEN BAN truoc guard (answer_goc trong response la DAU RA sau
+            # guard+A3+A2 — mcp_bridge.py:1221/1243 — nen KHONG suy nguoc duoc; day la cho DUY NHAT
+            # bat duoc no). Ghi de moi lan goi -> giu ban cua lan cuoi = cau tra loi chot.
+            _NEO["answer_truoc_guard"] = text
         except Exception:
             pass
         return goc(text, tool_numbers)
@@ -284,10 +307,14 @@ def main(argv=None, hoi=None, tao_bridge=None, files=None):
     ap.add_argument("--ghi-chu", default="", help="ghi chú tự do lưu vào meta")
     ap.add_argument("--chay-thu", action="store_true",
                     help="kiểm mọi điều kiện + chốt đường dẫn rồi DỪNG, không gọi API")
+    # PA-0 (wf_06b6cf5e, 2026-08-02): hai seam nay LUON BAT — 117/179 hang REFUSE cua cac run cu
+    # khong phan loai duoc CHI VI co nguoi chay thieu co (run15 thieu ro_neo -> 14 ca ii/iv khong
+    # tach duoc; run09 thieu tool -> 5 hang mu; run01-04 mu ca hai = vinh vien). Co giu lai de
+    # dong lenh cu khong vo, nhung KHONG con tac dung tat.
     ap.add_argument("--ghi-ro-neo", action="store_true",
-                    help="ghi thêm thông tin RỔ NEO grounding vào bản ghi (bọc _guard_text phía test)")
+                    help="(LUON BAT tu PA-0 2026-08-02 — co giu de tuong thich, khong co tac dung)")
     ap.add_argument("--ghi-tool", action="store_true",
-                    help="ghi lại MỌI lệnh gọi tool của từng câu (bọc br.call phía test)")
+                    help="(LUON BAT tu PA-0 2026-08-02 — co giu de tuong thich, khong co tac dung)")
     # ⚠ PHẢI là parse_args(argv). Viết `[] if argv is None else argv` thì khi chạy TỪ DÒNG LỆNH
     # (argv=None) argparse nhận danh sách RỖNG -> MỌI tham số bị vứt IM LẶNG -> `--chay-thu` không
     # có tác dụng và script chạy thật, TIÊU TIỀN API. Đã mắc đúng lỗi này ngày 2026-07-31 (42 câu).
@@ -394,13 +421,11 @@ def main(argv=None, hoi=None, tao_bridge=None, files=None):
     out = open(path, "a" if da_co else "x", encoding="utf-8")
     br = None
     stt, done, t0 = 0, 0, time.time()
-    if a.ghi_ro_neo:
-        _bat_ro_neo()
+    _bat_ro_neo()          # PA-0: luon bat (xem chu thich o argparse)
     try:
         br = (tao_bridge or (lambda: mcp_bridge.MCPBridge(["mcp_server.py"],
                                                           env={"READFILE_MAX_MB": "300"})))()
-        if a.ghi_tool:
-            br = _boc_bridge(br)
+        br = _boc_bridge(br)   # PA-0: luon bat
         hoi_fn = hoi or mcp_bridge.tra_loi_ai
         print("Bridge OK, %d tool. USE_AI=%s" % (len(getattr(br, "tools", []) or []), mcp_bridge.USE_AI))
         for f in ORDER:
@@ -417,17 +442,20 @@ def main(argv=None, hoi=None, tao_bridge=None, files=None):
                 while True:
                     done += 1
                     t = time.time()
-                    _NEO.update({"n": None, "khong_neo_do": None, "khong_neo_tat_ca": None})
+                    _NEO.update({"n": None, "khong_neo_do": None, "khong_neo_tat_ca": None,
+                                 "answer_truoc_guard": None})
                     _TOOL["goi"] = []
                     try:
                         r = hoi_fn(br, q.get("cau_hoi", ""), summary)
                         rec = ban_ghi(q, f, r, luot, lan, dd, time.time() - t)
-                        if a.ghi_tool:
-                            rec["tool_goi"] = list(_TOOL["goi"])
-                        if a.ghi_ro_neo:
-                            rec["ro_neo_n"] = _NEO["n"]
-                            rec["so_do_luong_khong_neo"] = _NEO["khong_neo_do"]
-                            rec["so_tat_ca_khong_neo"] = _NEO["khong_neo_tat_ca"]
+                        # PA-0: cac truong duoi day CHI ton tai trong ban ghi battery (seam test).
+                        # TUYET DOI khong dua vao dict tra ve cua tra_loi_ai — app.py:625 jsonify(r)
+                        # se bom thang van ban tho chua qua hang rao ra trinh duyet (ca K5 khoa).
+                        rec["tool_goi"] = list(_TOOL["goi"])
+                        rec["ro_neo_n"] = _NEO["n"]
+                        rec["so_do_luong_khong_neo"] = _NEO["khong_neo_do"]
+                        rec["so_tat_ca_khong_neo"] = _NEO["khong_neo_tat_ca"]
+                        rec["answer_truoc_guard"] = _NEO["answer_truoc_guard"]
                     except Exception as e:
                         rec = ban_ghi_loi(q, f, e, luot, lan, dd, time.time() - t)
                         traceback.print_exc()

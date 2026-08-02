@@ -177,6 +177,26 @@ def main():
     ok("K3: ràng buộc được ghi ngay cạnh _TOOL_DIEN_GIAI để người sau đọc thấy",
        "_gan_canh_bao_nhung" in src.split("_TOOL_DIEN_GIAI")[1][:3000])
 
+    # ══ [K4-K5] PA-0 (wf_06b6cf5e, 2026-08-02) — nghiên cứu rổ-neo-rỗng chốt DƯỚI NGƯỠNG ═════════
+    # Đo 832 lượt battery: 179 REFUSE, nhóm "chỉ-gọi-tool-loại-trừ ⇒ refuse oan" = 1 hiện tượng độc
+    # lập (id69) < ngưỡng ≥3 ⇒ KHÔNG đổi hành vi. PA-2 (A3-kho-ký-hiệu) = NO_GO CẤU TRÚC: validator
+    # kienthuc.py cấm chữ số trong TOÀN BỘ chuỗi payload, mà guard chỉ giết câu CÓ số đo-lường
+    # ⇒ tập cứu RỖNG; bản ngây thơ còn dính lỗ echo (arg model cấp tự-cấp-phép câu bịa id135).
+    # ĐỪNG ĐỀ XUẤT LẠI PA-2; đường còn cửa cho id69 là entry kho KHÔNG-số ("Ø = ký hiệu đường kính")
+    # hoặc lane ghép-nhãn-giá-trị. Hai ca dưới đây là phần "tripwire" của PA-0 (đo-only, 0 hành vi).
+    print("\n-- [K4-K5] PA-0: tripwire tuple loại-trừ + cấm rò answer_truoc_guard --")
+    ok("K4: tuple loại-trừ rổ neo ĐÚNG BẰNG 4 tên hiện tại — thêm tool #36 vào tuple PHẢI đỏ ca này"
+       " và người sửa PHẢI tự phân loại DIỄN-GIẢI vs TỒN-TẠI + đo lại bề mặt A2 (tiền lệ: 3→4 tool"
+       " đã nới bề mặt mà không ai đo)",
+       tup == {"doc_bang_nhung", "phat_hien_bang_ve_net", "tra_ky_hieu", "doc_chu_trang_in"},
+       str(sorted(tup)))
+    ok("K5: 'answer_truoc_guard' KHÔNG có trong mcp_bridge.py — trường này CHỈ được sống ở seam"
+       " battery (app.py jsonify(r) bơm mọi khoá của dict trả về ra trình duyệt)",
+       "answer_truoc_guard" not in src)
+    rb = open(os.path.join(ROOT, "tests", "run_battery.py"), encoding="utf-8").read()
+    ok("K5b: đối chứng — seam battery CÓ ghi answer_truoc_guard (ca K5 không tautology)",
+       rb.count("answer_truoc_guard") >= 3, str(rb.count("answer_truoc_guard")))
+
     print("\n%d PASS / %d FAIL" % (PASS, FAIL))
     return 1 if FAIL else 0
 
