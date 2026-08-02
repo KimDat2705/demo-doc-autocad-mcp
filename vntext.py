@@ -282,6 +282,177 @@ def _decode_vni(s):
 # ================================== het khoi VNI ==================================
 
 
+# ============ VOT TANG 2 — BANG-CHUNG-CUNG **AM TIET** (wf_666cedfd, 2026-08-02) ============
+# Dieu kien bang-chung-cung KY TU (_VNI_CUNG) lam BO SOT lop VNI ma moi ky tu dau deu trung
+# chu Viet hop le ('THEÙP SAØN', 'BEÂ TOÂNG LOÙT', 'PHOØNG AÊN') — do lai 2026-08-02:
+# 79 chuoi rieng / 181 luot / 9 file. Nguyen tac vot: thay bang-chung KY TU bang bang-chung
+# AM TIET — chi giai khi phep giai BIEN >=1 token tu vo-nghia thanh am tiet Viet hop le (G)
+# va KHONG bien token nao thanh rac (0 XAU). Lop TOA/HOA thô da hop le -> toan token A ->
+# 0 G -> khong bao gio ban.
+# DO TRUOC-CODE (3 lang kinh doc lap, cung script gate nay tren cache 97.406 chuoi rieng /
+# 1.014.390 luot / 91 file):
+#   · vot 78/79 chuoi = 180/181 luot (98,7%), 0 vot-sai (doc tay 100% ca 78)
+#   · pha-chu-dung: 0 — 584 chuoi bao-ve-ngoai-muc-tieu byte-identical; 'TOÀ NHÀ HOÀ BÌNH',
+#     'TOÀ NHÀ HOÀ Ø20' giu nguyen tuyet doi
+#   · an-toan-so: day \d+ truoc==sau tren MOI chuoi doi; mau Ø+so (ke ca 'Ø 21MM') giu nguyen
+#   · sot co ten: 'T.CHIEÀU DAØI (M)' (1 luot) — token co dau cham NOI BO ('T.CHIEÀU') roi vao
+#     None -> XAU; muon vot phai tach loi theo dau cham + DO LAI, dung noi trong lat nay.
+# ⚠ Bo kiem am tiet duoi day do TINH HOP CAU TRUC chu khong do "la tu that" ('TỒ', 'GI' van
+# True theo luat) — an toan cua gate KHONG dua vao do, ma dua vao: thô-hop-le (A) khong kich.
+
+_AT_DAU_THANH = {"̀": "huyen", "́": "sac", "̃": "nga",
+                 "̉": "hoi", "̣": "nang"}
+_AT_NGUYEN_AM = frozenset("aăâeêioôơuưy")
+_AT_CHU_VIET = _AT_NGUYEN_AM | frozenset("bcdđghklmnpqrstvx")
+# Phu am dau khop-dai-truoc; KHONG co 'q' don (q phai di voi u); 'gi' xu ly rieng.
+_AT_PHU_AM_DAU = ("ngh", "ng", "nh", "gh", "kh", "ph", "qu", "th", "tr", "ch",
+                  "b", "c", "d", "đ", "g", "h", "k", "l", "m", "n", "p",
+                  "r", "s", "t", "v", "x")
+# "Tu dien VAN" (khong dau thanh, NFC) — huu han ~165 muc, KHONG phai tu dien tu.
+_AT_VAN = frozenset("""
+    a e ê i y o ô ơ u ư
+    ai ao au ay âu ây eo êu iu oi ôi ơi ui ưi ưu
+    ia ua ưa oa oe uê uy uơ
+    iêu yêu uôi ươi ươu oai oay oao oeo uây uyu uya
+    am ăm âm em êm im om ôm ơm um iêm yêm uôm ươm oam oăm
+    an ăn ân en ên in on ôn ơn un iên yên uôn ươn oan oăn oen uân uyn uyên
+    ang ăng âng eng ong ông ung ưng iêng yêng uông ương oang oăng oong uâng
+    anh ênh inh oanh uênh uynh
+    ac ăc âc ec oc ôc uc ưc iêc uôc ươc oac oăc ooc
+    ach êch ich oach uêch uych
+    ap ăp âp ep êp ip op ôp ơp up iêp ươp uyp
+    at ăt ât et êt it ot ôt ơt ut ưt iêt yêt uôt ươt oat oăt oet uât uyt uyêt
+""".split())
+_AT_VAN_SAU_QU = frozenset(("ynh", "yt", "ych"))     # quỳnh, quýt, quých
+_AT_VAN_YE = frozenset(v for v in _AT_VAN if v.startswith("yê"))
+_AT_CODA_TAC = ("ch", "c", "p", "t")                 # van dong tac -> chi sac/nang
+
+
+def _at_tach_dau(s):
+    """NFD roi tach 5 dau THANH (mu/trang/moc GIU nguyen tren nguyen am)."""
+    nfd = unicodedata.normalize("NFD", s)
+    dau = [_AT_DAU_THANH[ch] for ch in nfd if ch in _AT_DAU_THANH]
+    khong_dau = "".join(ch for ch in nfd if ch not in _AT_DAU_THANH)
+    return unicodedata.normalize("NFC", khong_dau), dau
+
+
+def _at_hop_le_cap(phu_am, van, dau):
+    if van not in _AT_VAN:
+        if not (phu_am == "qu" and van in _AT_VAN_SAU_QU):
+            return False
+    if van in _AT_VAN_YE and phu_am not in ("", "qu"):
+        return False                      # 'yê...' chi khi khong phu am dau / sau 'qu'
+    d = van[0]
+    if phu_am == "k" and d not in "ieêy":
+        return False                      # k CHI truoc i/e/ê/y
+    if phu_am == "c" and d in "ieêy":
+        return False                      # c KHONG truoc i/e/ê/y (phai la k)
+    if phu_am in ("gh", "ngh") and d not in "ieê":
+        return False
+    if phu_am in ("g", "ng") and d in "ieêy":
+        return False
+    if van.endswith(_AT_CODA_TAC) and dau not in ("sac", "nang"):
+        return False                      # 'LOT' khong dau -> False; 'LÓT' -> True
+    return True
+
+
+def _la_am_tiet(token):
+    """True/False/None — None = khong-ket-luan (co so, 1 ky tu, viet tat khong nguyen am,
+    dinh ky tu ngoai chu cai nhu dau cham noi bo). Gate ngoai xu ly None THAN TRONG (XAU)."""
+    if not isinstance(token, str):
+        return None
+    s = unicodedata.normalize("NFC", token.strip())
+    if not s:
+        return None
+    if any(ch.isdigit() for ch in s):
+        return None                       # 'D1', 'Ø20' — ma hieu
+    if len(s) == 1:
+        return None
+    s = s.lower()
+    khong_dau, ds_dau = _at_tach_dau(s)
+    if any(not ch.isalpha() for ch in khong_dau):
+        return None                       # dau cham/gach noi trong loi
+    if not any(ch in _AT_NGUYEN_AM for ch in khong_dau):
+        return None                       # 'TP', 'BTCT'
+    if any(ch not in _AT_CHU_VIET for ch in khong_dau):
+        return False                      # f j w z ø... — KHONG THE la am tiet Viet
+        # (chinh nho nhanh nay ma 'SAØN'/'NGOAØI' thô -> False = bang chung G khi giai ra SÀN/NGOÀI)
+    if len(ds_dau) > 1:
+        return False
+    dau = ds_dau[0] if ds_dau else "ngang"
+    cach_chia = []
+    if khong_dau.startswith("gi"):
+        phan_sau = khong_dau[2:]
+        if phan_sau:
+            cach_chia.append(("gi", phan_sau))            # giáo = gi + ao
+            cach_chia.append(("gi", "i" + phan_sau))      # gìn  = gi + (i)n
+        else:
+            cach_chia.append(("gi", "i"))                 # gì
+    for pa in _AT_PHU_AM_DAU:
+        if khong_dau.startswith(pa):
+            cach_chia.append((pa, khong_dau[len(pa):]))
+            break                                          # khop dai truoc, 1 lan
+    if khong_dau[0] in _AT_NGUYEN_AM:
+        cach_chia.append(("", khong_dau))                  # khong phu am dau (ăn, uống)
+    for phu_am, van in cach_chia:
+        if van and _at_hop_le_cap(phu_am, van, dau):
+            return True
+    return False
+
+
+def _at_strip_core(tok):
+    """Lot vo ky tu bien khong-phai-chu: 'KEÁT:' -> 'KEÁT', '(XEM' -> 'XEM'."""
+    i, j = 0, len(tok)
+    while i < j and not tok[i].isalpha():
+        i += 1
+    while j > i and not tok[j - 1].isalpha():
+        j -= 1
+    return tok[i:j]
+
+
+def _at_phan_loai_token(tok):
+    """G = bang chung garble (thô vo-nghia -> giai ra hop le) · A = mo ho (ca hai hop le,
+    di kem nhung KHONG tu kich) · XAU = chan ca chuoi · KHONG_DOI = bo qua."""
+    giai = _decode_vni(tok)
+    if giai == tok:
+        return "KHONG_DOI"
+    # doi ma 0 cap hop-le va 0 chu duc san = doi CHI nho cap lech-kieu-hoa (_decode_vni
+    # khong kiem cung-kieu-hoa nhu _dem_cap_vni) -> khong tin
+    if _dem_cap_vni(tok) == 0 and not any(c in _VNI_CHU for c in tok):
+        return "XAU"
+    tho = _la_am_tiet(_at_strip_core(tok))
+    moi = _la_am_tiet(_at_strip_core(giai))
+    if tho is False and moi is True:
+        return "G"
+    if tho is True and moi is True:
+        return "A"
+    return "XAU"    # moi None (khong kiem chung duoc) · moi False · tho True->moi False
+
+
+def _vni_recovery(s):
+    """Nhanh ELIF THU BA cua to_unicode — vot VNI THIEU bang-chung-cung ky tu.
+    GIU nguyen 2 veto + nguong >=2 cap cua _looks_vni; chi thay dieu kien cung ky tu bang
+    dieu kien am tiet: >=1 token G va 0 token XAU. Chuoi toan-A ('TOÀ NHÀ HOÀ') KHONG ban.
+    ⚠ ky hieu DUONG KINH THEP co y KHONG xuat hien trong than ham nay (ca D10 khoa, cung ly do D2)."""
+    if not any(c in _VNI_KY_TU for c in s):
+        return False                      # cong re: loai ~99% chuoi bang 1 vong quet
+    if any(c in _VNI_VETO_UNICODE for c in s):
+        return False
+    if any(c in _VNI_VETO_TCVN3 for c in s):
+        return False                      # lop mang Ì/Í oan ('CHUÛ TRÌ THIEÁT KEÁ') NGOAI pham vi
+    if _dem_cap_vni(s) < 2:
+        return False                      # nguong che 'CèNG THIÕT KÕ' 40 luot; ha 1 phai DO LAI
+    n_g = 0
+    for t in s.split():
+        loai = _at_phan_loai_token(t)
+        if loai == "XAU":
+            return False                  # 1 token rac le = chu ky dac trung cua pha TCVN3/Unicode
+        if loai == "G":
+            n_g += 1
+    return n_g >= 1
+# ============================== het khoi vot tang 2 ==============================
+
+
 def _looks_tcvn3(s):
     # ⚠ KHONG duoc phu quyet kieu "chuoi da co ky tu Unicode Viet thi bo qua ca chuoi".
     # Da thu va DO duoc la SAI: ban ve doi PHONG GIUA CHUNG ('{\f.VnTimeH…®…\fArial…Ư…}') nen
@@ -316,6 +487,11 @@ def to_unicode(s):
         s = _fix_case(s)
     elif _looks_tcvn3(s):
         s = _decode_tcvn3(s)
+        s = _fix_case(s)
+    elif _vni_recovery(s):
+        # VOT TANG 2 (bang-chung am tiet) — PHAI dung SAU _looks_tcvn3: chuoi TCVN3 khong-veto
+        # khong-cung ma loi vao day se bi giai VNI ra rac; elif bao dam TCVN3 an truoc (ca D9).
+        s = _decode_vni(s)
         s = _fix_case(s)
     s = _autocad_codes(s)
     # Unicode TO HOP DAU (NFD: 'ệ' = 'e' + U+0323 + U+0302) hien ra nhu chu thieu dau tren

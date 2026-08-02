@@ -63,6 +63,16 @@ def main():
         ("SOÁ 17, DÖÔNG VAÊN AN, P.AN PHUÙ, Q.2. TP.HCM", "SỐ 17, DƯƠNG VĂN AN, P.AN PHÚ, Q.2. TP.HCM"),
         ("{\\fVNI-Helve-Condense|b1|i0|c0|p2;GIÔÙI HAÏN CHÒU LÖÛA CUÛA KEÁT CAÁU NHAØ}",
          "GIỚI HẠN CHỊU LỬA CỦA KẾT CẤU NHÀ"),
+        # ---- VỚT TẦNG 2 (bằng-chứng ÂM TIẾT, wf_666cedfd 2026-08-02): VNI THIẾU bằng-chứng-cứng
+        #      ký tự — trước đây bị E3 cũ khoá ở trạng thái BỎ SÓT; nay phải giải đúng. Đo corpus:
+        #      vớt 78/79 chuỗi (180/181 lượt), 0 vớt-sai, 0 phá-chữ-đúng, 0 lệch số. ----
+        ("PHOØNG AÊN", "PHÒNG ĂN"),
+        ("THEÙP SAØN Ø20a200", "THÉP SÀN Ø20a200"),
+        ("XAØ GOÀ", "XÀ GỒ"),                                  # GOÀ thô-hợp-lệ (A) đi theo G 'XAØ'
+        ("GOÃ CHOÁNG CAÂY D=40MM", "GỖ CHỐNG CÂY D=40MM"),     # 'choáng' là từ thật -> A, vẫn vớt
+        # 2 ca SỐ-NHẠY (khoá hồi quy an-toàn-số của lăng kính V1):
+        ("3-2. GIA COÁ LOÃ SAØN", "3-2. GIA CỐ LỖ SÀN"),       # dấu '-' trước số giữ nguyên
+        ("SAÉT TRAÙNG KEÕM Ø49x1.2MM", "SẮT TRÁNG KẼM Ø49x1.2MM"),  # Ø+số dính chữ x + thập phân
     ]:
         got = v.to_unicode(raw)
         ok("A: %r" % raw[:40], got == mong, got)
@@ -110,17 +120,41 @@ def main():
        v._dem_cap_vni("ÑÖÆÒÔ") == 0, str(v._dem_cap_vni("ÑÖÆÒÔ")))
     ok("D8: _decode_vni GIỮ NGUYÊN ký tự ngoài bảng (không đoán)",
        "MAŠ„T" in v._decode_vni("MAŠ„T"))
+    ok("D9: vớt tầng 2 đứng SAU TCVN3 (elif thứ ba) — TCVN3 không-veto không-cứng phải được "
+       "nhánh TCVN3 ăn trước, lọt vào recovery sẽ bị giải VNI ra rác",
+       src.index("elif _looks_tcvn3(s):") < src.index("elif _vni_recovery(s):"))
+    than_rec = src.split("def _vni_recovery")[1].split("def _looks_tcvn3")[0]
+    ok("D10: 'Ø' KHÔNG xuất hiện trong thân _vni_recovery (không được thành điều kiện dương — "
+       "Ø là ký hiệu đường kính thép, cùng lý do D2)",
+       "Ø" not in than_rec, than_rec[:60])
 
     # ══ [E] ĐỐI CHỨNG chống-tautology + GIỚI HẠN ĐÃ BIẾT ════════════════════════════════
     print("\n-- [E] đối chứng + giới hạn đã biết --")
     ok("E1: cổng CÓ THỂ trả False (không phải luôn bắn)", not v._looks_vni("BÊ TÔNG CỐT THÉP"))
     ok("E2: cổng CÓ THỂ trả True (không phải luôn im)", v._looks_vni("PHOØNG HOÏC 1"))
-    # ⚠ GIỚI HẠN CỐ Ý — đo được 93/945 = 9,8%: chuỗi mà MỌI ký tự dấu đều trùng chữ Việt hợp lệ
-    #   thì KHÔNG có bằng chứng cứng => không giải mã. Đây là GIÁ của việc chặn lớp TOÀ/HOÀ.
-    #   Ca này khoá HÀNH VI HIỆN TẠI: nếu ai đó "vớt thêm" thì phải sửa ca này CÓ Ý THỨC
-    #   và phải đo lại lớp TOÀ/HOÀ.
-    ok("E3: [giới hạn 9,8%] chuỗi không có bằng-chứng-cứng KHÔNG được giải mã",
-       v.to_unicode("PHOØNG AÊN") == "PHOØNG AÊN", v.to_unicode("PHOØNG AÊN"))
+    # ⚠ E3 CŨ (khoá bỏ-sót 9,8%) ĐÃ ĐƯỢC SỬA CÓ Ý THỨC 2026-08-02 (wf_666cedfd) — đúng thủ tục
+    #   chính nó đòi: vớt tầng 2 bằng bằng-chứng ÂM TIẾT, VÀ đã đo lại lớp TOÀ/HOÀ trên toàn corpus
+    #   (0 phá, nhóm [B] vẫn khoá). CƠ CẤU BỎ-SÓT MỚI sau vớt (đo 2026-08-02, corpus 91 file):
+    #   79 mục tiêu -> vớt 78; còn sót có tên: 1 ca 'T.CHIEÀU DAØI (M)' (dấu chấm nội bộ token)
+    #   + lớp cặp=1 ('QUY CAÙCH') + lớp mang Ì/Í oan ('CHUÛ TRÌ THIEÁT KEÁ') chờ lát Ì/Í riêng.
+    ok("E3: [vớt tầng 2] VNI thiếu bằng-chứng-cứng nhưng >=1 token vô-nghĩa-thô giải ra "
+       "âm tiết hợp lệ và 0 token hỏng-sau-giải -> PHẢI giải",
+       v.to_unicode("PHOØNG AÊN") == "PHÒNG ĂN", v.to_unicode("PHOØNG AÊN"))
+    ok("E3b: [giới hạn - ngưỡng] cặp=1 vẫn KHÔNG giải ('QUY CAÙCH' chịu sót để ngưỡng >=2 "
+       "tiếp tục che 'CèNG THIÕT KÕ' 40 lượt; hạ ngưỡng phải ĐO LẠI, không suy)",
+       v.to_unicode("QUY CAÙCH") == "QUY CAÙCH", v.to_unicode("QUY CAÙCH"))
+    ok("E3c: [giới hạn - 0 token G] chuỗi toàn token thô-hợp-lệ KHÔNG giải (lớp TOÀ/HOÀ)",
+       v.to_unicode("TOÀ NHÀ HOÀ") == "TOÀ NHÀ HOÀ", v.to_unicode("TOÀ NHÀ HOÀ"))
+    ok("E3d: [giới hạn - None] token có dấu chấm NỘI BỘ ('T.CHIEÀU') rơi vào None -> XẤU -> "
+       "cả chuỗi KHÔNG giải (1 lượt corpus; muốn vớt phải tách lõi theo dấu chấm + ĐO LẠI)",
+       v.to_unicode("T.CHIEÀU DAØI (M)") == "T.CHIEÀU DAØI (M)", v.to_unicode("T.CHIEÀU DAØI (M)"))
+    # ⚠ E3e — RESIDUAL CÓ CHỦ ĐÍCH (lăng kính V3 đòi ghi tường minh, KHÔNG phải bug mới):
+    #   chuỗi TRỘN chữ-Việt-đúng + VNI thật ('TOÀ NHÀ THEÙP') SẼ bắn và kéo 'TOÀ'->'TỒ'.
+    #   Corpus đo được 0 ca dạng này; và nhánh bằng-chứng-cứng HIỆN HÀNH cũng xử y hệt
+    #   ('KHOÁ CÖÛA THEÙP' bị _looks_vni kéo nguyên chuỗi từ trước). Khoá để ai đổi phải đo.
+    ok("E3e: [residual đã biết] chuỗi trộn Việt-đúng + VNI bắn cả chuỗi (0 ca trên corpus; "
+       "hành vi ĐỒNG NHẤT với nhánh bằng-chứng-cứng hiện hành)",
+       v.to_unicode("TOÀ NHÀ THEÙP") == "TỒ NHÀ THÉP", v.to_unicode("TOÀ NHÀ THEÙP"))
     ok("E4: bảng dấu 15 mục + chữ đúc sẵn 5 mục (mỗi mục có bằng chứng chéo-file)",
        len(v._VNI_DAU_HOA) == 15 and len(v._VNI_CHU_HOA) == 5,
        "%d/%d" % (len(v._VNI_DAU_HOA), len(v._VNI_CHU_HOA)))
