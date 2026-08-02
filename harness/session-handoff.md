@@ -12,7 +12,31 @@
 > **Muốn public thật sau này — ĐỪNG LÀM LẠI TỪ ĐẦU:** nhánh local **`public-ready`** đã có sẵn trọn gói (history sạch không .deb qua `git filter-repo` · Dockerfile tải ODA tuỳ chọn qua `ODA_DEB_URL` · thông báo .dxf-only thân thiện · .gitignore chặn .deb). Đánh đổi: cloud chỉ đọc .dxf tới khi đặt `ODA_DEB_URL`. Mirror backup: `D:/Dat-Antigravity/_backup_repo_truoc_khi_public_20260717/repo-mirror.git`.
 
 
-## 🏁 CHỐT SỔ CUỐI PHIÊN 2026-08-01→08-02 — **ĐỌC KHỐI NÀY TRƯỚC**
+## 🏁 CHỐT SỔ 2026-08-02 (nối) — **ĐỌC KHỐI NÀY TRƯỚC**
+> **commit `0cb25e6` · ⏳ CHƯA PUSH** (lệnh push bị bộ phân loại quyền của Claude Code chặn — user tự chạy `git push origin main`, rồi verify LIVE). tree chỉ còn docs. **check.sh `[48/48] PASS` · 35 MCP tool · 0 regress · tổng ca 1.627 → 1.630.** Diff từng suite: **DUY NHẤT** `dwgconv` 10→13, mọi suite khác giữ nguyên **từng con số**. `feature_list.json` **79 → 80** (68 done · 1 partial · 11 deferred).
+>
+> ### ⛔ F1 = **KHÔNG ĐẠT** — đừng dùng bộ này chốt id135
+> Đối tác gửi 57 file .dwg (2 đơn vị tư vấn Hải Dương, 27/07/2026). Phần **thiết kế** sâu nhất **−4,10 m** (Bể PCCC) · −3,95 (Trạm XLNT) ⇒ **vẫn dưới −5m** (TB6 = −2,49m).
+> Hai file đạt ngưỡng là **KHOAN ĐỊA CHẤT**: `MC KDC Truc Khe` **−54,30m**, `Tru KDC Truc Khe` **−30,00m** — đọc tay quanh chính handle sâu nhất thấy `'Độ sâu hố khoan - m'` · `'(Depth of borehole)'` · `'(Layer depth)'` · `SPT16` ⇒ **độ sâu KHẢO SÁT, KHÁC HỆ**, đúng loại từng làm `cao_do_min_max` KT trôi −2.1 → −94.44. **Dùng nó tuyên bố "đậu" = lặp lại đúng lỗi đã phải rollback 2026-07-24.**
+> **→ Khi đi xin file lần sau PHẢI nói rõ: cần cao độ ĐÁY THIẾT KẾ (đáy cống/đài cọc/bể ngầm) ≤ −5m; HỐ KHOAN ĐỊA CHẤT KHÔNG DÙNG ĐƯỢC.** (Bản `YEU_CAU_FILE_HA_TANG_gui_doi_tac.txt` hiện **chưa** loại trừ điều này — nên sửa trước khi gửi lại.)
+> 📌 **Bộ trích của tôi hỏng lần thứ 8:** quét thô đọc `'29.5-29.95'` (khoảng độ sâu mẫu) thành −29,95 ⇒ báo oan "engine bỏ sót". **Engine ĐÚNG.**
+>
+> ### ✅ VÁ: `dwgconv.py:97` audit `"0"` → `"1"` — bug NGƯỜI DÙNG gặp mà DEV không thấy
+> `.dwg` lỗi cấu trúc + audit=0 ⇒ ODA **vẫn sinh** `.dxf` nhưng **CỤT** (thiếu `ENDSEC`) ⇒ `outs` không rỗng ⇒ hàm **trả về file hỏng KHÔNG BÁO GÌ**.
+> ⚠ So sánh đầu **không sạch** (đổi recurse + audit cùng lúc) — **đã cô lập biến** rồi mới kết luận.
+> **A/B 148 file** (92 corpus + 56 mới), chỉ đổi audit: **cứu 10/147 = 6,8%** · **hỏng thêm 0** · 121/123 file **số y hệt** · 2 file lệch **duy nhất `tong_doi_tuong`** (cao độ/chữ/dim/thép/marker **giữ nguyên**, kể cả −54,30) · 14 file cả hai lỗi = **trần 45MB của chính dự án**.
+> **Giá:** +0,47s/file (+27,5% tổng); file 36,33MB: 24,3s → 30,4s (timeout 600s); dxf **cùng kích thước** ⇒ không phình file lành.
+> 📌 **Vì sao chưa từng lộ:** 10 file được cứu có **`chinhcaodo.dwg` của TB6** (988 chữ, **200 marker cao độ**) — corpus **không có bản `.dxf`**, dev luôn dùng `.dxf` sẵn nên **không đi qua `dwgconv.py`**; chỉ **upload .dwg** mới đi.
+> **Test `[G]`** khoá cờ audit (10→13). Tự kiểm ngược: hạ về `"0"` → **đúng ca đó đỏ**, hai ca kia xanh.
+>
+> ### 📌 BÀI HỌC MỚI — `.pyc` CŨ CHO CỔNG KẾT QUẢ SAI
+> Cổng lần đầu sau vá báo **FAIL**, chạy tay cũng FAIL ⇒ trông y hệt bug thật. Thực ra vá **1 ký tự** nên file **cùng size**, khôi phục **cùng giây** (`.pyc` …**343** vs `.py` …**423**) ⇒ Python nạp bytecode **bản đã gỡ vá**. Xoá `__pycache__` → PASS.
+> ⚠ **Chiều ngược lại cho CỔNG XANH OAN mà không có gì báo.** ⇒ **LUẬT: sau mọi vòng gỡ-vá-rồi-khôi-phục, xoá `__pycache__` TRƯỚC khi chạy cổng.** `[[feedback-stale-pycache-lam-cong-sai]]`
+>
+> ### ⏳ VIỆC CHỜ
+> ① **push + deploy + verify** bản `0cb25e6` (user chạy) · ② `dwgconv.py:104` vẫn **trả file cụt im lặng** nếu ODA sinh `.dxf` hỏng — audit=1 làm nó **không xảy ra trên 147/147**, nhưng cơ chế còn nguyên, **cần đo riêng** · ③ **F1 vẫn chờ file** đúng loại · ④ 56 file đối tác **chưa nhận vào corpus** (user chốt để sau); dữ liệu đo giữ tại `D:\Dat-Antigravity\_f1_check\` (6,06 GB) · ⑤ **ca thật cho R3**: `Cat doc cong D600` có 24–36 lần "cao độ", 8 lần "đáy cống", nhưng `cao_do_min_max` = **0 marker** vì bảng trắc dọc ghi cao độ **KHÔNG DẤU**.
+
+## 🏁 CHỐT SỔ CUỐI PHIÊN 2026-08-01→08-02 — (phiên trước)
 > **HEAD `7544bdf` == origin · tree SẠCH · check.sh `[48/48] PASS` · 35 MCP tool · 0 regress · tổng ca 1.467 → 1.627 (+160) · check.sh 42 → 48 bước.**
 > **LIVE `45acd2f`** verify (lần thứ 7 trong phiên): prompt `2026.07.27-kb-l3` hash `239e8b7b…` **KHÔNG đổi** · kb `e55ac112…` **KHÔNG đổi** (không lát nào chạm SYSTEM_PROMPT/kho kiến thức ⇒ **không cần A/B**) · `/health` ok · `ram_mb` 135,5 · trang chủ HTTP 200 đủ 4 chuỗi.
 > `feature_list.json` **69 → 79 mục** (66 done · **1 partial** · 12 deferred). **13 commit** push+deploy+verify từng cái.

@@ -9,6 +9,30 @@
 > Mới nhất ở TRÊN CÙNG. Bàn giao đầy đủ: `session-handoff.md`. Nhật ký chi tiết hơn nữa: `../GHI_CHU_HOAN_THIEN.md`.
 
 ---
+## Session 2026-08-02 (nối) — 🧪 KIỂM **F1 KHÔNG ĐẠT** (có số) + 🐛 vá **ODA audit=0 sinh .dxf CỤT** (thất bại IM LẶNG)
+> **CHỐT SỔ:** commit **`0cb25e6`** — ⏳ **CHƯA PUSH** (push bị bộ phân loại quyền chặn, user tự chạy). check.sh **[48/48] PASS · 35 MCP tool · 0 regress**; tổng ca **1.627 → 1.630** (+3); diff từng suite: **DUY NHẤT** dòng `dwgconv` 10→13 đổi, mọi suite khác giữ nguyên **từng con số**. `feature_list.json` **79 → 80 mục** (68 done · 1 partial · 11 deferred).
+>
+> **① ⛔ F1 KHÔNG ĐẠT — đối tác gửi bộ mới (57 file .dwg, 2 đơn vị tư vấn Hải Dương, 27/07/2026), đo xong bác bằng số.**
+> Phần **THIẾT KẾ** sâu nhất chỉ **−4,10 m** (Bể PCCC) · **−3,95 m** (Trạm XLNT) · giao thông −2,0 · thoát nước −1,0 ⇒ vẫn **dưới ngưỡng −5m** (TB6 cũ là −2,49m, có tiến bộ nhưng chưa qua vạch).
+> **Hai file DUY NHẤT đạt ngưỡng là KHOAN ĐỊA CHẤT, KHÔNG dùng được:** `MC KDC Truc Khe` −54,30m · `Tru KDC Truc Khe` −30,00m. Bằng chứng ngữ nghĩa đọc tay quanh chính handle sâu nhất: cạnh `-54.30` là `'Độ sâu hố khoan - m'`, `'(Depth of borehole)'`, `'(Layer depth)'`, `'Mẫu đá'`; cạnh `-30.00` là `SPT16`, `D16`, `29.5-29.95`. ⇒ **độ sâu KHẢO SÁT, khác hệ** — đúng loại đã làm `cao_do_min_max` KT trôi −2.1 → −94.44. Dùng nó tuyên bố "đậu" = lặp lại đúng lỗi đã phải **rollback 2026-07-24**.
+> 📌 **BỘ TRÍCH CỦA TÔI HỎNG (lần thứ 8):** bản quét thô đọc `'29.5-29.95'` (khoảng độ sâu mẫu) thành số âm −29,95 ⇒ báo "engine bỏ sót". **Engine ĐÚNG, bộ trích SAI.** Lại đúng khuôn `[[feedback-kiem-bo-trich-truoc-khi-tin-so]]`.
+> **Phát hiện phụ (chưa làm):** `Cat doc cong D600` có **24–36 lần chữ "cao độ"**, **8 lần "đáy cống"**, 197–293 số thập phân trên layer `tracdoc` — nhưng `cao_do_min_max` trả **0 marker**, vì cao độ trong **bảng trắc dọc ghi KHÔNG DẤU** (`1.740`, `3.270`) mà engine chỉ nhận marker `+/−/±`. ⇒ **ca THẬT cho nút thắt ghép nhãn↔giá trị (R3)**, thay cho lý thuyết.
+>
+> **② ✅ VÁ `dwgconv.py:97` audit `"0"` → `"1"` — bug NGƯỜI DÙNG gặp mà DEV không bao giờ thấy.**
+> Tham số 7 của ODAFileConverter là **audit**. Với `.dwg` lỗi cấu trúc, ODA **VẪN sinh ra** `.dxf` nhưng **CỤT** (thiếu `ENDSEC`) ⇒ `outs` không rỗng ⇒ `convert_dwg_to_dxf()` **trả về file hỏng MÀ KHÔNG BÁO GÌ**.
+> ⚠ **So sánh đầu tiên của tôi KHÔNG SẠCH** (đổi `recurse` và `audit` cùng lúc) — đã **cô lập biến** rồi mới kết luận.
+> **A/B TOÀN BỘ 148 file .dwg** (92 corpus + 56 bộ mới), cùng thư mục nguồn, cùng `recurse=0`, **chỉ đổi audit**: **CỨU 10/147 = 6,8%** · **HỎNG THÊM 0** · 123 file cả hai đọc được thì **121 file SỐ Y HỆT**; **2 file lệch DUY NHẤT `tong_doi_tuong`** (8531→8530, 10701→10672) trong khi `cao_do_thap`/`cao_do_cao`/`so_doan_chu`/`so_kich_thuoc`/`thep_tong_kg`/`so_marker_cd` **giữ nguyên từng con số** (kể cả −54,30) ⇒ audit chỉ bỏ **đối tượng HỎNG**, không mất dữ liệu có nghĩa · 14 file cả hai đều lỗi: **TẤT CẢ** do trần 45MB của chính dự án.
+> **Giá phải trả, đo được:** +27,5% thời gian (252,7s → 322,2s cho 147 file = **+0,47s/file**); file 36,33MB (lớn nhất dưới trần) **24,3s → 30,4s**, còn xa `CONVERT_TIMEOUT=600s`; dxf đầu ra **CÙNG kích thước 202,4MB** ⇒ audit **không phình** file lành.
+> 📌 **VÌ SAO CHƯA TỪNG LỘ RA:** trong 10 file được cứu có **`chinhcaodo.dwg` của BỘ TB6** — 988 đoạn chữ, 98 đường kích thước, **200 marker cao độ**. Corpus **không có bản `.dxf`** của nó, dev luôn làm việc trên `.dxf` có sẵn nên **không đi qua `dwgconv.py`**; chỉ **upload .dwg** mới đi đường đó — tức đúng đường của đối tác.
+> **Test:** ca `[G]` khoá cờ audit (10 → 13 ca). **Tự kiểm ngược:** hạ về `"0"` thì **đúng ca AUDIT đỏ**, hai ca kia vẫn xanh ⇒ ca test **phân biệt đúng chỗ**.
+>
+> **③ 📌 BÀI HỌC QUY TRÌNH MỚI — `.pyc` CŨ LÀM CỔNG SAI (đã ghi memory).**
+> Lần chạy cổng đầu **sau** vá báo **FAIL**, chạy tay cũng FAIL ⇒ trông y hệt bug thật. Thực ra: vá **một ký tự** (`'0'`/`'1'`) nên file **cùng size**, và `cp` khôi phục **trong cùng một giây** với lần compile trước (`.pyc` 19:49:20.**343** vs `.py` 19:49:20.**423**) ⇒ Python coi cache còn hợp lệ, **nạp bytecode của bản ĐÃ GỠ VÁ**. Xoá `__pycache__` → **[48/48] PASS**.
+> ⚠ **Chiều ngược lại nguy hiểm hơn nhiều:** cache cũ là bản ĐÚNG trong khi `.py` đã hỏng ⇒ **CỔNG XANH OAN, không có gì báo.** ⇒ **LUẬT: sau bất kỳ vòng gỡ-vá-rồi-khôi-phục, PHẢI xoá `__pycache__` trước khi chạy cổng.** Memory `[[feedback-stale-pycache-lam-cong-sai]]`.
+>
+> **⏳ CÒN TỒN / VIỆC CHỜ:** `dwgconv.py:104` vẫn trả file cụt không báo gì nếu ODA sinh `.dxf` hỏng (với audit=1 **không xảy ra trên 147/147**, nhưng cơ chế thất-bại-im-lặng còn nguyên — **cần đo riêng**) · **F1 vẫn chờ file** hạ tầng có **cao độ ĐÁY THIẾT KẾ ≤ −5m** (phải nói rõ với đối tác: **hố khoan địa chất KHÔNG dùng được**) · bộ 56 file đối tác **CHƯA nhận vào corpus** (user chốt để sau) · dữ liệu đo để tại `D:\Dat-Antigravity\_f1_check\` (6,06 GB, user chốt giữ nguyên).
+
+---
 ## Session 2026-08-01→08-02 — 🔎 NHÓM A: **5 việc VÁ LIVE** (A3 mã-định-dạng · tool #35 trang in · A2 · A3 trích-dẫn · **BẢNG MÃ VNI**) + **7 NO_GO có số** + sửa 2 nhãn "done" SAI
 > **CHỐT SỔ:** HEAD **`45acd2f`** == origin, tree SẠCH. check.sh **[48/48] PASS · 35 MCP tool · 0 regress** — ở **MỌI lát**, các suite CŨ giữ nguyên **TỪNG CON SỐ**; tổng ca **1.467 → 1.627** (+160), check.sh **42 → 48 bước**, MCP tool **34 → 35**.
 > **LIVE verify 7 lần** (`af0c879` → `639fa6c` → `349e82a` → `a61472d` → `363e980` → `e57ee22` → `45acd2f`), mỗi lần đủ 4 mục: prompt `2026.07.27-kb-l3` hash `239e8b7b…` **KHÔNG đổi** · kb `e55ac112…` **KHÔNG đổi** (không lát nào chạm SYSTEM_PROMPT/kho kiến thức nên không cần A/B) · `/health` ok, `ram_mb` 135,4 · trang chủ HTTP 200 đủ 4 chuỗi frontend.
