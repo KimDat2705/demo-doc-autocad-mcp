@@ -158,6 +158,51 @@ def main():
     finally:
         dwgconv.find_oda = saved_find
 
+    print("[G] cmd goi ODA phai co AUDIT=1 (tham so thu 7) — KHOA bang so do A/B 148 file")
+    # VI SAO KHOA: audit=0 khien .dwg loi cau truc van sinh .dxf nhung CUT (thieu ENDSEC) =>
+    # convert tra ve file HONG ma khong bao gi (that bai IM LANG). Do A/B toan bo 148 file .dwg:
+    # cuu 10/147, hong them 0, 2 file lech DUY NHAT `tong_doi_tuong` (cao_do/chu/dim/thep giu nguyen).
+    # Ai ha ve "0" phai do lai va sua ca nay CO Y THUC.
+    saved_find = dwgconv.find_oda
+    saved_run = dwgconv.subprocess.run
+    bat = {}
+    # PHAI la file .dwg CO THAT: convert_dwg_to_dxf() goi shutil.copy2() TRUOC subprocess.run,
+    # mock os.path.isfile khong du (copy2 van ném FileNotFoundError -> khong bao gio bat duoc cmd).
+    _tmpd = tempfile.mkdtemp(prefix="tG_")
+    _dwg = os.path.join(_tmpd, "x.dwg")
+    with open(_dwg, "wb") as _fh:
+        _fh.write(b"\x00")
+
+    class _FakeProc(object):
+        stdout = b""
+        returncode = 0
+
+    def _fake_run(cmd, **kw):
+        bat["cmd"] = list(cmd)
+        return _FakeProc()
+
+    try:
+        dwgconv.find_oda = lambda: "/fake/ODAFileConverter"
+        dwgconv.subprocess.run = _fake_run
+        try:
+            # ODA gia khong sinh .dxf -> ham nem RuntimeError; ta chi can BAT duoc cmd
+            dwgconv.convert_dwg_to_dxf(_dwg, tempfile.gettempdir())
+        except Exception:
+            pass
+        cmd = bat.get("cmd") or []
+        # bo tien to xvfb-run tren Linux de lay dung phan cmd cua ODA
+        if "xvfb-run" in cmd:
+            cmd = cmd[cmd.index("/fake/ODAFileConverter"):] if "/fake/ODAFileConverter" in cmd else cmd
+        _emit("bat duoc cmd goi ODA", len(cmd) >= 8, "-> %d phan tu" % len(cmd))
+        _emit("tham so RECURSE (thu 6) = '0' (chi 1 file, khong de quy)",
+              len(cmd) >= 8 and cmd[5] == "0", "-> %r" % (cmd[5] if len(cmd) >= 8 else None))
+        _emit("tham so AUDIT (thu 7) = '1' (KHONG duoc ha ve '0')",
+              len(cmd) >= 8 and cmd[6] == "1", "-> %r" % (cmd[6] if len(cmd) >= 8 else None))
+    finally:
+        dwgconv.find_oda = saved_find
+        dwgconv.subprocess.run = saved_run
+        shutil.rmtree(_tmpd, ignore_errors=True)
+
     print("\n%d PASS / %d FAIL" % (PASS, FAIL))
     sys.exit(1 if FAIL else 0)
 

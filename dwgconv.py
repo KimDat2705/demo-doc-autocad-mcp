@@ -12,7 +12,10 @@ Cau hinh duong dan ODA:
 
 Quy uoc CLI cua ODA (che do batch, khong hien GUI lau):
   ODAFileConverter <inDir> <outDir> <version> <filetype> <recurse> <audit> [<filter>]
-  vd: ODAFileConverter in out ACAD2018 DXF 0 0 *.DWG
+  vd: ODAFileConverter in out ACAD2018 DXF 0 1 *.DWG
+  ⚠ audit PHAI = 1: voi audit=0, .dwg co loi cau truc van sinh ra .dxf nhung CUT (thieu ENDSEC)
+    => tra ve file hong MA KHONG BAO GI. Do A/B 148 file: cuu 10, hong them 0. Xem chu thich
+    tai cho dat `cmd` trong convert_dwg_to_dxf() de biet day du so do va gia phai tra.
 """
 import os
 import sys
@@ -77,7 +80,22 @@ def convert_dwg_to_dxf(dwg_path, out_dir):
     base = os.path.basename(dwg_path)
     try:
         shutil.copy2(dwg_path, os.path.join(in_dir, base))
-        cmd = [exe, in_dir, tmp_out, OUT_VERSION, "DXF", "0", "0", "*.DWG"]
+        # Tham so 7 = AUDIT. TRUOC la "0" -> voi .dwg co loi cau truc, ODA VAN sinh ra file .dxf
+        # nhung CUT (thieu ENDSEC) => `outs` khong rong => ham nay tra ve file hong MA KHONG BAO GI,
+        # nguoi dung chi thay loi kho hieu o tang tren. Do A/B TOAN BO 148 file .dwg
+        # (92 corpus + 56 bo doi tac 2026-08-02), cung thu muc nguon, chi doi audit 0->1:
+        #   CUU 10/147 file (6,8%) tu "khong doc duoc" -> doc duoc; HONG THEM 0
+        #   123 file ca hai deu doc duoc: 121 file SO Y HET; 2 file lech DUY NHAT `tong_doi_tuong`
+        #     (8531->8530 va 10701->10672) — cao_do/so_doan_chu/so_kich_thuoc/thep_tong_kg/
+        #     so_marker_cd GIU NGUYEN het => audit chi bo doi tuong HONG, khong mat du lieu co nghia.
+        #   14 file ca hai deu loi: TAT CA do tran 45MB cua chinh du an, khong lien quan convert.
+        # Gia phai tra (do): +27,5% thoi gian tong (252,7s -> 322,2s cho 147 file = +0,47s/file);
+        # file 36,33MB (lon nhat duoi tran 45MB): 24,3s -> 30,4s, con xa CONVERT_TIMEOUT=600s;
+        # dxf dau ra CUNG kich thuoc 202,4MB => audit KHONG phinh file lanh.
+        # Trong 10 file duoc cuu co `chinhcaodo.dwg` cua BO TB6 (988 doan chu, 200 marker cao do)
+        # — corpus khong co ban .dxf cua no nen bug nay chua bao gio lo ra trong luc dev
+        # (dev luon lam viec tren .dxf co san, KHONG di qua duong nay; chi upload .dwg moi di).
+        cmd = [exe, in_dir, tmp_out, OUT_VERSION, "DXF", "0", "1", "*.DWG"]
         if not sys.platform.startswith("win"):
             # Linux: ODA la app Qt -> can man hinh ao
             cmd = ["xvfb-run", "-a", "--server-args=-screen 0 1024x768x24"] + cmd
