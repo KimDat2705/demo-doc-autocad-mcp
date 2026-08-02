@@ -12,7 +12,26 @@
 > **Muốn public thật sau này — ĐỪNG LÀM LẠI TỪ ĐẦU:** nhánh local **`public-ready`** đã có sẵn trọn gói (history sạch không .deb qua `git filter-repo` · Dockerfile tải ODA tuỳ chọn qua `ODA_DEB_URL` · thông báo .dxf-only thân thiện · .gitignore chặn .deb). Đánh đổi: cloud chỉ đọc .dxf tới khi đặt `ODA_DEB_URL`. Mirror backup: `D:/Dat-Antigravity/_backup_repo_truoc_khi_public_20260717/repo-mirror.git`.
 
 
-## 🏁 CHỐT SỔ 2026-08-02 (nối) — **ĐỌC KHỐI NÀY TRƯỚC**
+## 🏁 CHỐT SỔ 2026-08-02 (nối 2) — **ĐỌC KHỐI NÀY TRƯỚC**
+> **HEAD `6b7c2b9`** (VNI vớt tầng 2) ← `7030aa6` (PA-0) ← `dabcaac` (docs F1+audit) ← `0cb25e6` (vá audit). check.sh **[48/48] PASS · tổng ca 1.630 → 1.633 → 1.645** (PA-0 +3, VNI +12) · 35 MCP tool · 0 regress — mỗi lát diff từng suite: **DUY NHẤT** suite của lát đó đổi. `feature_list.json` **80 → 82 mục** (70 done · 1 partial · 11 deferred).
+>
+> ### ✅ MỤC 1 (VNI 9,8%) — XONG: vớt tầng 2 bằng BẰNG-CHỨNG ÂM TIẾT (`wf_666cedfd`, GO/GO_WA×2)
+> Nhánh `elif` thứ ba `_vni_recovery` + bộ kiểm âm tiết `_la_am_tiet` (~160 dòng, thuần luật, nội tuyến `vntext.py`). Token **G** (thô vô-nghĩa → giải hợp lệ) / **A** (cả hai hợp lệ — đi kèm, KHÔNG tự kích) / **XẤU** (chặn cả chuỗi). **Bắn ⟺ ≥1 G và 0 XẤU** ⇒ `TOÀ NHÀ HOÀ` toàn-A không bao giờ bắn.
+> **Số:** quần thể đo lại = **79 chuỗi/181 lượt/9 file** · vớt **78/79 (98,7%), 0 vớt-sai** (đọc tay 100%) · phá-chữ-đúng **0** (584 chuỗi bảo vệ byte-identical) · **0 lệch số, 0 mẫu Ø hỏng** · sweep old-vs-new trên cây thật ra khớp **từng con số** · hiệu năng to_unicode **+9,3%**. `test_vni` 43→**55**; tự kiểm ngược: vô hiệu recovery → **đúng 8 ca mới đỏ**.
+> **Giới hạn khoá bằng test:** `E3b` cặp=1 (`QUY CAÙCH` chịu sót — hạ ngưỡng phải **ĐO LẠI**, số "phá 316" cũ đo trên gate không-có-tầng-âm-tiết) · `E3d` `T.CHIEÀU` (dấu chấm nội bộ, 1 lượt) · `E3e` residual chuỗi TRỘN Việt-đúng+VNI (0 ca corpus, đồng nhất nhánh cứng hiện hành) · **lớp Ì/Í oan (~71 chuỗi) = LÁT RIÊNG, đừng trộn**.
+>
+> ### ✅ MỤC 2 (rổ neo rỗng) — CHỐT DƯỚI NGƯỠNG, chỉ làm PA-0 đo-only (`wf_06b6cf5e`, 3 verify GO_WA)
+> **832 lượt battery → 179 REFUSE → oan thật 1 hiện tượng (id69) < ngưỡng ≥3 ⇒ KHÔNG đổi hành vi.** id139 refuse GẦN ĐÚNG (ky_vong đòi "phải nói rõ không có"). **⛔ PA-2 (A3-kho-ký-hiệu) = NO_GO CẤU TRÚC — đừng đề xuất lại:** kho cấm chữ số toàn chuỗi mà guard chỉ giết câu có số ⇒ tập cứu RỖNG; bản ngây thơ dính lỗ ECHO tự-cấp-phép câu bịa id135 (đã đo). PA-1 delta gần rỗng (hằng LIVE đã có lời mời hỏi lại). **Vùng mù thật = 117/179 hàng REFUSE legacy thiếu trường.**
+> **PA-0 đã LIVE trong `7030aa6`:** 2 seam battery LUÔN BẬT · `answer_truoc_guard` + per-call `{tool,args,rong,co_so}` chỉ ở seam · K4 đóng băng ĐẲNG THỨC tuple loại-trừ == 4 tên (thêm tool #36 PHẢI đỏ) · K5/K5b cấm rò vào `mcp_bridge.py`. **TRIPWIRE:** run mới đủ trường ra ≥3 hiện tượng mới mở lại; công cụ KHÔNG được là PA-2.
+> **⏳ CHỜ USER QUYẾT:** entry kho KHÔNG-số `Ø/phi = ký hiệu đường kính thép tròn` → id69 miss→hit (đã đo 3 mắt xích: `_KB_PREFIX_RE` bắt `Ø` từ `Ø10` · khoá sập `ø` · kho hiện 0 entry). Giá: đổi `kb_hash` (re-freeze + verify).
+>
+> ### 📌 VIỆC NHỎ GHI SỔ (chưa làm)
+> ① Convert lại **3 file cache `_khao_sat/_dxf` hỏng** `DXFStructureError` (di sản audit=0; gồm `chinhcaodo.dxf` — file mà bản vá audit hôm nay cứu). ② Bài học `.pyc` cũ làm cổng sai — memory `[[feedback-stale-pycache-lam-cong-sai]]`, LUẬT: sau mọi vòng gỡ-vá-rồi-khôi-phục phải xoá `__pycache__` trước khi chạy cổng.
+>
+> ### 🔥 BƯỚC TIẾP
+> **Mục 4 — ghép nhãn↔giá trị theo vị trí (R3)**: giờ có **ca thật** — `Cat doc cong D600` (bộ đối tác 2026-08-02, `D:\Dat-Antigravity\_f1_check\dxf\`): 24–36 lần chữ "cao độ", 8 lần "đáy cống", 197–293 số thập phân layer `tracdoc`, mà `cao_do_min_max` = **0 marker** (cao độ bảng trắc dọc ghi KHÔNG DẤU `1.740`). Việc lớn, mở workflow nghiên cứu riêng. · Mục 3 (`Ø/Ü` vào `_SIG`) hoãn có cơ sở · Nhóm C không đụng.
+
+## 🏁 CHỐT SỔ 2026-08-02 (nối) — (lát trước cùng ngày)
 > **commit `0cb25e6` · ⏳ CHƯA PUSH** (lệnh push bị bộ phân loại quyền của Claude Code chặn — user tự chạy `git push origin main`, rồi verify LIVE). tree chỉ còn docs. **check.sh `[48/48] PASS` · 35 MCP tool · 0 regress · tổng ca 1.627 → 1.630.** Diff từng suite: **DUY NHẤT** `dwgconv` 10→13, mọi suite khác giữ nguyên **từng con số**. `feature_list.json` **79 → 80** (68 done · 1 partial · 11 deferred).
 >
 > ### ⛔ F1 = **KHÔNG ĐẠT** — đừng dùng bộ này chốt id135

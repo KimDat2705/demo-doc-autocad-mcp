@@ -9,6 +9,13 @@
 > Mới nhất ở TRÊN CÙNG. Bàn giao đầy đủ: `session-handoff.md`. Nhật ký chi tiết hơn nữa: `../GHI_CHU_HOAN_THIEN.md`.
 
 ---
+## Session 2026-08-02 (nối 2) — ✅ MỤC 1 **VNI vớt tầng 2** (78/79, 0 phá) + ✅ MỤC 2 chốt **DƯỚI NGƯỠNG** (PA-0 đo-only)
+> **CHỐT SỔ:** HEAD **`6b7c2b9`** ← `7030aa6` ← `dabcaac` ← `0cb25e6`. check.sh **[48/48] PASS**, tổng ca **1.630 → 1.633 → 1.645**, 35 tool, 0 regress; mỗi lát diff từng suite chỉ đổi ĐÚNG suite của lát. `feature_list` **80 → 82** (70 done). Quy trình: cả 2 mục đều nghiên cứu bằng workflow 7-agent (probe → design → 3 phản biện đối kháng chạy số trên corpus/battery THẬT) TRƯỚC khi viết dòng code nào.
+> **① MỤC 1 — VNI vớt tầng 2 (`wf_666cedfd` → `6b7c2b9`):** thay bằng-chứng-cứng KÝ TỰ bằng bằng-chứng ÂM TIẾT (G/A/XẤU; bắn ⟺ ≥1 G ∧ 0 XẤU). Vớt **78/79 chuỗi (180/181 lượt), 0 vớt-sai, 0 phá `TOÀ/HOÀ`, 0 lệch số**; sweep 97.406 chuỗi trên cây thật khớp từng con số; to_unicode +9,3%. `test_vni` 43→55, tự kiểm ngược 8-đỏ-đúng-8. Giới hạn khoá test: E3b cặp=1 · E3d `T.CHIEÀU` · E3e residual trộn · **lớp Ì/Í = lát riêng**.
+> **② MỤC 2 — rổ neo rỗng (`wf_06b6cf5e` → `7030aa6`):** 832 lượt → 179 REFUSE → **oan thật 1 hiện tượng (id69) < ngưỡng 3 ⇒ KHÔNG đổi hành vi**. ⛔ PA-2 = NO_GO CẤU TRÚC (kho cấm chữ số + lỗ echo). PA-0 đo-only: 2 seam luôn bật + `answer_truoc_guard` + per-call + K4 đẳng-thức-tuple + K5 cấm-rò. Vùng mù legacy 117/179 hàng. Tripwire ≥3. **Chờ user quyết:** entry kho `Ø/phi` (id69 miss→hit, đổi kb_hash).
+> **③ Bài học mới:** `.pyc` cũ làm cổng cho kết quả SAI (vá 1 ký tự + khôi phục cùng giây) — chiều ngược = CỔNG XANH OAN; luật xoá `__pycache__` trước cổng, memory `[[feedback-stale-pycache-lam-cong-sai]]`. Corpus cache `_khao_sat/_dxf` có **3 file hỏng do audit=0** (gồm `chinhcaodo.dxf`) — cần convert lại, việc nhỏ ghi sổ.
+
+---
 ## Session 2026-08-02 (nối) — 🧪 KIỂM **F1 KHÔNG ĐẠT** (có số) + 🐛 vá **ODA audit=0 sinh .dxf CỤT** (thất bại IM LẶNG)
 > **CHỐT SỔ:** commit **`0cb25e6`** — ⏳ **CHƯA PUSH** (push bị bộ phân loại quyền chặn, user tự chạy). check.sh **[48/48] PASS · 35 MCP tool · 0 regress**; tổng ca **1.627 → 1.630** (+3); diff từng suite: **DUY NHẤT** dòng `dwgconv` 10→13 đổi, mọi suite khác giữ nguyên **từng con số**. `feature_list.json` **79 → 80 mục** (68 done · 1 partial · 11 deferred).
 >
