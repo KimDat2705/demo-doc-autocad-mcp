@@ -64,6 +64,20 @@
 > **⚠ Giá phải trả, đã khoá bằng ca test:** bỏ sót **93/945 = 9,8%** chuỗi VNI mà mọi ký tự dấu đều trùng chữ Việt hợp lệ (`THEÙP SAØN`, `BEÂ TOÂNG LOÙT`) — **đánh đổi có ý thức**, đúng-đắn đổi lấy recall.
 > **📌 LẦN THỨ 7 BỘ PHÂN LOẠI HỎNG — SUÝT CHO KẾT LUẬN NGƯỢC HẲN:** bản đo đầu báo *"hỏng thêm 1101"* + *"2190 chuỗi chạm file bẫy"*, nghe như phải **HUỶ bản vá** — nhưng ví dụ nó gắn cờ là `CHI TIEÁT MUẾI COẼC`→`CHI TIẾT MŨI CỌC`, tức **CỨU ĐÚNG**. Hai lỗi ĐỊNH NGHĨA: *"file bẫy"* phải là **khai VNI mà ruột TCVN3** (không phải mọi file khai VNI); và *"sạch"* **không định nghĩa được** bằng "không có ký tự lạ" vì **VNI dùng lại chính chữ Việt hợp lệ làm dấu** (`GIAÙO` = A+Ù+O). **Tin số đầu tiên là vứt một bản vá ĐÚNG.** ⇒ **"Số quá XẤU" cũng là dấu hiệu bộ trích hỏng, không chỉ "số quá đẹp".**
 >
+> ### 🏁 CHỐT SỔ CUỐI PHIÊN — RÀ SOÁT ĐỦ (2026-08-02)
+> **Cổng:** `check.sh` **[48/48] PASS**, ghi `EXIT_CODE_THAT` vào chính file output và `grep "HARNESS GATE"` trong FILE (theo đúng kỷ luật checklist dòng 43 tự dặn — đã có tiền lệ `exit 127` khiến cổng **không hề chạy** mà vẫn tưởng xong).
+> ⚠ **Kiểm lại cuối phiên, KHÔNG nhớ:** `pytest` **vẫn crash** (`ValueError: I/O operation on closed file` → `no tests ran`) · **KHÔNG có `specs/specs.json`** (dùng `feature_list.json`). Hai điều này lặp lại trong yêu cầu mỗi phiên — checklist dòng 8 đã ghi.
+> **Đã cập nhật `clean-state-checklist.md`** (đang lạc hậu: ghi 34 tool/42 bước, thực tế **35 tool/48 bước**) + thêm 3 mục bài học mới.
+> **Rà `feature_list.json` bắt được 1 mục LẠC HẬU:** `doc-chu-trang-in-paperspace` còn ghi *"hiện MÙ HOÀN TOÀN"* — **không còn đúng** từ khi tool #35 lên LIVE ⇒ đã sửa `deferred → done` kèm trỏ sang 2 mục liên quan. Cuối cùng: **79 mục — 67 done · 1 partial · 11 deferred** (partial duy nhất còn lại là `i3-bounds-check`, đúng hiện trạng).
+> **Memory:** thêm 2 mục dài hạn — `feedback-so-qua-xau-cung-la-bo-trich-hong` và `project-nhan-dien-phong-cu-vni-tcvn3`.
+>
+> **⏳ VIỆC ĐANG CHỜ (phiên sau, chưa mục nào được chốt):**
+> ① **Lấy lại 9,8% chuỗi VNI bỏ sót** (93/945: `THEÙP SAØN` · `BEÂ TOÂNG LOÙT` · `CHI TIEÁT DAÀM`) — cần cách phân biệt `TOÀ/HOÀ` an toàn, nhiều khả năng phải có **từ điển âm tiết**; ca `E3` của `test_vni` đang khoá hành vi hiện tại.
+> ② **`Ø/Ü` vào `_SIG`** — *hoãn có cơ sở*, **LÀM ĐƯỢC** nhưng chỉ 132 chuỗi = 0,0103% corpus và **không phải khối lượng**; nếu làm phải tách `Ü` riêng, `Ø` riêng.
+> ③ **Rổ neo rỗng ⇒ nói sai sự thật** — danh sách loại-trừ vừa đi **3→4 tool** nên bề mặt rộng thêm.
+> ④ **Nhóm C** (RAM/upload) — **HOÃN tới cuối dự án** (tốn tiền túi, user đã chốt).
+> **Chờ file ngoài:** F1 bản vẽ hạ tầng sâu ≥−5m từ đơn vị KHÁC · F2 bảng bóc khối lượng làm tay của kỹ sư.
+>
 > **📌 BÀI HỌC BỔ SUNG:** bộ trích của tôi hỏng **lần thứ 4** trong phiên (cắt cụt 400 chuỗi/file ⇒ phân loại chạy trên 1.604/2.721, toàn bộ phần mất thuộc đúng 1 file). Cả 4 lần đều tự bắt bằng câu hỏi ***"phép đo này CÓ THỂ ra kết quả KHÁC được không?"***
 > **⏳ VIỆC CHỜ:** ① **lỗi rổ-neo-rỗng trả "không có" SAI SỰ THẬT** (đã có hướng, cần tự-kiểm-ngược trước vì sẽ làm nhiều suite đổi) → ② gắn cờ "số do máy tự tính" (**GẮN CỜ, không chặn** — per-claim đã NO_GO) → ③ hoãn: B1 · A1+A2 (bảng mã VNI, việc LỚN nhất) · nhóm C.
 

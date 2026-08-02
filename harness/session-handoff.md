@@ -12,7 +12,38 @@
 > **Muốn public thật sau này — ĐỪNG LÀM LẠI TỪ ĐẦU:** nhánh local **`public-ready`** đã có sẵn trọn gói (history sạch không .deb qua `git filter-repo` · Dockerfile tải ODA tuỳ chọn qua `ODA_DEB_URL` · thông báo .dxf-only thân thiện · .gitignore chặn .deb). Đánh đổi: cloud chỉ đọc .dxf tới khi đặt `ODA_DEB_URL`. Mirror backup: `D:/Dat-Antigravity/_backup_repo_truoc_khi_public_20260717/repo-mirror.git`.
 
 
-## 🏁 CHỐT SỔ CUỐI PHIÊN 2026-08-01 — ĐỌC KHỐI NÀY TRƯỚC
+## 🏁 CHỐT SỔ CUỐI PHIÊN 2026-08-01→08-02 — **ĐỌC KHỐI NÀY TRƯỚC**
+> **HEAD `7544bdf` == origin · tree SẠCH · check.sh `[48/48] PASS` · 35 MCP tool · 0 regress · tổng ca 1.467 → 1.627 (+160) · check.sh 42 → 48 bước.**
+> **LIVE `45acd2f`** verify (lần thứ 7 trong phiên): prompt `2026.07.27-kb-l3` hash `239e8b7b…` **KHÔNG đổi** · kb `e55ac112…` **KHÔNG đổi** (không lát nào chạm SYSTEM_PROMPT/kho kiến thức ⇒ **không cần A/B**) · `/health` ok · `ram_mb` 135,5 · trang chủ HTTP 200 đủ 4 chuỗi.
+> `feature_list.json` **69 → 79 mục** (66 done · **1 partial** · 12 deferred). **13 commit** push+deploy+verify từng cái.
+> ⚠ **pytest VẪN không chạy được** (`ValueError: I/O operation on closed file` → `no tests ran`) — cổng là `check.sh`. **KHÔNG có `specs/specs.json`** → dùng `feature_list.json`. (Đã kiểm lại cuối phiên này, không phải nhớ.)
+>
+> ### 5 VIỆC VÁ LIVE (đều nhóm A)
+> | việc | commit | hiệu quả ĐO ĐƯỢC |
+> |---|---|---|
+> | **A3 mã-định-dạng** | `af0c879` | bớt **11.597 hit ảo**; kênh lớn nhất là `%%C` (hỏi "cột C1" trả về mọi ghi chú thép Ø10/12/16). Cứu 437 ký hiệu thép: `(D1)(D2)(D3)` trước đây **sập thành `(D)`** |
+> | **Tool #35 `doc_chu_trang_in`** | `349e82a` | mở đường đọc chữ TRANG IN; kho thật **18 file / 2.180 lượt / 621 chuỗi** |
+> | **A2 rổ-neo-rỗng** | `a61472d` | thôi khẳng định SAI SỰ THẬT về bản vẽ (0,18% lượt) |
+> | **A3 trích-dẫn** | `e57ee22` | lấy lại câu ĐÚNG bị guard xoá oan (20/621 = 3,2% chuỗi) |
+> | **BẢNG MÃ VNI** | `45acd2f` | **cứu 852 chuỗi/15 file**; E2E: *"phòng"* **0→33**, tổng 12 từ khoá **11→194** trên file gốc của vấn đề |
+>
+> ### ⛔ 7 HƯỚNG ĐÓNG BẰNG SỐ — ĐỪNG MỞ LẠI (mỗi cái có khối riêng bên dưới)
+> `Φ` (tiền đề SAI: `_norm('Φ10')==_norm('Ø10')` sẵn) · `Ø/Ü` vào `_SIG` · cờ trang in khớp-từ-khoá · "câu tổng-hợp bị giết" (thực ra **model phá luật `_P_R2`**) · A2 phương-án-rộng (**làm vỡ `test_grounding_guard:137`**) · A2 phương-án-nhắc-lại (giả định 0 phép đo) · cờ "số do máy tự tính" (1 hiện tượng < ngưỡng 3).
+> **📌 Ít nhất 3 trong 7 hướng đó, nếu code thẳng, sẽ MỞ LẠI đúng lớp lỗi id135.**
+>
+> ### 🔥 BƯỚC TIẾP — ứng viên, **CHƯA chốt** (user chọn)
+> ① **Lấy lại 9,8% chuỗi VNI bỏ sót** (93/945: `THEÙP SAØN` · `BEÂ TOÂNG LOÙT` · `CHI TIEÁT DAÀM`) — cần cách phân biệt `TOÀ/HOÀ` an toàn (có thể cần từ điển âm tiết). Ca `E3` của `test_vni` đang khoá hành vi hiện tại.
+> ② **`Ø/Ü` vào `_SIG`** — *hoãn có cơ sở*, **LÀM ĐƯỢC** nhưng đo ra chỉ 132 chuỗi = 0,0103% corpus, nội dung **không phải khối lượng**; nếu làm phải tách **`Ü` riêng, `Ø` riêng**.
+> ③ **Rổ neo rỗng ⇒ nói sai sự thật** — A2 mới hạ "nói dối" xuống "trung thực"; danh sách loại-trừ vừa đi **3→4 tool** nên bề mặt RỘNG THÊM.
+> ④ Nhóm C (RAM/upload) vẫn **HOÃN tới cuối dự án** (tốn tiền túi).
+> **Chờ file ngoài:** F1 bản vẽ hạ tầng sâu ≥−5m từ đơn vị KHÁC · F2 bảng bóc khối lượng làm tay của kỹ sư.
+>
+> ### 📌 BÀI HỌC MANG SANG PHIÊN SAU — SỔ SAI SÓT CỦA CHÍNH TÔI (tự bắt hết)
+> **7 bộ trích/bộ kiểm hỏng** (2 tautology · 1 ca test không phân biệt được · 1 cắt cụt 400 chuỗi/file · **1 sai ĐƠN VỊ + 1 sai MẪU SỐ đã kịp vào tới CODE**) · **7 lần assert sai mà code ĐÚNG** (khuôn lặp: giả định một câu kích guard trong khi `do_luong` rỗng nên guard **thoát sớm**) · **3 giả thuyết sai** · **1 tác dụng phụ do chính bản vá**.
+> 🔴 **Lần nguy hiểm nhất (VNI): bản đo báo "hỏng thêm 1101" khiến tôi suýt VỨT MỘT BẢN VÁ ĐÚNG.** ⇒ **"Số quá XẤU" cũng là dấu hiệu bộ trích hỏng, không chỉ "số quá đẹp".**
+> **Công cụ bắt được TẤT CẢ, dùng lại mỗi lần:** ***"phép đo này CÓ THỂ ra kết quả KHÁC được không?"*** và ***"tử số/mẫu số có đo CÙNG MỘT THỨ chưa?"***
+
+## 🏁 CHỐT SỔ CUỐI PHIÊN 2026-08-01 (phiên trước) — ĐỌC KHỐI NÀY TRƯỚC
 > **HEAD `b236b7e` == origin · tree SẠCH · check.sh [42/42] PASS · 34 MCP tool · 0 regress.**
 > **LIVE `b236b7ee`** verify: prompt `2026.07.27-kb-l3` / `239e8b7b…` **KHÔNG đổi** · kb `e55ac112…` **KHÔNG đổi** ·
 > `/health` ok · `ram_mb` 135,5 · trang chủ HTTP 200 đủ 4 chuỗi frontend. **11 commit** push+deploy+verify.
