@@ -1283,7 +1283,7 @@ body {
   <div id="tab-estimate" class="content-area">
     <div class="table-header-bar">
       <div>
-        <div class="breadcrumb">Bảng điều khiển / <span>Dự toán</span></div>
+        
         <div class="table-title"><h2>Bảng bóc tách khối lượng</h2></div>
         <div class="table-subtitle">Mã dự án: SYNTH-4029-B | Hiệu chỉnh 21.05.2024</div>
       </div>
