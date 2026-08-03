@@ -1043,6 +1043,67 @@ body {
 .insight-card:hover { background: var(--bg-card-hover); border-color: var(--cyan-main); transform: translateY(-4px); box-shadow: 0 10px 25px rgba(0, 242, 255, 0.15); }
 .insight-card h5 { font-family: 'Space Grotesk', sans-serif; font-size: 11px; font-weight: 700; color: var(--cyan-main); letter-spacing: 0.8px; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
 .insight-card p { font-size: 12px; color: var(--text-main); line-height: 1.5; }
+
+/* 📱 RESPONSIVE KIOSK MODE SPECIFICATIONS (Hushida 9:16 Vertical Signage & Mobile) */
+@media (orientation: portrait), (max-width: 1024px) {
+  body { flex-direction: column; height: 100vh; overflow: hidden; }
+  .sidebar {
+    width: 100%; height: 60px; flex-direction: row; align-items: center;
+    padding: 0 16px; border-right: none; border-bottom: 1px solid var(--border-card);
+    position: fixed; top: 0; left: 0; right: 0; z-index: 1000; background: #070b14;
+  }
+  .brand { margin-bottom: 0; padding: 0; }
+  .brand-text h2 { font-size: 16px; }
+  .brand-text span { font-size: 8px; }
+  .btn-new-analysis { display: none; }
+  
+  .nav-menu {
+    position: fixed; bottom: 0; left: 0; right: 0; height: 64px;
+    flex-direction: row; justify-content: space-around; align-items: center;
+    background: rgba(8, 13, 24, 0.95); backdrop-filter: blur(12px);
+    border-top: 1px solid var(--border-card); padding: 0 8px; gap: 0; z-index: 1000;
+  }
+  .nav-item {
+    flex-direction: column; gap: 4px; padding: 8px; font-size: 9px;
+    border-left: none !important; border-bottom: 2px solid transparent; text-align: center;
+  }
+  .nav-item.active { border-bottom-color: var(--cyan-main); background: none; box-shadow: none; }
+  .nav-item svg { width: 20px; height: 20px; }
+
+  .main-wrapper { margin-top: 60px; margin-bottom: 64px; height: calc(100vh - 124px); }
+  .topbar { height: 54px; padding: 0 16px; }
+  .search-box { width: 180px; padding: 6px 12px; }
+  .search-box input { font-size: 11px; }
+  .top-icons { display: none; }
+  .user-info { display: none; }
+
+  .content-area { padding: 16px; }
+  .dashboard-grid { grid-template-columns: 1fr; gap: 16px; }
+  .metrics-row { grid-template-columns: 1fr; gap: 12px; }
+  .chart-footer-stats { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+  .reports-grid-2 { grid-template-columns: 1fr; gap: 16px; }
+  .reports-bottom-cards { grid-template-columns: 1fr; gap: 12px; }
+
+  .sticky-bottom-summary { left: 0; bottom: 64px; padding: 0 16px; height: 54px; }
+  .total-val { font-size: 22px; }
+}
+
+body.kiosk-mode .sidebar {
+  width: 100% !important; height: 60px !important; flex-direction: row !important;
+  position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; z-index: 1000 !important;
+}
+body.kiosk-mode .btn-new-analysis { display: none !important; }
+body.kiosk-mode .nav-menu {
+  position: fixed !important; bottom: 0 !important; left: 0 !important; right: 0 !important; height: 64px !important;
+  flex-direction: row !important; justify-content: space-around !important; background: rgba(8, 13, 24, 0.95) !important;
+  border-top: 1px solid var(--border-card) !important; z-index: 1000 !important;
+}
+body.kiosk-mode .main-wrapper { margin-top: 60px !important; margin-bottom: 64px !important; height: calc(100vh - 124px) !important; }
+body.kiosk-mode .dashboard-grid { grid-template-columns: 1fr !important; }
+body.kiosk-mode .metrics-row { grid-template-columns: 1fr !important; }
+body.kiosk-mode .reports-grid-2 { grid-template-columns: 1fr !important; }
+body.kiosk-mode .reports-bottom-cards { grid-template-columns: 1fr !important; }
+body.kiosk-mode .sticky-bottom-summary { left: 0 !important; bottom: 64px !important; }
 </style>
 </head>
 <body>
@@ -1795,8 +1856,16 @@ async function send(){let t=$('inp').value.trim();if(!t)return;me(t);$('inp').va
     if(r.kb_cau_hoi&&r.kb_cau_hoi.length&&el){el.querySelector('.bub').innerHTML+=kbHtml(r.kb_cau_hoi);$('chat').scrollTop=1e9}}
   catch(e){clearInterval(tm);ph.remove();bot('⚠ Lỗi kết nối máy chủ.')}
   ready(true);$('inp').focus()}
-async function init(){try{let c=await jget('/config');if(!c.use_ai){bot('⚠ Máy chủ chưa cấu hình GEMINI_API_KEY.')}}catch(e){}
-  taiDanhSach()}
+async function init(){
+  try{
+    const urlParams = new URLSearchParams(window.location.search);
+    if(urlParams.get('mode')==='kiosk'||urlParams.get('mode')==='vertical'||urlParams.get('kiosk')==='1'){
+      document.body.classList.add('kiosk-mode');
+    }
+  }catch(e){}
+  try{let c=await jget('/config');if(!c.use_ai){bot('⚠ Máy chủ chưa cấu hình GEMINI_API_KEY.')}}catch(e){}
+  taiDanhSach();
+}
 init();
 </script>
 </body>
