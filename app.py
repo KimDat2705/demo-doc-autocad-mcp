@@ -1542,9 +1542,17 @@ function handleChartHover(e) {
   tooltip.style.left = pctLeft + '%';
   tooltip.style.top = Math.max(5, pctTop) + '%';
 
+  // Compute baseline Y at this X (dashed line goes from Y=160 at X=0 to Y=140 at X=600)
+  const baselineY = 160 - (pt.x / 600) * 20;
+  // In SVG, smaller Y means HIGHER on screen.
+  // If pt.y < baselineY, actual cost is ABOVE baseline (Over budget -> +X%)
+  // If pt.y > baselineY, actual cost is BELOW baseline (Under budget -> -X%)
+  const isAboveBaseline = pt.y < baselineY;
+  const diffValNum = Math.abs(((baselineY - pt.y) / baselineY) * 20).toFixed(1);
+
   const valNum = (0.4 + (1 - pt.y / 200) * 1.1).toFixed(2);
-  const diffPct = ((pt.y < 100 ? '+' : '-') + Math.abs((100 - pt.y) / 10).toFixed(1) + '%');
-  const diffColor = pt.y < 100 ? 'var(--accent-green)' : '#ff4757';
+  const diffPct = (isAboveBaseline ? '+' : '-') + diffValNum + '%';
+  const diffColor = isAboveBaseline ? 'var(--accent-green)' : '#ff4757';
 
   tooltipLabel.textContent = 'ĐIỂM TRA CỨU (' + (ratio * 100).toFixed(0) + '%)';
   tooltipVal.innerHTML = '$' + valNum + 'M <span style="color:' + diffColor + ';font-size:10px">' + diffPct + '</span>';
@@ -1553,7 +1561,7 @@ function handleChartHover(e) {
 function resetChartHover() {
   const tooltip = document.getElementById('chartTooltip');
   const tooltipLabel = document.getElementById('chartTooltipLabel');
-  const tooltipVal = document.getElementById('chartTooltipVal');
+  const tooltipVal.innerHTML = '$1,2M <span style="color:var(--accent-green);font-size:10px">▲ 4%</span>';
   const hoverDot = document.getElementById('hoverDot');
 
   if (hoverDot) hoverDot.style.display = 'none';
