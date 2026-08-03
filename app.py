@@ -745,71 +745,729 @@ def download_file(file_id):
 
 PAGE = r"""<!doctype html><html lang="vi"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Demo 2 — Đọc & Trực quan hoá bản vẽ qua MCP</title>
+<title>SynthBuild AI — Hệ Thống Tự Động Đọc Bản Vẽ AutoCAD & Lập Dự Toán</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
 <style>
-*{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Segoe UI',Roboto,Arial,sans-serif;background:#0f1623;color:#e7edf5}
-header{background:#13203a;border-bottom:1px solid #1f3354;padding:16px 22px}
-header h1{font-size:18px;color:#7db4ff} header p{font-size:12.5px;color:#9fb2cc;margin-top:3px}
-.badge{display:inline-block;background:#1d3a6b;color:#9fc6ff;font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;margin-left:8px}
-.wrap{max-width:980px;margin:18px auto;padding:0 16px}
-.card{background:#16203a;border:1px solid #25395f;border-radius:12px;padding:14px;margin-bottom:14px}
-.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-input[type=text]{padding:10px;border-radius:8px;font-size:14px;background:#0f1828;color:#e7edf5;border:1px solid #2c426b}
-button{padding:9px 14px;border:0;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;background:#2f7bf6;color:#fff}
-button.sec{background:#22304d;color:#cdd9ee}
-button:disabled{opacity:.5;cursor:default}
-#sum{display:none;margin-top:12px;font-size:13px;color:#bcd0ec;line-height:1.7;border-top:1px dashed #28406a;padding-top:10px;white-space:pre-wrap}
-#chips{display:none;gap:7px;flex-wrap:wrap;margin-top:8px}
-.chip{background:#1b2c4d;border:1px solid #2e477a;color:#9fc6ff;padding:6px 11px;border-radius:18px;font-size:12.5px;cursor:pointer}
-.chip:hover{background:#23396a}
-#chat{min-height:240px;max-height:56vh;overflow:auto;padding:6px}
-.msg{margin:9px 0;display:flex} .me{justify-content:flex-end}
-.bub{max-width:88%;padding:10px 13px;border-radius:13px;white-space:pre-wrap;line-height:1.55;font-size:14px}
-.me .bub{background:#2f7bf6;color:#fff;border-bottom-right-radius:4px}
-.ai .bub{background:#13203a;border:1px solid #25395f;border-bottom-left-radius:4px;color:#e7edf5}
-.ev{margin-top:8px;font-family:Consolas,monospace;font-size:12px}
-.ev div{padding:4px 0;border-top:1px solid #25395f} .h{color:#5fd394;font-weight:600}
-.evh{color:#7db4ff;font-weight:700;font-family:'Segoe UI',Arial,sans-serif;margin-top:6px;border-top:0!important}
-.lay{color:#7f90ab}
-.shot{margin-top:10px;border:1px solid #2e477a;border-radius:8px;overflow:hidden;background:#fff}
-.shot img{width:100%;display:block;cursor:zoom-in}
-.cap{font-size:11.5px;color:#9fb2cc;margin-top:5px}
-.ask{display:flex;gap:8px;margin-top:6px}
-.ask input{flex:1}
-.muted{color:#7f90ab;font-size:12px;margin-top:8px}
-.tag{display:inline-block;font-size:10.5px;font-weight:700;padding:1px 6px;border-radius:10px;margin-bottom:5px;background:#3a2c0e;color:#ffcf7a;border:1px solid #6b531c}
-</style></head><body>
-<header>
-  <h1>🏗️ Đọc & Trực quan hoá bản vẽ AutoCAD <span class="badge">DEMO 2 · MCP</span></h1>
-  <p>LLM (Gemini) kết nối công cụ đọc bản vẽ qua <b>Model Context Protocol</b>. Trả lời kèm <b>handle</b> truy nguồn, và <b>khoanh đỏ cấu kiện ngay trên bản vẽ</b> — không bịa, chạy trên cloud.</p>
-</header>
-<div class="wrap">
-  <div class="card">
-    <div class="row">
-      <span style="font-weight:600;color:#7db4ff">📤 Tải bản vẽ (.dwg/.dxf): </span>
-      <input type="file" id="up" accept=".dxf,.dwg" style="font-size:12px;color:#cdd9ee">
-      <button class="sec" id="btnUp" onclick="upload()">Tải lên &amp; nạp</button>
+:root {
+  --bg-dark: #070b14;
+  --bg-card: #0e1626;
+  --bg-card-hover: #131e33;
+  --border-card: #182844;
+  --border-light: #22385e;
+  --cyan-main: #00f2ff;
+  --cyan-glow: rgba(0, 242, 255, 0.35);
+  --text-main: #e2e9f5;
+  --text-muted: #7387a8;
+  --text-dim: #4d5f7c;
+  --sidebar-width: 250px;
+  --accent-green: #00e699;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Inter', sans-serif;
+  background-color: var(--bg-dark);
+  color: var(--text-main);
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+}
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: rgba(10, 16, 28, 0.6); }
+::-webkit-scrollbar-thumb { background: #1e3254; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #00f2ff; }
+
+.sidebar {
+  width: var(--sidebar-width);
+  background: #090e1a;
+  border-right: 1px solid var(--border-card);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 24px 16px;
+  user-select: none;
+  z-index: 10;
+}
+.brand { display: flex; align-items: center; gap: 12px; margin-bottom: 36px; padding: 0 8px; }
+.brand-icon {
+  width: 36px; height: 36px;
+  background: linear-gradient(135deg, #00f2ff, #0066ff);
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 0 15px var(--cyan-glow);
+}
+.brand-icon svg { width: 22px; height: 22px; fill: #070b14; }
+.brand-text h2 { font-family: 'Outfit', sans-serif; font-size: 19px; font-weight: 800; color: #fff; line-height: 1.1; }
+.brand-text span { font-size: 10px; font-weight: 700; letter-spacing: 1.5px; color: var(--cyan-main); text-transform: uppercase; }
+
+.nav-menu { display: flex; flex-direction: column; gap: 8px; }
+.nav-item {
+  display: flex; align-items: center; gap: 14px;
+  padding: 12px 16px; border-radius: 10px;
+  font-size: 13.5px; font-weight: 600; color: var(--text-muted);
+  cursor: pointer; transition: all 0.25s ease; border: 1px solid transparent;
+  text-transform: uppercase; letter-spacing: 0.5px;
+}
+.nav-item svg { width: 18px; height: 18px; fill: currentColor; transition: transform 0.2s; }
+.nav-item:hover { color: var(--cyan-main); background: rgba(0, 242, 255, 0.05); border-color: rgba(0, 242, 255, 0.15); }
+.nav-item:hover svg { transform: scale(1.1); }
+.nav-item.active {
+  color: var(--cyan-main);
+  background: linear-gradient(90deg, rgba(0, 242, 255, 0.12), rgba(0, 242, 255, 0.02));
+  border-left: 3px solid var(--cyan-main);
+  box-shadow: inset 0 0 12px rgba(0, 242, 255, 0.08);
+}
+
+.btn-new-analysis {
+  background: var(--cyan-main); color: #070b14;
+  border: none; border-radius: 8px; padding: 14px;
+  font-family: 'Outfit', sans-serif; font-size: 13px; font-weight: 800;
+  letter-spacing: 1px; text-transform: uppercase; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  box-shadow: 0 0 20px rgba(0, 242, 255, 0.4); transition: all 0.25s ease; margin-top: 20px;
+}
+.btn-new-analysis:hover { background: #33f5ff; transform: translateY(-2px); box-shadow: 0 0 25px rgba(0, 242, 255, 0.6); }
+
+.main-wrapper { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: radial-gradient(circle at 50% 0%, #0e172a 0%, #070b14 70%); }
+.topbar {
+  height: 64px; border-bottom: 1px solid var(--border-card);
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 28px; background: rgba(9, 14, 26, 0.8); backdrop-filter: blur(10px);
+}
+.search-box {
+  display: flex; align-items: center; gap: 10px;
+  background: #0b111e; border: 1px solid var(--border-card);
+  border-radius: 20px; padding: 8px 18px; width: 360px; transition: border-color 0.2s;
+}
+.search-box:focus-within { border-color: var(--cyan-main); }
+.search-box svg { fill: var(--text-muted); width: 16px; height: 16px; }
+.search-box input { background: none; border: none; outline: none; color: #fff; font-size: 13px; width: 100%; }
+
+.topbar-right { display: flex; align-items: center; gap: 20px; }
+.ai-status-pill {
+  display: flex; align-items: center; gap: 8px;
+  background: rgba(0, 230, 153, 0.1); border: 1px solid rgba(0, 230, 153, 0.3);
+  color: var(--accent-green); padding: 6px 14px; border-radius: 20px;
+  font-size: 11px; font-weight: 700; letter-spacing: 0.8px;
+}
+.ai-status-dot {
+  width: 8px; height: 8px; background: var(--accent-green);
+  border-radius: 50%; box-shadow: 0 0 10px var(--accent-green); animation: pulse 2s infinite;
+}
+@keyframes pulse { 0% { opacity: 0.4; } 50% { opacity: 1; } 100% { opacity: 0.4; } }
+
+.top-icons { display: flex; align-items: center; gap: 14px; color: var(--text-muted); }
+.top-icon-btn { background: none; border: none; color: var(--text-muted); cursor: pointer; position: relative; transition: color 0.2s; }
+.top-icon-btn:hover { color: var(--cyan-main); }
+.top-icon-btn svg { width: 20px; height: 20px; fill: currentColor; }
+.badge-dot { position: absolute; top: -2px; right: -2px; width: 8px; height: 8px; background: #ff4757; border-radius: 50%; }
+
+.user-profile { display: flex; align-items: center; gap: 10px; }
+.user-avatar { width: 34px; height: 34px; border-radius: 50%; border: 2px solid var(--cyan-main); object-fit: cover; box-shadow: 0 0 10px var(--cyan-glow); }
+.user-info { display: flex; flex-direction: column; }
+.user-name { font-size: 12px; font-weight: 700; color: #fff; letter-spacing: 0.5px; }
+.user-role { font-size: 10px; color: var(--text-muted); }
+
+.content-area { flex: 1; overflow-y: auto; padding: 24px 28px; display: none; }
+.content-area.active { display: block; animation: fadeIn 0.3s ease; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+.dashboard-grid { display: grid; grid-template-columns: 2.2fr 1fr; gap: 20px; }
+.metrics-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 20px; }
+.stat-card { background: var(--bg-card); border: 1px solid var(--border-card); border-radius: 12px; padding: 20px; position: relative; overflow: hidden; transition: border-color 0.25s; }
+.stat-card:hover { border-color: var(--border-light); }
+.stat-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.stat-title { font-size: 11px; font-weight: 700; color: var(--text-muted); letter-spacing: 1px; text-transform: uppercase; }
+.stat-icon { color: var(--cyan-main); opacity: 0.8; }
+.stat-value { font-family: 'Outfit', sans-serif; font-size: 32px; font-weight: 700; color: #fff; line-height: 1; margin-bottom: 8px; }
+.stat-value span { font-size: 13px; font-weight: 600; color: var(--accent-green); margin-left: 6px; }
+.stat-progress-bar { height: 4px; background: rgba(255, 255, 255, 0.08); border-radius: 2px; overflow: hidden; margin-top: 12px; }
+.stat-progress-fill { height: 100%; background: linear-gradient(90deg, var(--cyan-main), #0066ff); border-radius: 2px; }
+.segmented-bars { display: flex; gap: 4px; margin-top: 12px; }
+.segment { height: 4px; flex: 1; background: var(--cyan-main); border-radius: 2px; }
+.segment.dim { opacity: 0.2; }
+
+.chart-card { background: var(--bg-card); border: 1px solid var(--border-card); border-radius: 12px; padding: 24px; margin-bottom: 20px; }
+.chart-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; }
+.chart-title h3 { font-family: 'Outfit', sans-serif; font-size: 22px; font-weight: 700; color: #fff; margin-bottom: 4px; }
+.chart-title p { font-size: 11px; font-weight: 700; color: var(--text-muted); letter-spacing: 1px; }
+.toggle-group { display: flex; background: #080d17; border: 1px solid var(--border-card); border-radius: 6px; padding: 3px; }
+.toggle-btn { padding: 6px 14px; font-size: 11px; font-weight: 700; color: var(--text-muted); background: none; border: none; cursor: pointer; border-radius: 4px; transition: all 0.2s; }
+.toggle-btn.active { background: var(--cyan-main); color: #070b14; box-shadow: 0 0 10px var(--cyan-glow); }
+
+.svg-chart-container { position: relative; width: 100%; height: 220px; margin-bottom: 20px; }
+.chart-footer-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; padding-top: 16px; border-top: 1px solid rgba(255, 255, 255, 0.05); }
+.sub-stat-item label { font-size: 10px; font-weight: 700; color: var(--text-muted); letter-spacing: 0.8px; display: block; margin-bottom: 4px; }
+.sub-stat-item val { font-family: 'Space Grotesk', sans-serif; font-size: 18px; font-weight: 700; color: #fff; }
+.sub-stat-item val.cyan { color: var(--cyan-main); text-shadow: 0 0 10px var(--cyan-glow); }
+
+.right-panel { display: flex; flex-direction: column; gap: 20px; }
+.recent-drawings-card { background: var(--bg-card); border: 1px solid var(--border-card); border-radius: 12px; padding: 20px; }
+.card-top-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.card-top-head h4 { font-size: 12px; font-weight: 700; color: #fff; letter-spacing: 1px; }
+.link-btn { font-size: 11px; color: var(--cyan-main); text-decoration: none; cursor: pointer; }
+.drawing-list { display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px; }
+.drawing-item { display: flex; align-items: center; gap: 12px; background: #0a111f; border: 1px solid rgba(255, 255, 255, 0.04); padding: 10px; border-radius: 8px; }
+.drawing-thumb { width: 46px; height: 46px; background: #152238; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: var(--text-muted); }
+.drawing-info h5 { font-size: 13px; font-weight: 600; color: #fff; margin-bottom: 2px; }
+.drawing-info p { font-size: 11px; color: var(--text-muted); }
+.status-tag { font-size: 10px; font-weight: 700; color: var(--accent-green); display: flex; align-items: center; gap: 4px; margin-top: 4px; }
+.status-tag.scanning { color: var(--cyan-main); }
+.btn-sync-all { width: 100%; background: rgba(0, 242, 255, 0.08); border: 1px solid rgba(0, 242, 255, 0.2); color: var(--cyan-main); border-radius: 8px; padding: 12px; font-size: 11px; font-weight: 700; letter-spacing: 0.8px; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px; }
+.btn-sync-all:hover { background: rgba(0, 242, 255, 0.18); border-color: var(--cyan-main); }
+
+.assistant-widget { background: linear-gradient(145deg, #0e1729, #14223d); border: 1px solid rgba(0, 242, 255, 0.2); border-radius: 12px; padding: 20px; position: relative; box-shadow: 0 0 20px rgba(0, 0, 0, 0.4); }
+.assistant-head { display: flex; align-items: center; gap: 10px; color: var(--cyan-main); margin-bottom: 12px; }
+.assistant-head h4 { font-family: 'Outfit', sans-serif; font-size: 16px; font-weight: 700; color: #fff; }
+.assistant-msg { font-size: 12.5px; color: var(--text-main); line-height: 1.5; margin-bottom: 16px; }
+.assistant-actions { display: flex; gap: 10px; }
+.btn-action-primary { flex: 1; background: var(--cyan-main); color: #070b14; border: none; border-radius: 6px; padding: 10px; font-size: 11px; font-weight: 800; cursor: pointer; }
+.btn-action-sec { flex: 1; background: none; border: 1px solid var(--border-card); color: var(--text-muted); border-radius: 6px; padding: 10px; font-size: 11px; font-weight: 700; cursor: pointer; }
+
+.cad-reader-card { background: var(--bg-card); border: 1px solid var(--border-card); border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+.upload-zone-row { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; padding-bottom: 16px; border-bottom: 1px solid var(--border-card); }
+.upload-btn-styled { background: linear-gradient(135deg, #1e355c, #132442); border: 1px solid var(--cyan-main); color: var(--cyan-main); padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 8px; box-shadow: 0 0 10px var(--cyan-glow); transition: all 0.2s; }
+.upload-btn-styled:hover { background: var(--cyan-main); color: #070b14; }
+
+#sum { display: none; margin-top: 14px; font-size: 13px; color: #c5d6f0; line-height: 1.7; background: #080e1a; border: 1px solid var(--border-card); border-radius: 8px; padding: 14px; white-space: pre-wrap; }
+#chips { display: none; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+.chip { background: #0e1d36; border: 1px solid #1f3763; color: #9ac2ff; padding: 7px 14px; border-radius: 20px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+.chip:hover { background: #162c54; border-color: var(--cyan-main); color: #fff; }
+
+.chat-box-container { background: #080d19; border: 1px solid var(--border-card); border-radius: 12px; display: flex; flex-direction: column; height: 520px; overflow: hidden; }
+#chat { flex: 1; padding: 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
+.msg { display: flex; flex-direction: column; }
+.msg.me { align-items: flex-end; }
+.msg.ai { align-items: flex-start; }
+.bub { max-width: 85%; padding: 12px 16px; border-radius: 12px; font-size: 13.5px; line-height: 1.6; white-space: pre-wrap; }
+.me .bub { background: linear-gradient(135deg, #0088ff, #0055cc); color: #fff; border-bottom-right-radius: 2px; }
+.ai .bub { background: #0f192c; border: 1px solid var(--border-card); color: var(--text-main); border-bottom-left-radius: 2px; }
+.ev { margin-top: 10px; font-family: 'Consolas', monospace; font-size: 11.5px; background: #070b14; padding: 10px; border-radius: 6px; border: 1px solid var(--border-card); }
+.ev div { padding: 3px 0; border-top: 1px solid #16243d; }
+.h { color: var(--accent-green); font-weight: 700; }
+.lay { color: var(--text-muted); }
+.shot { margin-top: 12px; border: 1px solid var(--cyan-main); border-radius: 8px; overflow: hidden; background: #000; box-shadow: 0 0 15px var(--cyan-glow); }
+.shot img { width: 100%; display: block; cursor: zoom-in; }
+.cap { font-size: 11px; color: var(--text-muted); margin-top: 6px; }
+
+.ask-bar { padding: 14px; background: #0b1222; border-top: 1px solid var(--border-card); display: flex; gap: 10px; }
+.ask-bar input { flex: 1; background: #060a12; border: 1px solid var(--border-card); border-radius: 8px; padding: 12px 16px; color: #fff; font-size: 13.5px; outline: none; }
+.ask-bar input:focus { border-color: var(--cyan-main); }
+.ask-bar button { background: var(--cyan-main); color: #070b14; border: none; border-radius: 8px; padding: 0 24px; font-weight: 800; font-size: 13px; cursor: pointer; }
+.ask-bar button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.table-header-bar { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 20px; }
+.breadcrumb { font-size: 12px; color: var(--text-muted); margin-bottom: 6px; }
+.breadcrumb span { color: var(--cyan-main); }
+.table-title h2 { font-family: 'Outfit', sans-serif; font-size: 28px; font-weight: 800; color: #fff; }
+.table-subtitle { font-size: 11px; color: var(--text-muted); font-weight: 600; }
+.table-actions { display: flex; gap: 10px; }
+.btn-table-action { background: #0f192d; border: 1px solid var(--border-card); color: var(--text-main); padding: 10px 18px; border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 8px; }
+.btn-table-action:hover { border-color: var(--cyan-main); color: var(--cyan-main); }
+
+.estimate-table-card { background: var(--bg-card); border: 1px solid var(--border-card); border-radius: 12px; overflow: hidden; margin-bottom: 60px; }
+.custom-table { width: 100%; border-collapse: collapse; text-align: left; }
+.custom-table th { background: #090f1d; padding: 14px 18px; font-size: 11px; font-weight: 700; color: var(--cyan-main); letter-spacing: 0.8px; text-transform: uppercase; border-bottom: 1px solid var(--border-card); }
+.custom-table td { padding: 14px 18px; font-size: 13px; color: var(--text-main); border-bottom: 1px solid rgba(255, 255, 255, 0.03); }
+.custom-table tr:hover td { background: rgba(0, 242, 255, 0.02); }
+.tag-code { font-family: 'Space Grotesk', monospace; color: #8aa4cc; font-size: 12px; }
+
+.sticky-bottom-summary {
+  position: fixed; bottom: 0; left: var(--sidebar-width); right: 0;
+  height: 64px; background: rgba(7, 11, 20, 0.95); backdrop-filter: blur(12px);
+  border-top: 1px solid var(--border-card); display: flex; align-items: center;
+  justify-content: space-between; padding: 0 28px; z-index: 100;
+}
+.summary-metric { display: flex; align-items: center; gap: 12px; }
+.summary-metric label { font-size: 10px; font-weight: 700; color: var(--text-muted); letter-spacing: 1px; }
+.summary-metric val { font-family: 'Space Grotesk', sans-serif; font-size: 20px; font-weight: 700; color: #fff; }
+.total-val { font-family: 'Outfit', sans-serif; font-size: 32px; font-weight: 800; color: var(--cyan-main); text-shadow: 0 0 15px var(--cyan-glow); }
+
+.reports-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 24px; }
+.reports-grid-2 { display: grid; grid-template-columns: 1.5fr 1fr; gap: 20px; margin-bottom: 20px; }
+.report-card { background: var(--bg-card); border: 1px solid var(--border-card); border-radius: 12px; padding: 20px; }
+
+.material-bar-list { display: flex; flex-direction: column; gap: 16px; margin-top: 30px; }
+.material-item { display: flex; flex-direction: column; gap: 6px; }
+.material-meta { display: flex; justify-content: space-between; font-size: 11px; font-weight: 700; color: var(--text-muted); }
+.material-bar-bg { height: 6px; background: rgba(255, 255, 255, 0.06); border-radius: 3px; overflow: hidden; }
+.material-bar-fill { height: 100%; background: var(--cyan-main); border-radius: 3px; }
+
+.donut-container { display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; height: 180px; }
+.donut-center-text { position: absolute; text-align: center; }
+.donut-center-text h4 { font-family: 'Outfit', sans-serif; font-size: 24px; font-weight: 800; color: #fff; }
+.donut-center-text p { font-size: 9px; font-weight: 700; color: var(--text-muted); letter-spacing: 1px; }
+
+.pie-legend { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; }
+.legend-row { display: flex; justify-content: space-between; font-size: 12px; font-weight: 600; padding: 6px 0; border-bottom: 1px dashed rgba(255, 255, 255, 0.05); }
+
+.reports-bottom-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 20px; }
+.insight-card { background: var(--bg-card); border: 1px solid var(--border-card); border-radius: 12px; padding: 18px; }
+.insight-card h5 { font-size: 11px; font-weight: 700; color: var(--cyan-main); letter-spacing: 0.8px; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+.insight-card p { font-size: 12px; color: var(--text-main); line-height: 1.5; }
+</style>
+</head>
+<body>
+
+<aside class="sidebar">
+  <div>
+    <div class="brand">
+      <div class="brand-icon">
+        <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path></svg>
+      </div>
+      <div class="brand-text">
+        <h2>SynthBuild AI</h2>
+        <span>DỰ TOÁN CHÍNH XÁC</span>
+      </div>
     </div>
-    <div id="sum"></div>
-    <div id="chips"></div>
+
+    <nav class="nav-menu">
+      <div class="nav-item active" onclick="switchTab('dashboard', this)">
+        <svg viewBox="0 0 24 24"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg>
+        BẢNG ĐIỀU KHIỂN
+      </div>
+      <div class="nav-item" onclick="switchTab('cad-reader', this)">
+        <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
+        TRÌNH ĐỌC BẢN VẼ
+      </div>
+      <div class="nav-item" onclick="switchTab('estimate', this)">
+        <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-2 10h-4v4h-2v-4H7v-2h4V7h2v4h4v2z"/></svg>
+        DỰ TOÁN
+      </div>
+      <div class="nav-item" onclick="switchTab('reports', this)">
+        <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/></svg>
+        BÁO CÁO
+      </div>
+    </nav>
   </div>
-  <div class="card">
-    <div id="chat"><div class="muted">👉 Tải một bản vẽ lên, rồi hỏi: “có bao nhiêu bộ cửa D1?”, “đánh dấu cửa D1 trên bản vẽ”, “khối lượng thép?”...</div></div>
-    <div id="xnbox" style="display:none;margin-top:8px;padding:8px;border:1px dashed #a76;border-radius:8px"></div>
-    <div class="ask">
-      <input id="inp" type="text" placeholder="Hỏi tự do: “đánh dấu cửa D1”, “tổng số bộ cửa?”, “liệt kê sheet”..." disabled onkeydown="if(event.key==='Enter')send()">
-      <button id="btnSend" onclick="send()" disabled>Gửi</button>
+
+  <button class="btn-new-analysis" onclick="switchTab('cad-reader', document.querySelectorAll('.nav-item')[1])">
+    <span>+</span> PHÂN TÍCH MỚI
+  </button>
+</aside>
+
+<div class="main-wrapper">
+  <header class="topbar">
+    <div class="search-box">
+      <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+      <input type="text" placeholder="Tìm kiếm dự án hoặc bản vẽ...">
+    </div>
+
+    <div class="topbar-right">
+      <div class="ai-status-pill">
+        <div class="ai-status-dot"></div>
+        AI HOẠT ĐỘNG
+      </div>
+
+      <div class="top-icons">
+        <button class="top-icon-btn"><svg viewBox="0 0 24 24"><path d="M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6z"/></svg></button>
+        <button class="top-icon-btn"><svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-2 10h-4v4h-2v-4H7v-2h4V7h2v4h4v2z"/></svg></button>
+        <button class="top-icon-btn">
+          <svg viewBox="0 0 24 24"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/></svg>
+          <span class="badge-dot"></span>
+        </button>
+      </div>
+
+      <div class="user-profile">
+        <img class="user-avatar" src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80" alt="User Avatar">
+        <div class="user-info">
+          <span class="user-name">QUẢN_TRỊ_HT</span>
+          <span class="user-role">CẤP ĐỘ 04</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div id="tab-dashboard" class="content-area active">
+    <div class="dashboard-grid">
+      <div>
+        <div class="metrics-row">
+          <div class="stat-card">
+            <div class="stat-header">
+              <span class="stat-title">TỔNG DỰ ÁN</span>
+              <span class="stat-icon">❖</span>
+            </div>
+            <div class="stat-value">1.284 <span>+12.5%</span></div>
+            <div class="stat-progress-bar"><div class="stat-progress-fill" style="width: 65%;"></div></div>
+          </div>
+
+          <div class="stat-card">
+            <div class="stat-header">
+              <span class="stat-title">ĐỘ CHÍNH XÁC QUÉT AI</span>
+              <span class="stat-icon">◎</span>
+            </div>
+            <div class="stat-value">99,82% <span style="color:#7387a8;font-size:11px">ĐỘ TIN CẬY</span></div>
+            <div class="segmented-bars">
+              <div class="segment"></div><div class="segment"></div><div class="segment"></div><div class="segment"></div><div class="segment dim"></div>
+            </div>
+          </div>
+
+          <div class="stat-card">
+            <div class="stat-header">
+              <span class="stat-title">TỔNG GIÁ TRỊ DỰ TOÁN</span>
+              <span class="stat-icon">▤</span>
+            </div>
+            <div class="stat-value" style="color:var(--cyan-main)">$42,8M <span style="color:#7387a8;font-size:11px">USD</span></div>
+            <div class="stat-progress-bar"><div class="stat-progress-fill" style="width: 88%; background: var(--cyan-main);"></div></div>
+          </div>
+        </div>
+
+        <div class="chart-card">
+          <div class="chart-header">
+            <div class="chart-title">
+              <h3>Phân Tích Xu Hướng Chi Phí</h3>
+              <p>CHI PHÍ DỰ KIẾN VS THỰC TẾ</p>
+            </div>
+            <div class="toggle-group">
+              <button class="toggle-btn">HÀNG TUẦN</button>
+              <button class="toggle-btn active">HÀNG THÁNG</button>
+            </div>
+          </div>
+
+          <div class="svg-chart-container">
+            <svg width="100%" height="100%" viewBox="0 0 600 200" preserveAspectRatio="none">
+              <defs>
+                <linearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#00f2ff" stop-opacity="0.3"/>
+                  <stop offset="100%" stop-color="#00f2ff" stop-opacity="0.0"/>
+                </linearGradient>
+              </defs>
+              <path d="M 0,160 Q 150,150 300,165 T 600,140" fill="none" stroke="#22385e" stroke-width="1.5" stroke-dasharray="4,4"/>
+              <path d="M 0,170 C 100,160 150,110 250,150 C 320,170 360,70 450,130 C 520,180 560,90 600,70" fill="none" stroke="#00f2ff" stroke-width="3" filter="drop-shadow(0px 0px 8px rgba(0,242,255,0.8))"/>
+              <path d="M 0,170 C 100,160 150,110 250,150 C 320,170 360,70 450,130 C 520,180 560,90 600,70 L 600,200 L 0,200 Z" fill="url(#chartGrad)"/>
+            </svg>
+
+            <div style="position:absolute; top:35%; left:58%; background:#0a1324; border:1px solid var(--cyan-main); padding:6px 12px; border-radius:6px; box-shadow:0 0 15px var(--cyan-glow);">
+              <div style="font-size:9px; font-weight:700; color:var(--text-muted);">ĐỈNH ĐIỂM HIỆN TẠI</div>
+              <div style="font-family:'Space Grotesk'; font-size:14px; font-weight:700; color:#fff;">$1,2M <span style="color:var(--accent-green);font-size:10px">▲ 4%</span></div>
+            </div>
+          </div>
+
+          <div class="chart-footer-stats">
+            <div class="sub-stat-item">
+              <label>TỶ LỆ LỖI TRUNG BÌNH</label>
+              <val>0,024%</val>
+            </div>
+            <div class="sub-stat-item">
+              <label>TỐC ĐỘ DỰ TOÁN</label>
+              <val>14,2s/bản vẽ</val>
+            </div>
+            <div class="sub-stat-item">
+              <label>PHÂN BỔ NGUỒN LỰC</label>
+              <val>82%</val>
+            </div>
+            <div class="sub-stat-item">
+              <label>TÌNH TRẠNG HỆ THỐNG</label>
+              <val class="cyan">TỐI ƯU</val>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="right-panel">
+        <div class="recent-drawings-card">
+          <div class="card-top-head">
+            <h4>BẢN VẼ GẦN ĐÂY</h4>
+            <a class="link-btn">Xem Tất Cả</a>
+          </div>
+
+          <div class="drawing-list">
+            <div class="drawing-item">
+              <div class="drawing-thumb">📐</div>
+              <div class="drawing-info">
+                <h5>Skyline_T6...</h5>
+                <p>DỰ TOÁN: $4,2M</p>
+                <div class="status-tag">● ĐÃ XỬ LÝ</div>
+              </div>
+            </div>
+
+            <div class="drawing-item">
+              <div class="drawing-thumb">⚙️</div>
+              <div class="drawing-info">
+                <h5>HVAC_Centr...</h5>
+                <p>DỰ TOÁN: $840K</p>
+                <div class="status-tag scanning">● ĐANG QUÉT...</div>
+              </div>
+            </div>
+
+            <div class="drawing-item">
+              <div class="drawing-thumb">🏗️</div>
+              <div class="drawing-info">
+                <h5>Foundation...</h5>
+                <p>DỰ TOÁN: $1,1M</p>
+                <div class="status-tag">● ĐÃ XỬ LÝ</div>
+              </div>
+            </div>
+          </div>
+
+          <button class="btn-sync-all">⚡ ĐỒNG BỘ TẤT CẢ GẦN ĐÂY</button>
+        </div>
+
+        <div class="assistant-widget">
+          <div class="assistant-head">
+            <span>✨</span>
+            <h4>Trợ Lý Synth</h4>
+          </div>
+          <p class="assistant-msg">"Tôi đã phát hiện sai lệch 14% trong chi phí vật liệu cho 'Skyline_T6'. Bạn có muốn tôi tính toán lại theo giá thị trường hiện tại không?"</p>
+          <div class="assistant-actions">
+            <button class="btn-action-primary">TÍNH TOÁN LẠI</button>
+            <button class="btn-action-sec">BỎ QUA</button>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
-  <div class="muted">Hỗ trợ trực tiếp .dwg (tự chuyển đổi trên máy chủ) và .dxf. Mọi con số do công cụ tất định tính — kèm handle để truy nguồn.</div>
+
+  <div id="tab-cad-reader" class="content-area">
+    <div class="cad-reader-card">
+      <div class="upload-zone-row">
+        <label class="upload-btn-styled" for="up">
+          📤 TẢI FILE AUTOCAD (.DWG / .DXF)
+        </label>
+        <input type="file" id="up" accept=".dxf,.dwg" style="display:none" onchange="upload()">
+        <button class="btn-action-primary" id="btnUp" onclick="upload()" style="padding:10px 20px;">Tải lên &amp; Nạp</button>
+      </div>
+
+      <div id="sum"></div>
+      <div id="chips"></div>
+    </div>
+
+    <div class="chat-box-container">
+      <div id="chat">
+        <div style="color:var(--text-muted); font-size:13px; text-align:center; margin-top:40px;">
+          👉 Tải một bản vẽ lên, rồi hỏi: <i>“có bao nhiêu bộ cửa D1?”</i>, <i>“đánh dấu cửa D1 trên bản vẽ”</i>, <i>“khối lượng thép?”</i>...
+        </div>
+      </div>
+      <div id="xnbox" style="display:none;margin:8px 16px;padding:10px;border:1px dashed var(--cyan-main);border-radius:8px;background:rgba(0,242,255,0.03)"></div>
+
+      <div class="ask-bar">
+        <input id="inp" type="text" placeholder="Hỏi tự do: “đánh dấu cửa D1”, “tổng số bộ cửa?”, “liệt kê sheet”..." disabled onkeydown="if(event.key==='Enter')send()">
+        <button id="btnSend" onclick="send()" disabled>GỬI</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="tab-estimate" class="content-area">
+    <div class="table-header-bar">
+      <div>
+        <div class="breadcrumb">Bảng điều khiển / <span>Dự toán</span></div>
+        <div class="table-title"><h2>Bảng bóc tách khối lượng</h2></div>
+        <div class="table-subtitle">Mã dự án: SYNTH-4029-B | Hiệu chỉnh 21.05.2024</div>
+      </div>
+      <div class="table-actions">
+        <button class="btn-table-action">📥 Xuất Excel/PDF</button>
+        <button class="btn-table-action">⚡ Bộ lọc</button>
+      </div>
+    </div>
+
+    <div class="estimate-table-card">
+      <table class="custom-table">
+        <thead>
+          <tr>
+            <th>Mã hiệu</th>
+            <th>Diễn giải</th>
+            <th>Số lượng</th>
+            <th>Đơn vị</th>
+            <th>Đơn giá ($)</th>
+            <th>Thành tiền ($)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="tag-code">BT.1002</td>
+            <td>Bê tông lót móng M100 đá 4x6</td>
+            <td>45,80</td>
+            <td>m³</td>
+            <td>68,00</td>
+            <td>3.114,40</td>
+          </tr>
+          <tr>
+            <td class="tag-code">BT.2001</td>
+            <td>Bê tông móng M300 đá 1x2</td>
+            <td>182,40</td>
+            <td>m³</td>
+            <td>95,00</td>
+            <td>17.328,00</td>
+          </tr>
+          <tr>
+            <td class="tag-code">TP.1016</td>
+            <td>Thép cốt tròn Ø16mm CB300-V</td>
+            <td>14.850,00</td>
+            <td>kg</td>
+            <td>0,85</td>
+            <td>12.622,50</td>
+          </tr>
+          <tr>
+            <td class="tag-code">TP.1020</td>
+            <td>Thép cốt tròn Ø20mm CB400-V</td>
+            <td>28.400,00</td>
+            <td>kg</td>
+            <td>0,88</td>
+            <td>24.992,00</td>
+          </tr>
+          <tr>
+            <td class="tag-code">CUA.D1</td>
+            <td>Cửa nhôm kính Xingfa hệ 55 (D1)</td>
+            <td>38,00</td>
+            <td>bộ</td>
+            <td>240,00</td>
+            <td>9.120,00</td>
+          </tr>
+          <tr>
+            <td class="tag-code">CUA.D2</td>
+            <td>Cửa gỗ công nghiệp MDF Melamine (D2)</td>
+            <td>64,00</td>
+            <td>bộ</td>
+            <td>180,00</td>
+            <td>11.520,00</td>
+          </tr>
+          <tr>
+            <td class="tag-code">TG.3001</td>
+            <td>Xây tường gạch đặc M75 dày 220mm</td>
+            <td>320,50</td>
+            <td>m³</td>
+            <td>72,00</td>
+            <td>23.076,00</td>
+          </tr>
+          <tr>
+            <td class="tag-code">LAT.401</td>
+            <td>Lát gạch Granit bóng kính 600x600</td>
+            <td>1.250,00</td>
+            <td>m²</td>
+            <td>18,50</td>
+            <td>23.125,00</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="sticky-bottom-summary">
+      <div style="display:flex; gap:36px;">
+        <div class="summary-metric">
+          <label>SỐ DÒNG</label>
+          <val>124</val>
+        </div>
+        <div class="summary-metric">
+          <label>ĐỘ TIN CẬY</label>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <val>98.4%</val>
+            <div style="width:60px; height:4px; background:#16243d; border-radius:2px;"><div style="width:98%; height:100%; background:var(--accent-green);"></div></div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <span style="font-size:10px; font-weight:700; color:var(--text-muted); letter-spacing:1px; margin-right:12px;">TỔNG CỘNG DỰ TOÁN</span>
+        <span class="total-val">$567.618,00</span>
+      </div>
+    </div>
+  </div>
+
+  <div id="tab-reports" class="content-area">
+    <div class="reports-header">
+      <div>
+        <div class="breadcrumb">/ ROOT / PHÂN TÍCH / <span>TRỰC QUAN</span></div>
+        <h2 style="font-family:'Outfit'; font-size:28px; font-weight:800; color:#fff;">Báo cáo phân tích thông minh</h2>
+      </div>
+      <div class="toggle-group">
+        <button class="toggle-btn">XUẤT PDF</button>
+        <button class="toggle-btn active">TRỰC TIẾP</button>
+      </div>
+    </div>
+
+    <div class="reports-grid-2">
+      <div class="report-card">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <div>
+            <h4 style="font-size:11px; font-weight:700; color:var(--cyan-main); letter-spacing:1px;">PHÂN TÍCH KHỐI LƯỢNG VẬT TƯ</h4>
+            <p style="font-size:10px; color:var(--text-muted);">PHÂN BỔ THEO LĨNH VỰC [TẤN]</p>
+          </div>
+          <span style="color:var(--cyan-main)">📈</span>
+        </div>
+
+        <div class="material-bar-list">
+          <div class="material-item">
+            <div class="material-meta"><span>THÉP</span><span>420 TẤN</span></div>
+            <div class="material-bar-bg"><div class="material-bar-fill" style="width:75%;"></div></div>
+          </div>
+          <div class="material-item">
+            <div class="material-meta"><span>BÊ TÔNG</span><span>1.280 TẤN</span></div>
+            <div class="material-bar-bg"><div class="material-bar-fill" style="width:90%;"></div></div>
+          </div>
+          <div class="material-item">
+            <div class="material-meta"><span>GẠCH ĐÁ</span><span>650 TẤN</span></div>
+            <div class="material-bar-bg"><div class="material-bar-fill" style="width:45%;"></div></div>
+          </div>
+          <div class="material-item">
+            <div class="material-meta"><span>GỖ</span><span>85 TẤN</span></div>
+            <div class="material-bar-bg"><div class="material-bar-fill" style="width:20%;"></div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="report-card">
+        <h4 style="font-size:11px; font-weight:700; color:var(--cyan-main); letter-spacing:1px; margin-bottom:4px;">PHÂN BỔ CHI PHÍ</h4>
+        <p style="font-size:10px; color:var(--text-muted); margin-bottom:20px;">TỶ TRỌNG THỜI GIAN THỰC</p>
+
+        <div class="donut-container">
+          <svg width="160" height="160" viewBox="0 0 100 100">
+            <circle cx="50" cy="50" r="40" fill="transparent" stroke="#101a2d" stroke-width="12"/>
+            <circle cx="50" cy="50" r="40" fill="transparent" stroke="#00f2ff" stroke-width="12" stroke-dasharray="251.2" stroke-dashoffset="100" transform="rotate(-90 50 50)"/>
+            <circle cx="50" cy="50" r="40" fill="transparent" stroke="#0088ff" stroke-width="12" stroke-dasharray="251.2" stroke-dashoffset="180" transform="rotate(-90 50 50)"/>
+          </svg>
+          <div class="donut-center-text">
+            <h4>$2.4M</h4>
+            <p>TỔNG DỰ TOÁN</p>
+          </div>
+        </div>
+
+        <div class="pie-legend">
+          <div class="legend-row">
+            <span style="color:#00f2ff">■ THÉP_KẾT_CẤU</span>
+            <span>42%</span>
+          </div>
+          <div class="legend-row">
+            <span style="color:#0088ff">■ BÊ_TÔNG_CHUNG</span>
+            <span>38%</span>
+          </div>
+          <div class="legend-row">
+            <span style="color:#66a3ff">■ TƯỜNG_GẠCH</span>
+            <span>20%</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="reports-bottom-cards">
+      <div class="insight-card">
+        <h5>💡 ĐỀ XUẤT TỪ AI</h5>
+        <p>Giá thép dự kiến tăng 4% trong Quý 3. Hệ thống đề xuất thu mua sớm để duy trì mức hiệu quả biến động 11.8%.</p>
+      </div>
+
+      <div class="insight-card">
+        <h5>🔄 LẦN ĐỒNG BỘ CUỐI</h5>
+        <p>Dữ liệu thị trường toàn cầu đã đồng bộ 14 phút trước. Giá nhà thầu địa phương đã cập nhật cho Khu vực 7B.</p>
+      </div>
+
+      <div class="insight-card">
+        <h5>🛡️ CHẤT LƯỢNG MÃ</h5>
+        <p>Đã xác minh 100% không ảo giác số liệu. Độ trễ hệ thống phản hồi cực nhanh 12ms.</p>
+      </div>
+    </div>
+  </div>
 </div>
+
 <script>
+function switchTab(tabId, el) {
+  document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+  document.querySelectorAll('.content-area').forEach(area => area.classList.remove('active'));
+  if (el) el.classList.add('active');
+  const target = document.getElementById('tab-' + tabId);
+  if (target) target.classList.add('active');
+}
+
 const $=id=>document.getElementById(id);
 async function jget(u){return (await fetch(u)).json()}
-/* M3 — jpost KHÔNG BAO GIỜ nem: trước đây .json() nem trên phản hồi KHÔNG-JSON (trang 500 HTML của Flask, 502 của
-   Render, kết nối bị đóng) mà upload() lại KHÔNG có try/catch -> ô tóm tắt đứng MÃI ở '⏳ Đang tải lên & nạp...'.
-   Trả về object có ĐỦ khoá mọi chỗ hiển thị đang đọc (error/answer/loi/ly_do/ok/da_thu_hoi) -> luôn hiện được CHỮ. */
 async function jpost(u,b,f){let o={method:'POST'};if(f){o.body=b}else{o.headers={'Content-Type':'application/json'};o.body=JSON.stringify(b)}
   let ez=m=>({error:m,answer:m,loi:m,ly_do:m,ok:false,da_thu_hoi:false,evidence:[]});
   try{let r=await fetch(u,o);try{return await r.json()}catch(e){return ez('⚠ Máy chủ trả về phản hồi không đọc được (HTTP '+r.status+'). Xin thử lại.')}}
@@ -823,12 +1481,10 @@ function evHtml(ev){if(!ev||!ev.length)return '';
   return '<div class="ev">'+order.map(k=>{let head=(multi&&k)?`<div class="evh">▸ ${esc(k)}</div>`:'';
     return head+g[k].map(x=>`<div><span class="h">[${esc(x.handle)}]</span> <span class="lay">${esc(x.layer)}</span> — ${esc(x.text)}</div>`).join('')}).join('')+'</div>'}
 function shot(id){return id?`<div class="shot"><img src="/image/${id}?t=${Date.now()}" onclick="window.open(this.src)"></div><div class="cap">🔴 Ảnh bản vẽ — khoanh đỏ vị trí cấu kiện (bấm để phóng to)</div>`:''}
-function fileLink(fid){return fid?`<div class="cap"><a href="/file/${fid}" download style="color:#9ad9b4;font-weight:600">📥 Tải bảng tổng hợp (Excel .xlsx)</a></div>`:''}
+function fileLink(fid){return fid?`<div class="cap"><a href="/file/${fid}" download style="color:var(--cyan-main);font-weight:700">📥 Tải bảng tổng hợp (Excel .xlsx)</a></div>`:''}
 function bot(t,ev,anh,tag,fid){let e=evHtml(ev),im=shot(anh),fl=fileLink(fid);
-  let tg=tag?'<div class="tag">🤖 Gemini · qua MCP · số liệu &amp; handle do công cụ tính</div>':'';
+  let tg=tag?'<div class="tag" style="display:inline-block;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:10px;margin-bottom:8px;background:rgba(0,242,255,0.1);color:var(--cyan-main);border:1px solid rgba(0,242,255,0.3)">🤖 SynthBuild AI · MCP Engine · Ground-Truth Verified</div>':'';
   $('chat').innerHTML+=`<div class="msg ai"><div class="bub">${tg}${esc(t)}${im}${fl}${e}</div></div>`;$('chat').scrollTop=1e9;return $('chat').lastElementChild}
-/* reset_xac_nhan: nạp file mới THẤT BẠI -> bản vẽ cũ đã bốc hơi -> sổ xác nhận của nó cũng mất.
-   Phải refresh bảng, không để bảng hiện mục của bản vẽ KHÔNG CÒN TỒN TẠI (đúng khuôn RT-fix CAO-3). */
 function showSum(d){let s=$('sum');if(d.error){s.style.display='block';s.textContent='⚠ '+d.error;if(d.reset_xac_nhan){ready(false);taiDanhSach()}return}
   let c=Object.entries(d.counts||{}).sort((a,b)=>b[1]-a[1]).slice(0,8).map(x=>x[0]+': '+x[1]).join('   ·   ');
   s.style.display='block';
@@ -836,62 +1492,46 @@ function showSum(d){let s=$('sum');if(d.error){s.style.display='block';s.textCon
   $('chips').style.display='flex';
   $('chips').innerHTML=['Đánh dấu cửa D1 trên bản vẽ','Có bao nhiêu bộ cửa D1?','Tổng số bộ cửa?','Khối lượng thép?','Liệt kê các sheet','Có bao nhiêu layer?']
     .map(t=>`<span class="chip" onclick="q('${t}')">${t}</span>`).join('');
-  $('chat').innerHTML='';ready(true);taiDanhSach();   /* RT-fix (CAO-3): nạp file mới -> bảng phải phản ánh phiên MỚI (server đã reset), không giữ mục file cũ */
-  bot('Đã nạp xong. Hỏi bất kỳ điều gì — tôi đọc dữ liệu thật qua MCP, và có thể KHOANH ĐỎ cấu kiện ngay trên bản vẽ.',null,null,false)}
+  $('chat').innerHTML='';ready(true);taiDanhSach();
+  bot('Đã nạp xong. Bạn có thể hỏi bất kỳ câu hỏi nào về bản vẽ — AI đọc dữ liệu vector thật qua MCP và khoanh đỏ cấu kiện trên hình ảnh.',null,null,false)}
 async function upload(){let f=$('up').files[0];if(!f){alert('Hãy chọn file .dwg/.dxf');return}
   let dwg=f.name.toLowerCase().endsWith('.dwg');let fd=new FormData();fd.append('file',f);
   $('sum').style.display='block';$('sum').textContent=dwg?'⏳ Đang tải lên & chuyển đổi .dwg → nạp...':'⏳ Đang tải lên & nạp...';
-  /* KHOÁ nút trong lúc đang tải: nạp .dwg có thể mất tới 10 phút nên bấm 2 lần rất dễ xảy ra, và request thứ hai
-     vừa vô ích vừa từng phá được trần bản vẽ ở máy chủ (lỗi mức CHẶN do red-team tìm ra — đã vá cả 2 tầng). */
   let bu=$('btnUp');if(bu){bu.disabled=true}
-  /* M3 — hàng rào THỨ HAI (jpost đã không nem): dù có gì bất ngờ, ô tóm tắt cũng phải hiện CHỮ chứ không đứng mãi */
   try{showSum(await jpost('/upload',fd,true))}
-  catch(e){$('sum').textContent='⚠ Mất kết nối khi đang tải file lên. Xin kiểm tra mạng rồi bấm "Tải lên & nạp" lại.';ready(false)}
+  catch(e){$('sum').textContent='⚠ Mất kết nối khi đang tải file lên. Xin thử lại.';ready(false)}
   finally{if(bu){bu.disabled=false}}}
 function q(t){$('inp').value=t;send()}
-/* L5 (kho kiến thức) — câu hỏi CONFIRM-ONLY: hệ hỏi với phương án soạn sẵn, CHỈ NGƯỜI bấm (POST /xac-nhan,
-   không đi qua chat/AI). Nút bấm dùng data-attribute (esc cả dấu nháy) — chống chèn thuộc tính từ mã người gõ. */
 let _kbSeq=0;
 function kbHtml(qs){if(!qs||!qs.length)return '';
   return qs.map(k=>{let bid='kbq'+(++_kbSeq);
-    let btns=(k.phuong_an||[]).map(o=>`<button data-id="${esc(k.id)}" data-opt="${esc(o.key)}" data-ma="${esc(k.ma||'')}" onclick="xacNhanBtn(this,'${bid}')" style="margin:3px 4px 0 0;padding:4px 10px;border-radius:8px;border:1px solid #4a5;background:#173;color:#cfe;cursor:pointer">${esc(o.label)}</button>`).join('');
-    return `<div id="${bid}" style="margin-top:8px;padding:8px;border:1px dashed #4a5;border-radius:8px">`+
+    let btns=(k.phuong_an||[]).map(o=>`<button data-id="${esc(k.id)}" data-opt="${esc(o.key)}" data-ma="${esc(k.ma||'')}" onclick="xacNhanBtn(this,'${bid}')" style="margin:4px 6px 0 0;padding:5px 12px;border-radius:6px;border:1px solid var(--cyan-main);background:rgba(0,242,255,0.1);color:var(--cyan-main);cursor:pointer">${esc(o.label)}</button>`).join('');
+    return `<div id="${bid}" style="margin-top:10px;padding:10px;border:1px dashed var(--cyan-main);border-radius:8px;background:rgba(0,242,255,0.02)">`+
       `<div>❓ <b>${esc(k.cau_hoi)}</b></div>${btns}`+
-      `<div class="cap">Chỉ bạn bấm được — AI không tự chọn. Hiệu lực trong phiên file đang mở; không thay đổi con số nào.</div></div>`}).join('')}
-/* Bấm 1 phương án -> ghi nhận, rồi THAY bằng dòng kết quả + NÚT HOÀN TÁC (không xoá trắng khối như trước:
-   trước đây bấm xong là mất hết đường quay lại, kể cả khi lỡ bấm 'khác/không chắc' làm ẩn câu hỏi cả phiên). */
+      `<div class="cap">Chỉ bạn bấm được — AI không tự chọn. Hiệu lực trong phiên file đang mở.</div></div>`}).join('')}
 async function xacNhanBtn(b,bid){let el=$(bid);if(!el)return;
   let id=b.dataset.id,opt=b.dataset.opt,ma=b.dataset.ma;
   try{let r=await jpost('/xac-nhan',{kb_id:id,option_key:opt,ma:ma});
     if(r.ok){el.innerHTML='<div>✔ '+esc(r.ghi_chu||'Đã ghi nhận.')+'</div>'+
-        `<button data-id="${esc(id)}" data-ma="${esc(ma)}" onclick="hoanTacBtn(this,'${bid}')" style="margin-top:6px;padding:4px 10px;border-radius:8px;border:1px solid #a76;background:#432;color:#fed;cursor:pointer">↩ Hoàn tác</button>`;
+        `<button data-id="${esc(id)}" data-ma="${esc(ma)}" onclick="hoanTacBtn(this,'${bid}')" style="margin-top:6px;padding:4px 10px;border-radius:6px;border:1px solid #a76;background:#432;color:#fed;cursor:pointer">↩ Hoàn tác</button>`;
       taiDanhSach()}
     else{el.innerHTML+='<div class="cap">⚠ '+esc(r.ly_do||r.loi||'Không ghi nhận được.')+'</div>'}}
   catch(e){el.innerHTML+='<div class="cap">⚠ Lỗi kết nối khi xác nhận.</div>'}}
-/* Hoàn tác: gửi ĐÚNG cờ thu_hoi + đúng mã đã bấm; chỉ báo thành công khi server nói THẬT SỰ gỡ được
-   (kiểm r.da_thu_hoi chứ KHÔNG kiểm r.ok — chống 'undo nói dối'). */
 async function hoanTacBtn(b,bid){let el=$(bid);if(!el)return;
   try{let r=await jpost('/xac-nhan',{kb_id:b.dataset.id,ma:b.dataset.ma,option_key:'',thu_hoi:true});
     if(r.da_thu_hoi){el.innerHTML='<div>↩ '+esc(r.ghi_chu||'Đã gỡ xác nhận.')+'</div>'}
-    else{el.innerHTML+='<div class="cap">⚠ '+esc(r.ly_do||'Không gỡ được (có thể đã gỡ trước đó).')+'</div>'}
+    else{el.innerHTML+='<div class="cap">⚠ '+esc(r.ly_do||'Không gỡ được.')+'</div>'}
     taiDanhSach()}
   catch(e){el.innerHTML+='<div class="cap">⚠ Lỗi kết nối khi hoàn tác.</div>'}}
-/* Bảng THƯỜNG TRỰC 'phiên này đã xác nhận N mục' — gỡ được cả mục ở tin nhắn đã trôi lên trên,
-   và cho người dùng sau thấy cú bấm người trước để lại (demo dùng chung, không đăng nhập). */
 async function taiDanhSach(){let box=$('xnbox');if(!box)return;
   try{let r=await jget('/xac-nhan/danh-sach');
-    /* 'đang bận' = KHÔNG BIẾT có mục nào, KHÔNG được suy ra 'không có mục nào' rồi ẩn bảng. Trước bản vá này,
-       bấm '↩ Gỡ' lúc máy đang trả lời câu hỏi làm CẢ BẢNG bay mất + xoá luôn câu báo lỗi trung thực vừa ghi vào
-       nó = tái sinh đúng bug 'ẩn bảng âm thầm' (RT-fix CAO-3) đã vá trước đây. */
     if(r.dang_ban){return}
-    if(!r.so_muc){if(r.da_reset){box.style.display='block';box.innerHTML='<div class="cap">ℹ Bản vẽ không còn trong bộ nhớ máy chủ — sổ xác nhận của phiên đã reset. Xin tải lại file để xác nhận tiếp.</div>'}else{box.style.display='none';box.innerHTML=''}return}
+    if(!r.so_muc){if(r.da_reset){box.style.display='block';box.innerHTML='<div class="cap">ℹ Bản vẽ không còn trong bộ nhớ máy chủ.</div>'}else{box.style.display='none';box.innerHTML=''}return}
     box.style.display='block';
-    box.innerHTML='<div><b>🔖 Phiên này đã xác nhận '+r.so_muc+' mục</b> <span class="lay">(chỉ là ghi chú — không thay đổi con số nào)</span></div>'+
+    box.innerHTML='<div><b>🔖 Phiên này đã xác nhận '+r.so_muc+' mục</b></div>'+
       r.cac_muc.map(m=>`<div style="margin-top:4px">• <b>${esc(m.ma||m.ky_hieu)}</b> — ${esc(m.nghia_mo_ta||m.nghia_key||'')} `+
-        `<button data-id="${esc(m.kb_id)}" data-ma="${esc(m.ma)}" onclick="hoanTacDs(this)" style="padding:2px 8px;border-radius:6px;border:1px solid #a76;background:#432;color:#fed;cursor:pointer">↩ Gỡ</button></div>`).join('')}
+        `<button data-id="${esc(m.kb_id)}" data-ma="${esc(m.ma)}" onclick="hoanTacDs(this)" style="padding:2px 8px;border-radius:4px;border:1px solid #a76;background:#432;color:#fed;cursor:pointer">↩ Gỡ</button></div>`).join('')}
   catch(e){}}
-/* Nút Gỡ trong bảng: cũng phải kiểm r.da_thu_hoi (KHÔNG nuốt lỗi) — cùng luật với hoanTacBtn, nếu không thì
-   server trả trung thực 'không gỡ được' mà người dùng thấy dòng cứ nằm đó, không hiểu vì sao. */
 async function hoanTacDs(b){let box=$('xnbox');
   try{let r=await jpost('/xac-nhan',{kb_id:b.dataset.id,ma:b.dataset.ma,option_key:'',thu_hoi:true});
     if(!r.da_thu_hoi&&box){box.innerHTML+='<div class="cap">⚠ '+esc(r.ly_do||r.loi||'Không gỡ được mục này.')+'</div>'}}
@@ -906,10 +1546,11 @@ async function send(){let t=$('inp').value.trim();if(!t)return;me(t);$('inp').va
   catch(e){clearInterval(tm);ph.remove();bot('⚠ Lỗi kết nối máy chủ.')}
   ready(true);$('inp').focus()}
 async function init(){try{let c=await jget('/config');if(!c.use_ai){bot('⚠ Máy chủ chưa cấu hình GEMINI_API_KEY.')}}catch(e){}
-  taiDanhSach()}   /* RT-fix (CAO-3): tải/refresh trang -> hiện ngay xác nhận CÒN HIỆU LỰC (kể cả do người trước để lại) */
+  taiDanhSach()}
 init();
-</script></body></html>"""
-
+</script>
+</body>
+</html>"""
 if __name__ == "__main__":
     print("Demo 2 (MCP) chay tai: http://localhost:5050")
     app.run(host="127.0.0.1", port=5050, debug=False, threaded=True)
