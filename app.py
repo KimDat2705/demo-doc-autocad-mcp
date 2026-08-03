@@ -1029,14 +1029,14 @@ body {
 .material-bar-bg { height: 6px; background: rgba(255, 255, 255, 0.06); border-radius: 3px; overflow: hidden; }
 .material-bar-fill { height: 100%; background: var(--cyan-main); border-radius: 3px; transition: width 1.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s; }
 
-.donut-container { display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; height: 180px; }
-.donut-center-text { position: absolute; text-align: center; transition: all 0.3s; }
-.donut-center-text h4 { font-family: 'Space Grotesk', sans-serif; font-size: 24px; font-weight: 800; color: #fff; transition: color 0.3s; }
-.donut-center-text p { font-family: 'Space Grotesk', sans-serif; font-size: 9px; font-weight: 700; color: var(--text-muted); letter-spacing: 1px; }
+.donut-container { display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; height: 180px; margin-top: 10px; }
+.donut-center-text { position: absolute; text-align: center; transition: all 0.3s; pointer-events: none; }
+.donut-center-text h4 { font-family: 'Space Grotesk', sans-serif; font-size: 24px; font-weight: 800; color: #fff; transition: all 0.3s; }
+.donut-center-text p { font-family: 'Space Grotesk', sans-serif; font-size: 9px; font-weight: 700; color: var(--text-muted); letter-spacing: 1px; transition: all 0.3s; }
 
-.pie-legend { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; }
-.legend-row { display: flex; justify-content: space-between; font-size: 12px; font-weight: 600; padding: 8px 10px; border-radius: 6px; border-bottom: 1px dashed rgba(255, 255, 255, 0.05); cursor: pointer; transition: all 0.25s; }
-.legend-row:hover { background: rgba(0, 242, 255, 0.08); border-color: var(--cyan-main); transform: translateX(3px); }
+.pie-legend { display: flex; flex-direction: column; gap: 8px; margin-top: 20px; }
+.legend-row { display: flex; justify-content: space-between; font-size: 12px; font-weight: 700; padding: 10px 14px; border-radius: 8px; background: rgba(10, 17, 31, 0.6); border: 1px solid var(--border-card); cursor: pointer; transition: all 0.25s; }
+.legend-row:hover { background: rgba(0, 242, 255, 0.08); border-color: var(--cyan-main); transform: translateX(4px); box-shadow: 0 0 12px var(--cyan-glow); }
 
 .reports-bottom-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 20px; }
 .insight-card { background: var(--bg-card); border: 1px solid var(--border-card); border-radius: 12px; padding: 18px; transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1); cursor: pointer; }
@@ -1512,10 +1512,18 @@ body.kiosk-mode .sticky-bottom-summary { left: 0 !important; bottom: 64px !impor
         <p style="font-size:10px; color:var(--text-muted); margin-bottom:20px;">TỶ TRỌNG THỜI GIAN THỰC</p>
 
         <div class="donut-container">
-          <svg width="160" height="160" viewBox="0 0 100 100">
-            <circle cx="50" cy="50" r="40" fill="transparent" stroke="#101a2d" stroke-width="12"/>
-            <circle id="donutSeg1" cx="50" cy="50" r="40" fill="transparent" stroke="#00f2ff" stroke-width="12" stroke-dasharray="251.2" stroke-dashoffset="100" transform="rotate(-90 50 50)" style="transition:all 0.3s; cursor:pointer"/>
-            <circle id="donutSeg2" cx="50" cy="50" r="40" fill="transparent" stroke="#0088ff" stroke-width="12" stroke-dasharray="251.2" stroke-dashoffset="180" transform="rotate(-90 50 50)" style="transition:all 0.3s; cursor:pointer"/>
+          <svg width="170" height="170" viewBox="0 0 100 100">
+            <!-- Background circle -->
+            <circle cx="50" cy="50" r="40" fill="transparent" stroke="#0b1322" stroke-width="12"/>
+            
+            <!-- Segment 1: Thép kết cấu (42%) -> Cyan #00f2ff -->
+            <circle id="donutSeg1" cx="50" cy="50" r="40" fill="transparent" stroke="#00f2ff" stroke-width="12" stroke-dasharray="105.55 251.32" stroke-dashoffset="0" transform="rotate(-90 50 50)" style="transition:all 0.35s cubic-bezier(0.16, 1, 0.3, 1); cursor:pointer" onmouseenter="hoverReportLegend('thep')" onmouseleave="resetReportLegend()"/>
+            
+            <!-- Segment 2: Bê tông chung (38%) -> Blue #0066ff -->
+            <circle id="donutSeg2" cx="50" cy="50" r="40" fill="transparent" stroke="#0066ff" stroke-width="12" stroke-dasharray="95.50 251.32" stroke-dashoffset="-105.55" transform="rotate(-90 50 50)" style="transition:all 0.35s cubic-bezier(0.16, 1, 0.3, 1); cursor:pointer" onmouseenter="hoverReportLegend('betong')" onmouseleave="resetReportLegend()"/>
+            
+            <!-- Segment 3: Tường gạch (20%) -> Purple #b026ff -->
+            <circle id="donutSeg3" cx="50" cy="50" r="40" fill="transparent" stroke="#b026ff" stroke-width="12" stroke-dasharray="50.26 251.32" stroke-dashoffset="-201.05" transform="rotate(-90 50 50)" style="transition:all 0.35s cubic-bezier(0.16, 1, 0.3, 1); cursor:pointer" onmouseenter="hoverReportLegend('tuong')" onmouseleave="resetReportLegend()"/>
           </svg>
           <div class="donut-center-text" id="donutCenterText">
             <h4 id="donutCenterVal">$2.4M</h4>
@@ -1524,17 +1532,17 @@ body.kiosk-mode .sticky-bottom-summary { left: 0 !important; bottom: 64px !impor
         </div>
 
         <div class="pie-legend">
-          <div class="legend-row" onmouseenter="hoverReportLegend('thep')" onmouseleave="resetReportLegend()">
-            <span style="color:#00f2ff">■ THÉP_KẾT_CẤU</span>
-            <span>42%</span>
+          <div class="legend-row" id="legThep" onmouseenter="hoverReportLegend('thep')" onmouseleave="resetReportLegend()">
+            <span style="color:#00f2ff; display:flex; align-items:center; gap:8px;"><span style="display:inline-block; width:10px; height:10px; background:#00f2ff; border-radius:2px; box-shadow:0 0 8px #00f2ff"></span> THÉP_KẾT_CẤU</span>
+            <span style="color:#fff">42%</span>
           </div>
-          <div class="legend-row" onmouseenter="hoverReportLegend('betong')" onmouseleave="resetReportLegend()">
-            <span style="color:#0088ff">■ BÊ_TÔNG_CHUNG</span>
-            <span>38%</span>
+          <div class="legend-row" id="legBetong" onmouseenter="hoverReportLegend('betong')" onmouseleave="resetReportLegend()">
+            <span style="color:#3385ff; display:flex; align-items:center; gap:8px;"><span style="display:inline-block; width:10px; height:10px; background:#0066ff; border-radius:2px; box-shadow:0 0 8px #0066ff"></span> BÊ_TÔNG_CHUNG</span>
+            <span style="color:#fff">38%</span>
           </div>
-          <div class="legend-row" onmouseenter="hoverReportLegend('tuong')" onmouseleave="resetReportLegend()">
-            <span style="color:#66a3ff">■ TƯỜNG_GẠCH</span>
-            <span>20%</span>
+          <div class="legend-row" id="legTuong" onmouseenter="hoverReportLegend('tuong')" onmouseleave="resetReportLegend()">
+            <span style="color:#c459ff; display:flex; align-items:center; gap:8px;"><span style="display:inline-block; width:10px; height:10px; background:#b026ff; border-radius:2px; box-shadow:0 0 8px #b026ff"></span> TƯỜNG_GẠCH</span>
+            <span style="color:#fff">20%</span>
           </div>
         </div>
       </div>
@@ -1727,18 +1735,25 @@ function hoverReportLegend(type) {
   const subEl = document.getElementById('donutCenterSub');
   const seg1 = document.getElementById('donutSeg1');
   const seg2 = document.getElementById('donutSeg2');
+  const seg3 = document.getElementById('donutSeg3');
+
+  const segs = [seg1, seg2, seg3];
+  segs.forEach(s => {
+    if (s) { s.style.strokeWidth = '12'; s.style.opacity = '0.35'; s.style.filter = 'none'; }
+  });
 
   if (type === 'thep') {
     if (valEl) { valEl.textContent = '$1.01M'; valEl.style.color = '#00f2ff'; }
-    if (subEl) subEl.textContent = 'THÉP KẾT CẤU (42%)';
-    if (seg1) seg1.style.strokeWidth = '16';
+    if (subEl) { subEl.textContent = 'THÉP KẾT CẤU (42%)'; subEl.style.color = '#00f2ff'; }
+    if (seg1) { seg1.style.strokeWidth = '17'; seg1.style.opacity = '1'; seg1.style.filter = 'drop-shadow(0 0 10px #00f2ff)'; }
   } else if (type === 'betong') {
-    if (valEl) { valEl.textContent = '$912K'; valEl.style.color = '#0088ff'; }
-    if (subEl) subEl.textContent = 'BÊ TÔNG CHUNG (38%)';
-    if (seg2) seg2.style.strokeWidth = '16';
+    if (valEl) { valEl.textContent = '$912K'; valEl.style.color = '#3385ff'; }
+    if (subEl) { subEl.textContent = 'BÊ TÔNG CHUNG (38%)'; subEl.style.color = '#3385ff'; }
+    if (seg2) { seg2.style.strokeWidth = '17'; seg2.style.opacity = '1'; seg2.style.filter = 'drop-shadow(0 0 10px #0066ff)'; }
   } else if (type === 'tuong') {
-    if (valEl) { valEl.textContent = '$480K'; valEl.style.color = '#66a3ff'; }
-    if (subEl) subEl.textContent = 'TƯỜNG GẠCH (20%)';
+    if (valEl) { valEl.textContent = '$480K'; valEl.style.color = '#c459ff'; }
+    if (subEl) { subEl.textContent = 'TƯỜNG GẠCH (20%)'; subEl.style.color = '#c459ff'; }
+    if (seg3) { seg3.style.strokeWidth = '17'; seg3.style.opacity = '1'; seg3.style.filter = 'drop-shadow(0 0 10px #b026ff)'; }
   }
 }
 
@@ -1747,11 +1762,14 @@ function resetReportLegend() {
   const subEl = document.getElementById('donutCenterSub');
   const seg1 = document.getElementById('donutSeg1');
   const seg2 = document.getElementById('donutSeg2');
+  const seg3 = document.getElementById('donutSeg3');
 
   if (valEl) { valEl.textContent = '$2.4M'; valEl.style.color = '#fff'; }
-  if (subEl) subEl.textContent = 'TỔNG DỰ TOÁN';
-  if (seg1) seg1.style.strokeWidth = '12';
-  if (seg2) seg2.style.strokeWidth = '12';
+  if (subEl) { subEl.textContent = 'TỔNG DỰ TOÁN'; subEl.style.color = 'var(--text-muted)'; }
+
+  [seg1, seg2, seg3].forEach(s => {
+    if (s) { s.style.strokeWidth = '12'; s.style.opacity = '1'; s.style.filter = 'none'; }
+  });
 }
 
 function toggleFilterBar() {
