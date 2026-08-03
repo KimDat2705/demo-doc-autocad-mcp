@@ -990,15 +990,22 @@ body {
 .table-title h2 { font-family: 'Space Grotesk', sans-serif; font-size: 28px; font-weight: 800; color: #fff; }
 .table-subtitle { font-size: 11px; color: var(--text-muted); font-weight: 600; }
 .table-actions { display: flex; gap: 10px; }
-.btn-table-action { background: #0f192d; border: 1px solid var(--border-card); color: var(--text-main); padding: 10px 18px; border-radius: 8px; font-family: 'Space Grotesk', sans-serif; font-size: 12px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: all 0.2s; }
-.btn-table-action:hover { border-color: var(--cyan-main); color: var(--cyan-main); }
+.btn-table-action { background: #0f192d; border: 1px solid var(--border-card); color: var(--text-main); padding: 10px 18px; border-radius: 8px; font-family: 'Space Grotesk', sans-serif; font-size: 12px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: all 0.25s; }
+.btn-table-action:hover { border-color: var(--cyan-main); color: var(--cyan-main); box-shadow: 0 0 15px var(--cyan-glow); transform: translateY(-1px); }
 
-.estimate-table-card { background: var(--bg-card); border: 1px solid var(--border-card); border-radius: 12px; overflow: hidden; margin-bottom: 60px; }
+.filter-bar-row { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+.filter-chip { background: #0a111f; border: 1px solid var(--border-card); color: var(--text-muted); padding: 6px 14px; border-radius: 20px; font-family: 'Space Grotesk', sans-serif; font-size: 11px; font-weight: 700; cursor: pointer; transition: all 0.2s; }
+.filter-chip:hover { border-color: var(--cyan-main); color: var(--cyan-main); }
+.filter-chip.active { background: rgba(0, 242, 255, 0.12); border-color: var(--cyan-main); color: var(--cyan-main); box-shadow: 0 0 10px var(--cyan-glow); }
+
+.estimate-table-card { background: var(--bg-card); border: 1px solid var(--border-card); border-radius: 12px; overflow: hidden; margin-bottom: 60px; transition: all 0.3s; }
 .custom-table { width: 100%; border-collapse: collapse; text-align: left; }
 .custom-table th { background: #090f1d; padding: 14px 18px; font-family: 'Space Grotesk', sans-serif; font-size: 11px; font-weight: 700; color: var(--cyan-main); letter-spacing: 0.8px; text-transform: uppercase; border-bottom: 1px solid var(--border-card); }
-.custom-table td { padding: 14px 18px; font-size: 13px; color: var(--text-main); border-bottom: 1px solid rgba(255, 255, 255, 0.03); transition: background 0.2s; }
-.custom-table tr:hover td { background: rgba(0, 242, 255, 0.04); }
-.tag-code { font-family: 'Space Grotesk', monospace; color: #8aa4cc; font-size: 12px; }
+.custom-table td { padding: 14px 18px; font-size: 13px; color: var(--text-main); border-bottom: 1px solid rgba(255, 255, 255, 0.03); transition: all 0.25s ease; }
+.custom-table tr { transition: all 0.25s ease; }
+.custom-table tr:hover td { background: rgba(0, 242, 255, 0.06); color: #fff; }
+.custom-table tr:hover .tag-code { color: var(--cyan-main); text-shadow: 0 0 8px var(--cyan-glow); transform: translateX(3px); display: inline-block; }
+.tag-code { font-family: 'Space Grotesk', monospace; color: #8aa4cc; font-size: 12px; font-weight: 700; transition: transform 0.2s; }
 
 .sticky-bottom-summary {
   position: fixed; bottom: 0; left: var(--sidebar-width); right: 0;
@@ -1009,7 +1016,7 @@ body {
 .summary-metric { display: flex; align-items: center; gap: 12px; }
 .summary-metric label { font-family: 'Space Grotesk', sans-serif; font-size: 10px; font-weight: 700; color: var(--text-muted); letter-spacing: 1px; }
 .summary-metric val { font-family: 'Space Grotesk', sans-serif; font-size: 20px; font-weight: 700; color: #fff; }
-.total-val { font-family: 'Space Grotesk', sans-serif; font-size: 32px; font-weight: 800; color: var(--cyan-main); text-shadow: 0 0 15px var(--cyan-glow); }
+.total-val { font-family: 'Space Grotesk', sans-serif; font-size: 32px; font-weight: 800; color: var(--cyan-main); text-shadow: 0 0 15px var(--cyan-glow); transition: all 0.3s; }
 
 .reports-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 24px; }
 .reports-grid-2 { display: grid; grid-template-columns: 1.5fr 1fr; gap: 20px; margin-bottom: 20px; }
@@ -1281,13 +1288,21 @@ body {
         <div class="table-subtitle">Mã dự án: SYNTH-4029-B | Hiệu chỉnh 21.05.2024</div>
       </div>
       <div class="table-actions">
-        <button class="btn-table-action">📥 Xuất Excel/PDF</button>
-        <button class="btn-table-action">⚡ Bộ lọc</button>
+        <button class="btn-table-action" id="btnExportExcel" onclick="exportEstimateFile(this)">📥 Xuất Excel/PDF</button>
+        <button class="btn-table-action" onclick="toggleFilterBar()">⚡ Bộ lọc</button>
       </div>
     </div>
 
+    <div class="filter-bar-row">
+      <div class="filter-chip active" onclick="filterEstimateTable('all', this)">TẤT CẢ (8 HẠNG MỤC)</div>
+      <div class="filter-chip" onclick="filterEstimateTable('BT', this)">BÊ TÔNG (BT)</div>
+      <div class="filter-chip" onclick="filterEstimateTable('TP', this)">CỐT THÉP (TP)</div>
+      <div class="filter-chip" onclick="filterEstimateTable('CUA', this)">CỬA &amp; GỖ (CUA)</div>
+      <div class="filter-chip" onclick="filterEstimateTable('HOAN_THIEN', this)">TƯỜNG &amp; HOÀN THIỆN (TG/LAT)</div>
+    </div>
+
     <div class="estimate-table-card">
-      <table class="custom-table">
+      <table class="custom-table" id="estimateTable">
         <thead>
           <tr>
             <th>Mã hiệu</th>
@@ -1299,69 +1314,69 @@ body {
           </tr>
         </thead>
         <tbody>
-          <tr>
+          <tr data-cat="BT">
             <td class="tag-code">BT.1002</td>
             <td>Bê tông lót móng M100 đá 4x6</td>
             <td>45,80</td>
             <td>m³</td>
             <td>68,00</td>
-            <td>3.114,40</td>
+            <td class="val-col" data-val="3114.4">3.114,40</td>
           </tr>
-          <tr>
+          <tr data-cat="BT">
             <td class="tag-code">BT.2001</td>
             <td>Bê tông móng M300 đá 1x2</td>
             <td>182,40</td>
             <td>m³</td>
             <td>95,00</td>
-            <td>17.328,00</td>
+            <td class="val-col" data-val="17328">17.328,00</td>
           </tr>
-          <tr>
+          <tr data-cat="TP">
             <td class="tag-code">TP.1016</td>
             <td>Thép cốt tròn Ø16mm CB300-V</td>
             <td>14.850,00</td>
             <td>kg</td>
             <td>0,85</td>
-            <td>12.622,50</td>
+            <td class="val-col" data-val="12622.5">12.622,50</td>
           </tr>
-          <tr>
+          <tr data-cat="TP">
             <td class="tag-code">TP.1020</td>
             <td>Thép cốt tròn Ø20mm CB400-V</td>
             <td>28.400,00</td>
             <td>kg</td>
             <td>0,88</td>
-            <td>24.992,00</td>
+            <td class="val-col" data-val="24992">24.992,00</td>
           </tr>
-          <tr>
+          <tr data-cat="CUA">
             <td class="tag-code">CUA.D1</td>
             <td>Cửa nhôm kính Xingfa hệ 55 (D1)</td>
             <td>38,00</td>
             <td>bộ</td>
             <td>240,00</td>
-            <td>9.120,00</td>
+            <td class="val-col" data-val="9120">9.120,00</td>
           </tr>
-          <tr>
+          <tr data-cat="CUA">
             <td class="tag-code">CUA.D2</td>
             <td>Cửa gỗ công nghiệp MDF Melamine (D2)</td>
             <td>64,00</td>
             <td>bộ</td>
             <td>180,00</td>
-            <td>11.520,00</td>
+            <td class="val-col" data-val="11520">11.520,00</td>
           </tr>
-          <tr>
+          <tr data-cat="HOAN_THIEN">
             <td class="tag-code">TG.3001</td>
             <td>Xây tường gạch đặc M75 dày 220mm</td>
             <td>320,50</td>
             <td>m³</td>
             <td>72,00</td>
-            <td>23.076,00</td>
+            <td class="val-col" data-val="23076">23.076,00</td>
           </tr>
-          <tr>
+          <tr data-cat="HOAN_THIEN">
             <td class="tag-code">LAT.401</td>
             <td>Lát gạch Granit bóng kính 600x600</td>
             <td>1.250,00</td>
             <td>m²</td>
             <td>18,50</td>
-            <td>23.125,00</td>
+            <td class="val-col" data-val="23125">23.125,00</td>
           </tr>
         </tbody>
       </table>
@@ -1371,7 +1386,7 @@ body {
       <div style="display:flex; gap:36px;">
         <div class="summary-metric">
           <label>SỐ DÒNG</label>
-          <val>124</val>
+          <val id="lblRowCount">124</val>
         </div>
         <div class="summary-metric">
           <label>ĐỘ TIN CẬY</label>
@@ -1383,7 +1398,7 @@ body {
       </div>
       <div>
         <span style="font-size:10px; font-weight:700; color:var(--text-muted); letter-spacing:1px; margin-right:12px;">TỔNG CỘNG DỰ TOÁN</span>
-        <span class="total-val">$567.618,00</span>
+        <span class="total-val" id="lblTotalVal">$567.618,00</span>
       </div>
     </div>
   </div>
@@ -1531,16 +1546,20 @@ function handleChartHover(e) {
   const pathLen = mainPath.getTotalLength();
   const pt = mainPath.getPointAtLength(ratio * pathLen);
 
-  hoverDot.style.display = 'block';
-  hoverDot.setAttribute('cx', pt.x);
-  hoverDot.setAttribute('cy', pt.y);
+  if (hoverDot) {
+    hoverDot.style.display = 'block';
+    hoverDot.setAttribute('cx', pt.x);
+    hoverDot.setAttribute('cy', pt.y);
+  }
 
   let pctLeft = (pt.x / 600) * 100;
   let pctTop = (pt.y / 200) * 100 - 18;
   pctLeft = Math.max(8, Math.min(78, pctLeft));
 
-  tooltip.style.left = pctLeft + '%';
-  tooltip.style.top = Math.max(5, pctTop) + '%';
+  if (tooltip) {
+    tooltip.style.left = pctLeft + '%';
+    tooltip.style.top = Math.max(5, pctTop) + '%';
+  }
 
   const baselineY = 160 - (pt.x / 600) * 20;
   const isAboveBaseline = pt.y < baselineY;
@@ -1550,8 +1569,8 @@ function handleChartHover(e) {
   const diffPct = (isAboveBaseline ? '+' : '-') + diffValNum + '%';
   const diffColor = isAboveBaseline ? 'var(--accent-green)' : '#ff4757';
 
-  tooltipLabel.textContent = 'ĐIỂM TRA CỨU (' + (ratio * 100).toFixed(0) + '%)';
-  tooltipVal.innerHTML = '$' + valNum + 'M <span style="color:' + diffColor + ';font-size:10px">' + diffPct + '</span>';
+  if (tooltipLabel) tooltipLabel.textContent = 'ĐIỂM TRA CỨU (' + (ratio * 100).toFixed(0) + '%)';
+  if (tooltipVal) tooltipVal.innerHTML = '$' + valNum + 'M <span style="color:' + diffColor + ';font-size:10px">' + diffPct + '</span>';
 }
 
 function resetChartHover() {
@@ -1568,6 +1587,71 @@ function resetChartHover() {
   }
   if (tooltipLabel) tooltipLabel.textContent = 'ĐỈNH ĐIỂM HIỆN TẠI';
   if (tooltipVal) tooltipVal.innerHTML = '$1,2M <span style="color:var(--accent-green);font-size:10px">▲ 4%</span>';
+}
+
+function filterEstimateTable(cat, btn) {
+  document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+  btn.classList.add('active');
+
+  const rows = document.querySelectorAll('#estimateTable tbody tr');
+  let visibleCount = 0;
+  let sumVal = 0;
+
+  rows.forEach(row => {
+    const rowCat = row.dataset.cat;
+    if (cat === 'all' || rowCat === cat) {
+      row.style.display = '';
+      row.style.animation = 'fadeIn 0.3s ease';
+      visibleCount++;
+      const valTd = row.querySelector('.val-col');
+      if (valTd) sumVal += parseFloat(valTd.dataset.val || '0');
+    } else {
+      row.style.display = 'none';
+    }
+  });
+
+  const lblCount = document.getElementById('lblRowCount');
+  const lblTotal = document.getElementById('lblTotalVal');
+
+  if (lblCount) lblCount.textContent = (cat === 'all') ? '124' : (visibleCount + ' / 124');
+  if (lblTotal) {
+    if (cat === 'all') {
+      lblTotal.textContent = '$567.618,00';
+    } else {
+      lblTotal.textContent = '$' + sumVal.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+    }
+    lblTotal.style.transform = 'scale(1.08)';
+    setTimeout(() => { lblTotal.style.transform = ''; }, 200);
+  }
+}
+
+function exportEstimateFile(btn) {
+  const origText = btn.innerHTML;
+  btn.innerHTML = '⏳ ĐANG TẠO FILE EXCEL...';
+  btn.style.opacity = '0.7';
+  setTimeout(() => {
+    btn.innerHTML = '✅ ĐÃ XUẤT SYNTH-4029-B.xlsx';
+    btn.style.opacity = '1';
+    btn.style.borderColor = 'var(--accent-green)';
+    btn.style.color = 'var(--accent-green)';
+    setTimeout(() => {
+      btn.innerHTML = origText;
+      btn.style.borderColor = '';
+      btn.style.color = '';
+    }, 2500);
+  }, 1200);
+}
+
+function toggleFilterBar() {
+  const bar = document.querySelector('.filter-bar-row');
+  if (bar) {
+    if (bar.style.display === 'none') {
+      bar.style.display = 'flex';
+      bar.style.animation = 'fadeIn 0.3s ease';
+    } else {
+      bar.style.display = 'none';
+    }
+  }
 }
 
 function syncDrawingsAnimation(btn) {
@@ -1600,7 +1684,7 @@ function fileLink(fid){return fid?`<div class="cap"><a href="/file/${fid}" downl
 function bot(t,ev,anh,tag,fid){let e=evHtml(ev),im=shot(anh),fl=fileLink(fid);
   let tg=tag?'<div class="tag" style="display:inline-block;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:10px;margin-bottom:8px;background:rgba(0,242,255,0.1);color:var(--cyan-main);border:1px solid rgba(0,242,255,0.3)">🤖 AutoCAD AI · MCP Engine · Ground-Truth Verified</div>':'';
   $('chat').innerHTML+=`<div class="msg ai"><div class="bub">${tg}${esc(t)}${im}${fl}${e}</div></div>`;$('chat').scrollTop=1e9;return $('chat').lastElementChild}
-function showSum(d){let s=$('sum');if(d.error){s.style.display='block';s.textContent='⚠ '+d.error;if(d.reset_xac_nhan){ready(false);taiDanhSach()}return}
+showSum=function(d){let s=$('sum');if(d.error){s.style.display='block';s.textContent='⚠ '+d.error;if(d.reset_xac_nhan){ready(false);taiDanhSach()}return}
   let c=Object.entries(d.counts||{}).sort((a,b)=>b[1]-a[1]).slice(0,8).map(x=>x[0]+': '+x[1]).join('   ·   ');
   s.style.display='block';
   s.innerHTML=`<b>✅ Đã nạp:</b> ${esc(d.name)} (AutoCAD ${esc(d.dxfversion)})<br>• <b>${d.so_layer}</b> layer · <b>${d.tong_doi_tuong}</b> đối tượng · <b>${d.so_doan_chu}</b> đoạn chữ · <b>${d.so_kich_thuoc}</b> kích thước · thép <b>${d.thep_tong_kg}</b> kg<br><span class="lay">${esc(c)}</span>`;
