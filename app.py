@@ -1542,11 +1542,7 @@ function handleChartHover(e) {
   tooltip.style.left = pctLeft + '%';
   tooltip.style.top = Math.max(5, pctTop) + '%';
 
-  // Compute baseline Y at this X (dashed line goes from Y=160 at X=0 to Y=140 at X=600)
   const baselineY = 160 - (pt.x / 600) * 20;
-  // In SVG, smaller Y means HIGHER on screen.
-  // If pt.y < baselineY, actual cost is ABOVE baseline (Over budget -> +X%)
-  // If pt.y > baselineY, actual cost is BELOW baseline (Under budget -> -X%)
   const isAboveBaseline = pt.y < baselineY;
   const diffValNum = Math.abs(((baselineY - pt.y) / baselineY) * 20).toFixed(1);
 
@@ -1561,15 +1557,17 @@ function handleChartHover(e) {
 function resetChartHover() {
   const tooltip = document.getElementById('chartTooltip');
   const tooltipLabel = document.getElementById('chartTooltipLabel');
-  const tooltipVal.innerHTML = '$1,2M <span style="color:var(--accent-green);font-size:10px">▲ 4%</span>';
+  const tooltipVal = document.getElementById('chartTooltipVal');
   const hoverDot = document.getElementById('hoverDot');
 
   if (hoverDot) hoverDot.style.display = 'none';
 
-  tooltip.style.left = '55%';
-  tooltip.style.top = '12%';
-  tooltipLabel.textContent = 'ĐỈNH ĐIỂM HIỆN TẠI';
-  tooltipVal.innerHTML = '$1,2M <span style="color:var(--accent-green);font-size:10px">▲ 4%</span>';
+  if (tooltip) {
+    tooltip.style.left = '55%';
+    tooltip.style.top = '12%';
+  }
+  if (tooltipLabel) tooltipLabel.textContent = 'ĐỈNH ĐIỂM HIỆN TẠI';
+  if (tooltipVal) tooltipVal.innerHTML = '$1,2M <span style="color:var(--accent-green);font-size:10px">▲ 4%</span>';
 }
 
 function syncDrawingsAnimation(btn) {
