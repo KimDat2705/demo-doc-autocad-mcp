@@ -912,7 +912,7 @@ body {
 }
 .toggle-btn.active { background: var(--cyan-main); color: #070b14; box-shadow: 0 0 12px var(--cyan-glow); }
 
-.svg-chart-container { position: relative; width: 100%; height: 220px; margin-bottom: 20px; }
+.svg-chart-container { position: relative; width: 100%; height: 220px; margin-bottom: 20px; cursor: crosshair; }
 .chart-path-main { stroke-dasharray: 1000; stroke-dashoffset: 0; animation: drawChart 2.5s ease-out forwards; }
 @keyframes drawChart { from { stroke-dashoffset: 1000; } to { stroke-dashoffset: 0; } }
 
@@ -1152,7 +1152,7 @@ body {
             </div>
           </div>
 
-          <div class="svg-chart-container">
+          <div class="svg-chart-container" id="chartContainer" onmousemove="handleChartHover(event)" onmouseleave="resetChartHover()">
             <svg width="100%" height="100%" viewBox="0 0 600 200" preserveAspectRatio="none">
               <defs>
                 <linearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1">
@@ -1161,12 +1161,13 @@ body {
                 </linearGradient>
               </defs>
               <path d="M 0,160 Q 150,150 300,165 T 600,140" fill="none" stroke="#22385e" stroke-width="1.5" stroke-dasharray="4,4"/>
-              <path id="chartPathMain" class="chart-path-main" d="M 0,170 C 100,160 150,110 250,150 C 320,170 360,70 450,130 C 520,180 560,90 600,70" fill="none" stroke="#00f2ff" stroke-width="3" filter="drop-shadow(0px 0px 8px rgba(0,242,255,0.8))"/>
-              <path id="chartGradArea" d="M 0,170 C 100,160 150,110 250,150 C 320,170 360,70 450,130 C 520,180 560,90 600,70 L 600,200 L 0,200 Z" fill="url(#chartGrad)"/>
+              <path id="chartPathMain" class="chart-path-main" d="M 0,160 C 100,150 140,110 220,135 C 280,155 310,45 370,45 C 430,45 470,140 530,130 C 560,125 580,115 600,110" fill="none" stroke="#00f2ff" stroke-width="3" filter="drop-shadow(0px 0px 8px rgba(0,242,255,0.8))"/>
+              <path id="chartGradArea" d="M 0,160 C 100,150 140,110 220,135 C 280,155 310,45 370,45 C 430,45 470,140 530,130 C 560,125 580,115 600,110 L 600,200 L 0,200 Z" fill="url(#chartGrad)"/>
+              <circle id="hoverDot" cx="370" cy="45" r="5" fill="#00f2ff" stroke="#fff" stroke-width="2" style="display:none; filter:drop-shadow(0 0 8px #00f2ff)"/>
             </svg>
 
-            <div id="chartTooltip" style="position:absolute; top:35%; left:58%; background:#0a1324; border:1px solid var(--cyan-main); padding:6px 12px; border-radius:6px; box-shadow:0 0 15px var(--cyan-glow); transition:all 0.4s ease;">
-              <div style="font-size:9px; font-weight:700; color:var(--text-muted);">ĐỈNH ĐIỂM HIỆN TẠI</div>
+            <div id="chartTooltip" style="position:absolute; top:12%; left:55%; background:#0a1324; border:1px solid var(--cyan-main); padding:6px 12px; border-radius:6px; box-shadow:0 0 15px var(--cyan-glow); transition:left 0.15s ease, top 0.15s ease; pointer-events:none;">
+              <div id="chartTooltipLabel" style="font-size:9px; font-weight:700; color:var(--text-muted);">ĐỈNH ĐIỂM HIỆN TẠI</div>
               <div id="chartTooltipVal" style="font-family:'Space Grotesk'; font-size:14px; font-weight:700; color:#fff;">$1,2M <span style="color:var(--accent-green);font-size:10px">▲ 4%</span></div>
             </div>
           </div>
@@ -1495,29 +1496,72 @@ function animateStatCard(el) {
   setTimeout(() => { el.style.transform = ''; }, 150);
 }
 
+let _currentMode = 'month';
 function toggleChartMode(mode, btn) {
+  _currentMode = mode;
   const btnGroup = btn.parentElement;
   btnGroup.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
 
   const mainPath = document.getElementById('chartPathMain');
   const gradArea = document.getElementById('chartGradArea');
-  const tooltip = document.getElementById('chartTooltip');
-  const tooltipVal = document.getElementById('chartTooltipVal');
 
   if (mode === 'week') {
-    mainPath.setAttribute('d', 'M 0,150 C 80,180 160,80 280,120 C 350,150 420,50 500,100 C 550,130 580,70 600,60');
-    gradArea.setAttribute('d', 'M 0,150 C 80,180 160,80 280,120 C 350,150 420,50 500,100 C 550,130 580,70 600,60 L 600,200 L 0,200 Z');
-    tooltip.style.left = '68%';
-    tooltip.style.top = '25%';
-    tooltipVal.innerHTML = '$850K <span style="color:var(--accent-green);font-size:10px">▲ 2.5%</span>';
+    mainPath.setAttribute('d', 'M 0,150 C 80,170 140,80 220,110 C 280,140 310,35 370,35 C 430,35 470,130 530,120 C 560,115 580,105 600,100');
+    gradArea.setAttribute('d', 'M 0,150 C 80,170 140,80 220,110 C 280,140 310,35 370,35 C 430,35 470,130 530,120 C 560,115 580,105 600,100 L 600,200 L 0,200 Z');
   } else {
-    mainPath.setAttribute('d', 'M 0,170 C 100,160 150,110 250,150 C 320,170 360,70 450,130 C 520,180 560,90 600,70');
-    gradArea.setAttribute('d', 'M 0,170 C 100,160 150,110 250,150 C 320,170 360,70 450,130 C 520,180 560,90 600,70 L 600,200 L 0,200 Z');
-    tooltip.style.left = '58%';
-    tooltip.style.top = '35%';
-    tooltipVal.innerHTML = '$1,2M <span style="color:var(--accent-green);font-size:10px">▲ 4%</span>';
+    mainPath.setAttribute('d', 'M 0,160 C 100,150 140,110 220,135 C 280,155 310,45 370,45 C 430,45 470,140 530,130 C 560,125 580,115 600,110');
+    gradArea.setAttribute('d', 'M 0,160 C 100,150 140,110 220,135 C 280,155 310,45 370,45 C 430,45 470,140 530,130 C 560,125 580,115 600,110 L 600,200 L 0,200 Z');
   }
+  resetChartHover();
+}
+
+function handleChartHover(e) {
+  const container = document.getElementById('chartContainer');
+  const rect = container.getBoundingClientRect();
+  const mouseX = Math.max(0, Math.min(rect.width, e.clientX - rect.left));
+  const ratio = mouseX / rect.width;
+
+  const tooltip = document.getElementById('chartTooltip');
+  const tooltipLabel = document.getElementById('chartTooltipLabel');
+  const tooltipVal = document.getElementById('chartTooltipVal');
+  const hoverDot = document.getElementById('hoverDot');
+
+  const mainPath = document.getElementById('chartPathMain');
+  const pathLen = mainPath.getTotalLength();
+  const pt = mainPath.getPointAtLength(ratio * pathLen);
+
+  hoverDot.style.display = 'block';
+  hoverDot.setAttribute('cx', pt.x);
+  hoverDot.setAttribute('cy', pt.y);
+
+  let pctLeft = (pt.x / 600) * 100;
+  let pctTop = (pt.y / 200) * 100 - 18;
+  pctLeft = Math.max(8, Math.min(78, pctLeft));
+
+  tooltip.style.left = pctLeft + '%';
+  tooltip.style.top = Math.max(5, pctTop) + '%';
+
+  const valNum = (0.4 + (1 - pt.y / 200) * 1.1).toFixed(2);
+  const diffPct = ((pt.y < 100 ? '+' : '-') + Math.abs((100 - pt.y) / 10).toFixed(1) + '%');
+  const diffColor = pt.y < 100 ? 'var(--accent-green)' : '#ff4757';
+
+  tooltipLabel.textContent = 'ĐIỂM TRA CỨU (' + (ratio * 100).toFixed(0) + '%)';
+  tooltipVal.innerHTML = '$' + valNum + 'M <span style="color:' + diffColor + ';font-size:10px">' + diffPct + '</span>';
+}
+
+function resetChartHover() {
+  const tooltip = document.getElementById('chartTooltip');
+  const tooltipLabel = document.getElementById('chartTooltipLabel');
+  const tooltipVal = document.getElementById('chartTooltipVal');
+  const hoverDot = document.getElementById('hoverDot');
+
+  if (hoverDot) hoverDot.style.display = 'none';
+
+  tooltip.style.left = '55%';
+  tooltip.style.top = '12%';
+  tooltipLabel.textContent = 'ĐỈNH ĐIỂM HIỆN TẠI';
+  tooltipVal.innerHTML = '$1,2M <span style="color:var(--accent-green);font-size:10px">▲ 4%</span>';
 }
 
 function syncDrawingsAnimation(btn) {
