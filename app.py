@@ -985,8 +985,6 @@ body {
 .ask-bar button:disabled { opacity: 0.4; cursor: not-allowed; }
 
 .table-header-bar { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 20px; }
-.breadcrumb { font-size: 12px; color: var(--text-muted); margin-bottom: 6px; }
-.breadcrumb span { color: var(--cyan-main); }
 .table-title h2 { font-family: 'Space Grotesk', sans-serif; font-size: 28px; font-weight: 800; color: #fff; }
 .table-subtitle { font-size: 11px; color: var(--text-muted); font-weight: 600; }
 .table-actions { display: flex; gap: 10px; }
@@ -1020,24 +1018,29 @@ body {
 
 .reports-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 24px; }
 .reports-grid-2 { display: grid; grid-template-columns: 1.5fr 1fr; gap: 20px; margin-bottom: 20px; }
-.report-card { background: var(--bg-card); border: 1px solid var(--border-card); border-radius: 12px; padding: 20px; }
+.report-card { background: var(--bg-card); border: 1px solid var(--border-card); border-radius: 12px; padding: 20px; transition: all 0.3s; }
+.report-card:hover { border-color: var(--border-light); transform: translateY(-2px); box-shadow: 0 8px 25px rgba(0,0,0,0.3); }
 
 .material-bar-list { display: flex; flex-direction: column; gap: 16px; margin-top: 30px; }
-.material-item { display: flex; flex-direction: column; gap: 6px; }
-.material-meta { display: flex; justify-content: space-between; font-family: 'Space Grotesk', sans-serif; font-size: 11px; font-weight: 700; color: var(--text-muted); }
+.material-item { display: flex; flex-direction: column; gap: 6px; cursor: pointer; transition: all 0.2s; }
+.material-item:hover .material-meta span { color: var(--cyan-main); }
+.material-item:hover .material-bar-fill { box-shadow: 0 0 15px var(--cyan-glow); }
+.material-meta { display: flex; justify-content: space-between; font-family: 'Space Grotesk', sans-serif; font-size: 11px; font-weight: 700; color: var(--text-muted); transition: color 0.2s; }
 .material-bar-bg { height: 6px; background: rgba(255, 255, 255, 0.06); border-radius: 3px; overflow: hidden; }
-.material-bar-fill { height: 100%; background: var(--cyan-main); border-radius: 3px; transition: width 1s ease; }
+.material-bar-fill { height: 100%; background: var(--cyan-main); border-radius: 3px; transition: width 1.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s; }
 
 .donut-container { display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; height: 180px; }
-.donut-center-text { position: absolute; text-align: center; }
-.donut-center-text h4 { font-family: 'Space Grotesk', sans-serif; font-size: 24px; font-weight: 800; color: #fff; }
+.donut-center-text { position: absolute; text-align: center; transition: all 0.3s; }
+.donut-center-text h4 { font-family: 'Space Grotesk', sans-serif; font-size: 24px; font-weight: 800; color: #fff; transition: color 0.3s; }
 .donut-center-text p { font-family: 'Space Grotesk', sans-serif; font-size: 9px; font-weight: 700; color: var(--text-muted); letter-spacing: 1px; }
 
 .pie-legend { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; }
-.legend-row { display: flex; justify-content: space-between; font-size: 12px; font-weight: 600; padding: 6px 0; border-bottom: 1px dashed rgba(255, 255, 255, 0.05); }
+.legend-row { display: flex; justify-content: space-between; font-size: 12px; font-weight: 600; padding: 8px 10px; border-radius: 6px; border-bottom: 1px dashed rgba(255, 255, 255, 0.05); cursor: pointer; transition: all 0.25s; }
+.legend-row:hover { background: rgba(0, 242, 255, 0.08); border-color: var(--cyan-main); transform: translateX(3px); }
 
 .reports-bottom-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 20px; }
-.insight-card { background: var(--bg-card); border: 1px solid var(--border-card); border-radius: 12px; padding: 18px; }
+.insight-card { background: var(--bg-card); border: 1px solid var(--border-card); border-radius: 12px; padding: 18px; transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1); cursor: pointer; }
+.insight-card:hover { background: var(--bg-card-hover); border-color: var(--cyan-main); transform: translateY(-4px); box-shadow: 0 10px 25px rgba(0, 242, 255, 0.15); }
 .insight-card h5 { font-family: 'Space Grotesk', sans-serif; font-size: 11px; font-weight: 700; color: var(--cyan-main); letter-spacing: 0.8px; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
 .insight-card p { font-size: 12px; color: var(--text-main); line-height: 1.5; }
 </style>
@@ -1283,7 +1286,6 @@ body {
   <div id="tab-estimate" class="content-area">
     <div class="table-header-bar">
       <div>
-        
         <div class="table-title"><h2>Bảng bóc tách khối lượng</h2></div>
         <div class="table-subtitle">Mã dự án: SYNTH-4029-B | Hiệu chỉnh 21.05.2024</div>
       </div>
@@ -1406,11 +1408,10 @@ body {
   <div id="tab-reports" class="content-area">
     <div class="reports-header">
       <div>
-        <div class="breadcrumb">/ ROOT / PHÂN TÍCH / <span>TRỰC QUAN</span></div>
         <h2 style="font-family:'Space Grotesk'; font-size:28px; font-weight:800; color:#fff;">Báo cáo phân tích thông minh</h2>
       </div>
       <div class="toggle-group">
-        <button class="toggle-btn">XUẤT PDF</button>
+        <button class="toggle-btn" onclick="exportPdfReport(this)">XUẤT PDF</button>
         <button class="toggle-btn active">TRỰC TIẾP</button>
       </div>
     </div>
@@ -1422,7 +1423,7 @@ body {
             <h4 style="font-size:11px; font-weight:700; color:var(--cyan-main); letter-spacing:1px;">PHÂN TÍCH KHỐI LƯỢNG VẬT TƯ</h4>
             <p style="font-size:10px; color:var(--text-muted);">PHÂN BỔ THEO LĨNH VỰC [TẤN]</p>
           </div>
-          <span style="color:var(--cyan-main)">📈</span>
+          <span style="color:var(--cyan-main); font-size:18px;">📈</span>
         </div>
 
         <div class="material-bar-list">
@@ -1452,25 +1453,25 @@ body {
         <div class="donut-container">
           <svg width="160" height="160" viewBox="0 0 100 100">
             <circle cx="50" cy="50" r="40" fill="transparent" stroke="#101a2d" stroke-width="12"/>
-            <circle cx="50" cy="50" r="40" fill="transparent" stroke="#00f2ff" stroke-width="12" stroke-dasharray="251.2" stroke-dashoffset="100" transform="rotate(-90 50 50)"/>
-            <circle cx="50" cy="50" r="40" fill="transparent" stroke="#0088ff" stroke-width="12" stroke-dasharray="251.2" stroke-dashoffset="180" transform="rotate(-90 50 50)"/>
+            <circle id="donutSeg1" cx="50" cy="50" r="40" fill="transparent" stroke="#00f2ff" stroke-width="12" stroke-dasharray="251.2" stroke-dashoffset="100" transform="rotate(-90 50 50)" style="transition:all 0.3s; cursor:pointer"/>
+            <circle id="donutSeg2" cx="50" cy="50" r="40" fill="transparent" stroke="#0088ff" stroke-width="12" stroke-dasharray="251.2" stroke-dashoffset="180" transform="rotate(-90 50 50)" style="transition:all 0.3s; cursor:pointer"/>
           </svg>
-          <div class="donut-center-text">
-            <h4>$2.4M</h4>
-            <p>TỔNG DỰ TOÁN</p>
+          <div class="donut-center-text" id="donutCenterText">
+            <h4 id="donutCenterVal">$2.4M</h4>
+            <p id="donutCenterSub">TỔNG DỰ TOÁN</p>
           </div>
         </div>
 
         <div class="pie-legend">
-          <div class="legend-row">
+          <div class="legend-row" onmouseenter="hoverReportLegend('thep')" onmouseleave="resetReportLegend()">
             <span style="color:#00f2ff">■ THÉP_KẾT_CẤU</span>
             <span>42%</span>
           </div>
-          <div class="legend-row">
+          <div class="legend-row" onmouseenter="hoverReportLegend('betong')" onmouseleave="resetReportLegend()">
             <span style="color:#0088ff">■ BÊ_TÔNG_CHUNG</span>
             <span>38%</span>
           </div>
-          <div class="legend-row">
+          <div class="legend-row" onmouseenter="hoverReportLegend('tuong')" onmouseleave="resetReportLegend()">
             <span style="color:#66a3ff">■ TƯỜNG_GẠCH</span>
             <span>20%</span>
           </div>
@@ -1640,6 +1641,56 @@ function exportEstimateFile(btn) {
       btn.style.color = '';
     }, 2500);
   }, 1200);
+}
+
+function exportPdfReport(btn) {
+  const origText = btn.innerHTML;
+  btn.innerHTML = '⏳ ĐANG XUẤT PDF...';
+  btn.style.opacity = '0.7';
+  setTimeout(() => {
+    btn.innerHTML = '✅ ĐÃ TẢI BAO_CAO_SYNTH.pdf';
+    btn.style.opacity = '1';
+    btn.style.background = 'var(--accent-green)';
+    btn.style.color = '#070b14';
+    setTimeout(() => {
+      btn.innerHTML = origText;
+      btn.style.background = '';
+      btn.style.color = '';
+      btn.style.opacity = '1';
+    }, 2500);
+  }, 1200);
+}
+
+function hoverReportLegend(type) {
+  const valEl = document.getElementById('donutCenterVal');
+  const subEl = document.getElementById('donutCenterSub');
+  const seg1 = document.getElementById('donutSeg1');
+  const seg2 = document.getElementById('donutSeg2');
+
+  if (type === 'thep') {
+    if (valEl) { valEl.textContent = '$1.01M'; valEl.style.color = '#00f2ff'; }
+    if (subEl) subEl.textContent = 'THÉP KẾT CẤU (42%)';
+    if (seg1) seg1.style.strokeWidth = '16';
+  } else if (type === 'betong') {
+    if (valEl) { valEl.textContent = '$912K'; valEl.style.color = '#0088ff'; }
+    if (subEl) subEl.textContent = 'BÊ TÔNG CHUNG (38%)';
+    if (seg2) seg2.style.strokeWidth = '16';
+  } else if (type === 'tuong') {
+    if (valEl) { valEl.textContent = '$480K'; valEl.style.color = '#66a3ff'; }
+    if (subEl) subEl.textContent = 'TƯỜNG GẠCH (20%)';
+  }
+}
+
+function resetReportLegend() {
+  const valEl = document.getElementById('donutCenterVal');
+  const subEl = document.getElementById('donutCenterSub');
+  const seg1 = document.getElementById('donutSeg1');
+  const seg2 = document.getElementById('donutSeg2');
+
+  if (valEl) { valEl.textContent = '$2.4M'; valEl.style.color = '#fff'; }
+  if (subEl) subEl.textContent = 'TỔNG DỰ TOÁN';
+  if (seg1) seg1.style.strokeWidth = '12';
+  if (seg2) seg2.style.strokeWidth = '12';
 }
 
 function toggleFilterBar() {
