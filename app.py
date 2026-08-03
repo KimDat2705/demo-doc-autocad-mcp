@@ -1112,7 +1112,7 @@ body {
         <div class="metrics-row">
           <div class="stat-card" onclick="animateStatCard(this)">
             <div class="stat-header">
-              <span class="stat-title">TỔNG DỰ ÁN</span>
+              <span class="stat-title">TỔNG BẢN VẼ</span>
               <span class="stat-icon">❖</span>
             </div>
             <div class="stat-value">1.284 <span>+12.5%</span></div>
