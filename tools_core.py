@@ -693,6 +693,11 @@ _CD_STD = re.compile(r"^([+\-±])\s*(\d{1,3})[.,](\d{2,3})$")                   
 _CD_INL = re.compile(r"(?:^|[\s(=:,])([+±]|(?<![\w.])-)(\s*)(\d{1,3})[.,](\d{2,3})(?![\d])")  # trong đoạn dài (biên trái sạch)
 _CD_STEEL_LAYER = re.compile(r"thep|sothep|rebar", re.I)   # G3: layer thép -> giá trị thép, KHÔNG phải cao độ (semantic)
 
+# Tool #36 (đọc bảng trắc dọc). CỐ Ý tách khỏi _CD_* : ở bảng, nghĩa do NHÃN HÀNG định nên
+# số KHÔNG cần dấu +/-/± — đúng lớp mà _CD_STD/_CD_INL mù ('1.740' trong bảng trắc dọc).
+_BTD_SO_RE = re.compile(r"^[+\-−]?\d[\d.,]*$")        # cả ô chỉ là một con số
+_BTD_CHU3_RE = re.compile(r"[^\W\d_]{3,}", re.UNICODE)  # >=3 ký tự CHỮ liên tiếp (char-class, bền garble)
+
 def _cd_val(sign, intp, decp):
     v = float("%s.%s" % (intp, decp))
     return round(-v if sign == "-" else v, 3)   # '±'/'+' -> dương
@@ -2198,6 +2203,327 @@ class Drawing:
                             "TỜ ('-7/10'), LƯỚI TOẠ ĐỘ và TỈ LỆ. Có tiêu đề một bảng ở đây KHÔNG có nghĩa "
                             "thân bảng tồn tại trong file — đã gặp ca tiêu đề có mà thân bảng không có ở "
                             "đâu cả; không được suy diễn nội dung bảng từ tiêu đề.")}
+
+    # ==================== TOOL #36 — ĐỌC BẢNG TRẮC DỌC (ghép nhãn↔giá trị theo VỊ TRÍ) ==========
+    # Nút thắt recall THẬT của dự án: máy đọc được NHÃN mà không nối được sang GIÁ TRỊ ở ô khác.
+    # Ca sống: 'Cat doc cong D600' có 24-36 lần chữ "cao độ", 8 lần "đáy cống", 197-293 số thập
+    # phân trên layer tracdoc — nhưng cao_do_min_max trả 0 marker vì bảng ghi cao độ KHÔNG DẤU
+    # ('1.740'), mà regex marker đòi +/-/±. NGUYÊN TẮC của tool này: nghĩa của số do NHÃN HÀNG
+    # định, KHÔNG do hình thức số.
+    #
+    # ⚠ CÁC NGƯỠNG DƯỚI ĐÂY LÀ SỐ ĐO (lát 0, 142 file) — đổi thì PHẢI đo lại, đừng "tinh chỉnh":
+    #   G10 mật độ >=12 : nhóm trắc dọc min=15 median=18 · nhóm nhiễu median=2 p75=2 (biên 8->15).
+    #                     Nâng lên 18 thì MẤT 2/5 block đích.
+    #   G9  cùng-bậc <=10x (MỨC HÀNG): loại ghi chú kỹ thuật giả dạng bảng
+    #                     ('- phía trong trát vữa xi măng 75#' -> [4,5,1,150,200,8150,200]).
+    #                     Áp mức HÀNG để hàng 'cộng dồn' (0->227.15) bị loại mà 3 hàng cao độ vẫn sống.
+    #   G7  p <= 8*h    · G4 bước hàng đều <=2.2x · G2 nhãn phân biệt >=0.75 · G3 >=4 hàng
+    #   G1  nhãn >=3 ký tự CHỮ liên tiếp (char-class, KHÔNG keyword -> bền garble TCVN3/VNI)
+    # ⛔ ĐÃ BỊ BÁC BẰNG SỐ — ĐỪNG THÊM LẠI: gate "giá trị THẲNG HÀNG theo cột" (nghe rất hợp lý).
+    #    Đo lát 0: rác thẳng hàng HOÀN HẢO (bảng mẫu tô AutoCAD 'ansi31'/'ar-conc' -> 1.000) còn
+    #    bảng trắc dọc THẬT chỉ 0.806 (hàng "khoảng cách" ghi GIỮA hai cọc, cao độ ghi TẠI cọc).
+    #    Quét ngưỡng 0.50-0.90: KHÔNG có ngưỡng nào tách được -> gate đó SAI HƯỚNG.
+    # KẾT QUẢ lát 0: 4/142 file kích hoạt, TẤT CẢ là trắc dọc thật; 0 file kiến trúc/kết cấu/hạ
+    # tầng (rachmop IM); đọc tay 104 lượt nhãn -> 9 nhãn duy nhất, 0 rác; 520 giá trị, 0 SỐ ÂM.
+    _BTD_MATDO   = 12
+    _BTD_BAC     = 10.0
+    _BTD_P_H     = 8.0
+    _BTD_DEU     = 2.2
+    _BTD_PHANBIET = 0.75
+    _BTD_MIN_HANG = 4
+    _BTD_QX_H    = 2.0
+    _BTD_BAND_P  = 0.45     # plateau đo được 0.35-0.60
+    _BTD_BLOCK_P = 3.0
+    _BTD_DAU_P   = 15.0
+    _BTD_CAP_HANG = 30
+    _BTD_CAP_TONG = 60      # cap XUYÊN block (không phải mỗi block)
+
+    def _btd_cao_chu(self):
+        """Chiều cao chữ theo handle. self.texts KHÔNG lưu trường này, nên đọc lại từ self.doc
+        (doc được GIỮ trong RAM sẵn — tools_core.py:1096). Đo: 13ms/8.442 chữ = 0,12% thời gian
+        nạp -> rẻ hơn hẳn việc thêm trường vào _extract (hàm NÓNG, mọi bản vẽ đều đi qua)."""
+        if getattr(self, "_btd_h", None) is not None:
+            return self._btd_h
+        h = {}
+        try:
+            for e in self.doc.modelspace():
+                t = e.dxftype()
+                if t == "TEXT":
+                    v = getattr(e.dxf, "height", None)
+                elif t == "MTEXT":
+                    v = getattr(e.dxf, "char_height", None)
+                else:
+                    continue
+                if v:
+                    h[e.dxf.handle] = float(v)
+        except Exception:
+            h = {}
+        self._btd_h = h
+        return h
+
+    @staticmethod
+    def _btd_med(xs):
+        if not xs:
+            return 0.0
+        s = sorted(xs); n = len(s)
+        return s[n // 2] if n % 2 else (s[n // 2 - 1] + s[n // 2]) / 2.0
+
+    @staticmethod
+    def _btd_la_so(s):
+        return bool(_BTD_SO_RE.match((s or "").strip()))
+
+    @staticmethod
+    def _btd_la_nhan(s):
+        return bool(_BTD_CHU3_RE.search(s or ""))
+
+    def doc_bang_trac_doc(self, nhan_chua=None, gioi_han=60, **_):
+        """ĐỌC BẢNG TRẮC DỌC — ghép NHÃN HÀNG với các GIÁ TRỊ CÙNG HÀNG (mặt cắt dọc tuyến
+        cống/đường: cao độ tim đường, cao độ đáy cống, khoảng cách giữa các mặt cắt...).
+
+        Vì sao cần: trong bảng trắc dọc, cao độ ghi KHÔNG DẤU ('1.740') nên cao_do_min_max
+        (đòi marker +/-/±) trả 0 kết quả, dù bản vẽ có đủ. Ở đây NGHĨA của số do NHÃN HÀNG
+        định, không do hình thức số.
+
+        ĐỌC-VÀ-TRÍCH, KHÔNG TÍNH: số trả về là nguyên văn ô kèm handle. KHÔNG cộng, KHÔNG
+        trung bình, KHÔNG hoà giải mâu thuẫn (nếu nhãn và bảng lệch nhau thì LỘ cả hai).
+        Fail-closed: không nhận ra cấu trúc bảng -> co_bang=False + ghi_chu, KHÔNG đoán."""
+        try:
+            cap = max(1, min(int(gioi_han or 60), self._BTD_CAP_TONG))
+        except Exception:
+            cap = self._BTD_CAP_TONG
+        loc = _norm(nhan_chua or "") if nhan_chua else ""
+        try:
+            blocks, tong_gt, bi_cat = self._btd_quet(loc, cap)
+        except Exception:
+            return {"co_bang": False, "blocks": [], "_vitri": {"so_block": 0},
+                    "ghi_chu": "Không đọc được bảng trắc dọc (lỗi nội bộ) — bỏ qua an toàn, không đoán."}
+        if not blocks:
+            return {"co_bang": False, "blocks": [], "_vitri": {"so_block": 0},
+                    "ghi_chu": ("Bản vẽ này KHÔNG có bảng trắc dọc đọc được (không tìm thấy cột chú "
+                                "giải có cấu trúc hàng đều). Đây là kết quả ĐỌC, không phải suy đoán: "
+                                "đừng kết luận bản vẽ thiếu số liệu, hãy thử tim_kiem hoặc "
+                                "cao_do_min_max.")}
+        # ⚠ MỌI trường đếm/vị-trí/echo-tham-số PHẢI nằm trong '_vitri':
+        #  · so_block / tong_gia_tri: để ngoài thì 1.0 và 60.0 lọt rổ neo -> bảo lãnh câu bịa số đếm.
+        #  · loc_nhan: đây là CHUỖI DO MODEL TỰ CHỌN, không phải số đọc từ bản vẽ. Red-team đo được:
+        #    với nhãn chứa mã kiểu 'A-600', gọi nhan_chua='-600' bơm **-600.0** vào rổ (số KHÔNG
+        #    tồn tại ở đâu trong file) và lật 2 câu bịa cao-độ-âm từ CHẶN sang LỌT; đối chứng
+        #    nhan_chua='600' không bơm gì và vẫn chặn ⇒ phép đo phân biệt được. Cùng lớp lỗi đã vá
+        #    cho TÊN FILE (_strip_ten_file) và MÃ HIỆU: chuỗi do người/model tự gõ KHÔNG có tư cách
+        #    làm bằng chứng đo lường.
+        return {"co_bang": True, "blocks": blocks, "khong_day_du": bool(bi_cat),
+                "_vitri": {"so_block": len(blocks), "tong_gia_tri": tong_gt,
+                           "loc_nhan": nhan_chua or None},
+                # ⚠ ghi_chu PHẢI 0 CHỮ SỐ: mọi chuỗi trong result đều bị _collect_numbers quét, nên
+                # một con số nêu làm VÍ DỤ sẽ vào rổ neo và bảo lãnh cho câu bịa trùng số đó (đo
+                # được: bản đầu viết ví dụ '1.740' -> 1.74 lọt vào rổ). Cùng bất biến với
+                # KHONG_TRA_DUOC ở mcp_bridge.
+                "ghi_chu": ("Mỗi hàng = MỘT NHÃN của bảng trắc dọc + các giá trị NẰM CÙNG HÀNG với "
+                            "nó, đọc NGUYÊN VĂN kèm handle. NGHĨA của số do nhãn hàng quyết định: "
+                            "giá trị nằm cùng hàng với nhãn 'Cao độ đáy cống thiết kế' LÀ cao độ đáy "
+                            "cống, dù ô không có dấu cộng/trừ. ⛔ KHÔNG tự cộng/trung bình; muốn nêu "
+                            "min/max thì dùng đúng ô 'nho_nhat'/'lon_nhat' đã trích sẵn kèm handle. "
+                            "Nếu nhãn tờ và bảng mâu thuẫn thì nêu CẢ HAI, không tự hoà giải."
+                            + (" ⚠ KẾT QUẢ CHƯA ĐẦY ĐỦ — đã chạm giới hạn số giá trị trả về nên còn "
+                               "phần chưa trả. TUYỆT ĐỐI không kết luận nhỏ nhất/lớn nhất của TOÀN "
+                               "bảng từ phần này; hãy gọi lại với nhan_chua thu hẹp về đúng hàng cần."
+                               if bi_cat else ""))}
+
+    def _btd_quet(self, loc, cap):
+        """Trả (blocks, tong_gia_tri, bi_cat). Toàn bộ ngưỡng THÍCH NGHI theo h (chiều cao chữ) và p
+        (bước hàng tự đo) — KHÔNG dùng hằng số theo đơn vị bản vẽ.
+
+        ⚠ `bi_cat` là CỜ BOOL (KHÔNG kèm số đếm — số đếm sẽ bơm rổ neo): red-team đo được bản đầu
+        `break` CÂM khi chạm cap, và trên chính file mục tiêu nó GIẤU block chứa giá trị mà docstring
+        của tool nêu làm lý do tồn tại; file GD2 giấu 94,5% giá trị mà không một cảnh báo nào —
+        đúng lớp 'thất bại IM LẶNG' dự án chống."""
+        cao = self._btd_cao_chu()
+        hs = [cao[t["handle"]] for t in self.texts if t.get("handle") in cao]
+        h = self._btd_med(hs)
+        if not h or h <= 0:
+            return [], 0, False
+        nhan = [t for t in self.texts
+                if self._btd_la_nhan(t.get("vn")) and not self._btd_la_so(t.get("vn"))]
+        nhan.sort(key=lambda t: t.get("x") or 0.0)
+        tol_x = self._BTD_QX_H * h
+        cum, cur = [], []
+        for t in nhan:                       # QX: gom cụm x CỤC BỘ theo h (không xr/2000 toàn file)
+            if cur and abs((t.get("x") or 0) - (cur[-1].get("x") or 0)) <= tol_x:
+                cur.append(t)
+            else:
+                if len(cur) >= self._BTD_MIN_HANG:
+                    cum.append(cur)
+                cur = [t]
+        if len(cur) >= self._BTD_MIN_HANG:
+            cum.append(cur)
+
+        ra, tong, bi_cat = [], 0, False
+        for cot in cum:
+            for block, p in self._btd_tach_block(cot):
+                if tong >= cap:
+                    bi_cat = True          # LỘ ra: còn block chưa xử lý vì chạm trần
+                    continue
+                b = self._btd_mot_block(block, p, h, loc, cap - tong)
+                if b:
+                    ra.append(b)
+                    tong += b["_vitri"]["so_gia_tri"]
+                    if b.get("_bi_cat"):
+                        bi_cat = True
+        return ra, tong, bi_cat
+
+    def _btd_tach_block(self, cot):
+        cot = sorted(cot, key=lambda t: -(t.get("y") or 0.0))
+        gaps = [abs((cot[i].get("y") or 0) - (cot[i + 1].get("y") or 0)) for i in range(len(cot) - 1)]
+        gaps = [g for g in gaps if g > 1e-9]
+        if not gaps:
+            return []
+        p = self._btd_med(gaps)
+        if p <= 0:
+            return []
+        # ⚠ p dùng để TÁCH block là median của CẢ CỤM; nhưng p dùng để GHÉP (band 0.45*p) phải là
+        # bước hàng CỦA CHÍNH BLOCK — một cột chú giải có thể chứa hai bảng bước hàng khác nhau,
+        # dùng chung p thì band sai cho block có bước nhỏ hơn (red-team, mức TRUNG).
+        def _p_block(b):
+            g = [abs((b[i].get("y") or 0) - (b[i + 1].get("y") or 0)) for i in range(len(b) - 1)]
+            g = [x for x in g if x > 1e-9]
+            return self._btd_med(g) if g else p
+
+        out, cur = [], [cot[0]]
+        for i in range(1, len(cot)):
+            if abs((cot[i - 1].get("y") or 0) - (cot[i].get("y") or 0)) > self._BTD_BLOCK_P * p:
+                if len(cur) >= self._BTD_MIN_HANG:
+                    out.append((cur, _p_block(cur)))
+                cur = [cot[i]]
+            else:
+                cur.append(cot[i])
+        if len(cur) >= self._BTD_MIN_HANG:
+            out.append((cur, _p_block(cur)))
+        return out
+
+    def _btd_mot_block(self, block, p, h, loc, con_lai):
+        n = len(block)
+        if n < self._BTD_MIN_HANG:
+            return None
+        if p > self._BTD_P_H * h:                                   # G7
+            return None
+        gaps = [abs((block[i].get("y") or 0) - (block[i + 1].get("y") or 0)) for i in range(n - 1)]
+        gaps = [g for g in gaps if g > 1e-9]
+        if not gaps or max(gaps) / max(min(gaps), 1e-9) > self._BTD_DEU:   # G4
+            return None
+        if len(set(_norm(t.get("vn") or "") for t in block)) / float(n) < self._BTD_PHANBIET:  # G2
+            return None
+
+        handle_nhan = set(t.get("handle") for t in block)
+        band = self._BTD_BAND_P * p
+        xmax = 40.0 * p
+        cap_hang, canh_bao = [], set()
+        for nh in block:
+            nx, ny = nh.get("x") or 0.0, nh.get("y") or 0.0
+            ds = []
+            for it in self.texts:
+                if it.get("handle") in handle_nhan:      # G-leak: nhãn đã phát KHÔNG làm giá trị
+                    continue
+                ix = it.get("x") or 0.0
+                if ix <= nx or ix - nx > xmax:
+                    continue
+                if abs((it.get("y") or 0.0) - ny) > band:
+                    continue
+                if not self._btd_la_so(it.get("vn")):
+                    continue
+                ds.append(it)
+                if len(ds) >= self._BTD_CAP_HANG:
+                    canh_bao.add("cat_bot_gia_tri_trong_hang"); break
+            if not ds:
+                continue
+            ds.sort(key=lambda t: t.get("x") or 0.0)
+            if ((ds[0].get("x") or 0) - nx) > self._BTD_DAU_P * p:        # G6
+                canh_bao.add("bo_hang_gia_tri_dau_qua_xa"); continue
+            cap_hang.append((nh, ds))
+
+        cap_hang, n_bo = self._btd_g9(cap_hang)                            # G9 (mức HÀNG)
+        if n_bo:
+            # ⚠ TÊN CẢNH BÁO PHẢI 0 CHỮ SỐ — _collect_numbers quét MỌI chuỗi trong result, nên
+            # 'bo_1_hang...' bơm 1.0 vào rổ neo (đo được). Số lượng để trong '_vitri' (bị strip).
+            canh_bao.add("da_bo_hang_gia_tri_nhay_bac")
+        if len(cap_hang) < 2:
+            return None
+        dem = sorted(len(ds) for _, ds in cap_hang)
+        if self._btd_med(dem) < self._BTD_MATDO:                           # G10
+            return None
+        if loc:
+            cap_hang = [(nh, ds) for nh, ds in cap_hang if loc in _norm(nh.get("vn") or "")]
+            if not cap_hang:
+                return None
+
+        hang, dem_gt, cat = [], 0, False
+        for nh, ds in cap_hang:
+            if dem_gt >= con_lai:
+                canh_bao.add("cat_bot_do_gioi_han"); cat = True; break
+            lay = ds[:max(0, con_lai - dem_gt)]
+            if not lay:
+                canh_bao.add("cat_bot_do_gioi_han"); cat = True; break
+            dem_gt += len(lay)
+            # ⚠ min/max PHẢI tính trên `ds` ĐẦY ĐỦ, KHÔNG phải `lay` (tập đã cắt). Red-team đo:
+            # bản đầu tính trên `lay` nên gioi_han=12 báo nho_nhat='2.930' trong khi giá trị nhỏ
+            # nhất THẬT của hàng đó là '2.710' (sai 0,22 m) — mà chính ghi_chu lại dạy model "muốn
+            # nêu min/max thì dùng ô nho_nhat/lon_nhat". Số sai đó nằm TRONG rổ neo nên _guard_text
+            # không thể bắt ⇒ đúng lớp SAI-TỰ-TIN (I3-U Lớp 1). Ô trả về vẫn là ô THẬT có handle
+            # thật, chỉ chọn trên tập đầy đủ.
+            so = [(self._btd_num(v.get("vn")), v) for v in ds]
+            so = [(x, v) for x, v in so if x is not None]
+            nn = min(so, key=lambda t: t[0])[1] if so else None
+            ll = max(so, key=lambda t: t[0])[1] if so else None
+            if len(lay) < len(ds):
+                canh_bao.add("cat_bot_gia_tri_cua_hang"); cat = True
+            hang.append({
+                # ⚠ PHẢI đặt tên khoá đúng là "handle": mcp_bridge._strip_handle lọc theo DANH SÁCH
+                # KHOÁ CỨNG _KHOA_HANDLE = ("handle","qty_handle","handles","handle_kiem"). Bản đầu
+                # tôi đặt "nhan_handle" -> KHÔNG bị strip -> handle hex lọt vào rổ neo (đo được:
+                # 42, 73, 76, 86 xuất hiện trong rổ mà không phải giá trị nào của bảng).
+                "nhan": nh.get("vn"), "handle": nh.get("handle"),
+                # advisory (khuôn tool #34/#35): chữ trên bản vẽ có thể mang chỉ thị giả dạng dữ
+                # liệu; tool #36 tuyên bố nhãn có thẩm quyền ngữ nghĩa nên PHẢI lộ cờ này.
+                "co_chi_thi_dang_ngo": bool(_co_chi_thi_dang_ngo(nh.get("vn") or "")),
+                "gia_tri": [{"so": v.get("vn"), "handle": v.get("handle")} for v in lay],
+                "nho_nhat": ({"so": nn.get("vn"), "handle": nn.get("handle")} if nn else None),
+                "lon_nhat": ({"so": ll.get("vn"), "handle": ll.get("handle")} if ll else None),
+            })
+        if not hang:
+            return None
+        # ⛔ MỌI trường VỊ TRÍ/ĐẾM nằm dưới ĐÚNG MỘT key '_vitri' -> mcp_bridge._strip_neo loại cả
+        # cụm này khỏi rổ neo. Nếu để toạ độ/số đếm ngoài, chúng thành "bằng chứng" bảo lãnh câu
+        # bịa (đo được: toạ độ 590.23 bảo lãnh '590 m'; số đếm bảo lãnh 'bản vẽ có N cọc').
+        return {"hang": hang, "canh_bao": sorted(canh_bao), "_bi_cat": cat,
+                "_vitri": {"so_hang": len(hang), "so_gia_tri": dem_gt, "so_hang_bi_bo": n_bo,
+                           "buoc_hang": round(p, 4), "cao_chu": round(h, 4)}}
+
+    def _btd_g9(self, cap_hang):
+        """G9 (MỨC HÀNG) — loại hàng có giá trị nhảy bậc độ lớn (ghi chú kỹ thuật giả dạng bảng)."""
+        giu, bo = [], 0
+        for nh, ds in cap_hang:
+            vals = []
+            for v in ds:
+                x = self._btd_num(v.get("vn"))
+                if x is not None and abs(x) > 0:
+                    vals.append(abs(x))
+            if len(vals) < 2 or max(vals) / min(vals) > self._BTD_BAC:
+                bo += 1
+                continue
+            giu.append((nh, ds))
+        return giu, bo
+
+    @staticmethod
+    def _btd_num(s):
+        # ⚠ _BTD_SO_RE CHẤP NHẬN dấu trừ Unicode U+2212 ('−') nên hàm này PHẢI chuẩn hoá nó, nếu
+        # không thì ô '−1.740' được nhận là số nhưng parse ra None -> vừa lệch G9 (hàng bị loại
+        # nhầm) vừa mất khỏi min/max. Bản đầu chỉ replace(',','.') nên mâu thuẫn với chính regex.
+        try:
+            t = str(s).strip()
+            for d in ("−", "–", "—"):
+                t = t.replace(d, "-")
+            return float(t.replace(",", ".").lstrip("+"))
+        except Exception:
+            return None
 
     def _trang_in_kho(self):
         """Kho chữ trang in, dựng LƯỜI (chỉ khi tool được gọi) và nhớ lại. KHÔNG nạp vào self.texts:

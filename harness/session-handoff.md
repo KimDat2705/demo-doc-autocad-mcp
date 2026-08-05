@@ -28,7 +28,17 @@
 > ### 📌 VIỆC NHỎ GHI SỔ (chưa làm)
 > ① Convert lại **3 file cache `_khao_sat/_dxf` hỏng** `DXFStructureError` (di sản audit=0; gồm `chinhcaodo.dxf` — file mà bản vá audit hôm nay cứu). ② Bài học `.pyc` cũ làm cổng sai — memory `[[feedback-stale-pycache-lam-cong-sai]]`, LUẬT: sau mọi vòng gỡ-vá-rồi-khôi-phục phải xoá `__pycache__` trước khi chạy cổng.
 >
-> ### ✅ MỤC 4 — LÁT 0 (CỔNG DETECTOR) ĐÃ XONG 2026-08-02 · gate chốt bằng số · CHƯA code tool
+> ### ✅ MỤC 4 — LÁT 1 XONG: **tool #36 `doc_bang_trac_doc` LIVE** (red-team 5 lỗi CAO đã vá)
+> **Chiều cao chữ:** chọn đọc lại `self.doc.modelspace()` lúc gọi tool (đo **13ms/8.442 chữ** = 0,12% thời gian nạp) thay vì thêm trường vào `_extract` ⇒ **0 suite bị ảnh hưởng**.
+> **🔴 RED-TEAM (`wf_cd35e271`, 4 góc + thẩm định): 11 phát hiện xác minh, 5 CAO — và vòng thẩm định ghi rõ "23 ca test tự viết KHÔNG bắt được phát hiện nào".**
+> **3 lỗi do CHÍNH bản vá đẻ ra:** ① `loc_nhan` ngoài `_vitri` ⇒ tham số **model tự chọn** vào rổ neo — `nhan_chua='-600'` bơm **−600** (không tồn tại trong file) và **lật 2 câu bịa cao-độ-âm từ CHẶN sang LỌT** (đối chứng `'600'` không bơm ⇒ phân biệt được) · ② cap 60 `break` **CÂM** ⇒ giấu chính giá trị `1.740` mà docstring nêu làm lý do tồn tại; GD2 giấu **94,5%** giá trị, 0 cảnh báo · ③ min/max tính trên tập **ĐÃ CẮT** ⇒ `gioi_han=12` báo 2.930 thay vì **2.710**, không cảnh báo, số sai nằm TRONG rổ neo nên guard không bắt = **SAI-TỰ-TIN (I3-U L1)**.
+> **2 lỗi CÓ SẴN:** ④ `handle_khong_khop` ngoài danh sách cứng `_KHOA_HANDLE`, giá trị là **chuỗi tuỳ ý do model cấp** — truyền `'-13.7'` ⇒ **câu id135 từ CHẶN sang LỌT** · ⑤ echo `tu_khoa` ở `tim_kiem` — **CHƯA VÁ, cần A/B**.
+> **✅ Đã vá 4 CAO + 3 TRUNG**, đáng chú ý: **`_strip_handle` đổi từ DANH SÁCH CỨNG sang lọc theo TÊN KHOÁ** (`handle_*`/`*_handle`/`*handles`) — danh sách cứng đã hỏng đúng 2 lần, cả hai IM LẶNG. **Tự kiểm ngược:** chỉ thêm 1 khoá bị loại (`anchor_handle`, đúng là handle); rổ neo 5 tool chính **không đổi một số nào** (11/11 · 20/20 · 30/30 · 19/19 · 7/7).
+> **Sau vá:** min/max **bất biến 2.710** mọi `gioi_han`; rổ mỗi lượt ⊆ giá trị đọc được của **chính lượt đó** (⚠ không so chéo giữa các lượt — lượt không-lọc bị cap che nên so chéo báo động giả); `nhan_chua='đáy cống'` **lấy lại `1.740`**.
+> **Test 23 → 35 ca** (11 ca `[R]` khoá từng lỗ + đối chứng R7b). **Gate `[49/49]` PASS · 36 MCP tool · 1.645 → 1.680 ca · diff: DUY NHẤT suite #36 đổi.**
+> **⏳ Còn ghi sổ:** echo `tu_khoa` (A/B) · O(block×chữ) chưa có trần (đề xuất sort+bisect, giữ nguyên ngưỡng) · handle trong CHUỖI `ghi_chu` của `tinh_dai_luong` (sửa = dịch số nhiều suite) · lát 4 routing-nudge.
+>
+> ### ✅ MỤC 4 — LÁT 0 (CỔNG DETECTOR) XONG · gate chốt bằng số
 > Script đo ở `D:\Dat-Antigravity\_lat0\` (ngoài repo, **0 dòng code sản phẩm bị chạm**).
 > **KẾT QUẢ trên 142 file: 4 file kích hoạt, TẤT CẢ là trắc dọc đường THẬT; 0 file kiến trúc/kết cấu/hạ tầng (rachmop IM)** ⇒ tiêu chí FAIL của lát 0 **ĐẠT**. Đọc tay toàn bộ nhãn (104 lượt): **9 nhãn duy nhất, 0 nhãn rác**. **520 giá trị, 0 SỐ ÂM** ⇒ 0 nguy cơ id135.
 > **⛔ `G8` (thẳng hàng) = NO_GO CÓ SỐ — GỠ khỏi gate:** SAI HƯỚNG — rác thẳng hàng **hoàn hảo 1,000** (bảng mẫu tô `ansi31`/`ar-conc`) còn bảng trắc dọc thật chỉ **0,806** (hàng "khoảng cách" ghi GIỮA hai cọc); quét ngưỡng 0,50–0,90 **không có ngưỡng nào tách được**.

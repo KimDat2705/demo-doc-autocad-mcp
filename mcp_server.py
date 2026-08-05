@@ -368,6 +368,18 @@ def doc_chu_trang_in(tu_khoa: str = "", gioi_han: int = 15) -> dict:
 
 
 @mcp.tool()
+def doc_bang_trac_doc(nhan_chua: str = "", gioi_han: int = 60) -> dict:
+    """Đọc BẢNG TRẮC DỌC (mặt cắt dọc tuyến cống/đường): ghép NHÃN HÀNG với các GIÁ TRỊ CÙNG HÀNG —
+    'Cao độ đáy cống thiết kế', 'Cao độ tim đường', 'Cao trình tự nhiên', 'Khoảng cách giữa các mặt
+    cắt'... GỌI TOOL NÀY khi hỏi cao độ/khoảng cách trên bản vẽ hạ tầng mà cao_do_min_max trả
+    co_cao_do=false: trong bảng trắc dọc, cao độ ghi KHÔNG CÓ DẤU ('1.740') nên tool cao độ không
+    thấy, còn ở đây NGHĨA của số do NHÃN HÀNG quyết định. Lọc bằng nhan_chua (vd 'đáy cống').
+    Số trả về là NGUYÊN VĂN ô kèm handle — KHÔNG được tự cộng/trung bình; muốn nêu min/max thì lấy
+    đúng ô 'nho_nhat'/'lon_nhat'. Nhãn tờ và bảng mâu thuẫn thì nêu CẢ HAI, không tự hoà giải."""
+    return _need() or DRAWING.doc_bang_trac_doc(nhan_chua=nhan_chua, gioi_han=gioi_han)
+
+
+@mcp.tool()
 def kiem_tra_handle(handles: str = "") -> dict:
     """HOST-ONLY (I1, KHÔNG dành cho LLM — nằm trong _TOOL_KHONG_CHO_LLM ở mcp_bridge): đối chiếu 1 danh sách
     handle (ngăn phẩy) với đối tượng THẬT trong file đang mở. CHỈ ĐỌC, trả DỮ KIỆN THÔ (trong_file/dxftype/

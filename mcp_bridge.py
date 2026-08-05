@@ -809,6 +809,22 @@ def _strip_ten_file(v):
 _KHOA_HANDLE = ("handle", "qty_handle", "handles", "handle_kiem")
 
 
+def _la_khoa_handle(k):
+    """Nhận diện khoá mang HANDLE theo HÌNH DẠNG TÊN thay vì danh sách cứng.
+
+    ⚠ VÌ SAO ĐỔI CƠ CHẾ: danh sách cứng `_KHOA_HANDLE` đã hỏng ĐÚNG HAI LẦN, cả hai đều IM LẶNG:
+      · `handle_khong_khop` (tools_core `tinh_dai_luong`) — tệ hơn handle thật vì GIÁ TRỊ là chuỗi
+        TUỲ Ý do model/đối tác cấp qua `inputs_bo_sung`; red-team đo được: truyền
+        `{"chieu_sau_handle": "-13.7"}` ⇒ rổ neo có -13.7 ⇒ câu 'cao độ đáy đài cọc là -13,7 m'
+        (đúng chữ ký id135) từ CHẶN chuyển sang LỌT. Đối chứng '2A3F1' thì chặn ⇒ phép đo phân biệt được.
+      · `nhan_handle` (tool #36 bản đầu) — handle hex lọt rổ (42, 73, 76, 86).
+    Mỗi lần thêm tool mới là một cơ hội quên. Lọc theo tên khoá đóng CẢ LỚP lỗi này."""
+    if not isinstance(k, str):
+        return False
+    return (k in _KHOA_HANDLE or k == "handle" or k.startswith("handle_")
+            or k.endswith("_handle") or k.endswith("_handles") or k.endswith("handles"))
+
+
 def _strip_handle(v):
     """Loại ĐỆ QUY các khoá HANDLE khỏi BẢN SAO result trước khi gom số vào rổ grounding.
 
@@ -821,16 +837,33 @@ def _strip_handle(v):
     ⚠ KHÔNG ảnh hưởng I1: `_collect_handles` chạy trên result THÔ ở call-site riêng, không qua hàm này —
     model vẫn trích dẫn được handle và vẫn bị đối chiếu như cũ."""
     if isinstance(v, dict):
-        return {k: _strip_handle(x) for k, x in v.items() if k not in _KHOA_HANDLE}
+        return {k: _strip_handle(x) for k, x in v.items() if not _la_khoa_handle(k)}
     if isinstance(v, (list, tuple)):
         return [_strip_handle(x) for x in v]
     return v
 
 
+def _strip_vitri(v):
+    """Loại ĐỆ QUY key '_vitri' (toạ độ / bước hàng / SỐ ĐẾM của tool đọc bảng theo vị trí) khỏi
+    BẢN SAO result trước khi gom số vào rổ grounding. Cùng khuôn allowlist-of-one-key như '_kb':
+    MỌI trường vị-trí/đếm của tool #36 bắt buộc nằm dưới đúng 1 key này -> trường tương lai cũng
+    tự nằm trong, KHÔNG thể quên strip.
+    VÌ SAO BẮT BUỘC (đo được, không phải phòng xa): để lọt thì toạ độ thành "bằng chứng" bảo lãnh
+    câu bịa (590.23 -> '590 m'), và số đếm bảo lãnh 'bản vẽ có N cọc'. Giá trị ĐỌC ĐƯỢC của bảng
+    (nguyên văn ô + handle) nằm NGOÀI '_vitri' nên VẪN vào rổ — đó là chủ đích: chiều ngược lại
+    (loại cả tool khỏi rổ) đã đo ra GIẾT câu đúng trên 2/2 file trắc dọc, đúng lớp lỗi A3."""
+    if isinstance(v, dict):
+        return {k: _strip_vitri(x) for k, x in v.items() if k != "_vitri"}
+    if isinstance(v, (list, tuple)):
+        return [_strip_vitri(x) for x in v]
+    return v
+
+
 def _strip_neo(v):
     """Lọc TRƯỚC KHI GOM RỔ NEO — gộp mọi nguồn KHÔNG được phép làm bằng chứng grounding:
-    '_kb' (dữ liệu kho kiến thức, L2) + 'name' (tên file do người dùng đặt) + HANDLE (mã hex nội bộ)."""
-    return _strip_handle(_strip_ten_file(_strip_kb(v)))
+    '_kb' (dữ liệu kho kiến thức, L2) + 'name' (tên file do người dùng đặt) + HANDLE (mã hex nội bộ)
+    + '_vitri' (toạ độ/bước hàng/số đếm của tool đọc bảng theo vị trí, #36)."""
+    return _strip_handle(_strip_ten_file(_strip_kb(_strip_vitri(v))))
 
 
 def _kb_hoi_tu_result(result, acc):
