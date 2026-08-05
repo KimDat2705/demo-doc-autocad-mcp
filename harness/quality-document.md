@@ -1,7 +1,20 @@
 # Quality Document — demo 2 (chấm theo chuẩn Harness)
 
-**Ngày:** 2026-07-09 · **Người chấm:** Tự động (test tất định + workflow đối kháng) + thủ công (đối chiếu file thật) ·
+**Ngày CHẤM:** 2026-07-09 · **Người chấm:** Tự động (test tất định + workflow đối kháng) + thủ công (đối chiếu file thật) ·
 **Phạm vi:** Đọc dữ liệu + TÍNH khối lượng (takeoff). Dự toán chi phí = HOÃN (không tính điểm).
+
+> ⚠ **CẬP NHẬT SỐ LIỆU 2026-08-02 — BẢNG ĐIỂM DƯỚI ĐÂY CHƯA ĐƯỢC CHẤM LẠI.** Các con số trong tài
+> liệu này là của lần chấm 2026-07-09 và đã **lạc hậu nhiều**; chỉ số liệu sự thật được cập nhật ở
+> đây, **hạng/điểm giữ nguyên** vì chưa có vòng chấm mới (không tự nâng điểm — xem
+> `[[feedback-khong-overclaim-milestone]]`).
+> **Hiện trạng đo được 2026-08-02:** **36 MCP tool** (không phải 20) · cổng `check.sh` **[49/49] PASS**,
+> **49 bước**, **tổng 1.680 ca** (không phải 76) · `test_takeoff_chong_bia` **283** · `test_qa_data` **129**
+> · LIVE `0c1d710`, `ram_mb` 136,0.
+> **Mục cần chấm lại khi có vòng chấm mới:** *Vận hành (robustness)* — nay đã có TTL/session/admission/
+> bridge-close/health (roadmap H-L phần lớn đã làm) nên hạng **B** có thể đã cũ; *Phân tầng độ tin cậy*
+> (**B+**) — nay có thêm cờ `co_chi_thi_dang_ngo`, `khong_day_du`, `nghi_ngo`, `_vitri` bị loại khỏi rổ neo;
+> *Chống bịa* — đã qua nhiều vòng red-team có số (id135 lọt 0,0%), nhưng cũng lộ ra lớp lỗi mới
+> (rò rỉ rổ neo qua khoá/echo tham số) nên **không mặc nhiên giữ A**.
 
 ## Bảng điểm theo chiều
 | Chiều | Hạng | Bằng chứng |

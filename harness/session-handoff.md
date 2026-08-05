@@ -12,7 +12,35 @@
 > **Muốn public thật sau này — ĐỪNG LÀM LẠI TỪ ĐẦU:** nhánh local **`public-ready`** đã có sẵn trọn gói (history sạch không .deb qua `git filter-repo` · Dockerfile tải ODA tuỳ chọn qua `ODA_DEB_URL` · thông báo .dxf-only thân thiện · .gitignore chặn .deb). Đánh đổi: cloud chỉ đọc .dxf tới khi đặt `ODA_DEB_URL`. Mirror backup: `D:/Dat-Antigravity/_backup_repo_truoc_khi_public_20260717/repo-mirror.git`.
 
 
-## 🏁 CHỐT SỔ 2026-08-02 (nối 2) — **ĐỌC KHỐI NÀY TRƯỚC**
+## 🏁 CHỐT SỔ PHIÊN 2026-08-02 — **ĐỌC KHỐI NÀY TRƯỚC**
+> **HEAD `0c1d710` == origin · tree SẠCH · LIVE `0c1d710` verify đủ 4 mục** (prompt `239e8b7b…` KHÔNG đổi · kb `e55ac112…` KHÔNG đổi · `/health` ok `ram_mb` 136,0 · trang chủ HTTP 200).
+> **CỔNG `[49/49]` PASS · 36 MCP tool · tổng ca 1.627 → 1.680 · 48 → 49 bước · 0 regress ở MỌI lát.** `feature_list.json` **79 → 85 mục** (71 done · 1 partial · 13 deferred).
+> ⚠ **pytest VẪN crash** (`ValueError: I/O operation on closed file` → `no tests ran`) — đã kiểm lại cuối phiên, KHÔNG phải nhớ. Cổng là `check.sh`. **KHÔNG có `specs/specs.json`** → `feature_list.json`. (Hai điều này lặp mỗi phiên, checklist dòng 8 đã ghi.)
+> **7 commit** push+deploy+verify: `0cb25e6` vá audit · `dabcaac` docs F1 · `7030aa6` PA-0 · `6b7c2b9` VNI tầng 2 · `b366161` docs · `755d053` lát 0 · `0c1d710` lát 1 tool #36.
+>
+> ### 5 VIỆC LÀM ĐƯỢC
+> | việc | kết quả ĐO ĐƯỢC |
+> |---|---|
+> | **Vá `dwgconv` audit=1** | cứu **10/147 file** khỏi "không đọc được", hỏng thêm **0**; trong đó có `chinhcaodo.dwg` của TB6 (988 chữ, **200 marker cao độ**) — bug **chỉ người dùng gặp**, dev không đi qua đường đó |
+> | **VNI vớt tầng 2** | vớt **78/79 chuỗi**, 0 vớt-sai, **0 phá `TOÀ/HOÀ`**, 0 lệch số |
+> | **PA-0 (rổ neo rỗng)** | chốt **DƯỚI NGƯỠNG** (1 hiện tượng < 3) ⇒ 0 đổi hành vi; đóng vùng mù đo lường + tripwire |
+> | **Mục 4 lát 0** | 4/142 file kích hoạt đều đúng, **0 file kiến trúc/kết cấu**, 0 nhãn rác, 0 số âm |
+> | **Mục 4 lát 1 — tool #36** | đọc được `'cao độ đáy cống'` → `1.800…1.900` kèm handle, thứ mà `cao_do_min_max` trả 0 kết quả |
+>
+> ### ⛔ 3 HƯỚNG ĐÓNG BẰNG SỐ TRONG PHIÊN — ĐỪNG MỞ LẠI
+> **F1 bộ đối tác** (thiết kế sâu nhất −4,10m; 2 file đạt −5m là **hố khoan địa chất**, khác hệ) · **`Ø` vào `_SIG`** (126/152 ứng viên là ký hiệu đường kính thật ⇒ hại/lợi 4:1) · **gate "thẳng hàng"** cho detector bảng (rác 1,000 vs bảng thật 0,806, không ngưỡng nào tách).
+>
+> ### 📌 BÀI HỌC MANG SANG PHIÊN SAU
+> **(a) TEST TỰ VIẾT KHÔNG THAY THẾ ĐƯỢC RED-TEAM** — 23 ca PASS hết mà **5 lỗi CAO** lọt, **3 do chính bản vá đẻ ra**; thẩm định ghi thẳng *"23 ca test hiện có KHÔNG bắt được một phát hiện nào"*. `[[feedback-red-team-khong-thay-the-duoc]]`
+> **(b) `.pyc` CŨ CHO CỔNG KẾT QUẢ SAI** — vá 1 ký tự (cùng size) + khôi phục cùng giây ⇒ nạp bytecode bản đã gỡ vá; **chiều ngược = CỔNG XANH OAN**. Luôn xoá `__pycache__` trước cổng. `[[feedback-stale-pycache-lam-cong-sai]]`
+> **(c) DANH SÁCH KHOÁ CỨNG LÀ BỀ MẶT DỄ QUÊN** — `_KHOA_HANDLE` hỏng đúng 2 lần, cả hai im lặng; nay lọc theo hình dạng tên.
+> **(d) Bộ đo hỏng 6 lần trong phiên, tự bắt hết** — nổi bật: cache dùng basename **gộp 20 file trùng tên** khiến cả một vòng sweep chạy trên dữ liệu lai (bắt vì D600 = 1112 = 496+616).
+>
+> ### 🔥 VIỆC CHỜ — phiên sau
+> ① **Lát 4 routing-nudge**: `cao_do_min_max` nhánh 0-marker → trỏ tool #36. Không đụng SYSTEM_PROMPT (chỉ `ghi_chu`) nhưng **BẮT BUỘC A/B** per-case + giữ từ chối trên 17 bẫy · ② echo `tu_khoa` ở `tim_kiem` (lỗi có sẵn, A/B riêng) · ③ trần công việc O(block×chữ) cho #36 (sort+bisect, giữ nguyên ngưỡng ⇒ số không đổi) · ④ **PA-2/PA-3** đọc bảng tổng quát cho id37 — **phải có lát-0 riêng**, gate PA-1 KHÔNG dùng lại được · ⑤ mục 3 `Ü` (có cách an toàn, lợi ích 49 chuỗi/2 file, **chưa đáng** — chỉ làm nếu user muốn dọn danh sách) · ⑥ **nhóm C vẫn hoãn**.
+> **Chờ file ngoài:** F1 — cao độ **ĐÁY THIẾT KẾ** ≤ −5m (móng cọc / tầng hầm / trạm bơm; **hố khoan địa chất KHÔNG dùng được**) · F2 bảng bóc khối lượng làm tay.
+
+## 🏁 CHỐT SỔ 2026-08-02 (nối 2) — (lát trước cùng ngày)
 > **HEAD `6b7c2b9`** (VNI vớt tầng 2) ← `7030aa6` (PA-0) ← `dabcaac` (docs F1+audit) ← `0cb25e6` (vá audit). check.sh **[48/48] PASS · tổng ca 1.630 → 1.633 → 1.645** (PA-0 +3, VNI +12) · 35 MCP tool · 0 regress — mỗi lát diff từng suite: **DUY NHẤT** suite của lát đó đổi. `feature_list.json` **80 → 82 mục** (70 done · 1 partial · 11 deferred).
 >
 > ### ✅ MỤC 1 (VNI 9,8%) — XONG: vớt tầng 2 bằng BẰNG-CHỨNG ÂM TIẾT (`wf_666cedfd`, GO/GO_WA×2)
