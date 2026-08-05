@@ -179,6 +179,84 @@ def main():
     ok("số cao_do vào tool_numbers -> answer '-1.85m' GIỮ", B._guard_text("Cao độ thấp nhất là -1.85m.", nums) != B.REFUSE_MESSAGE)
     ok("answer bịa '-99m' (không trong tool) -> guard CHẶN", B._guard_text("Cao độ thấp nhất là -99m.", nums) == B.REFUSE_MESSAGE)
 
+    # ══ [P] PROSE 0-CHỮ-SỐ — khoá lát 4a (2026-08-05) ════════════════════════════════════════
+    # VÌ SAO: `cao_do_min_max` KHÔNG ở tuple loại-trừ (mcp_bridge.py:1226) và `_strip_neo` không lọc
+    # chuỗi tự do => mọi chữ số trong 'ghi_chu'/'ly_do' thành NEO grounding. Trước lát 4a đo được:
+    # ví dụ 'CH - 2.700'/'cốt - 14.260' bơm 2.7 và 14.26 (chữ ký id135), cụm '2-3 số thập phân' bơm
+    # 2.0/3.0 => 5 câu bịa LỌT. Ai thêm số vào prose của tool này sẽ mở lại đúng lớp lỗi đó.
+    print("[P] prose (ghi_chu/ly_do) KHÔNG được mang chữ số — chống bơm neo")
+
+    def _prose_digits(o):
+        s = set()
+        if isinstance(o, dict):
+            for k, v in o.items():
+                s |= B._collect_numbers(v) if (k in ("ghi_chu", "ly_do") and isinstance(v, str)) else _prose_digits(v)
+        elif isinstance(o, list):
+            for v in o:
+                s |= _prose_digits(v)
+        return s
+
+    NHANH = {
+        "0-marker thuần": [],
+        "0-marker + marker ÂM dạng cách": [_txt("CH - 2.700", "A1")],
+        "G3-fallback (toàn layer thép)": [_txt("-44.100", "B1", "KCS_SOTHEP")],
+        "thành công (có cả cb_am)": [_txt("-1.850", "C1"), _txt("+10.800", "C2"), _txt("cốt - 9.120", "C3")],
+    }
+    for ten, txts in NHANH.items():
+        r = tc.Drawing.cao_do_min_max(_Fake(txts))
+        ok("prose 0 chữ số — nhánh %s" % ten, _prose_digits(r) == set(), sorted(_prose_digits(r)))
+
+    # ĐỐI CHỨNG CHỐNG-TAUTOLOGY: bộ kiểm PHẢI bắt được số khi prose thật sự có số.
+    ok("[đối chứng] _prose_digits BẮT được số cắm vào ghi_chu (bộ kiểm phân biệt được)",
+       _prose_digits({"ghi_chu": "vd 'cốt - 14.260'"}) == {14.26})
+    ok("[đối chứng] _prose_digits BỎ QUA trường DỮ LIỆU (chỉ soi prose)",
+       _prose_digits({"gia_tri_m": -14.26, "nguyen_van": "- 14.260"}) == set())
+
+    # HÀNH VI: nhánh 0-marker thuần chỉ còn ĐÚNG 0.0 (từ so_marker) — không một số prose nào.
+    r1 = tc.Drawing.cao_do_min_max(_Fake([]))
+    ok("nhánh 0-marker thuần: rổ neo == {0.0} (trước lát 4a là {0.0, 2.0, 3.0})",
+       B._collect_numbers(B._strip_neo(r1)) == {0.0}, sorted(B._collect_numbers(B._strip_neo(r1))))
+    for cau in ("Tổng chiều dài tuyến là 3 m.", "Chiều dày lớp bê tông lót là 2 m.", "Chiều sâu đào là 3000 mm."):
+        ok("nhánh 0-marker: câu bịa %r bị CHẶN" % cau,
+           B._guard_text(cau, B._collect_numbers(B._strip_neo(r1))) == B.REFUSE_MESSAGE)
+
+    # HÀNH VI: 14.26 (chữ ký id135) KHÔNG còn được prose bảo lãnh ở nhánh có marker ÂM dạng cách.
+    r2 = tc.Drawing.cao_do_min_max(_Fake([_txt("CH - 2.700", "A1")]))
+    ro2 = B._collect_numbers(B._strip_neo(r2))
+    ok("marker ÂM dạng cách: 14.26 KHÔNG còn trong rổ neo", 14.26 not in ro2, sorted(ro2))
+    ok("marker ÂM dạng cách: câu bịa 'Cao độ đáy cống là 14,26 m.' bị CHẶN",
+       B._guard_text("Cao độ đáy cống là 14,26 m.", ro2) == B.REFUSE_MESSAGE)
+    ok("[đối chứng] số ĐỌC THẬT '2.700' của chính bản vẽ VẪN được bảo lãnh (không giết câu đúng)",
+       B._guard_text("Nhãn ghi CH - 2,700 m.", ro2) != B.REFUSE_MESSAGE, sorted(ro2))
+
+    # HÀNH VI: nhánh THÀNH CÔNG vẫn giữ nguyên mọi số ĐỌC ĐƯỢC (bản vá không đụng dữ liệu).
+    r3 = tc.Drawing.cao_do_min_max(_Fake([_txt("-1.850", "C1"), _txt("+10.800", "C2"), _txt("cốt - 9.120", "C3")]))
+    ro3 = B._collect_numbers(B._strip_neo(r3))
+    ok("nhánh thành công: số đọc thật -1.85/10.8/-9.12 VẪN trong rổ neo", {-1.85, 10.8, -9.12} <= ro3, sorted(ro3))
+    ok("nhánh thành công: 14.26 và 2.7 (chỉ có ở prose cũ) đã BIẾN MẤT", 14.26 not in ro3 and 2.7 not in ro3, sorted(ro3))
+
+    # ── thong_tin_tang: ANH EM RUỘT, cùng lỗi, MỨC NGUY CAO HƠN ────────────────────────────
+    # Ví dụ cũ '(±0.000, +3.600...)' bơm 0.0 và 3.6. 3.6 = chiều cao tầng ĐIỂN HÌNH ⇒ đúng con số
+    # model dễ bịa nhất, lại được chính nhánh "không đọc được gì" bảo lãnh.
+    class _FTang:
+        levels, texts = {}, []
+
+    rt = tc.Drawing.thong_tin_tang(_FTang())
+    rot = B._collect_numbers(B._strip_neo(rt))
+    ok("thong_tin_tang nhánh 0 mốc: prose 0 chữ số", _prose_digits(rt) == set(), sorted(_prose_digits(rt)))
+    ok("thong_tin_tang nhánh 0 mốc: rổ neo RỖNG (trước lát 4a là {0.0, 3.6})", rot == set(), sorted(rot))
+    for cau in ("Chiều cao tầng điển hình là 3,6 m.", "Chiều cao tầng là 3600 mm."):
+        ok("thong_tin_tang: câu bịa %r bị CHẶN" % cau, B._guard_text(cau, rot) == B.REFUSE_MESSAGE)
+    # prose nhánh THÀNH CÔNG cũng phải sạch số (ví dụ cũ "cột C1 cao 3.6m" bơm 1.0 và 3.6)
+    class _FTang2:
+        texts = []
+        levels = {"levels": [0.0, 3.3], "min": 0.0, "max": 3.3, "typical_floor_h": 3.3, "n_tang_est": 1}
+
+    rt2 = tc.Drawing.thong_tin_tang(_FTang2())
+    ok("thong_tin_tang nhánh CÓ mốc: prose 0 chữ số", _prose_digits(rt2) == set(), sorted(_prose_digits(rt2)))
+    ok("[đối chứng] thong_tin_tang nhánh CÓ mốc VẪN trả số đọc thật (3.3) — không giết dữ liệu",
+       3.3 in B._collect_numbers(B._strip_neo(rt2)), sorted(B._collect_numbers(B._strip_neo(rt2))))
+
     if SKIP:
         print("CANH BAO: %d nhom BO QUA (thieu fixture)" % SKIP)
     print("\n%d PASS / %d FAIL / %d BO QUA" % (PASS, FAIL, SKIP))

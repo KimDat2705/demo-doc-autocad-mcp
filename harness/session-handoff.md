@@ -12,6 +12,41 @@
 > **Muốn public thật sau này — ĐỪNG LÀM LẠI TỪ ĐẦU:** nhánh local **`public-ready`** đã có sẵn trọn gói (history sạch không .deb qua `git filter-repo` · Dockerfile tải ODA tuỳ chọn qua `ODA_DEB_URL` · thông báo .dxf-only thân thiện · .gitignore chặn .deb). Đánh đổi: cloud chỉ đọc .dxf tới khi đặt `ODA_DEB_URL`. Mirror backup: `D:/Dat-Antigravity/_backup_repo_truoc_khi_public_20260717/repo-mirror.git`.
 
 
+## 🏁 CHỐT SỔ PHIÊN 2026-08-05 — **ĐỌC KHỐI NÀY TRƯỚC**
+> **Việc được giao:** *"nghiên cứu chi tiết và triển khai Lát 4"*. **Kết quả: lát 4 tách đôi — 4a VÁ XONG, 4b NO_GO có số.**
+> **CỔNG `[49/49]` PASS exit 0 · 36 MCP tool · `test_cao_do_min_max` 31 → 52 ca · diff từng suite: DUY NHẤT bước [20/49] đổi số, 33/33 suite còn lại giữ NGUYÊN TỪNG CON SỐ** (takeoff 283 khớp baseline — suite duy nhất trong bước 1-15 có gọi `thong_tin_tang`). `feature_list.json` **85 → 86** (72 done · 1 partial · 13 deferred). **KHÔNG bump `PROMPT_VERSION`** (đo `sha256(SYSTEM_PROMPT)`=`239e8b7b…` KHỚP FROZEN). ⏳ **CHƯA COMMIT** — chờ user chốt.
+> Nghiên cứu `wf_f5e1a3dd-ace` (5 probe + tổng hợp). Script đo **ngoài repo**: `D:\Dat-Antigravity\_lat4\` (`lat4a_ab.py` trước/sau · `audit_prose.py` sàng tĩnh · `verify_claims.py`/`verify2.py` tự kiểm chứng · `p1_corpus.jsonl` + `p1_control.jsonl` dữ liệu thô).
+>
+> ### ✅ LÁT 4a — bịt rò rổ neo qua PROSE (lỗi CÓ SẴN, không do lát 4 đẻ ra)
+> `cao_do_min_max`/`thong_tin_tang` không ở tuple loại-trừ + `_strip_neo` không lọc chuỗi tự do ⇒ **mọi chữ số trong `ghi_chu`/`ly_do` thành NEO grounding**; ở nhánh 0-marker `_guard_text` là hàng rào **duy nhất** còn hoạt động.
+>
+> | chuỗi cũ | bơm vào rổ | câu bịa được bảo lãnh |
+> |---|---|---|
+> | `"kèm 2-3 số thập phân"` | 2.0 · 3.0 | *dài 3 m* · *dày 2 m* · *sâu 3000 mm* |
+> | `"(vd 'CH - 2.700')"` + `"(vd 'cốt - 14.260')"` | 2.7 · **14.26** | *Cao độ đáy cống là 14,26 m* ← chữ ký id135 |
+> | `"(±0.000, +3.600...)"` | 0.0 · **3.6** | *Chiều cao tầng điển hình là 3,6 m* · *3600 mm* |
+> | `"(vd 'cột C1 cao 3.6m')"` | 1.0 · 3.6 | — |
+> | `"⚠ Có %d marker…"` | số ĐẾM | — |
+>
+> **Vá bằng cách giữ NGUYÊN nghĩa**: viết số **bằng chữ** (`"hai đến ba chữ số thập phân"`) hoặc **placeholder** (`n.nnn`, `<số>`). Rổ neo: 0-marker `[0.0,2.0,3.0]`→`[0.0]` · `thong_tin_tang` 0 mốc `[0.0,3.6]`→**RỖNG** · **6 câu bịa lật LỌT→CHẶN**.
+> ⚠ **`thong_tin_tang` nguy hơn ca 14.26** (3.6 = chiều cao tầng điển hình = số model dễ bịa nhất). Đây là chỗ **nới phạm vi** so với 2 lỗi báo cáo ban đầu — lý do bằng số, đã báo user.
+> **Đối chứng đủ 4 loại:** nhánh G3 vốn sạch ⇒ **0 số đổi** · `77,77` CHẶN 2 phía · số đọc thật `-1.85/10.8/-9.12/3.3` và `'2.700'` có thật **vẫn lọt** · `_prose_digits` phân biệt prose vs dữ liệu. **Tự kiểm ngược: gỡ vá ⇒ đúng 15 ca đỏ**, đối chứng vẫn xanh.
+>
+> ### ⛔ LÁT 4b (routing-nudge) — NO_GO, ĐỪNG MỞ LẠI KHI CHƯA CÓ DÂN SỐ MỚI
+> **(a) Trần tuyệt đối = 2 bản vẽ.** 123 file nạp được, bảng chéo: **A=2** (nudge hữu ích) · **B=52** (trỏ vào chỗ trống) · **C=2** (nudge không bao giờ bắn vì `cao_do_min_max` thành công) · D=67. Bắn 54 trúng 2 = **3,7%**; ngưỡng tiền lệ `≥3` **bất khả thi về số học**.
+> **(b) Đích đến trả số SAI ở lệnh gọi mặc định:** `doc_bang_trac_doc()` → `1.800` (handle 42E96); `nhan_chua='đáy cống'` lộ **2 block**, min thật `1.740` (handle 4291B) — ngân sách `_BTD_CAP_TONG=60` bị block đầu tiêu hết. **Tool KHÔNG im lặng** (lộ bằng 4 đường: `khong_day_du` · `_bi_cat` · `canh_bao` · ghi_chu *"TUYỆT ĐỐI không kết luận nhỏ nhất/lớn nhất của TOÀN bảng"*), **nhưng hàng rào QUAY NGƯỢC**: `1,800 m` **LỌT**, `1,740 m` **CHẶN** ⇒ nudge **thành công** có thể làm hệ **tệ đi**.
+> **(c)** Cả 2 file thắng nằm ngoài mọi corpus đã cấu hình (battery 3 file cố định, 0 câu trắc dọc).
+> **Nếu sau này làm:** 0 chữ số bắt buộc (`'tool #36'` bơm 36.0 → E2E cho câu bịa *"…là 36 m."* đi trọn vẹn; dùng TÊN `doc_bang_trac_doc`) · cấm cụm ∈ `_REFUSAL_MARKERS` (`_guard_text` **thoát sớm, bỏ kiểm cả bài**) · cấm khẳng định bản vẽ CÓ dữ liệu (E2). Chi phí nudge-**có-đo** rẻ: median **1,39 ms** (0,172% thời gian nạp).
+>
+> ### 🔥 VIỆC CHỜ — phiên sau
+> ① **Vá cắt ngân sách XUYÊN BLOCK của #36** (đề xuất thay cho 4b): offline, 0 API, là **điều kiện cần** cho mọi nudge sau. Đo trước/sau trên 4 file kích hoạt — cả 4 đều chạm trần nên vá có thể làm im lặng cả 4. · ② Lỗ **số ĐẾM** (`so_marker`, `so_bang`…) — lát riêng, vá sẽ dịch số nhiều suite · ③ **5 hàm** bộ sàng tĩnh nêu còn prose mang chữ số (`liet_ke_so_luong` chứa **đúng chuỗi `"vd 'D1'"` mà `b236b7e` đã gỡ ở `tra_cuu_so_luong`**, `hoc_quy_uoc`, `phan_loai_tin_hieu`, `_resolve_lo_cua`, `_gan_cc`) — **phải chạy thật để xác minh**, quét tĩnh có thể báo oan · ④ echo `tu_khoa` ở `tim_kiem` (A/B riêng) · ⑤ PA-2/PA-3 đọc bảng tổng quát (cần lát-0 riêng) · ⑥ nhóm C vẫn hoãn.
+> **Điểm mù chưa đo:** 16/92 file corpus (17,4%) chưa bao giờ quét vì trần 45MB — soi tên thì không file nào mang chữ ký `Cat doc`/`CN duong`, nhưng **thấp không phải là đã đo**.
+>
+> ### 📌 BÀI HỌC
+> **(a) Đi đo tính năng A lại tìm ra lỗi của tính năng B — và lỗi đó đáng giá hơn.** Lát 4 ra NO_GO, nhưng đường đi tới NO_GO lộ 5 chuỗi rò neo đang chạy LIVE.
+> **(b) Bộ đo agent hỏng, bắt được nhờ số quá đẹp:** `NFD` không gỡ được `Đ/đ` (U+0110/0111 **không có canonical decomposition**) ⇒ báo *"0/76 file có nhãn trắc dọc"*. `[[feedback-kiem-bo-trich-truoc-khi-tin-so]]`
+> **(c) Không nhận nguyên xi kết luận agent:** phần **số** của agent đúng (1.800 vs 1.740), phần **mức nghiêm trọng** sai (bảo tool im lặng, thực tế lộ 4 đường) — phân biệt được hai cái đó đổi hẳn khuyến nghị.
+
 ## 🏁 CHỐT SỔ PHIÊN 2026-08-02 — **ĐỌC KHỐI NÀY TRƯỚC**
 > **HEAD `0c1d710` == origin · tree SẠCH · LIVE `0c1d710` verify đủ 4 mục** (prompt `239e8b7b…` KHÔNG đổi · kb `e55ac112…` KHÔNG đổi · `/health` ok `ram_mb` 136,0 · trang chủ HTTP 200).
 > **CỔNG `[49/49]` PASS · 36 MCP tool · tổng ca 1.627 → 1.680 · 48 → 49 bước · 0 regress ở MỌI lát.** `feature_list.json` **79 → 85 mục** (71 done · 1 partial · 13 deferred).

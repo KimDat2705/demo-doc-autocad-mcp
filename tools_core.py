@@ -2987,15 +2987,21 @@ class Drawing:
         """GĐ2c: BÁO cao độ + chiều cao tầng điển hình + số tầng ƯỚC TÍNH. KHÔNG tự bơm vào tính toán (an toàn)."""
         lv = getattr(self, "levels", None) or {}
         if not lv.get("levels"):
+            # ⛔ 0 CHỮ SỐ trong prose (lát 4a) — ví dụ CŨ '(±0.000, +3.600...)' bơm 0.0 và 3.6 vào rổ neo.
+            # ĐO ĐƯỢC: rổ = [0.0, 3.6] ⇒ câu bịa 'Chiều cao tầng điển hình là 3,6 m.' LỌT và 'là 3600 mm.'
+            # LỌT (đối chứng rổ rỗng: cả hai CHẶN; đối chứng '4,2 m': CHẶN ⇒ phép đo phân biệt được).
+            # Nguy hơn ca 14.26 của cao_do_min_max: 3.6 là chiều cao tầng ĐIỂN HÌNH nên là con số model dễ
+            # bịa nhất, mà chính nhánh 'không đọc được gì' lại đứng ra bảo lãnh nó. Dùng placeholder 'n.nnn'.
             return {"co_cao_do": False,
-                    "ghi_chu": "Bản vẽ không có mốc cao độ (±0.000, +3.600...) đọc được → chưa suy được chiều cao tầng."}
+                    "ghi_chu": "Bản vẽ không có mốc cao độ (dạng ±n.nnn, +n.nnn…) đọc được → chưa suy được chiều cao tầng."}
         return {"co_cao_do": True, "so_moc_cao_do": len(lv["levels"]),
                 "cao_do_thap_nhat_m": lv["min"], "cao_do_cao_nhat_m": lv["max"],
                 "chieu_cao_tang_dien_hinh_m": lv["typical_floor_h"], "so_tang_uoc_tinh": lv["n_tang_est"],
                 "cac_cao_do_m": lv["levels"],
                 "ghi_chu": "Cao độ là số ĐỌC trên bản vẽ. Chiều cao tầng = HIỆU cao độ liền kề (hệ thống tính). "
                            "Số tầng là ƯỚC TÍNH (cao độ cao nhất ÷ chiều cao tầng); tầng lửng/chiếu nghỉ có thể khác. "
-                           "Muốn TÍNH thể tích cột theo chiều cao tầng, đối tác xác nhận rồi nhập (vd 'cột C1 cao 3.6m')."}
+                           "Muốn TÍNH thể tích cột theo chiều cao tầng, đối tác xác nhận rồi nhập (nêu tên cấu "
+                           "kiện kèm chiều cao VÀ đơn vị, dạng 'cột <mã> cao <số>m')."}   # 0 chữ số: xem lát 4a
 
     def cao_do_min_max(self, **_):
         """id135-recall: CAO ĐỘ THẤP/SÂU NHẤT + CAO NHẤT đọc RAW từ marker cao độ text, KÈM handle + nguyên văn.
@@ -3020,20 +3026,30 @@ class Drawing:
                 else:                     # '+'/'±' (mọi gap) + '-' dính liền -> nạp min/max như thường
                     found.append(rec)
 
+        # ⛔ LUẬT 0-CHỮ-SỐ CHO MỌI PROSE CỦA TOOL NÀY ('ghi_chu' và 'ly_do') — đo 2026-08-05 (lát 4a).
+        # `cao_do_min_max` KHÔNG nằm trong tuple loại-trừ (mcp_bridge.py:1226) và `_strip_neo` KHÔNG có bộ
+        # lọc nào cho chuỗi tự do, nên MỌI chữ số trong MỌI chuỗi của result đều trở thành NEO grounding.
+        # ĐO ĐƯỢC TRƯỚC KHI VÁ (fixture 1 text 'CH - 2.700'): hai ví dụ SỐ trong chính câu này bơm 2.7 và
+        # 14.26 vào rổ -> câu bịa 'Cao độ đáy cống là 14,26 m.' LỌT (14.26 = chữ ký id135), 'Chiều cao
+        # thông thuỷ là 2,7 m.' LỌT; đối chứng rổ rỗng thì cả hai CHẶN. Rò cả ở NHÁNH THÀNH CÔNG vì
+        # `cb_am` được nối vào 'canh_bao' ở đó nữa. Ở nhánh 0-marker `_guard_text` là hàng rào DUY NHẤT
+        # còn hoạt động (A2/A3 đã đo là không kích) nên một chữ số lạc vào đây = mất TRỌN một lớp bảo vệ.
+        # ⇒ Ví dụ minh hoạ phải dùng placeholder 'n.nnn'; số cần nêu thì viết BẰNG CHỮ.
+        # (Placeholder giống hệt nhau ở hai vế lại đúng ý câu: chúng KHÔNG phân biệt được theo hình thức.)
         def _cb_am_cach(f):   # item canh_bao cho '-' dạng cách: LỘ để đối chiếu tay, KHÔNG vào min/max
             return {"gia_tri_m": f["v"], "handle": f["handle"], "layer": f["layer"], "nguyen_van": f["nguyen_van"],
                     "dang": "inline_cach", "ly_do": "cao độ ÂM dạng CÁCH ('X - n.nnn') — đồng dạng nhãn chiều-cao/"
-                    "kích-thước (vd 'CH - 2.700') VÀ mốc sâu thật (vd 'cốt - 14.260'); KHÔNG tách được theo hình thức "
+                    "kích-thước (vd 'CH - n.nnn') VÀ mốc sâu thật (vd 'cốt - n.nnn'); KHÔNG tách được theo hình thức "
                     "→ loại khỏi min/max, đối chiếu TAY nếu là cao độ."}
         cb_am = [_cb_am_cach(f) for f in am_cach]
         if not found:
             r = {"co_cao_do": False, "so_marker": 0,
-                 "ghi_chu": "Bản vẽ KHÔNG có marker cao độ (dấu +/-/± kèm 2-3 số thập phân) đọc được → "
-                            "KHÔNG đọc được cao độ thấp/cao nhất CÓ CĂN CỨ. Đừng ước/đoán một con số."}
+                 "ghi_chu": "Bản vẽ KHÔNG có marker cao độ (dấu +/-/± kèm hai đến ba chữ số thập phân) đọc "
+                            "được → KHÔNG đọc được cao độ thấp/cao nhất CÓ CĂN CỨ. Đừng ước/đoán một con số."}
             if cb_am:   # có '-' dạng cách nhưng không marker rõ nào -> LỘ ở canh_bao thay vì im lặng bỏ
                 r["canh_bao"] = cb_am
-                r["ghi_chu"] += (" ⚠ Có %d marker ÂM dạng CÁCH (xem canh_bao) — không đủ căn cứ nạp min/max, "
-                                 "đối chiếu tay." % len(cb_am))
+                r["ghi_chu"] += (" ⚠ CÓ marker ÂM dạng CÁCH (xem 'canh_bao', mỗi mục kèm handle) — không đủ "
+                                 "căn cứ nạp min/max, đối chiếu tay.")   # bỏ %d: số ĐẾM cũng thành neo
                 kb = self._kb_hoi_am_cach(cb_am)   # L4: câu hỏi confirm-only cho dạng mập mờ (ca CH-2.700)
                 if kb: r["_kb"] = kb
             return r
