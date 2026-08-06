@@ -12,6 +12,48 @@
 > **Muốn public thật sau này — ĐỪNG LÀM LẠI TỪ ĐẦU:** nhánh local **`public-ready`** đã có sẵn trọn gói (history sạch không .deb qua `git filter-repo` · Dockerfile tải ODA tuỳ chọn qua `ODA_DEB_URL` · thông báo .dxf-only thân thiện · .gitignore chặn .deb). Đánh đổi: cloud chỉ đọc .dxf tới khi đặt `ODA_DEB_URL`. Mirror backup: `D:/Dat-Antigravity/_backup_repo_truoc_khi_public_20260717/repo-mirror.git`.
 
 
+## 🔴 2026-08-06 — API KEY BỊ KHOÁ (billing) · KẾ HOẠCH NÂNG CẤP MODEL → `KE_HOACH_NANG_CAP_MODEL.md`
+> **Phiên HỎI-ĐÁP, KHÔNG code** (user chốt). Sản phẩm: `KE_HOACH_NANG_CAP_MODEL.md` + mục `nang-cap-model-3-6-flash` trong `feature_list.json` (87 → **88**).
+>
+> ### ⛔ SỰ CỐ ĐANG DIỄN RA — demo KHÔNG trả lời được
+> Mọi lệnh gọi Gemini trả **403 PERMISSION_DENIED · `Lightning dunning decision is deny for project: projects/883414745254`** (hệ thống **cưỡng chế thanh toán** của Google — chặn cấp PROJECT). **Nguyên nhân: chưa gia hạn thanh toán** (sếp xác nhận 2026-08-06).
+> **Xác minh 2 đường độc lập:** (a) gọi thẳng từ máy local bằng key `.env`; (b) **E2E thật lên Render** — upload OK (`so_layer:4`, `tong_doi_tuong:35`) rồi `/ask` trả chữ đỏ 403, `/health.metrics` = `{asks:0, errors:1, uploads:1}`. **Cùng một mã project** ở cả hai ⇒ không phải lỗi sandbox/mạng. Thử `2.5-flash / 3.6-flash / 3.5-flash / 2.0-flash / 1.5-flash` — **cả 5 đều 403** ⇒ **đổi model KHÔNG cứu được**.
+> **Phân tầng hỏng:** tầng đọc (36 tool, ezdxf) **VẪN CHẠY TỐT**; chỉ tầng model chết. Demo sẽ nạp file + hiện tóm tắt bình thường rồi **gãy ở câu hỏi đầu tiên** — kiểu hỏng dễ mất mặt nhất.
+>
+> ### 🐛 BUG THẬT phát hiện khi rà (độc lập với billing)
+> `_FALLBACK_DEFAULT = "gemini-2.0-flash,gemini-1.5-flash"` (`mcp_bridge.py:55`) — **`gemini-2.0-flash` đã bị Google TẮT HẲN**. Model chết trả **404**, mà `_is_overloaded()` chỉ nhận `{429,500,502,503,504}` ⇒ **KHÔNG fail-forward, ném lỗi luôn**. Chuỗi dự phòng đã mục 1 nấc mà không ai biết.
+>
+> ### ⏳ HẠN CỨNG
+> `gemini-2.5-flash` **bị khai tử 16/10/2026** (~10 tuần). Google chỉ định bản thay: **`gemini-3.6-flash`**.
+>
+> ### ✅ CHỐT MODEL (chi tiết + nguồn ở `KE_HOACH_NANG_CAP_MODEL.md`)
+> Chính **`gemini-3.6-flash`** (GA, không preview · mạnh nhất dòng Flash về **gọi công cụ** · rẻ hơn 3.5-flash ở đầu ra $7,50 vs $9,00 · ít token ra ~17% ⇒ đỡ áp lực `MAX_TURNS=14`).
+> ⛔ **KHÔNG chọn 3.1 Pro** dù user cho phép "dùng model thông minh nhất": còn `-preview`; **nút thắt dự án là ghép nhãn↔giá trị ở TẦNG ĐỌC, không phải suy luận** (`[[project-nut-that-recall-ghep-nhan-gia-tri]]`) — Pro không đọc được ô bảng mà tool không trả về; tiền lệ *"Pro preview cạn quota ~25 req"* (`mcp_bridge.py:34`).
+> Chuỗi mới: **`3.6-flash → 3.5-flash → 3.5-flash-lite`** (CÙNG thế hệ 3.x). **Đề xuất cũ `3.6 → 3.5-lite → 2.5-flash` đã RÚT LẠI** vì trộn thế hệ làm vỡ **chữ ký suy luận**.
+>
+> ### ⚠ VÁ CODE BẮT BUỘC (không chỉnh env được)
+> Gemini 3 đính **thought signature** vào mỗi `function_call`, **bắt buộc gửi lại nguyên vẹn**, và **từ chối chữ ký của model khác**. `_gen_fallback` (`:76-95`) đổi model **giữa chừng request** trong khi `contents` đã mang chữ ký model cũ ⇒ **400**. Phải **chạy lại request TỪ ĐẦU** khi đổi model. *(Tin tốt: code append **nguyên đối tượng** `cand.content` ở `:1187/:1239/:1247` ⇒ trong CÙNG model chữ ký được giữ đúng.)*
+>
+> ### 🎯 3 RỦI RO PHẢI ĐO — KHÔNG ĐƯỢC GIẢ ĐỊNH
+> **R1 `temperature=0` xung đột** (`:1150`,`:1269`): Gemini 3 khuyến nghị giữ **1.0**, dưới 1.0 *"may lead to looping or degraded performance"* — mà `temperature=0` là lựa chọn **chống bịa cốt lõi**. Phải A/B **riêng biến này**, không đổi cùng lúc với model.
+> **R2 `max_output_tokens=8192` là ngân sách CHUNG** cho thinking + câu trả lời (`python-genai#2062`), `thinking_level` mặc định `high` ⇒ nguy cơ **empty-response** (`[[feedback-e2e-test-kpi]]` — đã từng dính).
+> **R3** `FunctionResponse` có thể cần trường `id` (`:1193`,`:1230`) — tài liệu chính không xác nhận, **phải thử thật**.
+> **Chi phí:** ×5 đầu vào ($1,50 vs $0,30), ×3 đầu ra ($7,50 vs $2,50), **cộng token suy nghĩ tính vào đầu ra** ⇒ thực tế có thể hơn ×3. Chưa đo thật.
+>
+> ### 📋 THỨ TỰ — **GĐ1 làm được NGAY (offline), GĐ2 CHẶN tới khi có API**
+> **GĐ1 (không cần API):** gỡ `2.0-flash` chết · vá `_gen_fallback` chạy-lại-từ-đầu · thêm 404 vào fail-forward · đưa `thinking_level`/`max_output_tokens`/`temperature` ra env · nâng `google-genai` 2.10.0 → mới nhất · mở rộng `tests/test_model_fallback.py`. Cổng: `check.sh` xanh + `test_takeoff_chong_bia.py` 76/76 (**xoá `__pycache__` trước**).
+> **GĐ2 (CẦN API):** khói 5 request → **xác minh R1/R2/R3 bằng ca nhỏ TRƯỚC** → A/B 198 câu × `{2.5-flash, 3.6-flash}`.
+> ⚠ **BẮT BUỘC chống 429 + checkpoint theo dòng**: `tests/battery_results_pro25.jsonl` **hỏng 127/198 dòng** vì cạn quota giữa chừng và suýt cho kết luận ngược *"Flash giỏi hơn Pro"*.
+> **Ngưỡng GO:** `3.6-flash` **không thua** ở trục **bẫy ảo giác** và **không tụt recall**. Thắng tốc độ/tiền mà thua bẫy = **NO_GO**.
+> ⚠ **Kỷ luật đo:** đọc tay ≥10 ca trước khi tin số tổng hợp. *Trong chính phiên này phép đo cho **3 kết quả sai liên tiếp** (12,6% trùng khớp · 98/198 "không neo" · "Flash giỏi hơn Pro") — cả 3 đều trông hợp lý* (`[[feedback-kiem-bo-trich-truoc-khi-tin-so]]`).
+
+## 🧭 2026-08-06 (nối 2) — VÒNG 2 **NO_GO cả HỌ nối-dài** · VÒNG 3 **thước đọc tay + khung nét** · SỐ TRANH CHẤP đang phân xử
+> **Cây SẠCH tại `0a3dfaa` — 0 dòng code sản phẩm bị đụng qua CẢ 3 vòng nghiên cứu.** Chi tiết đầy đủ + mọi con số: mục `muc4-lat-ghep-cuaso-ngansach` trong `feature_list.json` (đã cập nhật trọn). Workflow: vòng 2 `wf_da337a88` · vòng 3 `wf_c635c3e9`.
+> **⭐ USER ĐẶT CHUẨN MỚI (2026-08-06, áp cho MỌI việc đọc-số về sau):** *"độ chính xác gần như tuyệt đối — số SAI = lỗi, số THIẾU = lỗi, không 9-bỏ-làm-10"* vì số chảy vào DỰ TOÁN. ⇒ phương án 'NÍN' (chỉ ngừng nói sai) của vòng 2 KHÔNG ĐẠT; mục tiêu là ĐỌC ĐÚNG hoặc TỪ CHỐI RÕ.
+> **VÒNG 2 — NO_GO:** cả HỌ luật "nối dài ≤ K×bước" chết (F5: max(đi-tiếp)=5,46 > min(dừng)=0,76 chồng lấn tuyệt đối; K=1,25 làm F5 GIẢM 79,8%→75,4%); lợi ích trên 4 file đích = thuộc tính BỐ CỤC, không phải của luật. 🔴 **Lỗ ×1000 CÓ SẴN trong HEAD** (không do thiết kế nào mở): 1 lượt `nhan_chua='Khoảng cách'` trên C2 → 13/33 mốc mm + **6 câu bịa LỌT** — đòn bẩy ở `_is_grounded`/ANY-GROUNDED, KHÔNG ở tool #36.
+> **VÒNG 3 — nền mới:** thước đọc tay **391 hàng/4.283 ô/5 file** (`_lat4/su_that_nen_doc_tay.json`) · khung nét làm biên XÁC NHẬN · **dãy handle KHÔNG phải chữ ký hàng** (3/5 file vẽ theo CỘT) · **C1/C2 là trắc NGANG** — tool đang âm thầm đọc loại bảng sai tên · **biên đúng chưa đủ**: 37% hàng đổi min/max vì ký hiệu vẽ đè (cao chữ 0.15 vs 0.20) · 💡 hướng mới: **số học tự-chứng-minh làm cơ chế đọc** (tách mức y + đẳng thức cộng dồn; O-B chéo).
+> **⚠⚠ SỐ TRANH CHẤP — CẤM CODE TỚI KHI PHÂN XỬ XONG:** F5 'Khoảng cách cộng dồn': agent khai **23/23** khớp đẳng thức (biên khung nét) vs tôi đo lại **9/24** (biên nhãn-kế, dải ±1.0); hai mức y 23/23 vs 17/24. Lần kiểm đầu của tôi HỎNG (quên biên phải → gộp 24 bảng làm 1) = lần thứ 10 bộ trích hỏng. Vòng PHÂN XỬ per-bảng đang chạy (offline — KHÔNG bị sự cố billing 403 chặn).
+
 ## 🔬 2026-08-06 — TOOL #36 CÓ **HAI** CƠ CHẾ CẮT · thước đo bị cong · lát ghép ĐANG LÀM
 > *(cùng phiên với khối ghi "2026-08-05" ngay dưới — tôi ghi lệch ngày, nội dung không đổi.)*
 > **HEAD `d4a7c33` · cây SẠCH · suite #36 `35 PASS / 0 FAIL`.** Bản vá dở đã **HOÀN TÁC khỏi cây**, lưu ở `D:\Dat-Antigravity\_lat4\lat4c_WIP.patch`. `feature_list` **86 → 87** (mục mới `muc4-lat-ghep-cuaso-ngansach`). Nghiên cứu: `wf_7d902824-ad4` (2 thiết kế + 3 góc phản biện + chốt), rồi TỰ ĐO THÊM.
