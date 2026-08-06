@@ -12,6 +12,57 @@
 > **Muốn public thật sau này — ĐỪNG LÀM LẠI TỪ ĐẦU:** nhánh local **`public-ready`** đã có sẵn trọn gói (history sạch không .deb qua `git filter-repo` · Dockerfile tải ODA tuỳ chọn qua `ODA_DEB_URL` · thông báo .dxf-only thân thiện · .gitignore chặn .deb). Đánh đổi: cloud chỉ đọc .dxf tới khi đặt `ODA_DEB_URL`. Mirror backup: `D:/Dat-Antigravity/_backup_repo_truoc_khi_public_20260717/repo-mirror.git`.
 
 
+## 🛡 2026-08-06 — RÀ TẦNG 3 (hàng rào chống bịa): TRẠNG THÁI THẬT + 2 đầu mục mới (`feature_list` 90 → **91**)
+> **⛔ ĐÍNH CHÍNH TRÍ NHỚ CŨ — 3 "kênh lọt" ĐÃ VÁ XONG, đừng nêu lại như việc còn treo.** `neo-grounding-sach` **LIVE `5548fe1`+`5756b37`** bịt cả ba: (1) mã-hiệu gạch nối sinh neo ÂM (`DẦM D2-10`→−10; **68/76 file** có ≥1 neo âm; 24/76 neo âm rơi ĐÚNG dải cao độ = cấp phép bịa id135) · (2) **TÊN FILE** (cùng nội dung byte, đổi tên thành `MC coc -13.7 va 7500.dxf` → 2 câu bịa chuyển từ CHẶN sang LỌT) · (3) **HANDLE hex** (kết quả 3 handle + chữ KHÔNG SỐ vẫn sinh rổ `[1,2,9,38,13876]`). Cộng `lat4a-prose-0-chu-so-cao-do`. **Hiệu quả đo: lớp id135 lọt `0,0%`.** Chạy lại 2026-08-06: **6 suite hàng rào 471 ca, 0 FAIL** (grounding 57 · neo 34 · neo-rỗng 29 · handle 44 · i3 24 · takeoff 283).
+>
+> ### ⭐ THƯỚC ĐO — "tỉ lệ lọt" KHÔNG DÙNG ĐƯỢC, đây là chỗ dễ sai nhất
+> 5 probe đo **CÙNG đại lượng** trên **CÙNG hàng rào** ra `0% / 23,8% / 32,2% / 37,9% / 52-77,5%`; giữ nguyên rổ neo **chỉ đổi BỘ SINH** số bịa → `0,0% → 13,6%` (probe khác `1,9% → 79,2%`). ⇒ **"tỉ lệ lọt" là thuộc tính của BỘ SINH, không phải của hàng rào. ĐỪNG trích con số nền nào, kể cả 15,0% hay 36-49% ở tài liệu cũ.**
+> **BA thước THẬT thay thế:** ① **giết oan (FP)** trên 198 câu THẬT chấm bằng nhãn độc lập `ky_vong` — hiện **0** (guard gốc 0/198; guard số đếm 0/72) · ② **lọt theo LỚP tấn công đã biết** — id135 **0,0%** · ③ **vùng mù** (mỗi REFUSE phải phân loại được) — legacy **117/179** chưa phân loại, PA-0 đã bật seam vĩnh viễn ⇒ lượt sau = 0.
+> **VÌ SAO FP LÀ RÀNG BUỘC QUYẾT ĐỊNH, không phải tỉ lệ lọt:** siết chặt hơn thì GIẾT CHÍNH CHỨC NĂNG — `ALL` giết **82% câu có PHÉP CỘNG** (việc chính của bóc tách), per-claim **96,7-100% câu nó giết là câu ĐÚNG**, bỏ ×1000 giết oan **36,5%→85,4%**. `ANY-GROUNDED` là luật DUY NHẤT có **0% chặn oan trên cả 7 dạng**.
+>
+> ### 🎯 "BAO GIỜ ĐỦ DÙNG" — tiêu chí thay cho "% hoàn hảo"
+> ① **giết oan = 0** trên bộ câu thật (ràng buộc **CỨNG**) · ② **mỗi lớp tấn công đã biết → lọt 0%** (cộng dồn) · ③ **không tìm ra lớp mới** sau K vòng → tạm cạn, mở lại khi có corpus/model mới.
+> Nguyên tắc: **hàng rào không cần hoàn hảo, nó cần KHÔNG BAO GIỜ SAI ÂM THẦM.** Số không neo được thì bị chặn, mà chặn thì người dùng THẤY.
+>
+> ### 📌 NGUYÊN TẮC BẤT DI (rút từ 2 kết luận NGƯỢC nhau cùng ngày)
+> **SIẾT PHẠM VI thì được · ĐỔI LUẬT PHÁN QUYẾT thì không.** `guard-so-dem` **GO** (siết *cái gì được coi là khẳng định*: bắt đúng 1 — model nói '120 lần' trong khi tool trả 5 — **giết oan 0/72**) vs `per-claim` **NO_GO** (đổi luật phán quyết).
+>
+> ### 📊 TRẠNG THÁI HARNESS cho tầng 3 — **15 đầu mục**
+> **9 done** (`anti-bia` · `i1-guard-validate-handle` · `guard-so-dem` · `neo-grounding-sach` · `a2-rổ-neo-rỗng` · `a3-neo-theo-trích-dẫn` · `lo-cum-tu-choi-tat-guard` · `lat4a-prose` · `pa0-seam-đo`) · **1 partial** (`i3-bounds-check`) · **5 NO_GO CÓ SỐ** (per-claim · câu-tổng-hợp-bị-giết · gợi-ý-trong-tool · bộ-dò-tự-cộng-số · cờ-số-máy-tính). **Nhóm NO_GO là TÀI SẢN** — chặn 5 hướng nghe rất hợp lý nhưng đã chứng minh làm hỏng.
+>
+> ### ➕ HAI CHỖ THIẾU → ĐÃ LẬP (user chốt 2026-08-06)
+> 1. **`ra-kenh-bom-ro-neo-loop`** (mục mới, `planned`) — đầu mục **THƯỜNG TRỰC** tìm kênh bơm rổ neo thứ 4, 5… bằng loop-until-dry. Đây là **đòn bẩy DUY NHẤT** với điểm yếu ANY (rổ `{220}` + *"Dầm rộng 220 mm, cao 9999 mm, dài 12345 mm"* → **LỌT**), vì đổi luật đã NO_GO.
+> 2. **Đo lại hàng rào = GỘP vào GĐ2 bước 2.6** của `KE_HOACH_NANG_CAP_MODEL.md` (user chốt gộp) — cùng 198 câu, một lượt chạy cho CẢ so-sánh-model LẪN phân-loại-hàng-rào; chạy riêng = đốt quota 2 lần. ⚠ Đọc kết quả phải tách *guard đổi hành vi* vs *model đổi văn phong* bằng cột `answer_truoc_guard`.
+
+## 📏 2026-08-06 — ĐO RESIDUAL TOÀN CORPUS → hàng đợi công việc CÓ SỐ → `KET_QUA_DO_RESIDUAL_TOAN_CORPUS.md`
+> **Phiên HỎI-ĐÁP, KHÔNG sửa code chạy.** Sản phẩm: `KET_QUA_DO_RESIDUAL_TOAN_CORPUS.md` + script `tests/do_residual_corpus.py` + dữ liệu thô `_khao_sat/residual_toan_corpus.json` (gitignored — **số liệu đã chép vào .md để không mất**) + 2 đầu mục `feature_list` (88 → **90**).
+> **Phép đo ĐẮT: 14 phút.** Đừng chạy lại nếu chỉ cần số — đọc file .md.
+>
+> ### KẾT QUẢ — 86/86 file, 0 lỗi
+> **956.114 đoạn chữ · residual 907.993 = 95,0%.** Phân rã: chữ+số-không-đơn-vị **42,2%** · số trần **25,0%** · chữ thuần **23,9%** · **CÓ ĐƠN VỊ (hàng đợi ưu tiên) 32.475 = 3,6%**.
+> ⚠ **KHÔNG đọc "95%" thành "hỏng 95%".** 3 nhóm hạ tầng chiếm **751k/956k = 78,6%** tổng chữ với residual 96–99,9% nhưng "có đơn vị" chỉ 0,5–1,3% (chữ của chúng là tên mốc trắc địa/số hiệu cọc). Nhà dân dụng residual **62–70%**. ⇒ **hạ tầng cần thước đo RIÊNG**, gộp chung làm mọi tỉ lệ mất nghĩa.
+>
+> ### ⭐ XẾP HẠNG LOẠI DỮ LIỆU BỊ BỎ SÓT (= danh sách công cụ nên xây)
+> **#1 đường kính thép `Ø10a150`/`2Ø14+2Ø14`/`4Ø10` — 17.908 = 55,1%** (cách biệt lớn) · #2 tiết diện `AxB` 4.688 = 14,4% · #3 gán nhãn `s=`/`L=`/`h=` 4.519 = 13,9% · #4 **có-đơn-vị-chưa-khớp-mẫu 3.601 = 11,1% (đáng soi, có thể lộ loại chưa biết)** · #5 độ dài 1.061 · #6 khối lượng 447 · #7 diện tích 193.
+>
+> ### ✅ ĐÃ XÁC MINH — 17.908 chuỗi Ø KHÔNG trùng bảng thống kê thép
+> `2. Ket Cau_NHA 9T.dxf`: `thong_ke_thep` đọc **279.679,6 kg** từ **THUỘC TÍNH BLOCK** trong khi **3.850** chuỗi Ø trong **TEXT** là residual **100%**. Kiểm chéo `2. KET CAU MONG-…`: **183/183 residual**. **Hai tập TÁCH RỜI ⇒ con số là thật, không thổi phồng.**
+>
+> ### ⚠ BA CÁI BẪY ĐÃ TRẢ GIÁ TRONG PHIÊN — ĐỪNG DẪM LẠI
+> 1. **`Drawing.texts` KHÔNG có trường chiều cao chữ** (khoá chỉ `handle/layer/text/vn/x/y`). Lần đo đầu ra *"81,2% số cô độc"* — **SAI HOÀN TOÀN** vì thang `H` mặc định về `1.0` = 1 đơn vị bản vẽ. Phải chuẩn hoá bằng **trung vị khoảng cách láng giềng gần nhất giữa các đoạn chữ trong CHÍNH file đó** → số thật: **96,1% số trần CÓ chữ ở gần** (63,7% sát bên).
+> 2. **Cổng `READFILE_MAX_MB=45` chặn 14/86 file** — và đó chính là các bản **kết cấu LỚN NHẤT** (nhà 9T 114MB, thống kê thép 68MB). Bỏ ra thì kết quả lệch nặng về file nhỏ (72 file cho 212k chữ; đủ 86 file cho **956k** — tức 78% chữ nằm ở phần bị chặn). **Đo local PHẢI đặt `READFILE_MAX_MB=400`** — cổng 45MB là giới hạn RAM CLOUD, không phải logic; đọc local MIỄN PHÍ.
+> 3. **residual ĐẾM THIẾU phần đã đọc bằng đường khác**: `4. Thong ke thep SUA.dxf` trông rỗng (27 đối tượng, 17 đoạn chữ, `thong_ke_thep`=0kg) nhưng có **8 `OLE2FRAME`**, bảng đầu **254 hàng × 32 cột** *"BẢNG TÍNH CHI TIẾT KHỐI LƯỢNG CỐT THÉP"* — tool #27 `doc_bang_nhung` **ĐỌC ĐƯỢC**. Đừng kết luận "file không đọc được" chỉ vì residual im lặng.
+>
+> ### ❌ HAI GIẢ THUYẾT VỀ "SỐ TRẦN" ĐÃ CHẾT (mẫu 8 file/1.114 số)
+> **Tên layer cho biết nghĩa** — chỉ **~7%** trên layer mang nghĩa (`Caodo`/`CD_Dinh`/`CD_Day`), **76,8%** trên layer chung chung (`7`,`6text`,`Text`,`Chu`,`0`). **Lấy nhãn gần nhất là ra nghĩa** — cặp thật hỏng: `12 ← "MẶT CẮT 12-12"`, `9 ← "MẶT BẰNG"`, `14 ← "MẶT CẮT 14-14"`. ⇒ một phần đáng kể "số trần" **không phải dữ liệu** (số hiệu mặt cắt / bong bóng trục) — tỉ lệ số-trần đang **thổi phồng** vấn đề.
+>
+> ### ⚠ NHÓM "CÓ ĐƠN VỊ" MẠNH NHƯNG KHÔNG TINH KHIẾT — KHÔNG tự động đổ vào dự toán
+> Đọc tay bắt nhầm: `V=1:100`/`H=1:500` = **TỶ LỆ bản vẽ** · `cút thép hàn DN100x45°` = **DN100 × GÓC 45°** không phải tiết diện · `cho 1m3 nước, nước dùng để ngâm…` = **ghi chú bảo dưỡng bê tông**. Phải qua **sổ số chưa gán** để NGƯỜI duyệt.
+>
+> ### 🎯 HƯỚNG GIẢI + YÊU CẦU USER (chốt trong phiên)
+> 4 tầng theo "cần bao nhiêu kiến thức xây dựng": **A** loại-trừ (không cần chút nào) · **B** trích-theo-CẤU-TRÚC — *không hỏi "số này nghĩa là gì" mà hỏi "số này nằm ở đâu, cạnh nhãn nào" rồi **chép nhãn NGUYÊN VĂN**; hệ thống KHÔNG BAO GIỜ HIỂU, chỉ trích và trích dẫn* (tiền lệ tool #36 đạt 861/861) · **C** người-biết-nghề (TCVN › thầy › đối tác; **hỏi CÂU ĐÓNG kèm ảnh khoanh vùng**, không hỏi mở) · **D** sổ-số-chưa-gán.
+> **User chốt:** *"tất cả số liệu phải đọc đúng, bất kỳ số nào cũng có thể liên quan dự toán"* → phân định đã thống nhất: **"không bỏ qua" ≠ "đọc được hết"; nguy hiểm là bỏ sót ÂM THẦM** ⇒ sản phẩm bắt buộc là **sổ số chưa gán** (đếm được, giảm dần được).
+
 ## 🔴 2026-08-06 — API KEY BỊ KHOÁ (billing) · KẾ HOẠCH NÂNG CẤP MODEL → `KE_HOACH_NANG_CAP_MODEL.md`
 > **Phiên HỎI-ĐÁP, KHÔNG code** (user chốt). Sản phẩm: `KE_HOACH_NANG_CAP_MODEL.md` + mục `nang-cap-model-3-6-flash` trong `feature_list.json` (87 → **88**).
 >
@@ -46,6 +97,11 @@
 > ⚠ **BẮT BUỘC chống 429 + checkpoint theo dòng**: `tests/battery_results_pro25.jsonl` **hỏng 127/198 dòng** vì cạn quota giữa chừng và suýt cho kết luận ngược *"Flash giỏi hơn Pro"*.
 > **Ngưỡng GO:** `3.6-flash` **không thua** ở trục **bẫy ảo giác** và **không tụt recall**. Thắng tốc độ/tiền mà thua bẫy = **NO_GO**.
 > ⚠ **Kỷ luật đo:** đọc tay ≥10 ca trước khi tin số tổng hợp. *Trong chính phiên này phép đo cho **3 kết quả sai liên tiếp** (12,6% trùng khớp · 98/198 "không neo" · "Flash giỏi hơn Pro") — cả 3 đều trông hợp lý* (`[[feedback-kiem-bo-trich-truoc-khi-tin-so]]`).
+
+## 📐 2026-08-06 (nối 3) — **ĐẶC TẢ TOOL #37 CHỐT SAU RED-TEAM** → `DAC_TA_TOOL37.md` · ⛔ CHƯA CODE, chờ user quyết 4 mục
+> **wf_689d5254**: tác giả dựng PROTOTYPE chạy được (`D:\Dat-Antigravity\_lat4\proto_khung\`) → 3 góc red-team tấn công code thật (2/3 BÁC ĐƯỢC) → chốt. **Toàn văn đặc tả + 11 bản vá V-A..V-K + thứ tự B0-B7 + 10 tiêu chí nghiệm thu đặt trước: `DAC_TA_TOOL37.md` (gốc repo).** Chi tiết cũng ở mục `muc4-lat-ghep-cuaso-ngansach` của feature_list.
+> Tóm tắt: tool MỚI **#37 `doc_bang_ke_khung`** additive (#36 nguyên TỪNG BYTE; van nhường = lát riêng); phân tầng a/b/c + từ chối đúng loại; mỏ neo (rotation, align_point); Decimal nguyên; gate `da_chung_minh` (so_pt≥2 + xen_ke ⇒ F5 còn **9/23 claim, 336/462 ô = 72,7%** — số 81,8% cũ là định nghĩa lỏng); **garble-normalizer 2 phía cho `nhan_chua` = ĐIỀU KIỆN GO**. Red-team bắt nổi bật: **5.359 dải rơi KHÔNG VẾT** toàn corpus (V-C, tiêu chí = 0) · khoá dải round-tuyệt-đối câm trên 01-TD lệch 0.002 (V-D) · khung đọc nhầm **LƯỚI TRỤC NHÀ** thành bảng (V-H) · khung lồng không dedup (V-I). Rổ neo khai đủ 3 chiều: mốc-mm 52→55 · mốc-MÉT 70→85 (+21%) · corpus-wide ~2,5× · phiên đa-lượt ~2× — nguồn nở là Ô THẬT + **×1000 CÓ SẴN của `_is_grounded` (ngoài lát)**; kỷ luật rổ của #37 tự nó đứng vững (0 tham số/prose/đếm/handle lọt).
+> **⏳ 4 VIỆC CHỜ USER QUYẾT (⛔ chưa code):** ① giá ×1000 — LIVE #37 ngay + lát grounding-có-đơn-vị NGAY SAU (khuyến nghị) hay hoãn LIVE · ② trần 60/200 giữ hay nâng (FULL = ×3,5 bề mặt) · ③ V-H: từ chối đích danh 29 hàng lưới-trục (đề xuất) hay chỉ gắn cờ · ④ ưu tiên ngân sách trên-xuống + mục lục (đề xuất) hay ưu-tiên-bảng-nhiều-hàng.
 
 ## 🧭 2026-08-06 (nối 2) — VÒNG 2 **NO_GO cả HỌ nối-dài** · VÒNG 3 **thước đọc tay + khung nét** · SỐ TRANH CHẤP đang phân xử
 > **Cây SẠCH tại `0a3dfaa` — 0 dòng code sản phẩm bị đụng qua CẢ 3 vòng nghiên cứu.** Chi tiết đầy đủ + mọi con số: mục `muc4-lat-ghep-cuaso-ngansach` trong `feature_list.json` (đã cập nhật trọn). Workflow: vòng 2 `wf_da337a88` · vòng 3 `wf_c635c3e9`.

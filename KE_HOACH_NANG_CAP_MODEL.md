@@ -127,6 +127,9 @@ Ra `200` = thông.
 
 ### GĐ 2 — CẦN API (chỉ chạy sau GĐ 0)
 
+> ⭐ **GỘP THÊM MỘT VIỆC (user chốt 2026-08-06): ĐO LẠI HÀNG RÀO CHỐNG BỊA (tầng 3) trong CÙNG lượt chạy.**
+> Cùng 198 câu, cùng bản vẽ — một lượt chạy cho **hai** kết quả: (a) so sánh model 2.5 vs 3.6; (b) dữ liệu phân loại hàng rào. Chạy riêng là **đốt quota hai lần cho cùng một thứ**. Chi tiết ở **2.6**.
+
 **2.1 Khói (rẻ, ~5 request).** 1 câu × `{3.6-flash, 3.5-flash, 3.5-flash-lite}` → xác nhận 200 + có chữ.
 
 **2.2 Xác minh R1/R2/R3 bằng ca nhỏ TRƯỚC khi chạy 198 câu.**
@@ -157,6 +160,26 @@ Ra `200` = thông.
 - *Trong phiên nghiên cứu này, phép đo cho **3 kết quả sai liên tiếp** (12,6% trùng khớp · 98/198 "không có neo" · "Flash giỏi hơn Pro") — cả 3 đều trông hợp lý.*
 
 **Ngưỡng GO:** `3.6-flash` **không thua** `2.5-flash` ở trục **bẫy ảo giác**, và **không tụt recall**. Thắng ở tốc độ/tiền mà thua ở bẫy = **NO_GO**.
+
+---
+
+**2.6 ⭐ ĐO LẠI HÀNG RÀO CHỐNG BỊA — XOÁ VÙNG MÙ (gộp vào cùng lượt chạy 2.3)**
+
+*Bối cảnh:* seam đo `PA-0` (LIVE) đã bật **vĩnh viễn** 3 trường ghi kèm mỗi lượt — `ro_neo`, `tool`, `answer_truoc_guard` — nhưng **chưa chạy lại lần nào**. Nên **117/179 hàng REFUSE trong dữ liệu cũ vẫn không phân loại được nguyên nhân** (battery cũ chạy thiếu cờ: run15 thiếu `ro_neo` 22 hàng · run09 thiếu `tool` 5 hàng · run01-04 mù cả hai 90 hàng).
+
+*Việc:* chạy 2.3 với seam **đang bật** ⇒ mọi lượt REFUSE đều truy được nguyên nhân. Rồi chấm 3 thước đo THẬT (xem `KET_QUA_DO_RESIDUAL_TOAN_CORPUS.md` §0 về kỷ luật đo):
+
+| Thước | Cách đo | Ngưỡng |
+|---|---|---|
+| **Giết oan (FP)** | Câu `ky_vong` xác nhận ĐÚNG mà bị guard đổi thành `REFUSE_MESSAGE`/`KHONG_TRA_DUOC` — so `answer_truoc_guard` với `answer` | **= 0** · ràng buộc **CỨNG**, vi phạm là NO_GO bất kể lợi ích khác |
+| **Lọt theo LỚP đã biết** | Lớp id135 (bịa cao độ ÂM) + các lớp trong 6 suite | **0%** mỗi lớp |
+| **Vùng mù** | Số hàng REFUSE không phân loại được nguyên nhân | **= 0** (mục tiêu của chính lát này) |
+
+⛔ **KHÔNG tính, KHÔNG trích, KHÔNG báo cáo "tỉ lệ lọt" tổng.** Đã chốt có số: 5 probe đo CÙNG đại lượng ra `0% / 23,8% / 32,2% / 37,9% / 52-77,5%`; giữ nguyên rổ neo chỉ đổi **bộ sinh** số bịa thì chạy `0,0% → 13,6%` (probe khác `1,9% → 79,2%`). **"Tỉ lệ lọt" là thuộc tính của BỘ SINH, không phải của hàng rào.** Xem `[[project-any-grounded-giu-nguyen]]`.
+
+⚠ **Đổi model có thể làm dịch số của cả hai phép đo cùng lúc.** Khi đọc kết quả phải tách: *guard đổi hành vi* hay *model đổi văn phong*? Đối chứng bắt buộc là cột `answer_truoc_guard` — nó là text NGUYÊN BẢN trước guard, nên so được **cùng một guard trên hai model**.
+
+---
 
 ### GĐ 3 — Chốt & triển khai
 Đổi `GEMINI_MODEL` trên Render → chạy lại cổng → E2E thật trên bản deploy → cập nhật `feature_list.json` + `session-handoff.md`.
