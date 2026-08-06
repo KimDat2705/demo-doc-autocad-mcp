@@ -12,6 +12,42 @@
 > **Muốn public thật sau này — ĐỪNG LÀM LẠI TỪ ĐẦU:** nhánh local **`public-ready`** đã có sẵn trọn gói (history sạch không .deb qua `git filter-repo` · Dockerfile tải ODA tuỳ chọn qua `ODA_DEB_URL` · thông báo .dxf-only thân thiện · .gitignore chặn .deb). Đánh đổi: cloud chỉ đọc .dxf tới khi đặt `ODA_DEB_URL`. Mirror backup: `D:/Dat-Antigravity/_backup_repo_truoc_khi_public_20260717/repo-mirror.git`.
 
 
+## 🔬 2026-08-06 — TOOL #36 CÓ **HAI** CƠ CHẾ CẮT · thước đo bị cong · lát ghép ĐANG LÀM
+> *(cùng phiên với khối ghi "2026-08-05" ngay dưới — tôi ghi lệch ngày, nội dung không đổi.)*
+> **HEAD `d4a7c33` · cây SẠCH · suite #36 `35 PASS / 0 FAIL`.** Bản vá dở đã **HOÀN TÁC khỏi cây**, lưu ở `D:\Dat-Antigravity\_lat4\lat4c_WIP.patch`. `feature_list` **86 → 87** (mục mới `muc4-lat-ghep-cuaso-ngansach`). Nghiên cứu: `wf_7d902824-ad4` (2 thiết kế + 3 góc phản biện + chốt), rồi TỰ ĐO THÊM.
+>
+> ### ① PHÁT HIỆN NỀN — có **HAI** cơ chế cắt, không phải một
+> Ngoài trần `_BTD_CAP_TONG=60` (bỏ nguyên cả block) còn **cửa sổ ngang `xmax = 40.0*p`** (`tools_core.py:2418`) **cắt NGANG GIỮA một hàng**.
+> **Bằng chứng đọc thẳng `entitydb`** (không qua `self.texts`), file `GD2/10. Cat doc cong D600.dxf`, hàng của nhãn `41E99`: dãy handle **liên tục** `41E9C→41EC2`, bước `x` đúng **2.000 không đứt**, `'1.940'` bên trong cửa sổ và `'1.840'` bên ngoài; cửa sổ kết thúc giữa `x=743.308` và `x=745.308`. ⇒ **min THẬT của hàng là `1.840`, tool đọc ra `1.940`.**
+>
+> ### ② HỆ QUẢ NẶNG NHẤT — **THƯỚC ĐO BỊ CONG**
+> "Sự thật nền" mà mọi bản vá ngân sách dùng để tự chấm điểm lấy bằng cách nâng `_BTD_CAP_TONG` lên rất cao — **nhưng cửa sổ vẫn còn nguyên** ⇒ sự thật nền **thừa hưởng vết cắt**. Đo lại: **10/22 nhãn có sự-thật-nền SAI**, 9 trong số đó thuộc nhóm 13 nhãn từng coi là "vốn đúng". **1 trong 9 nhãn mà cả hai thiết kế chứng nhận "đã sửa đúng" được chấm đậu bằng một con số SAI.**
+>
+> ### ③ ⛔ HAI THIẾT KẾ NGÂN SÁCH ĐỀU NO_GO (3/3 góc phản biện `bac_bo=true`)
+> Cả PA-A (tổng-hợp-theo-nhãn) lẫn PA-B (chia-suất) **mở giấy phép bịa thang milimét** qua hàng `'Khoảng cách (m)'` (0..5 m ×1000 rơi đúng dải 700/1200/2000/5000 mm dễ bịa nhất): A **+17** mốc mới, B **+79**. PA-A còn **giết câu đúng** (6/7 câu trung thực lật sang REFUSE) và trả **0 ô + 0 cảnh báo** ở 6/20 tổ hợp `gioi_han` thấp; PA-B **nhân bề mặt SAI-TỰ-TIN** (nhãn `'Cao trình tự nhiên'` → **31 ô `nho_nhat` mâu thuẫn, đúng 2/31**). Cả hai làm `gioi_han` **chết**.
+>
+> ### ④ ⛔ **KHÔNG GỘP min/max QUA BLOCK** — bằng chứng từ chính bản vẽ
+> A1 có 2 TEXT tiêu đề `'TRẮC DỌC cống D600 (bên phải tuyến)'` và `'(bên trái tuyến)'`; A2 có 3 tiêu đề = **hai cống + một `'TRẮC DỌC KÊNH THỦY NÔNG HOÀN TRẢ'`**. Gộp ra dải `[1.740..1.900]` mà **không cống nào có**. Phép thử an toàn của PA-A ("cặp block rời hẳn") **mù theo cấu trúc** vì hai cống chồng lấn khoảng giá trị. ⇒ hướng đúng là **ĐỊNH DANH BLOCK** (trả tiêu đề + tên mặt cắt layer `tenmatcat`, lệch y ổn định +6.87) — chữ đó **có sẵn trong file mà tool đang giấu**; phải để trong `_vitri` vì `'D600'`/`'C117'` chứa chữ số.
+>
+> ### ⑤ 🔬 TỰ ĐO SAU KHI CODE THỬ — **vá cửa sổ MỘT MÌNH LÀM TỆ ĐI**
+> Nối dài làm hàng dài gấp đôi (15→30 ô) nên trần 60 chỉ đủ **nửa số hàng**: A1 **4→2** (mất luôn nhãn `'đáy cống thiết kế'`), C1 4→2, C2 4→2, A2 4→3; `cat_bot_do_gioi_han` nổ ở file trước đây không nổ. Ghép thêm **chia suất theo hàng** cứu được A1+A2 (4→4) **nhưng C1/C2 vẫn 5→3** vì đói ngân sách còn ở **tầng BLOCK** (block 2→1).
+> ⇒ **KẾT LUẬN CÓ SỐ: cửa sổ + ngân sách phải vá CHUNG MỘT LÁT.** Kế hoạch *"ship lát 4-C riêng và TRƯỚC"* của vòng thiết kế **bị chính phép đo này bác**.
+>
+> ### ⑥ MẶT TỐT đã đo được của vá cửa sổ (lý do vẫn đáng làm)
+> Các cặp **`min == max` biến mất** — một hàng cao độ trắc dọc báo `('1.840','1.840')` hay `('3.220','3.220')` gần như chắc chắn là hàng **cụt**; sau vá thành `('1.740','1.840')`, `('3.120','3.220')`. A2 **cả 3 hàng** đều thoát; C2 `tim đường` `(3.200,3.200)→(3.100,3.200)`, `đầu cọc` `(3.000,3.130)→(2.780,3.130)`.
+>
+> ### ⑦ QUÉT ĐỘ NHẠY — đọc cho đúng
+> `_BTD_NOIDAI_SAI` ∈ {0.15, 0.25, 0.35, 0.50, 1.00} cho kết quả **y hệt nhau ở cả 5 mức**. Đọc đúng: dữ liệu **BIMODAL** (khoảng trống hoặc ≈bước, hoặc ≫bước — ranh giới sang bảng kế bên đo được **23,0** so với bước **2,0**), nên ngưỡng gần như không có vai trò. **Không được đọc thành "tôi chọn ngưỡng khéo".**
+>
+> ### ⑧ CÒN PHẢI GIẢI
+> **(a)** `N2`/`R2` ĐỎ vì định nghĩa "neo hợp lệ" chỉ gồm `h['gia_tri']` mà min/max nay lấy từ hàng đầy đủ — phản biện đã đo **code ĐANG CHẠY cũng vi phạm ở 8/20 cấu hình, gồm 3 cấu hình mặc định** ⇒ định nghĩa test hẹp **CÓ SẴN**, phải xử lý tử tế, **không sửa test cho xanh**. **(b)** Corpus **nhúc nhích**: 5 file kích hoạt thay vì 4 — file mới `4. Thoat nuoc mua::2. TD.dxf` (**"TD" nhiều khả năng là trắc dọc ⇒ có thể là RECALL TĂNG THẬT**), **chưa kiểm tay** nên chưa tính là điểm cộng. **(c)** `_BTD_CAP_HANG=30` chưa từng cắn (hàng dài nhất 19 ô) nhưng sau nối dài hàng lên **39 ô** nên **sẽ** cắn; và code cũ `break` **TRƯỚC** `sort(key=x)` nên khi cắn thì 30 ô giữ lại là **tập con TUỲ Ý theo x** rồi min/max tính trên đó — lỗi tiềm ẩn phải vá cùng dòng.
+>
+> ### ⑨ SỐ BỊ BÁC TRONG VÒNG NÀY — đừng trích lại
+> *"C1 min thật là 1.10"* (góc 3) **không sống sót**: đến từ bộ trích **bỏ cửa sổ hoàn toàn** nên vợt sang bảng bên cạnh. Dưới phép nối-dài-đúng-bước thì C1 `'Cao trình tự nhiên'` = `[1.77..4.25]` **không đổi**. Đây là **lần thứ 9** dự án suýt kết luận ngược vì bộ trích hỏng — lần này theo hướng **BI QUAN**.
+>
+> ### ⏳ VIỆC TIẾP
+> Chạy vòng thiết kế cho **LÁT GHÉP** với ràng buộc mới: **mọi con số chi phí của PA-A/PA-B phải TÍNH LẠI** vì hàng đã dài ra.
+
 ## 🏁 CHỐT SỔ PHIÊN 2026-08-05 — **ĐỌC KHỐI NÀY TRƯỚC**
 > **Việc được giao:** *"nghiên cứu chi tiết và triển khai Lát 4"*. **Kết quả: lát 4 tách đôi — 4a VÁ XONG, 4b NO_GO có số.**
 > **CỔNG `[49/49]` PASS exit 0 · 36 MCP tool · `test_cao_do_min_max` 31 → 52 ca · diff từng suite: DUY NHẤT bước [20/49] đổi số, 33/33 suite còn lại giữ NGUYÊN TỪNG CON SỐ** (takeoff 283 khớp baseline — suite duy nhất trong bước 1-15 có gọi `thong_tin_tang`). `feature_list.json` **85 → 86** (72 done · 1 partial · 13 deferred). **KHÔNG bump `PROMPT_VERSION`** (đo `sha256(SYSTEM_PROMPT)`=`239e8b7b…` KHỚP FROZEN). ⏳ **CHƯA COMMIT** — chờ user chốt.

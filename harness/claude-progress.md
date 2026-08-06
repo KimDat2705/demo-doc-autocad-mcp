@@ -9,6 +9,17 @@
 > Mới nhất ở TRÊN CÙNG. Bàn giao đầy đủ: `session-handoff.md`. Nhật ký chi tiết hơn nữa: `../GHI_CHU_HOAN_THIEN.md`.
 
 ---
+## Session 2026-08-06 (nối) — 🔬 Tool #36 có **HAI** cơ chế cắt · **thước đo bị cong** · lát ghép ĐANG LÀM
+> **HEAD `d4a7c33` · cây SẠCH · suite #36 `35 PASS / 0 FAIL`** (bản vá dở đã HOÀN TÁC, lưu `_lat4/lat4c_WIP.patch`). `feature_list` **86 → 87**. Chi tiết đầy đủ: khối 2026-08-06 ở `session-handoff.md`. Nghiên cứu `wf_7d902824-ad4`.
+> **① Ngoài trần `_BTD_CAP_TONG=60` còn CỬA SỔ NGANG `40*p` cắt NGANG GIỮA MỘT HÀNG.** Đọc thẳng `entitydb`: dãy handle liên tục `41E9C→41EC2`, bước x đúng **2.000 không đứt**, `'1.940'` trong / `'1.840'` ngoài ⇒ min thật **1.840**, tool đọc **1.940**.
+> **② Hệ quả: THƯỚC ĐO CONG.** "Sự thật nền" (nâng trần lên cao) vẫn thừa hưởng vết cắt cửa sổ ⇒ **10/22 nhãn có sự-thật-nền SAI**; **1 trong 9 nhãn "đã sửa" được chấm đậu bằng con số sai**.
+> **③ ⛔ Hai thiết kế ngân sách đều NO_GO** (3/3 góc phản biện bác): cả hai **mở giấy phép bịa thang mm** qua hàng `'Khoảng cách (m)'` (A +17 mốc, B +79); PA-A **giết câu đúng** 6/7 và trả 0 ô + 0 cảnh báo ở 6/20 tổ hợp; PA-B nhân sai-tự-tin (31 ô `nho_nhat` mâu thuẫn, đúng 2/31).
+> **④ ⛔ KHÔNG GỘP min/max qua block** — bản vẽ tự ghi `'cống bên trái/phải tuyến'` và `'KÊNH THỦY NÔNG HOÀN TRẢ'`; gộp ra dải **không cống nào có**. Hướng đúng: **định danh block** (chữ có sẵn, tool đang giấu).
+> **⑤ 🔬 Tự đo sau khi code thử: vá cửa sổ MỘT MÌNH LÀM TỆ ĐI** — hàng dài gấp đôi ⇒ A1 **4→2 hàng** (mất `'đáy cống'`), C1/C2 4→2. Chia suất theo hàng cứu A1+A2 nhưng C1/C2 vẫn 5→3 vì đói ở **tầng BLOCK**. ⇒ **cửa sổ + ngân sách phải vá CHUNG MỘT LÁT**; kế hoạch "ship 4-C riêng trước" **bị chính phép đo bác**.
+> **⑥ Mặt tốt đo được:** cặp `min == max` biến mất (dấu hiệu hàng cụt) — A2 cả 3 hàng thoát.
+> **📌 Bài học:** quét độ nhạy ra **y hệt ở cả 5 mức ngưỡng** — đọc đúng là **dữ liệu BIMODAL**, KHÔNG phải "chọn ngưỡng khéo". Và *"C1 min thật 1.10"* của một góc phản biện **không sống sót** (bộ trích bỏ cửa sổ hoàn toàn nên vợt sang bảng kế bên) — **lần thứ 9** bộ trích suýt cho kết luận ngược, lần này theo hướng **bi quan**.
+
+---
 ## Session 2026-08-05 — 🔎 Nghiên cứu **LÁT 4** → ✅ vá **LÁT 4a** (prose 0 chữ số) + ⛔ **lát 4b NO_GO có số**
 > **CỔNG `[49/49]` PASS exit 0 · 36 MCP tool · `test_cao_do_min_max` 31 → 52 ca · diff từng suite: DUY NHẤT bước [20/49] đổi số, 33/33 suite còn lại giữ NGUYÊN TỪNG CON SỐ.** `feature_list.json` **85 → 86 mục** (72 done · 1 partial · 13 deferred). KHÔNG bump `PROMPT_VERSION` (đo `sha256(SYSTEM_PROMPT)` = `239e8b7b…` KHỚP FROZEN; ghi_chu của tool không phải chuỗi con của SYSTEM_PROMPT). Nghiên cứu: `wf_f5e1a3dd-ace` (5 probe độc lập + tổng hợp), script đo để **ngoài repo** ở `D:\Dat-Antigravity\_lat4\` — 0 dòng code sản phẩm bị chạm trong lúc đo.
 >
