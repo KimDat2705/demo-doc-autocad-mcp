@@ -305,6 +305,12 @@ def main(argv=None, hoi=None, tao_bridge=None, files=None):
     ap.add_argument("--chi-id", default="", help="chỉ chạy các id này (ngăn phẩy) — để thử nhanh")
     ap.add_argument("--gioi-han", type=int, default=0, help="chỉ chạy N câu đầu (thử nhanh)")
     ap.add_argument("--ghi-chu", default="", help="ghi chú tự do lưu vào meta")
+    # ⚠ CHỐNG 429 — BẮT BUỘC theo KE_HOACH_NANG_CAP_MODEL §2.3. Checkpoint theo dòng đã có
+    # (out.flush() mỗi câu) NHƯNG trước bản này KHÔNG hề có nghỉ giữa câu. Đó đúng là lỗ đã làm
+    # `battery_results_pro25.jsonl` HỎNG 127/198 DÒNG vì cạn quota giữa chừng — và suýt cho kết
+    # luận ngược ("Flash giỏi hơn Pro"). Mặc định 0 = giữ nguyên hành vi cũ cho mọi lệnh đang có.
+    ap.add_argument("--nghi", type=float, default=float(os.environ.get("BATTERY_NGHI_GIAY", "0")),
+                    help="nghỉ N giây giữa hai câu (chống 429; mặc định 0 = như cũ)")
     ap.add_argument("--chay-thu", action="store_true",
                     help="kiểm mọi điều kiện + chốt đường dẫn rồi DỪNG, không gọi API")
     # PA-0 (wf_06b6cf5e, 2026-08-02): hai seam nay LUON BAT — 117/179 hang REFUSE cua cac run cu
@@ -466,6 +472,8 @@ def main(argv=None, hoi=None, tao_bridge=None, files=None):
                              q.get("loai", "?"), rec["thoi_gian_s"],
                              "ok" if rec["hop_le"] else "HỎNG",
                              (q.get("cau_hoi") or "")[:50], rec["answer"][:80].replace("\n", " ")))
+                    if a.nghi > 0:
+                        time.sleep(a.nghi)        # chống 429: giãn nhịp giữa hai lượt gọi
                     if rec["hop_le"] or lan >= THU_LAI_TOI_DA:
                         break
                     lan += 1
