@@ -9,9 +9,9 @@
 > Mới nhất ở TRÊN CÙNG. Bàn giao đầy đủ: `session-handoff.md`. Nhật ký chi tiết hơn nữa: `../GHI_CHU_HOAN_THIEN.md`.
 
 ---
-## Session 2026-08-07 — ✅ **B4 TÍCH HỢP TOOL #37 vào code sản phẩm** (36 → 37 MCP tool, cổng `[49/49]` xanh, diff hàm #36 = 0 byte)
+## Session 2026-08-07 — ✅ **B4 TÍCH HỢP TOOL #37** + ✅ **B5 BỘ TEST** (36 → 37 MCP tool · cổng `[49/49]` → **`[50/50]`** · **1.701 → 1.778 ca** · diff hàm #36 = 0 byte)
 > **TRẠNG THÁI:** commit LOCAL, **CHƯA push, CHƯA LIVE** (đặc tả: chỉ sau **B7** sạch phát-hiện-CAO mới được bàn commit/LIVE — commit này chỉ để **giữ ngữ cảnh**, không phải mark done). `feature_list` **91 mục** (72 done · **2 partial** · 13 deferred · 4 planned); mục `muc4-lat-ghep-cuaso-ngansach` `deferred` → **`partial`**.
-> ⚠ **CẢNH BÁO CHO PHIÊN SAU: #37 SỐNG TRONG CODE NHƯNG CỔNG CHƯA CANH NÓ.** Cổng xanh dưới đây chỉ chứng minh KHÔNG HỒI QUY, **không** chứng minh #37 đúng — nó chưa có một ca test nào trong `check.sh`. Đó là B5.
+> ✅ **B5 XONG: cổng ĐÃ CANH #37** — `tests/test_bang_ke_khung.py` **77 ca / 0 FAIL**, bước `[50/50]` của `check.sh`. (Cảnh báo "cổng chưa canh #37" ở bản ghi trước ĐÃ HẾT HIỆU LỰC.)
 >
 > ### 🔒 BA BẤT BIẾN CỨNG CỦA B4 — ĐẠT
 > hàm #36 hash `275f19e9…` **KHÔNG đổi (0 byte)** · `tests/test_bang_trac_doc.py` hash `8186f9c3…` không đổi · `SYSTEM_PROMPT` `239e8b7b…` khớp FROZEN · **`mcp_bridge.py` KHÔNG bị chạm** (tên tool không xuất hiện ở đâu trong bridge; model vẫn thấy tool vì declaration sinh **ĐỘNG** từ `list_tools` trừ `_TOOL_KHONG_CHO_LLM`) · #37 **không** nằm trong tuple loại-trừ rổ neo ⇒ payload đi vào rổ đúng như thiết kế.
@@ -33,8 +33,16 @@
 > **(a) Lần thứ 11 bộ trích hỏng.** Vòng đầu tiêu chí (2) báo **3/6 ĐỎ**. Chẩn đoán: **C1 có 30 hàng TRÙNG Y HỆT nhãn** *'Cao trình tự nhiên (m)'* nên nhánh khớp-theo-CHỮ của tôi vớt nhầm bảng khác; còn 2 ca *'không thấy hàng'* thì hàng nằm **ĐÚNG** ở `muc_luc_hang_chua_tra` vì chạm ngân sách (V-J chạy đúng thiết kế). Đo lại theo **đường caller thật** (`nhan_chua` + khớp theo **HANDLE**) → 6/6. 📌 Trên file nhiều bảng, **khớp theo chữ là bộ đo hỏng**; phải khớp handle.
 > **(b) `git diff` GIẤU một thay đổi thật.** Script port ghi lại `tools_core.py` bằng `newline='\n'` ⇒ đổi **CRLF → LF toàn file** (4.367 CRLF → 0), mà `git diff` vẫn hiện **thuần chèn** vì `core.autocrlf=true` chuẩn hoá hai phía. Bắt được bằng cách **đếm byte `\r\n` so với bản backup**, không phải bằng diff. Đã trả lại CRLF (5.534) rồi kiểm lại hash #36 + import. 📌 Đúng khuôn `[[feedback-cong-xanh-khong-du]]`: diff sạch KHÔNG chứng minh file không đổi.
 >
+> ### ✅ B5 — BỘ TEST `tests/test_bang_ke_khung.py`: **77 ca / 0 FAIL**, thành bước `[50/50]` của cổng
+> **Cổng: `[50/50]` PASS `EXIT_CODE_THẬT=0` · 1.701 → 1.778 ca · 0 FAIL.** Bỏ phần đánh-số-lại thì diff cổng B4→B5 **đúng 2 dòng** (bước mới) — **49 bước cũ giữ nguyên TỪNG CON SỐ**.
+> **NGUỒN KỲ VỌNG không phải hành vi hiện tại** (chống tautology): bảng kỳ vọng từng fixture ĐÃ ĐÓNG BĂNG + reviewer người duyệt ở B1/B3 (`_lat4/b3fix_fixtures_final.txt`, `b1_ket_qua.jsonl`) · sự-thật-nền đọc tay 391 hàng · mốc hồi quy #36 (`v_hoiquy_kq.json`). Chạy tool sản phẩm trên **47/47 fixture** khớp bảng đóng băng; khác biệt DUY NHẤT là `'%%C10A150'` → `'Ø10A150'` = đúng delta (2) của bản port.
+> **7 nhóm:** [D] 11 đọc-đúng-ô/mỏ-neo/V-K/V-G · [G] 26 từng vế từ chối, **mỗi vế MỘT CẶP bắn + không-bắn** · [N] 7 rổ neo (prose 18 chuỗi 0 chữ số, đóng kín, G-12 **hai chiều**) · [B] 7 ngân sách (min/max bất biến + đối chứng số ô PHẢI đổi; mục lục V-J; `gioi_han` dị dạng) · [E] 6 từ chối đúng loại · [R] 4 khoá additive (hash hàm #36 + test #36 + SYSTEM_PROMPT + #37 không bị giấu khỏi LLM) · [T] 8 file thật.
+> **FIXTURE VÀO REPO** `tests/fixtures_khung/` (47 file, ~1MB, tổng hợp — đã kiểm 0 định danh khách hàng; chuỗi `TRINH` khớp là *lý trình*) ⇒ **69/77 ca LUÔN CHẠY kể cả trên cloud**; chỉ 8 ca [T] cần corpus ngoài repo, thiếu thì SKIP.
+> **⭐ TỰ KIỂM NGƯỢC 6/6 MUTATION ĐỎ ĐÚNG CHỖ** (cổng xanh không chứng minh gì nếu test không đỏ được): gỡ garble-normalizer → T1/T2/T7 · gỡ gate V-A → G-05/G-07/T5b · gỡ `_vn` → T1/T2/T7 · để số đếm ra ngoài `_vitri` → N1/G-12a · bỏ mục lục V-J → G-18 · bỏ vết `khung_nho` → D2. `tools_core.py` khôi phục **nguyên byte** sau mỗi lần (hash `6ab80476` trước = sau).
+> **🔒 KHOÁ MỘT QUYẾT ĐỊNH NO_GO:** ca `G-NOGO` khoá việc **vế RATIO của V-H đã BỎ** (bảng CAO và bảng THẤP phải đọc GIỐNG HỆT) — ai định thêm lại `NGƯỠNG_CAO` sẽ thấy ca đỏ và phải đọc `b1c4_censu_ketluan.md` trước (hàng THẬT ratio 2.64-46.0 **đan xen** chế tạo 3.63-506 ⇒ không tồn tại ngưỡng).
+>
 > ### ⏭ CÒN LẠI (không tự khởi động)
-> **B5** `tests/test_bang_ke_khung.py` 18 ca G-01..G-18 + thêm bước vào `check.sh` · **B6** cổng tổng + diff corpus 142 file so baseline B0 · **B7** red-team vòng 2 sau tích hợp trên ≥5 file kích-hoạt-mới (bắt buộc). **Sau #37 LIVE:** lát grounding-có-đơn-vị (lỗ ×1000 ở `mcp_bridge`) — user đã chốt xếp NGAY SAU.
+> **B6** cổng tổng + **diff corpus 142 file so baseline B0** · **B7** red-team vòng 2 sau tích hợp trên ≥5 file kích-hoạt-mới (**bắt buộc**, memory `[[feedback-red-team-2-tang]]`). **Sau #37 LIVE:** lát grounding-có-đơn-vị (lỗ ×1000 ở `mcp_bridge`) — user đã chốt xếp NGAY SAU.
 
 ---
 ## Session 2026-08-06→08-07 — 🏁 CHỐT SỔ: **lát 4a LIVE** · **3 vòng NO_GO có số** · **TOOL #37 proto B0-B3 HOÀN TẤT** · chuẩn mới của user

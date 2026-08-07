@@ -12,9 +12,11 @@
 > **Muốn public thật sau này — ĐỪNG LÀM LẠI TỪ ĐẦU:** nhánh local **`public-ready`** đã có sẵn trọn gói (history sạch không .deb qua `git filter-repo` · Dockerfile tải ODA tuỳ chọn qua `ODA_DEB_URL` · thông báo .dxf-only thân thiện · .gitignore chặn .deb). Đánh đổi: cloud chỉ đọc .dxf tới khi đặt `ODA_DEB_URL`. Mirror backup: `D:/Dat-Antigravity/_backup_repo_truoc_khi_public_20260717/repo-mirror.git`.
 
 
-## ✅ 2026-08-07 — **B4: TOOL #37 ĐÃ VÀO CODE SẢN PHẨM** (36 → 37 MCP tool) — ĐỌC KHỐI NÀY TRƯỚC
+## ✅ 2026-08-07 — **B4 TÍCH HỢP + B5 BỘ TEST: TOOL #37 ĐÃ VÀO CODE SẢN PHẨM VÀ ĐÃ CÓ CỔNG CANH** — ĐỌC KHỐI NÀY TRƯỚC
 > **HEAD mới = commit LOCAL, CHƯA push, CHƯA LIVE.** Đặc tả `DAC_TA_TOOL37.md` ghi rõ *chỉ sau **B7** sạch phát-hiện-CAO mới được bàn commit/LIVE* — commit này chỉ để **giữ ngữ cảnh**, KHÔNG phải mark done. Nhật ký số đo đầy đủ: khối 2026-08-07 ở `claude-progress.md`.
-> ⚠⚠ **#37 SỐNG TRONG CODE NHƯNG CỔNG CHƯA CANH NÓ** — `check.sh` chưa có một ca test nào cho #37 (đó là B5). Cổng xanh hiện tại chỉ chứng minh **không hồi quy**.
+> **Cổng: `[49/49]` → `[50/50]` PASS exit 0 · 1.701 → 1.778 ca · 0 FAIL.** Bỏ phần đánh-số-lại thì diff cổng B4→B5 **đúng 2 dòng** (bước mới); 49 bước cũ giữ nguyên từng con số.
+> **B5:** `tests/test_bang_ke_khung.py` **77 ca / 0 FAIL**, 7 nhóm, **mỗi vế gate một CẶP bắn/không-bắn**; fixture nằm TRONG repo (`tests/fixtures_khung/`, 47 file, 0 định danh khách hàng) nên **69/77 ca chạy được cả trên cloud**. **Tự kiểm ngược 6/6 mutation đỏ ĐÚNG CHỖ** (gỡ normalizer / gate V-A / `_vn` / kỷ luật `_vitri` / mục lục V-J / vết `khung_nho`), `tools_core.py` khôi phục nguyên byte sau mỗi lần.
+> 🔒 Ca `G-NOGO` **khoá quyết định NO_GO** "vế RATIO của V-H đã bỏ" — ai thêm lại `NGƯỠNG_CAO` sẽ thấy đỏ và phải đọc `b1c4_censu_ketluan.md` trước.
 > ⚠ **Cây làm việc còn 10+ commit CHƯA PUSH** (từ phiên trước, gồm `d4a7c33` lát 4a). `origin/main` = `2ea25b7`, Render `/version` = `2ea25b7` ⇒ **lát 4a chưa lên cloud**; bản cloud vẫn còn 6 câu bịa mà lát 4a đã chặn.
 >
 > **BA BẤT BIẾN CỨNG ĐẠT:** hàm #36 hash `275f19e9…` 0 byte đổi · `tests/test_bang_trac_doc.py` `8186f9c3…` không đổi · `SYSTEM_PROMPT` `239e8b7b…` FROZEN · `mcp_bridge.py` KHÔNG chạm (declaration sinh ĐỘNG từ `list_tools`, nên đăng ký ở `mcp_server.py` là đủ).
@@ -25,7 +27,7 @@
 > **(a)** Trên file nhiều bảng, **khớp theo CHỮ là bộ đo hỏng** — C1 có **30 hàng trùng y hệt nhãn** *'Cao trình tự nhiên (m)'*; phải khớp **handle**. Vòng đầu vì thế báo oan 3/6 đỏ (lần thứ 11 bộ trích hỏng).
 > **(b)** **`git diff` GIẤU được thay đổi thật:** ghi file bằng `newline='\n'` đổi CRLF→LF toàn `tools_core.py` mà diff vẫn hiện "thuần chèn" (vì `core.autocrlf=true` chuẩn hoá hai phía). Chỉ **đếm byte `\r\n` so với backup** mới thấy. ⇒ khi script tự động ghi đè file sản phẩm, **luôn đối chiếu byte với bản backup**, đừng tin diff.
 >
-> **⏭ CÒN LẠI:** **B5** (`tests/test_bang_ke_khung.py` 18 ca G-01..G-18 + bước `check.sh`) · **B6** (cổng tổng + diff corpus 142 file so baseline B0) · **B7** (red-team vòng 2 sau tích hợp, ≥5 file kích-hoạt-mới, BẮT BUỘC). Sau khi #37 LIVE: lát **grounding-có-đơn-vị** (lỗ ×1000 ở `mcp_bridge`) — user đã chốt xếp NGAY SAU.
+> **⏭ CÒN LẠI:** **B6** (cổng tổng + **diff corpus 142 file so baseline B0** — chưa chạy) · **B7** (red-team vòng 2 sau tích hợp, ≥5 file kích-hoạt-mới, **BẮT BUỘC**). Sau khi #37 LIVE: lát **grounding-có-đơn-vị** (lỗ ×1000 ở `mcp_bridge`) — user đã chốt xếp NGAY SAU.
 
 ## 🛡 2026-08-06 — RÀ TẦNG 3 (hàng rào chống bịa): TRẠNG THÁI THẬT + 2 đầu mục mới (`feature_list` 90 → **91**)
 > **⛔ ĐÍNH CHÍNH TRÍ NHỚ CŨ — 3 "kênh lọt" ĐÃ VÁ XONG, đừng nêu lại như việc còn treo.** `neo-grounding-sach` **LIVE `5548fe1`+`5756b37`** bịt cả ba: (1) mã-hiệu gạch nối sinh neo ÂM (`DẦM D2-10`→−10; **68/76 file** có ≥1 neo âm; 24/76 neo âm rơi ĐÚNG dải cao độ = cấp phép bịa id135) · (2) **TÊN FILE** (cùng nội dung byte, đổi tên thành `MC coc -13.7 va 7500.dxf` → 2 câu bịa chuyển từ CHẶN sang LỌT) · (3) **HANDLE hex** (kết quả 3 handle + chữ KHÔNG SỐ vẫn sinh rổ `[1,2,9,38,13876]`). Cộng `lat4a-prose-0-chu-so-cao-do`. **Hiệu quả đo: lớp id135 lọt `0,0%`.** Chạy lại 2026-08-06: **6 suite hàng rào 471 ca, 0 FAIL** (grounding 57 · neo 34 · neo-rỗng 29 · handle 44 · i3 24 · takeoff 283).
