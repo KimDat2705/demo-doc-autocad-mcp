@@ -49,8 +49,19 @@
 > **④ UNION MỐC-MM CORPUS-WIDE = 135**, trần khai **≤143**. ⚠ Lệch **+2** so con số **133** trong đặc tả ⇒ **KHÔNG để số đó không giải thích**: đo có đối chứng (đọc file MỘT lần, dựng payload HAI lần: `_vn=to_unicode` vs `_vn=identity`) ⇒ **bản vá giải-mã-phông đóng góp ĐÚNG 0 mốc** (135 cả hai chiều, **0/93 file khác biệt**). ⇒ chênh +2 **có từ TRƯỚC B4**, không do lát này đẻ ra, và nằm trong trần.
 > **📌 Lần thứ 3 CRLF làm hỏng bộ đo trong phiên:** kiểm hash hàm #36 bằng one-liner đọc `'rb'` cho `083d5921` (lệch!) trong khi đọc chế độ TEXT — đúng như ca G-16b của suite — cho `275f19e9` KHỚP. Cả file `tools_core.py` hash không đổi (`6ab80476`) nên biết ngay là artifact. 📌 **Đọc file để so hash thì phải dùng CÙNG chế độ đọc với ca test đang khoá nó.**
 >
-> ### ⏭ CÒN LẠI (không tự khởi động)
-> **B7** red-team vòng 2 sau tích hợp trên ≥5 file kích-hoạt-mới (**bắt buộc**, memory `[[feedback-red-team-2-tang]]`) — **việc DUY NHẤT còn lại trước khi bàn commit/LIVE**. **Sau #37 LIVE:** lát grounding-có-đơn-vị (lỗ ×1000 ở `mcp_bridge`) — user đã chốt xếp NGAY SAU.
+> ### ✅ B7 — RED-TEAM VÒNG 2 SAU TÍCH HỢP: **SẠCH, 0 PHÁT HIỆN CẦN XỬ LÝ**
+> **CỔNG CHỐT SỔ (đo lại cuối phiên, không phải nhớ): `[50/50]` PASS `EXIT_CODE_THẬT=0` · 1.778 ca · 0 FAIL · GIỐNG HỆT TỪNG DÒNG lần chạy B5.**
+> **① TẦNG 1 — bộ câu bịa qua `_guard_text` THẬT. ⚠ VÒNG ĐẦU TÔI BÁO SAI 'TRƯỢT 11>7' vì so HAI ĐẠI LƯỢNG KHÁC NHAU:** bộ đo sinh ra con số 7 (`x3_cau_bia.py`) chạy **23 câu × 4 file (A1,A2,C1,C2), KHÔNG có F5**; tôi chạy 28 câu × 5 file. Phân xử bằng số: **P1 (23 câu × 4 file) = ĐÚNG 7** ✅ · P2 (thêm F5) = 9 · P3 (thêm 5 câu mới) = 11. **ĐỐI CHỨNG QUYẾT ĐỊNH:** P1 với `_vn=identity` (gỡ delta 2) cũng = **7** ⇒ **B4 đóng góp +0**. ⇒ tiêu chí (9) **ĐẠT: cùng phạm vi thì số KHÔNG TĂNG**.
+> **② TẦNG 2 — đánh vào ĐÚNG 3 DELTA mà B4 đẻ ra** (bề mặt MỚI, proto chưa từng phải chịu — đây mới là chỗ đáng đánh):
+> · **A1 doc DÙNG LẠI**: gọi **10 tool khác XEN GIỮA** (`doc_bang_trac_doc`, `cao_do_min_max`, `doc_chu_trang_in`, `phat_hien_bang_ve_net`, `doc_bang_nhung`, `thong_ke_thep`, `thong_tin_tang`, `tim_kiem`…) rồi gọi lại #37 → **BẤT BIẾN 10/10**; gọi #37 hai lần liên tiếp → bất biến. *(Đây là rủi ro riêng của B4: nếu tool khác làm biến đổi `doc` thì #37 đọc sai IM LẶNG.)*
+> · **A2 `to_unicode` có sinh CHỮ SỐ từ chuỗi KHÔNG-SỐ?** (= kênh bơm neo MỚI) → **0/9.139** đoạn chữ trên 5 file đích.
+> · **A3 `nhan_chua` do MODEL tự gõ** — thử `'-600'`, `'1.94'`, `'9999'`, `'-13.7'`, `'cống -600'`, `'30000'` → **0 neo bơm vào rổ**. Đây ĐÚNG lớp lỗi mà #36 từng dính (`loc_nhan` ngoài `_vitri` bơm −600) ⇒ #37 đóng kín vì `tham_so` nằm trong `_vitri`.
+> · **A4 tham số thù địch** (20.000 ký tự · null byte · RTL override `‮` · chữ số toàn-rộng `９９９９` · path traversal · SQL-ish) → **không crash, không rò, ≤72 ms**, đều trả `loc_khong_khop`.
+> **③ 🔴 SỐ MỚI CHƯA TỪNG ĐO — KHÔNG PHẢI LỖI NHƯNG PHẢI BIẾT:** trên **file KÍCH-HOẠT-MỚI** (#36 im hoàn toàn ⇒ mọi câu lọt đều do #37 mở): **31 lượt câu bịa lọt / 5 file** chạy được dưới cổng 45MB (4 file khác bị cổng chặn). **Đặc tả TRƯỚC ĐÂY chỉ định lượng cho 5 file đích, CHƯA HỀ đo nhóm này — mà corpus có 89 file thuộc nhóm đó.** Không phải hồi quy; đây là **cái giá của việc BẬT #37** mà user đã chốt chấp nhận (phương án (a): LIVE #37 rồi xếp lát grounding-có-đơn-vị NGAY SAU). Nhưng số thật **lớn hơn hình dung cũ** ⇒ **củng cố lý do làm lát ×1000 ngay, không để lâu**.
+> **📌 BÀI HỌC:** *"11 > 7"* trông y như một hồi quy thật. Cứu được bằng đúng một câu hỏi: **con số 7 kia đo trên phạm vi nào?** ⇒ **so số thì phải so CÙNG ĐẠI LƯỢNG — bộ câu, danh sách file, mức gh phải trùng khớp**, nếu không thì "tăng/giảm" là vô nghĩa.
+>
+> ### ⏭ CÒN LẠI
+> **B0-B7 XONG TRỌN.** Theo đặc tả, ĐÂY là lúc được phép bàn **commit/LIVE** (điều kiện "B7 sạch phát-hiện-CAO" đã đạt). **Chưa push — chờ user quyết.** **Ngay sau khi #37 LIVE:** lát **grounding-có-đơn-vị** (lỗ ×1000 ở `mcp_bridge`) — user đã chốt xếp NGAY SAU, và số ③ ở trên làm nó cấp thiết hơn.
 
 ---
 ## Session 2026-08-06→08-07 — 🏁 CHỐT SỔ: **lát 4a LIVE** · **3 vòng NO_GO có số** · **TOOL #37 proto B0-B3 HOÀN TẤT** · chuẩn mới của user
