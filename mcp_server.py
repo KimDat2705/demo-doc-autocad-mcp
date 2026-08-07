@@ -380,6 +380,20 @@ def doc_bang_trac_doc(nhan_chua: str = "", gioi_han: int = 60) -> dict:
 
 
 @mcp.tool()
+def doc_bang_ke_khung(nhan_chua: str = "", gioi_han: int = 60) -> dict:
+    """Đọc BẢNG KẺ KHUNG NÉT — mọi loại bảng mà người vẽ có KẺ KHUNG: bảng thống kê thép, bảng
+    toạ độ mốc, bảng trắc dọc/trắc ngang, bảng kê cấu kiện, bảng chỉ tiêu... Mỗi hàng = MỘT NHÃN
+    + các giá trị NẰM TRONG KHUNG của hàng đó, biên hàng là NÉT KẺ thật chứ không phải cửa sổ
+    đoán theo khoảng cách. GỌI TOOL NÀY khi hỏi số liệu trong một BẢNG và doc_bang_trac_doc trả
+    ít hàng hoặc co_bang=false — nó dò được nhiều loại bảng hơn. Lọc bằng nhan_chua (vd 'đáy
+    cống', 'toạ độ'); gõ tiếng Việt có dấu bình thường, máy tự khớp cả bản vẽ lỗi phông.
+    Hàng máy KHÔNG chắc chắn thì KHÔNG đọc mà nằm ở hang_tu_choi kèm lý do — với hàng đó đừng
+    suy đoán giá trị. Số trả về là NGUYÊN VĂN ô kèm handle: KHÔNG tự cộng/trung bình; muốn nêu
+    nhỏ nhất/lớn nhất thì lấy đúng ô 'nho_nhat'/'lon_nhat' đã trích sẵn."""
+    return _need() or DRAWING.doc_bang_ke_khung(nhan_chua=nhan_chua, gioi_han=gioi_han)
+
+
+@mcp.tool()
 def kiem_tra_handle(handles: str = "") -> dict:
     """HOST-ONLY (I1, KHÔNG dành cho LLM — nằm trong _TOOL_KHONG_CHO_LLM ở mcp_bridge): đối chiếu 1 danh sách
     handle (ngăn phẩy) với đối tượng THẬT trong file đang mở. CHỈ ĐỌC, trả DỮ KIỆN THÔ (trong_file/dxftype/

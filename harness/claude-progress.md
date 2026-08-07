@@ -9,6 +9,34 @@
 > Mới nhất ở TRÊN CÙNG. Bàn giao đầy đủ: `session-handoff.md`. Nhật ký chi tiết hơn nữa: `../GHI_CHU_HOAN_THIEN.md`.
 
 ---
+## Session 2026-08-07 — ✅ **B4 TÍCH HỢP TOOL #37 vào code sản phẩm** (36 → 37 MCP tool, cổng `[49/49]` xanh, diff hàm #36 = 0 byte)
+> **TRẠNG THÁI:** commit LOCAL, **CHƯA push, CHƯA LIVE** (đặc tả: chỉ sau **B7** sạch phát-hiện-CAO mới được bàn commit/LIVE — commit này chỉ để **giữ ngữ cảnh**, không phải mark done). `feature_list` **91 mục** (72 done · **2 partial** · 13 deferred · 4 planned); mục `muc4-lat-ghep-cuaso-ngansach` `deferred` → **`partial`**.
+> ⚠ **CẢNH BÁO CHO PHIÊN SAU: #37 SỐNG TRONG CODE NHƯNG CỔNG CHƯA CANH NÓ.** Cổng xanh dưới đây chỉ chứng minh KHÔNG HỒI QUY, **không** chứng minh #37 đúng — nó chưa có một ca test nào trong `check.sh`. Đó là B5.
+>
+> ### 🔒 BA BẤT BIẾN CỨNG CỦA B4 — ĐẠT
+> hàm #36 hash `275f19e9…` **KHÔNG đổi (0 byte)** · `tests/test_bang_trac_doc.py` hash `8186f9c3…` không đổi · `SYSTEM_PROMPT` `239e8b7b…` khớp FROZEN · **`mcp_bridge.py` KHÔNG bị chạm** (tên tool không xuất hiện ở đâu trong bridge; model vẫn thấy tool vì declaration sinh **ĐỘNG** từ `list_tools` trừ `_TOOL_KHONG_CHO_LLM`) · #37 **không** nằm trong tuple loại-trừ rổ neo ⇒ payload đi vào rổ đúng như thiết kế.
+>
+> ### 🔧 BA THAY ĐỔI DUY NHẤT SO VỚI PROTO (logic hình học/đẳng thức KHÔNG đụng một ký tự — để còn diff được với bản đã đo)
+> **(1) `quet_bang` nhận doc ĐÃ NẠP** thay vì `readfile` lại — mở lại là **nhân đôi doc trong RAM**, mà trần RAM dự án đi theo SỐ doc đang giữ (`MAX_BAN_VE`), không theo MB file. Giữ nhánh path để 3 nhánh từ chối cấp file của V-E còn kiểm được.
+> **(2) chuỗi ĐI RA payload qua `to_unicode`** (khuôn #36 — nó phát `vn`, không phát raw). **ĐO TRƯỚC KHI ĐỔI:** `to_unicode` đổi **0/4.451 ô SỐ** và **0/40** nhãn hàng-từ-chối, nhưng đổi **369/576 nhãn** + **20/20 ô chữ** ⇒ nhãn TCVN3 (`§­êng biÓu diÔn cao ®é ®¸y cèng thiÕt kÕ`) mới đọc được, **số không xê dịch một ly**.
+> **(3) lọc `nhan_chua` chuẩn hoá GARBLE 2 PHÍA** bằng `_norm(to_unicode(...))` — **ĐIỀU KIỆN GO** của đặc tả.
+>
+> ### 📊 SỐ ĐO B4
+> **① Nền B0 tái lập trên ĐẦU RA SẢN PHẨM** (không phải trên proto): tầng a **2.556/2.556** ô khớp handle nền (P=R=1.0) · tầng b **171/171** · min/max **226/226** · **0** hàng nền mất · **0** hàng thêm · **0/391** hàng nền hạ oan; F5 **23** hàng b / **74** phương trình / xen_ke 23/23.
+> **② DIFF proto ↔ sản phẩm trên 5 file = 0 LỆCH** (chữ ký cấu trúc: handle ô, tầng, cờ, biên bảng). Kèm **căn cứ CẤU TRÚC** chứ không chỉ 5 file: `tools_core` **không có một đường ghi nào** vào `doc` (`Drawing.__init__` 0 dòng ghi; quét cả file 0 hit `audit(` / `explode(` / `purge` / `.dxf.x =` / `header[`) ⇒ đọc trên doc đang nạp **tương đương** readfile mới.
+> **③ ĐIỀU KIỆN GO, có 2 ĐỐI CHỨNG:** A2 `nhan_chua='đáy kênh'` → **1.740**, `'đáy cống'` → **1.840**; gọi mặc định gh60 **KHÔNG** chứa `1.740` (số đến từ đường LỌC, không có sẵn trong payload = chống tautology) và **TẮT normalizer → 0 hàng** (đúng là normalizer làm nên việc).
+> **④ TIÊU CHÍ (2) 6/6** hàng #36-đang-đọc-đúng được #37 trả đúng y giá trị (`_lat4/v_hoiquy_kq.json`).
+> **⑤ K1-K5 qua `mcp_bridge` THẬT, 5/5 file sạch**; trần rổ neo **KHỚP CHÍNH XÁC** đặc tả: **160 neo** (đặc tả 160) · mốc-mm **cộng-theo-file 55** (đặc tả 55, trần 60) · mốc-mét **80 = 85 − 5** đúng như đính chính mục 5 (bỏ mốc 0.0, mỗi file 1), trần 90.
+> **⑥ CỔNG `[49/49]` PASS `EXIT_CODE_THẬT=0`, 1.701 ca / 0 FAIL** — **diff cổng trước↔sau port ĐÚNG MỘT DÒNG**: `MCP tools khai bao: 36` → `37`. **47/47 suite giữ nguyên TỪNG CON SỐ.**
+>
+> ### ⚠ HAI LẦN BỘ ĐO / THAO TÁC CỦA CHÍNH TÔI HỎNG (tự bắt, ghi để phiên sau đỡ dẫm)
+> **(a) Lần thứ 11 bộ trích hỏng.** Vòng đầu tiêu chí (2) báo **3/6 ĐỎ**. Chẩn đoán: **C1 có 30 hàng TRÙNG Y HỆT nhãn** *'Cao trình tự nhiên (m)'* nên nhánh khớp-theo-CHỮ của tôi vớt nhầm bảng khác; còn 2 ca *'không thấy hàng'* thì hàng nằm **ĐÚNG** ở `muc_luc_hang_chua_tra` vì chạm ngân sách (V-J chạy đúng thiết kế). Đo lại theo **đường caller thật** (`nhan_chua` + khớp theo **HANDLE**) → 6/6. 📌 Trên file nhiều bảng, **khớp theo chữ là bộ đo hỏng**; phải khớp handle.
+> **(b) `git diff` GIẤU một thay đổi thật.** Script port ghi lại `tools_core.py` bằng `newline='\n'` ⇒ đổi **CRLF → LF toàn file** (4.367 CRLF → 0), mà `git diff` vẫn hiện **thuần chèn** vì `core.autocrlf=true` chuẩn hoá hai phía. Bắt được bằng cách **đếm byte `\r\n` so với bản backup**, không phải bằng diff. Đã trả lại CRLF (5.534) rồi kiểm lại hash #36 + import. 📌 Đúng khuôn `[[feedback-cong-xanh-khong-du]]`: diff sạch KHÔNG chứng minh file không đổi.
+>
+> ### ⏭ CÒN LẠI (không tự khởi động)
+> **B5** `tests/test_bang_ke_khung.py` 18 ca G-01..G-18 + thêm bước vào `check.sh` · **B6** cổng tổng + diff corpus 142 file so baseline B0 · **B7** red-team vòng 2 sau tích hợp trên ≥5 file kích-hoạt-mới (bắt buộc). **Sau #37 LIVE:** lát grounding-có-đơn-vị (lỗ ×1000 ở `mcp_bridge`) — user đã chốt xếp NGAY SAU.
+
+---
 ## Session 2026-08-06→08-07 — 🏁 CHỐT SỔ: **lát 4a LIVE** · **3 vòng NO_GO có số** · **TOOL #37 proto B0-B3 HOÀN TẤT** · chuẩn mới của user
 > **CHỐT SỔ:** HEAD **`7e24bc5`**, tree SẠCH. **CỔNG `[49/49]` PASS** (xem khối kết quả cuối entry). **8 commit**: `d4a7c33` (lát 4a — code) · `0a3dfaa` · `ef94b4a` · `d690e3d` · `51131f1` · `a68d23e` · `fd30737` · `7e24bc5` (7 commit docs/sổ). `feature_list.json` **85 → 91 mục** (72 done · 1 partial · 14 deferred · 4 planned — 4 planned và 1 số mục là của **phiên song song**, đã nhận nguyên trạng có ghi nguồn trong commit message).
 > ⚠ pytest **VẪN crash** (`ValueError: I/O operation on closed file` → `no tests ran`) — kiểm lại cuối phiên, không phải nhớ. **KHÔNG có `specs/specs.json`** → `feature_list.json`. (Hai điều này lặp mỗi phiên; checklist dòng 8 đã ghi.)

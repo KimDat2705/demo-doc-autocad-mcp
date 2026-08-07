@@ -4365,3 +4365,1170 @@ class Drawing:
         except Exception as e:
             return {"co_bang_ve_net": False, "so_vung": 0,
                     "loi_mem": "Không quét được nét bảng (bỏ qua an toàn): %s" % str(e)[:80]}
+
+    # ---- TOOL #37 (B4): đọc bảng theo KHUNG NÉT. Thân thuật toán nằm ở khối module-level
+    # cuối file (port nguyên văn từ proto đã đo) — ở đây chỉ là CỬA VÀO cấp Drawing.
+    def doc_bang_ke_khung(self, nhan_chua=None, gioi_han=None, **_):
+        """ĐỌC BẢNG KẺ KHUNG NÉT — mỗi hàng = MỘT NHÃN + các giá trị nằm TRONG KHUNG của hàng đó.
+
+        Khác doc_bang_trac_doc (#36) ở chỗ BIÊN HÀNG là NÉT KẺ người vẽ vẽ ra, không phải cửa
+        sổ đoán theo khoảng cách: vạch ngang lặp đủ nhiều thành KHUNG, dải giữa hai vạch liên
+        tiếp là một HÀNG. Nhờ vậy đọc được cả bảng thống kê thép/bảng toạ độ mốc/bảng trắc
+        ngang mà #36 sót vì bộ gate khoảng-cách của nó loại mất.
+
+        PHÂN TẦNG ĐỘ TIN (đọc đúng hoặc TỪ CHỐI RÕ, không đoán):
+          · hàng PHẲNG  -> đọc, trả nguyên văn ô kèm handle;
+          · hàng HAI DÃY-> đọc + da_chung_minh khi đẳng thức cộng dồn khớp bằng số học NGUYÊN;
+          · hàng LỘN XỘN-> KHÔNG đọc, vào _vitri.hang_tu_choi kèm nhãn + handle + lý do.
+        Fail-closed: mọi dải bị bỏ đều để vết (đích danh hoặc số đếm trong _vitri) — không có
+        nhánh bỏ im lặng.
+
+        ĐỌC-VÀ-TRÍCH, KHÔNG TÍNH: KHÔNG cộng, KHÔNG trung bình, KHÔNG hoà giải mâu thuẫn.
+
+        Chạy trên doc ĐANG NẠP (không mở lại file) nên đứng sau cổng cỡ file của Drawing.
+        """
+        try:
+            return tang_ket_qua(quet_bang(self.doc), nhan_chua=nhan_chua, gioi_han=gioi_han)
+        except Exception:
+            # V-E: lỗi bất ngờ của máy đọc -> nói ĐÚNG LOẠI, KHÔNG được phán "bản vẽ không có
+            # bảng" (mệnh đề sai về nội dung). Prose 0 chữ số, dùng chung enum với tầng proto.
+            return {"co_bang": False, "bang": [],
+                    "_vitri": {"so_bang": 0, "trang_thai": "loi_may_doc",
+                               "tham_so": {"nhan_chua": nhan_chua or None,
+                                           "gioi_han": gioi_han}},
+                    "ghi_chu": TU_CHOI["loi_may_doc"]}
+
+
+# ==============================================================================================
+# TOOL #37 `doc_bang_ke_khung` — ĐỌC BẢNG THEO KHUNG NÉT (port từ proto đã đo, B4/2026-08-07)
+# ==============================================================================================
+# XUẤT XỨ: `D:\Dat-Antigravity\_lat4\proto_khung\khung_doc.py` sau B1 (11 vá V-A..V-K + 5 guard
+# sinh thêm) và B3FIX (4 phát hiện CAO của red-team). Đặc tả: `DAC_TA_TOOL37.md`; đính chính bắt
+# buộc áp ở B4: `_lat4/b4_dinh_chinh_dacta.md`; sổ đo từng cụm: `_lat4/b1_ket_qua.jsonl`.
+#
+# NỀN ĐO ĐÃ ĐÓNG BĂNG (chạy lại đầu B4, khớp từng số): tầng a 2.556/2.556 ô khớp handle nền
+# đọc tay, tầng b 171/171, min/max 226/226 đúng, 0 hàng nền mất, 0 hàng thêm, 0/391 hàng nền bị
+# hạ oan; F5 23 hàng b / 74 phương trình / xen_ke 23/23.
+#
+# BA THAY ĐỔI DUY NHẤT SO VỚI PROTO (mọi thứ khác giữ NGUYÊN VĂN — logic hình học/đẳng thức
+# không đụng một ký tự, để còn diff được với bản đã đo):
+#   (1) `quet_bang` nhận doc ĐÃ NẠP thay vì mở lại file  -> không nhân đôi RAM;
+#   (2) chuỗi ĐI RA payload qua `_vn` = to_unicode        -> nhãn TCVN3 đọc được (đo: 0/4.451
+#       ô số bị đổi, nên số không xê dịch);
+#   (3) lọc `nhan_chua` chuẩn hoá GARBLE 2 PHÍA bằng `_norm(to_unicode(...))` — ĐIỀU KIỆN GO
+#       của đặc tả (trước: chuỗi Unicode sạch trượt hết nhãn garble).
+#
+# KỶ LUẬT RỔ NEO (giữ nguyên tiền lệ #36): mọi số ĐẾM / toạ độ / echo-tham-số / nhãn-hàng-TỪ-CHỐI
+# / mục-lục / so_phuong_trinh nằm dưới '_vitri' (mcp_bridge._strip_vitri loại khỏi rổ neo, model
+# vẫn thấy); khoá handle đặt tên 'handle'/'*_handle' (_strip_handle loại); prose 0 CHỮ SỐ và
+# không chứa cụm _REFUSAL_MARKERS.
+#
+# NGOÀI LÁT (đừng tự khởi động): van nhường #36 · grounding có-đơn-vị (lỗ x1000 ở mcp_bridge) ·
+# đọc hàng chữ · bảng nằm trong INSERT block · lỗ số-ĐẾM.
+# ==============================================================================================
+from collections import defaultdict
+from decimal import Decimal, InvalidOperation
+from ezdxf.lldxf.const import DXFStructureError
+
+RD = 0.05          # lưới làm tròn cặp (xmin,xmax) — GIỐNG sự-thật-nền
+MINREP = 4         # số lần lặp tối thiểu của một cặp vạch = 1 khung
+MIN_YS = 5         # khung phải có >= 4 hàng (5 vạch)
+CAO_MAX = 2.5      # dải cao hơn 2.5x bước hàng trung vị -> không phải hàng dữ liệu
+LV_TOL_H = 0.10    # cụm mức y: tách khi khe > max(RD, LV_TOL_H * cao chữ mode)
+                   # ĐO trên 391 hàng GT (do_tol.py): hàng phẳng max khe/h = 0.0406;
+                   # hàng 2-dãy F5 = 0.2036; đa mức C1/C2 >= 0.6683 -> 0.10 nằm giữa
+                   # vùng trống (0.0406, 0.2036) với biên an toàn >= 2x cả hai phía.
+CAP_TONG = 60      # ngân sách mặc định (đồng bộ #36._BTD_CAP_TONG)
+CAP_TRAN = 200     # trần cứng khi caller xin nhiều hơn
+QY_TOL = RD        # V-D: dung sai ghép DẢI GẦN-BẰNG giữa các khung (single-link theo
+                   # lo rồi hi, chỉ ghép khi khung chạm nhau theo x) — thay khoá
+                   # round(lo/hi,4) bằng-tuyệt-đối (root-cause 01-TD: hai nửa khung
+                   # lệch 0.0024 nên dải không ghép được, 20 giá trị rơi im).
+                   # KHÔNG gộp vạch-y trong khung (đo được: gộp toàn cục phá 49 hàng
+                   # nền C1/C2). SWEEP plateau: b1_sweep_vd.py / b1_ket_qua.jsonl.
+K_AP_RAC = 30.0    # V-F guard ap RÁC: TEXT căn lề mà |align_point - insert| > K_AP_RAC x height
+                   # -> align_point là rác ghi bừa, mỏ neo đúng quay về insert.
+                   # ĐO 7 file (b1c2_do_ap.py): d/h HỢP LỆ p99 <= 13.98, max = 14.742 (nhãn dài
+                   # căn giữa A2); 0 ca ap~0 hay insert~0 trong dữ liệu thật -> 30 có biên ~2x
+                   # trên max hợp lệ. SWEEP plateau: b1c2_sweep_kap.py / b1_ket_qua.jsonl.
+DEM_MEP = 1.0      # V-G: đệm quét tràn mép = DEM_MEP x bước cột trung vị của hàng;
+DEM_MEP_FB = 5 * RD  # fallback khi hàng không có bước cột (các ô trùng x).
+                   # SWEEP plateau: b1c2_sweep_dem.py / b1_ket_qua.jsonl.
+K_KHO = 8.0        # V-F2a: text height > K_KHO x h_mode của dải -> loại khỏi ứng viên
+                   # (h_mode = mode chiều cao chữ các text ứng viên của dải, tie-break
+                   # lấy chiều cao NHỎ hơn; dải < 3 text -> KHÔNG lọc — fallback an toàn;
+                   # h_mode = 0 -> KHÔNG lọc). ĐO THẬT b1f2_sweep_kho.py trên 9 file
+                   # (5 nền + CA1..CA4): plateau ĐẠT = {2,3,5,8,10,20,41}, K=100 TRƯỢT
+                   # (CA2 '2A' chết lại) -> chọn 8 = GIỮA plateau. Tỉ lệ hợp lệ đo được:
+                   # nền max 1.33 · CA1 max 2.00 · CA3 max 3.40; rác CA2 '7' = 41.15
+                   # -> 8 có biên >=2.4x trên max hợp lệ và ~5x dưới rác. 0 ô THẬT nền
+                   # bị loại ở MỌI K thử; chi tiết b1f2_sweep_out.txt + b1f2_census_out.json.
+ROT_DUNG_TOL = 0.1  # V-F2b: |rot - 90| <= tol nghĩa là ô xoay đứng ≈90°.
+                   # ĐO 2 VẾ RIÊNG (b1f2_census.py, 9 file): vế nhãn-ins-ngoài-dải-vào-
+                   # bằng-ap MANG TẢI (một mình chọn đúng 1/1 = hàng giả CA3, 0 hàng nền);
+                   # vế rot90 MỘT MÌNH = thảm hoạ (193 hàng nền THẬT dính: A1=6 A2=9
+                   # C1=41 C2=68 F5=69; thêm CA4=25); biến thể 'nhãn-dùng-ap + rot90'
+                   # cũng chết (124 hàng nền). GIỮ HỘI ĐỦ CẢ HAI VẾ: vế rot là phanh
+                   # an toàn chống giết oan trên file lạ, chi phí 0 trên mẫu đo.
+
+VH2_NHAN_LAP = 4   # V-H2a: bảng 1-hàng-đọc có >= VH2_NHAN_LAP ô trong dải txt TRÙNG HỆT
+                   # nhãn -> dải ghi chú lặp dọc tuyến. ĐO 430 hàng (b1h2_sweep_out.txt):
+                   # thật max n_trung = 1 (x2 '150x840x6' Ninh Hải), chế tạo min = 15
+                   # -> plateau T = {2..15} phẳng tuyệt đối, chọn 4 (biên 4x trên thật,
+                   # 3.75x dưới chế tạo). T=1 giết oan 2 hàng thật.
+VH2_ROT_TOL = 20.0  # V-H2c: |rot nhãn - 90| <= tol hoặc |rot nhãn - 270| <= tol -> nhãn
+                   # DỰNG ĐỨNG giữa bảng kẻ ngang. ĐO 430 hàng (b1h2_sweep_out.txt):
+                   # sweep tol 0.1..89.9 đều 3/0/0 (thật/nền rot = 0.0, chế tạo = 90.0).
+                   # CENSUS TOÀN CORPUS 142 file / 7092 hàng (b1h2_census_out.json):
+                   # tập rot nhãn = {0, 0.1, 45, 90, 90.1, 270, 312.3, 359.9, 360};
+                   # họ DỰNG ĐỨNG thật lệch tối đa 0.1 quanh 90; họ CHÉO gần nhất cách
+                   # mép 90/270 là 42.3 (nhãn 312.3) và 45.0 -> plateau tol = [0.1, 42.2],
+                   # chọn 20 ~ giữa plateau (200x trên jitter dựng đứng, 2.1x dưới nhãn
+                   # chéo gần nhất). 919 hàng rot=90 toàn corpus đều NGOÀI scope
+                   # (tầng c/thiếu/trống — không phải ứng viên bảng-1-hàng-đọc).
+NGUONG_TRON = 0.4  # V-B: khe giữa các mức số của ứng viên hàng b >= NGUONG_TRON x
+                   # bước hàng (cao_med) -> nghi TRỘN HÀNG MẤT VẠCH, từ chối đích danh.
+                   # ĐO THẬT (b1c3_do_truoc.py): 23/23 hàng b F5 khe/bước = 0.0509
+                   # (khe 0.2545 / bước 5.0); hàng trộn hai-hàng-một-dải khe ~ trọn
+                   # bước hàng (fixture S2/S2b = 1.0). SWEEP plateau: b1c3_sweep_tron.py
+                   # / b1_ket_qua.jsonl — 0.4 ~ 7.9x trên hàng thật, 2.5x dưới attack.
+
+# HOOK ĐO (chỉ script b1f2_*/b1c4_* dùng, sản phẩm để None — không đổi hành vi):
+#  _F2A_CENSUS: list -> nhận (lo, hi, xmin, handle, txt, height, h_mode) cho MỌI text
+#               lệch >1.2x so h_mode của dải VỀ CẢ HAI PHÍA (cao hơn mode HOẶC thấp hơn
+#               mode — B3-1: phía thấp là ca mode-flip mà hook cũ mù), ghi TRƯỚC khi lọc.
+#  _F2B_CENSUS: list -> nhận (rid, nhan_txt, n_so, ve_nhan_ngoai_dai, ve_rot_dung,
+#               nhan_dung_ap) cho MỌI hàng >= 2 ô số (ghi TRƯỚC khi quyết định).
+#  _VH_CENSUS : list -> nhận (nhan_txt, nhan_handle, tang, n_so, lap_het, cao_bang,
+#               buoc_hang) cho MỌI bảng đúng-1-hàng-đọc SAU dedup (ghi TRƯỚC khi hạ).
+_F2A_CENSUS = None
+_F2B_CENSUS = None
+_VH_CENSUS = None
+
+_NUM_RE = re.compile(r"^[+\-−]?\d+(?:[.,]\d+)?$")
+_MTEXT_FMT = re.compile(r"\\[A-Za-z][^;\\]*;|[{}]|\\P|\\~")
+
+
+def _clean_mtext(s):
+    return _MTEXT_FMT.sub(" ", s or "").strip()
+
+
+def la_so(s):
+    return bool(_NUM_RE.match((s or "").strip()))
+
+
+def to_dec(s):
+    """Decimal CHÍNH XÁC (không float). None nếu không phải số thuần."""
+    t = (s or "").strip().replace("−", "-").replace(",", ".").lstrip("+")
+    try:
+        return Decimal(t)
+    except (InvalidOperation, ValueError):
+        return None
+
+
+def to_num(s):
+    d = to_dec(s)
+    return float(d) if d is not None else None
+
+
+# ---------------------------------------------------------------- ĐỌC THÔ
+def doc_texts(doc):
+    """TEXT/MTEXT/ATTRIB: handle, x/y (insert), ax/ay (align_point nếu TEXT căn lề),
+    layer, txt, height, rot, kind."""
+    out = []
+    for e in doc.modelspace():
+        t = e.dxftype()
+        if t in ("TEXT", "MTEXT"):
+            raw = e.dxf.text if t == "TEXT" else e.text
+            try:
+                ins = e.dxf.insert
+                xx, yy = float(ins.x), float(ins.y)
+            except Exception:
+                xx = yy = 0.0
+            try:
+                hgt = float(e.dxf.get("height" if t == "TEXT" else "char_height", 0.0) or 0.0)
+            except Exception:
+                hgt = 0.0
+            ax = ay = None
+            if t == "TEXT":
+                try:
+                    ha = int(e.dxf.get("halign", 0) or 0)
+                    va = int(e.dxf.get("valign", 0) or 0)
+                    ap = e.dxf.get("align_point", None)
+                    if (ha or va) and ap is not None:
+                        ax, ay = float(ap.x), float(ap.y)
+                        # V-F GUARD AP RÁC: align_point ghi bừa thì mỏ neo đúng là insert.
+                        #  (i) ap ~ (0,0) trong khi insert thì không -> rác kiểu mặc-định-0.
+                        #  (ii) |ap - insert| > K_AP_RAC x height -> rác kiểu văng-xa
+                        #       (d/h hợp lệ đo được tối đa ~15; xem b1c2_do_ap.py).
+                        if abs(ax) < 1e-9 and abs(ay) < 1e-9 and (
+                                abs(xx) > 1e-9 or abs(yy) > 1e-9):
+                            ax = ay = None
+                        elif hgt > 0 and ((ax - xx) ** 2 + (ay - yy) ** 2) ** 0.5 \
+                                > K_AP_RAC * hgt:
+                            ax = ay = None
+                except Exception:
+                    ax = ay = None
+            try:
+                rot = float(e.dxf.get("rotation", 0.0) or 0.0) % 360.0
+            except Exception:
+                rot = 0.0
+            txt = _clean_mtext(raw) if t == "MTEXT" else (raw or "").strip()
+            if txt:
+                out.append({"handle": e.dxf.handle, "x": xx, "y": yy, "ax": ax, "ay": ay,
+                            "layer": e.dxf.get("layer"), "txt": txt, "kind": t,
+                            "height": hgt, "rot": rot, "ins_h": None})
+        elif t == "INSERT":
+            for att in e.attribs:
+                try:
+                    ins = att.dxf.insert
+                    xx, yy = float(ins.x), float(ins.y)
+                except Exception:
+                    xx = yy = 0.0
+                try:
+                    hgt = float(att.dxf.get("height", 0.0) or 0.0)
+                except Exception:
+                    hgt = 0.0
+                txt = (att.dxf.text or "").strip()
+                if txt:
+                    # V-H2b: ins_h = handle của INSERT CHA — topology 'các ô cùng một
+                    # khối hay mỗi ô một khối' là tín hiệu tách hàng-block thật khỏi
+                    # cụm bong bóng callout rời (nội bộ; không vào tool-result).
+                    out.append({"handle": att.dxf.handle, "x": xx, "y": yy, "ax": None, "ay": None,
+                                "layer": att.dxf.get("layer"), "txt": txt, "kind": "ATTRIB",
+                                "height": hgt, "rot": 0.0, "ins_h": e.dxf.handle})
+    return out
+
+
+def doan_ngang(doc):
+    segs = []
+    for e in doc.modelspace():
+        t = e.dxftype()
+        try:
+            if t == "LINE":
+                a, b = e.dxf.start, e.dxf.end
+                segs.append((float(a.x), float(a.y), float(b.x), float(b.y)))
+            elif t == "LWPOLYLINE":
+                pts = [(float(p[0]), float(p[1])) for p in e.get_points("xy")]
+                if getattr(e, "closed", False) and len(pts) > 2:
+                    pts = pts + [pts[0]]
+                for a, b in zip(pts, pts[1:]):
+                    segs.append((a[0], a[1], b[0], b[1]))
+            elif t == "POLYLINE":
+                pts = [(float(v.dxf.location.x), float(v.dxf.location.y)) for v in e.vertices]
+                for a, b in zip(pts, pts[1:]):
+                    segs.append((a[0], a[1], b[0], b[1]))
+        except Exception:
+            pass
+    return segs
+
+
+# ---------------------------------------------------------------- KHUNG + BẢNG
+def khung_tho(doc):
+    grp = defaultdict(list)
+    for x1, y1, x2, y2 in doan_ngang(doc):
+        if abs(y1 - y2) < 1e-6 and abs(x2 - x1) > 1e-6:
+            a, b = (x1, x2) if x1 < x2 else (x2, x1)
+            grp[(round(a / RD) * RD, round(b / RD) * RD)].append((a, b, y1))
+    out = []
+    for v in grp.values():
+        if len(v) < MINREP:
+            continue
+        xa = sorted(a for a, b, y in v)
+        xb = sorted(b for a, b, y in v)
+        out.append({"xmin": xa[len(xa) // 2], "xmax": xb[len(xb) // 2],
+                    "ys": sorted(set(round(y, 4) for a, b, y in v))})
+    out.sort(key=lambda k: (k["xmin"], k["ys"][0]))
+    return out
+
+
+def lap_bang_theo_dai(ks, T=None):
+    """(lo, hi, bang) — GHÉP THEO TỪNG DẢI, không gộp bắc cầu (gt18).
+
+    V-D (cụm 1): khoá dải bằng-tuyệt-đối round(lo/hi,4) làm HAI NỬA KHUNG lệch micro
+    không ghép được (01-TD: nửa nhãn và nửa số lệch 0.0024 -> dải 20 giá trị rơi im).
+    Sửa: ghép DẢI GẦN-BẰNG — cụm theo lo rồi theo hi (single-link, dung sai QY_TOL),
+    trong cụm mới ghép theo x-chạm-nhau như cũ; (lo,hi) của mỗi bảng lấy theo phần
+    CHÍNH (rộng nhất) của chính bảng đó -> dải 1-phần giữ NGUYÊN lo/hi B0.
+    ⚠ CỐ Ý KHÔNG gộp vạch-y toàn cục kiểu đại-diện-cụm (bản nguyên văn đặc tả):
+    ĐO do_5file cho thấy C1/C2 có vạch-đôi thật cách 0.027-0.14 TRONG một khung —
+    gộp đại diện làm 49 hàng nền mất id + min/max rớt 226->205 (vi phạm gate
+    '5-file nền bất biến' của chính V-D). Ghép-dải-gần-bằng giữ nguyên từng vạch
+    trong khung, chỉ nới phép so KHÓA giữa các khung, nên nền bất biến.
+
+    B3FIX B3-2 SIẾT GHÉP-X (T = danh sách text của doc_texts; T=None -> không siết,
+    giữ hành vi cũ cho script đo cũ): ghép-x hai khung chạm nhau chỉ là CỨU khung bị
+    XẺ ĐÔI (01-TD: nửa STT toàn-số + nửa giá trị — KHÔNG nửa nào tự-đủ); hai BẢNG
+    THẬT kề nhau mà ghép là hàng bên trái NUỐT số bảng phải (f4: vạch lệch 0.03 +
+    khe x 0.02 -> 'HANG L1' ăn ['11','12','91','92']; lỗ có từ B0 với vạch trùng hệt
+    dy=0 — đo b3rt_bien (ii), V-D chỉ nới thêm dy<=QY_TOL). Luật: part TỰ-ĐỦ khi win
+    dải của RIÊNG nó có text trái nhất KHÔNG-số + >=2 ô số; cặp khung có >=1 dải mà
+    CẢ HAI part tự-đủ -> CẤM ghép cặp đó ở MỌI dải (khoá theo cặp-khung, tất định —
+    tránh cùng cặp khung dải ghép dải không). CĂN CỨ ĐO (b3fix_probe_vd +
+    b3fix_census3, 142 file): 01-TD 9/9 dải multi-part cả hai part KHÔNG tự-đủ (giữ
+    nguyên ca cứu); 2.Tdoc 0 group multi-part; corpus 9 file có group both-ss =
+    danh sách kỳ vọng đổi (b3fix_ky_vong.json)."""
+    dai_tho = []
+    for k in ks:
+        if len(k["ys"]) < MIN_YS:
+            continue
+        for lo, hi in zip(k["ys"], k["ys"][1:]):
+            dai_tho.append((round(lo, 4), round(hi, 4), k))
+    out = []
+    if not dai_tho:
+        return out
+    # cụm theo lo (single-link, dung sai QY_TOL)
+    dai_tho.sort(key=lambda d: (d[0], d[1]))
+    nhom_lo, cur = [], [dai_tho[0]]
+    for d in dai_tho[1:]:
+        if d[0] - cur[-1][0] > QY_TOL:
+            nhom_lo.append(cur)
+            cur = [d]
+        else:
+            cur.append(d)
+    nhom_lo.append(cur)
+    cum_list = []
+    for g in nhom_lo:
+        # trong nhóm-lo, tách tiếp theo hi (single-link, cùng dung sai)
+        g = sorted(g, key=lambda d: (d[1], d[0]))
+        sub, cur = [], [g[0]]
+        for d in g[1:]:
+            if d[1] - cur[-1][1] > QY_TOL:
+                sub.append(cur)
+                cur = [d]
+            else:
+                cur.append(d)
+        sub.append(cur)
+        for parts in sub:
+            cum_list.append(sorted(parts, key=lambda d: d[2]["xmin"]))
+    # B3-2: tính tập CẶP KHUNG bị cấm ghép (id(khung) x id(khung)) từ chuỗi tạm
+    blocked = set()
+    if T is not None:
+        import bisect as _bs
+        T_sorted = sorted(T, key=_anchor_y)
+        ys_idx = [_anchor_y(t) for t in T_sorted]
+
+        def _tu_du(d):
+            lo_d, hi_d, k = d
+            i0 = _bs.bisect_right(ys_idx, lo_d)
+            i1 = _bs.bisect_left(ys_idx, hi_d)
+            win = sorted([t for t in T_sorted[i0:i1]
+                          if k["xmin"] - RD <= _anchor_x(t) <= k["xmax"] + RD],
+                         key=_anchor_x)
+            if not win or la_so(win[0]["txt"]):
+                return False
+            return sum(1 for t in win[1:] if la_so(t["txt"])) >= 2
+
+        for parts in cum_list:
+            chains, cur2 = [], [parts[0]]
+            for d in parts[1:]:
+                if d[2]["xmin"] <= max(q[2]["xmax"] for q in cur2) + RD:
+                    cur2.append(d)
+                else:
+                    chains.append(cur2)
+                    cur2 = [d]
+            chains.append(cur2)
+            for gg in chains:
+                if len(gg) < 2:
+                    continue
+                ss = [d for d in gg if _tu_du(d)]
+                for i in range(len(ss)):
+                    for j in range(i + 1, len(ss)):
+                        a, b = id(ss[i][2]), id(ss[j][2])
+                        blocked.add((a, b))
+                        blocked.add((b, a))
+    # ghép theo x-chạm-nhau như cũ, nhưng KHÔNG ghép part của cặp khung bị cấm
+    for parts in cum_list:
+        cum, cur2 = [], [parts[0]]
+        for d in parts[1:]:
+            cham = d[2]["xmin"] <= max(q[2]["xmax"] for q in cur2) + RD
+            cam = any((id(d[2]), id(q[2])) in blocked for q in cur2)
+            if cham and not cam:
+                cur2.append(d)
+            else:
+                cum.append(cur2)
+                cur2 = [d]
+        cum.append(cur2)
+        for gg in cum:
+            lo_c, hi_c, chinh = max(gg, key=lambda d: d[2]["xmax"] - d[2]["xmin"])
+            out.append((lo_c, hi_c, {"xmin": min(d[2]["xmin"] for d in gg),
+                                     "xmax": max(d[2]["xmax"] for d in gg),
+                                     "ys_bang": chinh["ys"], "n_phan": len(gg)}))
+    out.sort(key=lambda e: (-e[0], e[2]["xmin"]))     # trên xuống dưới, trái sang phải
+    return out
+
+
+# ---------------------------------------------------------------- PHÂN TẦNG
+# V-F MỎ NEO NHẤT QUÁN: MỘT hàm _anchor dùng ở CẢ 5 chỗ hình học
+# (membership dải theo y · cửa sổ x · sort trong hàng · chọn nhãn trái nhất ·
+#  kiểm xen kẽ) — trước vá, cụm mức y đi theo align_point còn 4 chỗ kia đi theo
+# insert: hai thước đo lệch nhau là lỗ latent P6 (bài học lần-10 insert vs align).
+def _anchor(t):
+    if t["ax"] is not None:
+        return t["ax"], t["ay"]
+    return t["x"], t["y"]
+
+
+def _anchor_x(t):
+    return t["ax"] if t["ax"] is not None else t["x"]
+
+
+def _anchor_y(t):
+    return t["ay"] if t["ay"] is not None else t["y"]
+
+
+def _cum_muc_y(cells, h_mode):
+    """Cụm mức y theo MỎ NEO; tách khi khe > max(RD, LV_TOL_H*h). Trả list list."""
+    tol = max(RD, LV_TOL_H * (h_mode or 0.0))
+    cs = sorted(cells, key=_anchor_y)
+    out, cur = [], [cs[0]]
+    for t in cs[1:]:
+        if _anchor_y(t) - _anchor_y(cur[-1]) > tol:
+            out.append(cur)
+            cur = [t]
+        else:
+            cur.append(t)
+    out.append(cur)
+    return out
+
+
+def _dong_nhat(cells):
+    """Ô số đồng nhất: cùng layer-mode + cùng height-mode (luật o_dong_nhat của sự-thật-nền)."""
+    lay = Counter(t["layer"] for t in cells).most_common(1)[0][0]
+    hm = Counter(round(t["height"], 3) for t in cells).most_common(1)[0][0]
+    return [t for t in cells if t["layer"] == lay and abs(round(t["height"], 3) - hm) < 1e-6]
+
+
+def _thu_dang_thuc(series):
+    """series = list các dãy ô (mỗi dãy sort theo x). Nếu đúng 2 dãy, thử đẳng thức
+    NGUYÊN cd[i+1]-cd[i]==le[i] (Decimal, không dung sai) theo CẢ HAI chiều gán.
+    Trả (day_cong_don, day_le, so_pt) hoặc None."""
+    if len(series) != 2:
+        return None
+    a, b = series
+    for cd, le in ((a, b), (b, a)):
+        if len(cd) != len(le) + 1 or len(le) < 1:
+            continue
+        vs_cd = [to_dec(t["txt"]) for t in cd]
+        vs_le = [to_dec(t["txt"]) for t in le]
+        if any(v is None for v in vs_cd + vs_le):
+            continue
+        if all(v == 0 for v in vs_le):
+            continue           # đẳng thức toàn-0 là rỗng nghĩa — không được tính là CHỨNG MINH
+        if all(vs_cd[i + 1] - vs_cd[i] == vs_le[i] for i in range(len(le))):
+            # xen kẽ: ô lẻ nằm GIỮA hai ô cộng dồn theo x (đo được 74/74 trên F5)
+            # V-F: so theo MỎ NEO (trước vá dùng insert-x — lệch thước với sort dãy).
+            xen = all(_anchor_x(cd[i]) <= _anchor_x(le[i]) <= _anchor_x(cd[i + 1])
+                      for i in range(len(le)))
+            return cd, le, len(le), xen
+    return None
+
+
+def _chung_minh_cheo(rows):
+    """3 hàng PHẲNG cùng bảng, cùng n cột (n>=3), C[i]==A[i]-B[i] NGUYÊN mọi cột
+    -> đánh dấu cả ba. Thuần số học. Loại C toàn-0 (đẳng thức rỗng nghĩa)."""
+    flat = [r for r in rows if r["tang"] == "a" and len(r["so_cells"]) >= 3]
+    by_n = defaultdict(list)
+    for r in flat:
+        by_n[len(r["so_cells"])].append(r)
+    for n, grp in by_n.items():
+        if len(grp) < 3:
+            continue
+        decs = {}
+        for r in grp:
+            decs[r["id"]] = [to_dec(t["txt"]) for t in r["so_cells"]]
+        ids = [r["id"] for r in grp]
+        for i, A in enumerate(grp):
+            va = decs[A["id"]]
+            if any(v is None for v in va):
+                continue
+            for j, B in enumerate(grp):
+                if i == j:
+                    continue
+                vb = decs[B["id"]]
+                if any(v is None for v in vb):
+                    continue
+                hieu = [x - y for x, y in zip(va, vb)]
+                if all(h == 0 for h in hieu):
+                    continue
+                for k, C in enumerate(grp):
+                    if k in (i, j):
+                        continue
+                    if decs[C["id"]] == hieu:
+                        A["cheo"] = B["cheo"] = C["cheo"] = True
+
+
+# ---------------------------------------------------------------- QUÉT MỘT FILE
+def quet_bang(nguon):
+    """Quét ĐẦY ĐỦ (không ngân sách) -> dict trạng thái + bảng + hàng đã phân tầng.
+    Đây là tầng ĐO; tool-result cắt ngân sách dựng ở tang_ket_qua().
+
+    B4 TÍCH HỢP: `nguon` nhận HAI dạng —
+      · đối tượng doc ezdxf ĐÃ NẠP (đường SẢN PHẨM: Drawing.doc). KHÔNG mở lại file:
+        mở lại là nhân đôi doc trong RAM, mà trần RAM của dự án đi theo SỐ doc đang giữ
+        (MAX_BAN_VE), không theo MB file.
+      · đường dẫn str (đường TEST/proto) — giữ để 3 nhánh từ chối cấp file của V-E
+        (loi_doc_file / loi_mo_file / loi_may_doc) còn kiểm được bằng ca test thật."""
+    t0 = time.perf_counter()
+    try:
+        doc = ezdxf.readfile(nguon) if isinstance(nguon, str) else nguon
+    except DXFStructureError:
+        # V-E: file MỞ ĐƯỢC nhưng hỏng cấu trúc DXF -> loi_doc_file (đúng loại).
+        return {"trang_thai": "loi_doc_file", "bang": [], "ms": (time.perf_counter() - t0) * 1e3}
+    except (FileNotFoundError, OSError):
+        # V-E: không mở được file (không tồn tại / không đủ quyền) -> loi_mo_file,
+        # KHÔNG được phán "lỗi cấu trúc DXF" (mệnh đề sai về nội dung).
+        return {"trang_thai": "loi_mo_file", "bang": [], "ms": (time.perf_counter() - t0) * 1e3}
+    except Exception:
+        # V-E: lỗi bất ngờ của máy đọc -> loi_may_doc (không kết luận về file).
+        return {"trang_thai": "loi_may_doc", "bang": [], "ms": (time.perf_counter() - t0) * 1e3}
+    T = doc_texts(doc)
+    ks = khung_tho(doc)
+    dai = lap_bang_theo_dai(ks, T)   # B3-2: truyền text để siết ghép-x cặp tự-đủ
+    # B3FIX B3-3 NHÁNH CÂM: lap_bang_theo_dai bỏ khung < MIN_YS bằng continue KHÔNG vết
+    # (đo pass-2: 108 dải GIỐNG HÀNG BẢNG / 20 file corpus rơi im lặng — nhãn+>=2 ô số
+    # 1 mức y trong khung 3-4 vạch). V-C hứa 'mọi dải bị bỏ phải để vết' -> đếm số DẢI
+    # của các khung nhỏ vào so_dai_bo_qua['khung_nho'] (vết = ĐẾM, cùng lớp qua_cao/
+    # trong; KHÔNG đọc — khung < 4 hàng chưa đủ bằng chứng cấu trúc bảng, chỉ cần LỘ).
+    kn_dai = sum(max(0, len(k["ys"]) - 1) for k in ks if len(k["ys"]) < MIN_YS)
+    if not dai:
+        return {"trang_thai": "khong_khung" if not ks else "khung_khong_bang",
+                "bang": [], "ms": (time.perf_counter() - t0) * 1e3,
+                "so_khung": len(ks),
+                "so_dai_bo_qua": {"qua_cao": 0, "khong_nhan": 0, "trong": 0,
+                                  "trung_vach": 0, "khung_nho": kn_dai}}
+
+    # index text theo y để quét dải nhanh — V-F: theo MỎ NEO, không phải insert thô
+    T_sorted = sorted(T, key=_anchor_y)
+    ys_idx = [_anchor_y(t) for t in T_sorted]
+    import bisect
+
+    bang_map = {}      # (xmin,xmax,ys0,ys-1) -> bảng
+    # V-C FAIL-CLOSED: CẤM continue câm — mỗi nhánh bỏ dải PHẢI để vết (đếm hoặc đích danh).
+    # B3FIX B3-3: 'khung_nho' = số dải của khung < MIN_YS bị lap_bang_theo_dai bỏ.
+    bo_qua = {"qua_cao": 0, "khong_nhan": 0, "trong": 0, "trung_vach": 0,
+              "khung_nho": kn_dai}
+    so_kho_lon = 0     # V-F2a: số lượt text khổ lớn bị loại khỏi ứng viên (vết)
+    for lo, hi, b in dai:
+        ysb = b["ys_bang"]
+        caos = sorted(y2 - y1 for y1, y2 in zip(ysb, ysb[1:]))
+        cao_med = caos[len(caos) // 2]
+        if (hi - lo) > CAO_MAX * cao_med:
+            bo_qua["qua_cao"] += 1          # V-C: vết = đếm (số ô lạc vào so_o_ngoai_hang)
+            continue
+        i0 = bisect.bisect_right(ys_idx, lo)
+        i1 = bisect.bisect_left(ys_idx, hi)
+        # V-F: cửa sổ x + sort trong hàng + chọn nhãn trái nhất (win[0]) đều theo MỎ NEO
+        win = sorted([t for t in T_sorted[i0:i1]
+                      if b["xmin"] - RD <= _anchor_x(t) <= b["xmax"] + RD], key=_anchor_x)
+        if not win:
+            bo_qua["trong"] += 1            # V-C: vết = đếm
+            continue
+        # V-F2a LỌC CHỮ KHỔ LỚN BẤT THƯỜNG: mỏ neo ap của chữ trang trí/khung in khổng
+        # lồ có thể đè đúng dải (CA2: TEXT '7' hgt ~41x chữ hàng, layer MultiPlotBoundary,
+        # ap rơi vào dải hàng '2A' làm hàng THẬT bị giáng a->c). Chữ cao hơn K_KHO lần
+        # mode chiều cao của dải KHÔNG THỂ là ô của dải đó -> loại khỏi ứng viên, ĐỂ VẾT
+        # so_kho_lon. Fallback an toàn: dải < 3 text hoặc h_mode = 0 -> không lọc.
+        # (Text mode-height không bao giờ bị loại vì h_mode <= K_KHO*h_mode với K_KHO>=1,
+        #  nên win không bao giờ bị lọc rỗng.)
+        if len(win) >= 3:
+            hh = Counter(round(t["height"], 3) for t in win)
+            h_mode_dai = sorted(hh.items(), key=lambda kv: (-kv[1], kv[0]))[0][0]
+            if h_mode_dai > 0:
+                if _F2A_CENSUS is not None:
+                    # B3FIX B3-1 (hook): bản cũ chỉ ghi text CAO hơn mode -> MÙ với ca
+                    # MODE-FLIP (>=2 chữ khổng lồ CÙNG CỠ chiếm đa số => h_mode lật về
+                    # cỡ LỚN, text nhỏ thật nằm DƯỚI mode và không được ghi). Ghi CẢ
+                    # HAI phía lệch >1.2x để census nhìn thấy lỗ.
+                    for t in win:
+                        if t["height"] > 1.2 * h_mode_dai or (
+                                t["height"] > 0 and 1.2 * t["height"] < h_mode_dai):
+                            _F2A_CENSUS.append((lo, hi, b["xmin"], t["handle"],
+                                                t["txt"][:20], t["height"], h_mode_dai))
+                qua_kho = [t for t in win if t["height"] > K_KHO * h_mode_dai]
+                if qua_kho:
+                    so_kho_lon += len(qua_kho)
+                    win = [t for t in win if t["height"] <= K_KHO * h_mode_dai]
+        key = (round(b["xmin"], 3), round(b["xmax"], 3), ysb[0], ysb[-1])
+        if la_so(win[0]["txt"]):
+            # V-C: dải có số mà text trái nhất là SỐ -> không thấy nhãn hàng.
+            #  >=2 ô số: TỪ CHỐI ĐÍCH DANH (nhan = nguyên văn text trái nhất, nằm trong
+            #  _vitri.hang_tu_choi nên chữ số bị strip khỏi rổ neo);  <2 ô số: đếm.
+            n_so = sum(1 for t in win if la_so(t["txt"]))
+            if n_so >= 2:
+                bg = bang_map.setdefault(key, {"xmin": b["xmin"], "xmax": b["xmax"],
+                                               "y_duoi": ysb[0], "y_tren": ysb[-1],
+                                               "buoc_hang": cao_med, "rows": [],
+                                               "tc_khong_nhan": []})
+                bg.setdefault("tc_khong_nhan", []).append(
+                    {"nhan": win[0], "cells": win, "lo": lo, "hi": hi})
+            else:
+                bo_qua["khong_nhan"] += 1
+            continue
+        nhan, o = win[0], win[1:]
+        so_cells = [t for t in o if la_so(t["txt"])]
+        bg = bang_map.setdefault(key, {"xmin": b["xmin"], "xmax": b["xmax"],
+                                       "y_duoi": ysb[0], "y_tren": ysb[-1],
+                                       "buoc_hang": cao_med, "rows": [],
+                                       "tc_khong_nhan": []})
+        rid = "%s#y%.3f#x%.1f" % ("", lo, b["xmin"])
+        if len(so_cells) < 2:
+            # 'trong' = hàng KHÔNG có ô nào ngoài nhãn (ghi chú/tiêu đề) — đếm, không liệt kê.
+            # 'thieu' = hàng CÓ ô nhưng <2 ô số (hàng chữ: Tên cọc / Lý trình / i=0.33%...)
+            tang = "trong" if not o else "thieu"
+            bg["rows"].append({"id": rid, "lo": lo, "hi": hi, "nhan": nhan, "cells": o,
+                               "so_cells": so_cells, "tang": tang, "cheo": False})
+            continue
+        # V-F2b NGHI HÀNG CALLOUT ĐỨNG: nhãn có insert NGOÀI dải — chỉ lọt dải nhờ
+        # align_point — VÀ mọi ô số đều xoay ≈90°: đây là cụm ghi chú DỰNG ĐỨNG
+        # (nhãn callout thép + số hiệu thanh của các callout đứng khác nhau) mà mỏ neo
+        # ap tình cờ rơi vào dải kẻ, KHÔNG phải hàng bảng (CA3 Gia Lộc: 'Ø10a200'=[7,3]
+        # là số hiệu 2 thanh thép đứng KHÁC NHAU). Hạ hang_tu_choi, ly_do cố định
+        # 0-chữ-số nghi_cum_ghi_chu_dung. Hai vế đo riêng bằng _F2B_CENSUS
+        # (b1f2_census.py) — vế nào mang tải xem b1f2_f2b_ve_out.txt.
+        ve_nhan = (nhan["ax"] is not None) and not (lo < nhan["y"] < hi)
+        ve_rot = all(abs(t["rot"] - 90.0) <= ROT_DUNG_TOL for t in so_cells)
+        if _F2B_CENSUS is not None:
+            _F2B_CENSUS.append((rid, nhan["txt"][:24], len(so_cells), ve_nhan, ve_rot,
+                                nhan["ax"] is not None))
+        if ve_nhan and ve_rot:
+            bg["rows"].append({"id": rid, "lo": lo, "hi": hi, "nhan": nhan, "cells": o,
+                               "so_cells": sorted(so_cells, key=_anchor_x),
+                               "o_chu": sorted((t for t in o if not la_so(t["txt"])),
+                                               key=_anchor_x),
+                               "chu_khac_muc": False, "tang": "c", "cheo": False,
+                               "nghi_dung": True, "so_muc": None})
+            continue
+        # B3FIX B3-1 MODE-FLIP V-F2a: khi >=2 chữ khổng lồ CÙNG CỠ chiếm đa số dải,
+        # h_mode LẬT về cỡ lớn -> bộ lọc khổ-lớn vô hiệu -> hàng 'nhãn nhỏ + toàn số
+        # trang trí' được đọc TỰ TIN (f3b: 'CAO DO Y' -> ['7','8'] cao 41x nhãn = SAI-
+        # TỰ-TIN). Luật: hàng >=2 ô số mà MỌI ô số cao > K_KHO x chiều cao NHÃN ->
+        # KHÔNG đọc tự tin, TỪ CHỐI ĐÍCH DANH ly_do nghi_chu_trang_tri_kho_lon.
+        # Chọn 'từ chối' thay 'hạ thieu' theo thất-bại-LỘ: từ chối lộ nhãn+handle+
+        # ly_do; còn hạ-thieu ở ca 0-ô-chữ-còn-lại rơi về 'trong' = đếm không đích danh.
+        # ĐO corpus TRƯỚC khi chốt (b3fix_census3, 142 file): 0 hàng a/b thật dính —
+        # ratio min-height-ô-số/height-nhãn toàn corpus max = 1.0 -> K_KHO=8 có biên
+        # 8x trên max thật; đối sách chỉ đóng lỗ, không chạm hàng thật nào hôm nay.
+        # Đặt SAU V-F2b để không cướp ly_do của ca CA3 GiaLoc (nghi_cum_ghi_chu_dung).
+        hn_kl = nhan["height"]
+        hs_kl = [t["height"] for t in so_cells if t["height"] > 0]
+        if hn_kl > 0 and hs_kl and min(hs_kl) > K_KHO * hn_kl:
+            bg["rows"].append({"id": rid, "lo": lo, "hi": hi, "nhan": nhan, "cells": o,
+                               "so_cells": sorted(so_cells, key=_anchor_x),
+                               "o_chu": sorted((t for t in o if not la_so(t["txt"])),
+                                               key=_anchor_x),
+                               "chu_khac_muc": False, "tang": "c", "cheo": False,
+                               "nghi_kho_lon": True, "so_muc": None})
+            continue
+        h_mode = Counter(round(t["height"], 3) for t in so_cells).most_common(1)[0][0]
+        # Ô CHỮ = ô trong dải KHÔNG phải số (chú thích dốc '0.0%%%', ký hiệu taluy, bản sao
+        # nhãn...). PHẢI LỘ nguyên văn kèm handle — giấu đi là làm méo nội dung hàng
+        # (ca A1 'Dốc dọc thiết kế': số 240/20/302 là CHIỀU DÀI ĐOẠN DỐC, còn trị số dốc
+        # nằm ở ô chữ '0.0%%%' — chỉ trả số thì model hiểu sai nghĩa nhãn).
+        o_chu = [t for t in o if not la_so(t["txt"])]
+        muc = _cum_muc_y(so_cells, h_mode)
+        tol_lv = max(RD, LV_TOL_H * (h_mode or 0.0))
+        muc_so_y = [ _anchor_y(t) for t in muc[0] ] if len(muc) == 1 else None
+        chu_khac_muc = bool(muc_so_y and o_chu and any(
+            min(abs(_anchor_y(c) - yy) for yy in muc_so_y) > tol_lv for c in o_chu))
+        if len(muc) == 1:
+            dn = _dong_nhat(so_cells)
+            if len(dn) == len(so_cells):
+                tang = "a"
+            else:
+                tang = "c"
+            bg["rows"].append({"id": rid, "lo": lo, "hi": hi, "nhan": nhan, "cells": o,
+                               "so_cells": sorted(so_cells, key=_anchor_x),
+                               "o_chu": sorted(o_chu, key=_anchor_x),
+                               "chu_khac_muc": chu_khac_muc,
+                               "tang": tang, "cheo": False, "so_muc": 1})
+            continue
+        # nhiều mức: tách dãy theo (rot, mức) rồi thử đẳng thức
+        series_map = defaultdict(list)
+        for mi, m in enumerate(muc):
+            for t in m:
+                series_map[((int(round(t["rot"] / 10.0)) * 10) % 360, mi)].append(t)
+        series = [sorted(v, key=_anchor_x) for v in series_map.values()]
+        kq = _thu_dang_thuc(series)
+        if kq:
+            cd, le, so_pt, xen = kq
+            # V-B NGHI TRỘN HÀNG MẤT VẠCH: hai hàng thật bị trộn vào MỘT dải (mất nét
+            # kẻ ngăn giữa) có thể khớp đẳng thức CHÉO-HÀNG (S2: dãy trên là cộng dồn
+            # hàng khác, dãy dưới là lẻ) -> claim bịa + nhãn hàng thứ hai biến mất.
+            # Hai vế bắt (OR), đo thật b1c3_do_truoc.py trên 23/23 hàng b F5:
+            #  (i) >= 2 text KHÔNG-SỐ nằm TRÁI ô-số-đầu theo mỏ neo x — hàng thật chỉ
+            #      có đúng 1 nhãn trái (23/23 n_chu_trai=1); 2 nhãn trái = 2 hàng trộn.
+            #  (ii) khe giữa các mức số >= NGUONG_TRON x bước hàng — hàng thật
+            #      khe/bước = 0.0509 (23/23), hàng trộn khe ~ trọn bước hàng.
+            khe_muc = 0.0
+            for m1, m2 in zip(muc, muc[1:]):
+                khe_muc = max(khe_muc, _anchor_y(m2[0]) - _anchor_y(m1[-1]))
+            x_so_dau = min(_anchor_x(t) for t in so_cells)
+            n_chu_trai = 1 + sum(1 for t in o_chu if _anchor_x(t) < x_so_dau)
+            if n_chu_trai >= 2 or khe_muc >= NGUONG_TRON * cao_med:
+                bg["rows"].append({"id": rid, "lo": lo, "hi": hi, "nhan": nhan,
+                                   "cells": o,
+                                   "so_cells": sorted(so_cells, key=_anchor_x),
+                                   "o_chu": sorted(o_chu, key=_anchor_x),
+                                   "chu_khac_muc": False, "tang": "c", "cheo": False,
+                                   "nghi_tron": True, "so_muc": len(muc)})
+                continue
+            # V-B: chữ-xen-khác-mức cho hàng b — so với MỌI mức số của CẢ HAI dãy
+            # (chữ trùng mức một trong hai dãy là chú thích cùng hàng, không bật cờ).
+            ys_so_hang = [_anchor_y(t) for t in so_cells]
+            chu_km_b = bool(o_chu and any(
+                min(abs(_anchor_y(c) - yy) for yy in ys_so_hang) > tol_lv
+                for c in o_chu))
+            bg["rows"].append({"id": rid, "lo": lo, "hi": hi, "nhan": nhan, "cells": o,
+                               "so_cells": sorted(so_cells, key=_anchor_x),
+                               "o_chu": sorted(o_chu, key=_anchor_x),
+                               "chu_khac_muc": chu_km_b,
+                               "tang": "b", "cd": cd, "le": le, "so_pt": so_pt,
+                               "xen_ke": xen, "cheo": False, "so_muc": len(muc)})
+        else:
+            bg["rows"].append({"id": rid, "lo": lo, "hi": hi, "nhan": nhan, "cells": o,
+                               "so_cells": sorted(so_cells, key=_anchor_x),
+                               "o_chu": sorted(o_chu, key=_anchor_x),
+                               "chu_khac_muc": False,
+                               "tang": "c", "cheo": False, "so_muc": len(muc)})
+
+    # V-I DEDUP KHUNG LỒNG (cụm 4): cùng một nhãn (handle) thành hàng ở >= 2 bảng —
+    # khung bao ngoài và bảng con lồng nhau cùng chia sẻ dải kẻ nên cùng bắt một
+    # hàng (GiaLoc KC: 'GT-9820B' 4 hàng a y hệt ở 4 khung bao lồng nhau). GIỮ hàng
+    # ở bảng HẸP NHẤT — nét kẻ sát dữ liệu nhất; tie-break (rộng, xmin, lo) TẤT ĐỊNH;
+    # bản sao ở bảng khác CHỈ bị gỡ khi bảng đó CHỨA bảng giữ theo x (+RD) — hai bảng
+    # không lồng nhau thì không đụng (đo corpus: 681 bản sao lồng-x, 10 không-lồng giữ
+    # nguyên). Chạy TRƯỚC assigned/so_o_ngoai_hang/tran_mep/cheo: ô chỉ có ở bản-sao
+    # -rộng sẽ rơi về so_o_ngoai_hang của bảng rộng = fail-closed, không mất vết.
+    so_gop = 0
+    by_nhan = defaultdict(list)
+    for bg in bang_map.values():
+        for r in bg["rows"]:
+            by_nhan[r["nhan"]["handle"]].append((bg, r))
+    for lst in by_nhan.values():
+        if len(lst) < 2:
+            continue
+        keep_bg, keep_r = min(
+            lst, key=lambda e: (e[0]["xmax"] - e[0]["xmin"], e[0]["xmin"], e[1]["lo"]))
+        for bg, r in lst:
+            if bg is keep_bg:
+                continue
+            if bg["xmin"] <= keep_bg["xmin"] + RD and keep_bg["xmax"] <= bg["xmax"] + RD:
+                bg["rows"] = [x for x in bg["rows"] if x is not r]
+                so_gop += 1
+
+    # V-H KHUNG NGHI LƯỚI TRỤC / KHUNG BAO (cụm 4, SAU dedup): bảng đúng MỘT hàng
+    # đọc mà MỌI ô số của hàng cùng một trị (Decimal, lặp hệt) -> cặp nhãn-số do
+    # khung bao/lưới trục CHẾ TẠO ('D2-4 (220x300)'->['+3.550','+3.550'];
+    # 'tường SƠN MµU TR¾NG'->'+3.600'x2 trên mặt đứng; chuỗi tag thép '1'x14) —
+    # hạ TỪ CHỐI ĐÍCH DANH ly_do khung_nghi_luoi_truc (quyết định user 2026-08-06).
+    # ⚠ vế ratio cao-bảng/bước-hàng và vế đúng-2-ô-số = ĐÃ BỎ, không có plateau
+    # (hàng thật trải 2.64-46.0 đan xen chế tạo 3.63-506 — b1c4_censu_ketluan.md);
+    # vế lặp-hệt là LUẬT CẤU TRÚC không ngưỡng: 0/29 hàng thật ứng viên, 0/391 hàng
+    # nền, 15/15 bảng thật C1/C2 sống; 15/25 hàng chế tạo bị hạ, 10 còn lại là rủi
+    # ro tồn dư có khai (không ép ngưỡng để vét).
+    for bg in bang_map.values():
+        doc_rows = [r for r in bg["rows"] if r["tang"] in ("a", "b")]
+        if len(doc_rows) != 1:
+            continue
+        r = doc_rows[0]
+        vals = [to_dec(t["txt"]) for t in r["so_cells"]]
+        lap_het = (bool(vals) and all(v is not None for v in vals)
+                   and all(v == vals[0] for v in vals))
+        if _VH_CENSUS is not None:
+            _VH_CENSUS.append((r["nhan"]["txt"][:32], r["nhan"]["handle"], r["tang"],
+                               len(r["so_cells"]), lap_het,
+                               bg["y_tren"] - bg["y_duoi"], bg["buoc_hang"]))
+        if lap_het:
+            r["tang"] = "c"
+            r["nghi_luoi"] = True
+            continue
+        # V-H2 (cụm 4x, SAU V-H — đặt sau để hàng V-H đã bắt GIỮ NGUYÊN ly_do cũ,
+        # hai tập bắt rời nhau trên mẫu nên thứ tự không đổi kết cục): 10 hàng chế
+        # tạo THOÁT vế lặp-hệt bị bắt bằng 3 vế cấu trúc, thử theo thứ tự a->b->c,
+        # vế nào dính trước lấy ly_do vế đó (đo b1h2_sweep_out.txt + census corpus
+        # b1h2_census_out.json: từng vế đều 0/29 thật + 0/391 nền oan).
+        nh = r["nhan"]
+        # (a) NHÃN-LẶP: nhãn bị chép y hệt vào >= VH2_NHAN_LAP ô của dải — dải ghi
+        # chú lặp dọc tuyến ('D200mm - HDPE' x17), không phải hàng bảng.
+        n_trung = sum(1 for t in r["cells"] if t["txt"] == nh["txt"])
+        if n_trung >= VH2_NHAN_LAP:
+            r["tang"] = "c"
+            r["nghi_nhan_lap"] = True
+            continue
+        # (b) CALLOUT-RẢI-KHỐI: >= 2 ô số ATTRIB, không 2 ô nào chung INSERT, nhãn
+        # cũng không chung INSERT với ô nào — mỗi số một bong bóng ký hiệu riêng
+        # (KT-05: 2 ATTRIB 2 khối rời). Hàng thật vẽ block: MỘT INSERT mang trọn
+        # 5-7 ô -> max_cùng_insert >= 2 -> không đụng.
+        att = [t for t in r["so_cells"] if t["kind"] == "ATTRIB"]
+        if len(att) >= 2:
+            cung = Counter(t["ins_h"] for t in att)
+            if max(cung.values()) == 1 and nh.get("ins_h") not in cung:
+                r["tang"] = "c"
+                r["nghi_callout"] = True
+                continue
+        # (c) NHÃN-DỰNG-ĐỨNG: nhãn xoay ≈90°/270° giữa bảng kẻ nằm ngang — nhãn
+        # callout thép đứng ('%%c10a150' rot=90). Rot của NHÃN, khác F2b (rot Ô).
+        if abs(nh["rot"] - 90.0) <= VH2_ROT_TOL or abs(nh["rot"] - 270.0) <= VH2_ROT_TOL:
+            r["tang"] = "c"
+            r["nghi_nhan_dung"] = True
+
+    # V-C: text SỐ nằm trong bbox bảng mà không thuộc hàng/từ-chối nào -> so_o_ngoai_hang
+    # (vết cho ô lạc: dải qua_cao trong cùng khung, số đè lên vạch, số ngoài dải...).
+    assigned = set()
+    for bg in bang_map.values():
+        for r in bg["rows"]:
+            assigned.add(r["nhan"]["handle"])
+            assigned.update(t["handle"] for t in r["cells"])
+        for tc in bg.get("tc_khong_nhan") or []:
+            assigned.update(t["handle"] for t in tc["cells"])
+    so_texts = sorted((t for t in T if la_so(t["txt"])), key=_anchor_y)
+    so_ys = [_anchor_y(t) for t in so_texts]
+    for bg in bang_map.values():
+        i0 = bisect.bisect_left(so_ys, bg["y_duoi"])
+        i1 = bisect.bisect_right(so_ys, bg["y_tren"])
+        bg["so_o_ngoai_hang"] = sum(
+            1 for t in so_texts[i0:i1]
+            if bg["xmin"] - RD <= _anchor_x(t) <= bg["xmax"] + RD
+            and t["handle"] not in assigned)
+
+    # V-G TRÀN MÉP KHUNG: hàng a/b mà NGAY NGOÀI mép trái/phải của khung, trong đệm
+    # [xmin-đệm, xmin) ∪ (xmax, xmax+đệm] (đệm = DEM_MEP x bước cột trung vị của hàng,
+    # fallback DEM_MEP_FB), còn text SỐ chưa-gán CÙNG-MỨC-Y với ô số của hàng
+    # -> hàng còn phần tràn ra ngoài khung máy chưa đọc: r['tran_mep']=True
+    # (tang_ket_qua bật khong_day_du + tran_mep_khung + hạ da_chung_minh — S17:
+    #  trước vá khai 'đầy đủ' với cong_don_cuoi trong khung dù hình còn cột ngoài mép).
+    for bg in bang_map.values():
+        for r in bg["rows"]:
+            if r["tang"] not in ("a", "b"):
+                continue
+            sc = r["so_cells"]
+            xs = sorted(_anchor_x(t) for t in sc)
+            gaps = sorted(g for g in (b2 - a2 for a2, b2 in zip(xs, xs[1:])) if g > 1e-9)
+            dem = DEM_MEP * gaps[len(gaps) // 2] if gaps else DEM_MEP_FB
+            hm = Counter(round(t["height"], 3) for t in sc).most_common(1)[0][0]
+            tol_lv = max(RD, LV_TOL_H * (hm or 0.0))
+            lv_ys = sorted(set(_anchor_y(t) for t in sc))
+            i0 = bisect.bisect_left(so_ys, lv_ys[0] - tol_lv)
+            i1 = bisect.bisect_right(so_ys, lv_ys[-1] + tol_lv)
+            for t in so_texts[i0:i1]:
+                if t["handle"] in assigned:
+                    continue
+                ty = _anchor_y(t)
+                if min(abs(ty - vy) for vy in lv_ys) > tol_lv:
+                    continue
+                tx = _anchor_x(t)
+                if (bg["xmin"] - dem <= tx < bg["xmin"]) or \
+                        (bg["xmax"] < tx <= bg["xmax"] + dem):
+                    r["tran_mep"] = True
+                    break
+
+    bangs = []
+    for key in sorted(bang_map, key=lambda k: (-k[3], k[0])):
+        bg = bang_map[key]
+        bg["rows"].sort(key=lambda r: -r["lo"])
+        _chung_minh_cheo(bg["rows"])
+        bangs.append(bg)
+    trang_thai = ("co_bang"
+                  if any(b["rows"] or b.get("tc_khong_nhan") for b in bangs)
+                  else "khung_khong_bang")
+    return {"trang_thai": trang_thai, "bang": bangs, "ms": (time.perf_counter() - t0) * 1e3,
+            "so_khung": len(ks), "so_dai_bo_qua": bo_qua,
+            "so_text_kho_lon_bo": so_kho_lon,
+            "so_hang_trung_khung_gop": so_gop}
+
+
+# ---------------------------------------------------------------- TOOL-RESULT (cắt ngân sách)
+GHI_CHU_DOC = (
+    "Mỗi hàng = MỘT NHÃN trong bảng kẻ KHUNG NÉT + các giá trị nằm TRONG KHUNG của hàng đó, "
+    "đọc NGUYÊN VĂN kèm handle; biên hàng là nét kẻ người vẽ vẽ ra, không phải cửa sổ đoán. "
+    "NGHĨA của số do nhãn hàng quyết định. Hàng có 'da_chung_minh' nghĩa là hai dãy số trong "
+    "hàng khớp đẳng thức cộng dồn từng cặp một, kiểm bằng số học nguyên — dãy dài là cộng dồn "
+    "của dãy ngắn. Hàng có 'da_chung_minh_cheo' nghĩa là ba hàng phẳng cùng bảng khớp đẳng "
+    "thức hiệu hai hàng ra hàng thứ ba trên mọi cột. ⛔ KHÔNG tự cộng/trung bình; muốn nêu "
+    "nhỏ nhất/lớn nhất hãy dùng đúng ô 'nho_nhat'/'lon_nhat' đã trích sẵn kèm handle. "
+    "Hàng nằm trong 'hang_tu_choi' là hàng MÁY TỪ CHỐI ĐỌC (chữ chồng nhiều lớp trong cùng "
+    "dải kẻ, quá ít dữ liệu, dải số trong khung mà máy chưa thấy nhãn chữ đi kèm, "
+    "hai hàng nghi bị trộn làm một vì mất nét kẻ ngăn giữa, "
+    "cụm ghi chú dựng đứng — chữ xoay dọc của ghi chú thép/kích thước — lọt vào dải kẻ, "
+    "nhãn bị chép lặp y hệt vào nhiều ô trong cùng dải kẻ — dải ghi chú chạy dọc tuyến "
+    "chứ không phải hàng bảng, "
+    "cụm bong bóng chú thích rời rạc — mỗi con số nằm trong một khối chú thích riêng — "
+    "bị dải kẻ vớt nhầm thành hàng, "
+    "mọi con số của dải cao gấp nhiều lần chữ nhãn đứng đầu dải — nghi chữ trang trí "
+    "hay khổ chữ khung in đè lên dải kẻ chứ không phải ô của bảng, "
+    "nhãn xoay dựng đứng trong khi bảng kẻ nằm ngang, "
+    "hoặc khung kẻ nghi là LƯỚI TRỤC hay khung bao bản vẽ chứ không phải bảng dữ liệu — "
+    "khung chỉ vớt được đúng một hàng mà mọi giá trị lặp y hệt nhau) — "
+    "với các hàng đó đừng suy đoán giá trị, hãy hỏi lại người "
+    "gửi bản vẽ nếu cần đúng hàng ấy. Ô trong 'o_chu' là CHỮ nằm cùng dải kẻ với hàng "
+    "(chú thích độ dốc, ký hiệu vẽ đè, bản sao nhãn), trả nguyên văn kèm handle; khi "
+    "'co_chu_xen_khac_muc' bật thì nghĩa đầy đủ của hàng phải đọc CẢ SỐ LẪN CHỮ — ví dụ "
+    "hàng độ dốc thường ghi trị số dốc bằng chữ còn dãy số là CHIỀU DÀI ĐOẠN DỐC, "
+    "đừng gán dãy số làm trị số của nhãn. Khi 'tran_mep_khung' bật, hàng còn phần tràn "
+    "ra ngoài mép khung mà máy chưa đọc — các ô nhỏ nhất/lớn nhất/đầu tiên/cuối cùng chỉ "
+    "tính trên phần TRONG khung, đừng kết luận trọn hàng hay tự suy phần ngoài mép. "
+    "Danh sách nhãn các hàng máy CHƯA TRẢ vì chạm giới hạn nằm trong phần vị trí của "
+    "từng bảng — hàng đó TỒN TẠI trong bản vẽ, gọi lại với nhan_chua để đọc đúng hàng cần.")
+GHI_CHU_CAT = (
+    " ⚠ KẾT QUẢ CHƯA ĐẦY ĐỦ — đã chạm giới hạn số giá trị trả về nên còn phần chưa trả. "
+    "Các ô nho_nhat/lon_nhat/dau_tien/cuoi_cung vẫn tính trên TRỌN hàng nên dùng được; "
+    "TUYỆT ĐỐI không kết luận danh sách giá trị đã đủ; muốn xem hàng nào hãy gọi lại với "
+    "nhan_chua thu hẹp về đúng hàng cần; nhãn các hàng bị cắt trọn nằm ở mục lục trong "
+    "phần vị trí của từng bảng.")
+TU_CHOI = {
+    "loi_doc_file": ("KHÔNG ĐỌC ĐƯỢC FILE — file lỗi cấu trúc DXF nên máy đọc hỏng giữa chừng. "
+                     "Đây là LỖI ĐỌC FILE, KHÔNG phải bản vẽ thiếu bảng: đừng kết luận gì về "
+                     "nội dung; hãy xuất lại file DXF từ bản gốc rồi gửi lại."),
+    "khong_khung": ("Bản vẽ này KHÔNG có bảng kẻ khung nét đọc được (máy dò nét kẻ ngang lặp "
+                    "thành khung mà bản vẽ không vẽ khung nào như vậy). Đây là kết quả ĐỌC, "
+                    "không phải suy đoán: bảng dạng khác có thể vẫn tồn tại — thử "
+                    "doc_bang_trac_doc hoặc tim_kiem."),
+    "khung_khong_bang": ("Bản vẽ CÓ nét kẻ khung nhưng máy không nhận ra hàng dữ liệu nào bên "
+                         "trong khung (khung rỗng, khung hình vẽ, hoặc chữ nằm ngoài khung). "
+                         "Đừng kết luận bản vẽ thiếu số liệu — thử doc_bang_trac_doc hoặc "
+                         "tim_kiem."),
+    # V-E: file CÓ hàng dữ liệu đọc được nhưng chuỗi lọc không khớp hàng nào — mệnh đề
+    # "máy không nhận ra hàng dữ liệu nào" là SAI trong trường hợp này, phải nói đúng loại.
+    "loc_khong_khop": ("Bản vẽ CÓ bảng kẻ khung với hàng dữ liệu đọc được, nhưng KHÔNG hàng "
+                       "nào khớp chuỗi lọc nhãn đã truyền — đây là LỌC KHÔNG KHỚP, đừng kết "
+                       "luận bản vẽ thiếu hàng hay thiếu số liệu; gọi lại không truyền chuỗi "
+                       "lọc để xem toàn bộ, hoặc đổi chuỗi lọc khác."),
+    "loi_mo_file": ("KHÔNG MỞ ĐƯỢC FILE ở đường dẫn đã cho — file không tồn tại hoặc máy "
+                    "không đủ quyền đọc. Đây là LỖI MỞ FILE, không nói gì về nội dung bản "
+                    "vẽ: đừng kết luận bản vẽ có hay thiếu bảng; kiểm tra lại đường dẫn "
+                    "rồi gọi lại."),
+    "loi_may_doc": ("MÁY ĐỌC GẶP LỖI BẤT NGỜ chưa rõ nguyên nhân với file này — đừng kết "
+                    "luận gì về cấu trúc file hay nội dung bản vẽ; thử gọi lại một lần, "
+                    "nếu vẫn lỗi hãy báo kỹ thuật kèm tên file."),
+}
+LY_DO_TU_CHOI = {
+    "c": "nhieu_lop_chu_chong_nhau_trong_dai",
+    "thieu": "hang_chu_it_o_so",
+    "khong_nhan": "khong_thay_nhan_hang",
+    # V-F2b: cụm ghi chú dựng đứng (nhãn callout vào dải bằng ap + mọi ô số xoay 90°)
+    "nghi_dung": "nghi_cum_ghi_chu_dung",
+    # V-B: hai hàng nghi trộn một dải vì mất nét kẻ ngăn (>=2 nhãn trái / khe mức lớn)
+    "nghi_tron": "nghi_tron_hang_mat_vach",
+    # V-H: khung bao/lưới trục chỉ vớt được một hàng, mọi giá trị lặp hệt
+    "nghi_luoi": "khung_nghi_luoi_truc",
+    # V-H2a: nhãn bị chép lặp y hệt vào nhiều ô của dải (dải ghi chú dọc tuyến)
+    "nghi_nhan_lap": "nhan_lap_trong_o",
+    # V-H2b: mỗi ô số một khối chú thích rời, nhãn cũng không chung khối với ô nào
+    "nghi_callout": "nghi_cum_callout_roi",
+    # V-H2c: nhãn xoay dựng đứng trong khi bảng kẻ nằm ngang
+    "nghi_nhan_dung": "nhan_dung_dung",
+    # B3-1: mode-flip V-F2a — mọi ô số cao > K_KHO x nhãn (chữ trang trí/khổ in)
+    "nghi_kho_lon": "nghi_chu_trang_tri_kho_lon",
+}
+O_CHU_CAP = 20     # trần ô chữ mỗi hàng (không tính vào ngân sách giá trị)
+_DIG = re.compile(r"\d")   # V-K: nhận nhãn-hàng-trống có chữ số
+
+
+def _vn(s):
+    """B4: chuỗi ĐI RA payload phải giải mã phông (khuôn #36 — nó phát `vn`, không phát raw).
+    Nhãn trong bản vẽ thật là TCVN3 lỗi phông ('§\xadêng biÓu diÔn cao ®é ®¸y cèng thiÕt kÕ')
+    -> để nguyên thì model đọc không ra chữ. ĐO 5 file đích trước khi đổi: to_unicode làm ĐỔI
+    369/576 nhãn + 20/20 ô chữ, nhưng ĐỔI 0/4.451 ô SỐ và 0/40 nhãn hàng-từ-chối ⇒ số không
+    xê dịch một ly, chỉ chữ được giải mã (nền B0 giữ nguyên từng con số)."""
+    return to_unicode(s)
+
+
+def _o(t):
+    return {"so": _vn(t["txt"]), "handle": t["handle"]}
+
+
+def tang_ket_qua(qs, nhan_chua=None, gioi_han=CAP_TONG):
+    """Dựng TOOL-RESULT từ kết quả quet_bang (cắt ngân sách, kỷ luật rổ neo)."""
+    try:
+        cap = max(1, min(int(gioi_han or CAP_TONG), CAP_TRAN))
+    except Exception:
+        cap = CAP_TONG
+    # B4 GARBLE-NORMALIZER 2 PHÍA — ĐIỀU KIỆN GO của đặc tả. Nhãn trong file là TCVN3 lỗi
+    # phông ('®¸y cèng'), chuỗi lọc do người/model gõ là Unicode sạch ('đáy cống') ⇒ so bằng
+    # .lower() TRƯỢT HẾT (đo: proto K6 'đáy cống' trả 0 hàng, chỉ 'cèng' mới trúng).
+    # Dùng ĐÚNG cặp hàm sản phẩm mà #36 đang dùng — _norm(to_unicode(...)) ở CẢ HAI phía.
+    # Đo A1/A2 trước/sau: 'đáy cống' 0->2 · 'đáy kênh' 0->1 · 'Khoảng cách' 0->4 và 0->6 ·
+    # ĐỐI CHỨNG 'chuoi_khong_ton_tai_xyz' 0->0 (lọc không nới bừa, vẫn phân biệt được).
+    loc = _norm(nhan_chua or "") if nhan_chua else ""
+    tt = qs["trang_thai"]
+    if tt != "co_bang":
+        vt = {"so_bang": 0, "trang_thai": tt,
+              "tham_so": {"nhan_chua": nhan_chua or None, "gioi_han": cap}}
+        if "so_khung" in qs:
+            vt["so_khung"] = qs["so_khung"]
+        if "so_dai_bo_qua" in qs:
+            vt["so_dai_bo_qua"] = qs["so_dai_bo_qua"]
+        if qs.get("so_text_kho_lon_bo"):
+            vt["so_text_kho_lon_bo"] = qs["so_text_kho_lon_bo"]   # V-F2a: vết khi > 0
+        return {"co_bang": False, "bang": [], "_vitri": vt, "ghi_chu": TU_CHOI[tt]}
+    tong, bi_cat = 0, False
+    bangs_out = []
+    for bg in qs["bang"]:
+        rows = bg["rows"]
+        tcs = bg.get("tc_khong_nhan") or []
+        if loc:
+            rows = [r for r in rows if loc in _norm(" ".join(_vn(r["nhan"]["txt"]).split()))]
+            tcs = [tc for tc in tcs if loc in _norm(" ".join(_vn(tc["nhan"]["txt"]).split()))]
+        if not rows and not tcs:
+            continue
+        hang_out, tc_out, n_trong = [], [], 0
+        chung_minh = []    # V-A: bằng chứng per-hàng-b {nhan_handle, so_phuong_trinh, xen_ke}
+        muc_luc = []       # V-J: nhãn hàng a/b bị DROP TRỌN vì ngân sách (trong _vitri)
+        trong_co_so = []   # V-K: nhãn hàng 'trong' có chứa chữ số (trong _vitri)
+        # V-C: dải >=2 ô số không thấy nhãn -> TỪ CHỐI ĐÍCH DANH (trong _vitri.hang_tu_choi,
+        # nhan là text trái nhất — chuỗi số — bị _strip_vitri loại khỏi rổ neo).
+        for tc in tcs:
+            tc_out.append({"nhan": _vn(tc["nhan"]["txt"]), "handle": tc["nhan"]["handle"],
+                           "ly_do": LY_DO_TU_CHOI["khong_nhan"]})
+        for r in rows:
+            if r["tang"] == "trong":
+                n_trong += 1
+                # V-K: nhãn-hàng-trống chứa chữ số ('DCT-1 (220x300)') — lộ vào _vitri
+                # để model biết nhãn TỒN TẠI (bị strip khỏi rổ neo, không cấp neo bịa).
+                if _DIG.search(r["nhan"]["txt"]):
+                    trong_co_so.append({"nhan": _vn(r["nhan"]["txt"]),
+                                        "handle": r["nhan"]["handle"]})
+                continue
+            if r["tang"] in ("c", "thieu"):
+                # V-F2b: hàng nghi cụm ghi chú đứng có ly_do RIÊNG (vết đích danh).
+                # V-B: hàng nghi trộn-hàng-mất-vạch cũng ly_do RIÊNG (vết đích danh).
+                # V-H: hàng nghi lưới-trục/khung-bao cũng ly_do RIÊNG (vết đích danh).
+                # V-H2: ba vế mới, mỗi vế MỘT ly_do cố định 0-chữ-số (vết đích danh).
+                ly = ("nghi_dung" if r.get("nghi_dung")
+                      else "nghi_kho_lon" if r.get("nghi_kho_lon")
+                      else "nghi_tron" if r.get("nghi_tron")
+                      else "nghi_luoi" if r.get("nghi_luoi")
+                      else "nghi_nhan_lap" if r.get("nghi_nhan_lap")
+                      else "nghi_callout" if r.get("nghi_callout")
+                      else "nghi_nhan_dung" if r.get("nghi_nhan_dung") else r["tang"])
+                tc_out.append({"nhan": _vn(r["nhan"]["txt"]), "handle": r["nhan"]["handle"],
+                               "ly_do": LY_DO_TU_CHOI[ly]})
+                continue
+            if tong >= cap:
+                bi_cat = True
+                # V-J MỤC LỤC CẮT: hàng bị drop TRỌN vì chạm ngân sách — nhãn+handle
+                # vào _vitri để model biết hàng TỒN TẠI và gọi lại nhan_chua (trước
+                # vá: hàng biến mất khỏi mọi dấu vết ở gọi mặc định — G-18/P3).
+                muc_luc.append({"nhan": _vn(r["nhan"]["txt"]), "handle": r["nhan"]["handle"]})
+                continue
+            con = cap - tong
+            # V-G: hàng tràn mép -> khong_day_du bật, min/max chỉ là phần TRONG khung,
+            # hàng b MẤT claim da_chung_minh (đẳng thức chỉ chứng minh phần đã thấy).
+            tm = bool(r.get("tran_mep"))
+            if r["tang"] == "a":
+                ds = r["so_cells"]
+                nums = [(to_num(t["txt"]), t) for t in ds]
+                nums = [(v, t) for v, t in nums if v is not None]
+                lay = ds[:con]
+                tong += len(lay)
+                if len(lay) < len(ds):
+                    bi_cat = True
+                oc = r.get("o_chu") or []
+                h = {"nhan": _vn(r["nhan"]["txt"]), "handle": r["nhan"]["handle"],
+                     "gia_tri": [_o(t) for t in lay],
+                     "nho_nhat": _o(min(nums, key=lambda p: p[0])[1]) if nums else None,
+                     "lon_nhat": _o(max(nums, key=lambda p: p[0])[1]) if nums else None,
+                     "dau_tien": _o(ds[0]), "cuoi_cung": _o(ds[-1]),
+                     "o_chu": [{"chu": _vn(t["txt"]), "handle": t["handle"]}
+                               for t in oc[:O_CHU_CAP]],
+                     "co_chu_xen_khac_muc": bool(r.get("chu_khac_muc")),
+                     "da_chung_minh": False, "da_chung_minh_cheo": bool(r.get("cheo")),
+                     "tran_mep_khung": tm,
+                     "khong_day_du": (len(lay) < len(ds)) or (len(oc) > O_CHU_CAP) or tm}
+            else:  # tang b
+                cd, le = r["cd"], r["le"]
+                lay_cd = cd[:max(0, con)]
+                lay_le = le[:max(0, con - len(lay_cd))]
+                tong += len(lay_cd) + len(lay_le)
+                thieu = (len(lay_cd) < len(cd)) or (len(lay_le) < len(le))
+                if thieu:
+                    bi_cat = True
+                ncd = [(to_num(t["txt"]), t) for t in cd]
+                nle = [(to_num(t["txt"]), t) for t in le]
+                oc = r.get("o_chu") or []
+                # V-A GATE CHỨNG MINH: claim CHỈ khi đẳng thức đủ dày (>= 2 phương
+                # trình — 1 phương trình khớp tình cờ quá dễ, S1 attack) AND xen kẽ
+                # hình học AND hàng trả TRỌN (không cắt ngân sách) AND không tràn mép.
+                # Hàng trượt gate VẪN trả đủ 2 dãy + min/max — chỉ mất claim.
+                gate = ((r["so_pt"] >= 2) and bool(r.get("xen_ke"))
+                        and not thieu and not tm)
+                h = {"nhan": _vn(r["nhan"]["txt"]), "handle": r["nhan"]["handle"],
+                     "day_cong_don": [_o(t) for t in lay_cd],
+                     "day_le": [_o(t) for t in lay_le],
+                     "cong_don_cuoi_cung": _o(cd[-1]),
+                     "nho_nhat_cong_don": _o(min(ncd, key=lambda p: p[0])[1]),
+                     "lon_nhat_cong_don": _o(max(ncd, key=lambda p: p[0])[1]),
+                     "nho_nhat_le": _o(min(nle, key=lambda p: p[0])[1]),
+                     "lon_nhat_le": _o(max(nle, key=lambda p: p[0])[1]),
+                     # V-B: hàng b cũng lộ ô chữ cùng dải + cờ chữ-xen-khác-mức (P2:
+                     # trước vá nhãn/chú thích thứ hai trong dải b biến mất khỏi payload).
+                     "o_chu": [{"chu": _vn(t["txt"]), "handle": t["handle"]}
+                               for t in oc[:O_CHU_CAP]],
+                     "co_chu_xen_khac_muc": bool(r.get("chu_khac_muc")),
+                     "da_chung_minh": gate, "da_chung_minh_cheo": bool(r.get("cheo")),
+                     "tran_mep_khung": tm,
+                     "khong_day_du": thieu or tm or (len(oc) > O_CHU_CAP)}
+                # V-A: lộ bằng chứng vào _vitri (so_phuong_trinh là SỐ ĐẾM -> phải nằm
+                # trong _vitri để _strip_vitri loại khỏi rổ neo; nhan_handle dạng
+                # *_handle để _strip_handle nhận; model vẫn thấy đủ để tự thẩm định).
+                chung_minh.append({"nhan_handle": r["nhan"]["handle"],
+                                   "so_phuong_trinh": r["so_pt"],
+                                   "xen_ke": bool(r.get("xen_ke"))})
+            hang_out.append(h)
+        if hang_out or tc_out or n_trong or muc_luc:
+            # ⚠ hang_tu_choi nằm TRONG '_vitri': hàng ĐÃ TỪ CHỐI thì nhãn của nó KHÔNG được
+            # làm bằng chứng grounding (đo được: chữ số trong nhãn từ-chối bơm mốc mm trên
+            # A1/A2). Model VẪN thấy đủ — _strip_vitri chỉ lọc phía RỔ NEO, không lọc payload.
+            # V-C: bảng chỉ-có-hàng-nhãn-trống cũng phải hiện diện (đếm), không rơi câm.
+            # B3FIX RB-1 BẢNG-VANISH: bảng mà MỌI hàng a/b đều bị drop trọn vì ngân sách
+            # (hang_out rỗng, không tc, không trống) trước đây BIẾN MẤT khỏi payload kèm
+            # cả mục lục — 3 bảng/48 hàng a mất vết trên corpus (rb2b), C1 4 hàng a/26 ô
+            # mất vết ở MỌI gh (rb1 TRACE). Thêm 'or muc_luc': bảng emit với hang=[] và
+            # _vitri mang muc_luc_hang_chua_tra (nhãn nằm trong _vitri — không bơm neo).
+            # Đo lại độc lập 2026-08-07: cả 3 bảng vanish chỉ chứa hàng a (0 hàng 'trong',
+            # 0 hàng từ-chối) — số '12 hàng trong mất vết' của journal KHÔNG tái lập trên
+            # cây hiện tại (đã đo trong/tc/bang FULL-vs-gh trên cả 2 file dính + 5 nền).
+            vt_bang = {"x_trai": round(bg["xmin"], 3), "x_phai": round(bg["xmax"], 3),
+                       "y_duoi": round(bg["y_duoi"], 3), "y_tren": round(bg["y_tren"], 3),
+                       "buoc_hang": round(bg["buoc_hang"], 4),
+                       "hang_tu_choi": tc_out,
+                       "so_hang_doc": len(hang_out), "so_hang_tu_choi": len(tc_out),
+                       "so_hang_nhan_trong": n_trong,
+                       "so_o_ngoai_hang": bg.get("so_o_ngoai_hang", 0)}
+            if chung_minh:
+                vt_bang["chung_minh"] = chung_minh   # V-A: chỉ hiện khi bảng có hàng b
+            if muc_luc:
+                vt_bang["muc_luc_hang_chua_tra"] = muc_luc      # V-J: chỉ hiện khi cắt
+            if trong_co_so:
+                vt_bang["nhan_hang_trong_co_so"] = trong_co_so  # V-K: chỉ hiện khi có
+            bangs_out.append({"hang": hang_out, "_vitri": vt_bang})
+    if not bangs_out:
+        # V-E: file CÓ dữ liệu (tt == co_bang) mà không bảng nào sống sót -> nếu có chuỗi
+        # lọc thì đó là LỌC KHÔNG KHỚP, không được phán "máy không nhận ra hàng dữ liệu".
+        tt2 = "loc_khong_khop" if loc else "khung_khong_bang"
+        vt2 = {"so_bang": 0, "trang_thai": tt2,
+               "so_khung": qs.get("so_khung", 0),
+               "so_dai_bo_qua": qs.get("so_dai_bo_qua"),
+               "tham_so": {"nhan_chua": nhan_chua or None, "gioi_han": cap}}
+        if qs.get("so_text_kho_lon_bo"):
+            vt2["so_text_kho_lon_bo"] = qs["so_text_kho_lon_bo"]  # V-F2a: vết khi > 0
+        if qs.get("so_hang_trung_khung_gop"):
+            vt2["so_hang_trung_khung_gop"] = qs["so_hang_trung_khung_gop"]  # V-I: vết
+        return {"co_bang": False, "bang": [], "_vitri": vt2, "ghi_chu": TU_CHOI[tt2]}
+    vt3 = {"so_bang": len(bangs_out), "tong_gia_tri": tong,
+           "trang_thai": "co_bang", "so_khung": qs.get("so_khung", 0),
+           "so_dai_bo_qua": qs.get("so_dai_bo_qua"),
+           "tham_so": {"nhan_chua": nhan_chua or None, "gioi_han": cap}}
+    if qs.get("so_text_kho_lon_bo"):
+        vt3["so_text_kho_lon_bo"] = qs["so_text_kho_lon_bo"]      # V-F2a: vết khi > 0
+    if qs.get("so_hang_trung_khung_gop"):
+        vt3["so_hang_trung_khung_gop"] = qs["so_hang_trung_khung_gop"]      # V-I: vết
+    return {"co_bang": True, "bang": bangs_out, "khong_day_du": bool(bi_cat),
+            "_vitri": vt3,
+            "ghi_chu": GHI_CHU_DOC + (GHI_CHU_CAT if bi_cat else "")}
+
+
+def doc_bang_ke_khung(nguon, nhan_chua=None, gioi_han=CAP_TONG):
+    """Entry dùng chung. `nguon` = doc ezdxf đã nạp (sản phẩm) hoặc đường dẫn str (test)."""
+    return tang_ket_qua(quet_bang(nguon), nhan_chua=nhan_chua, gioi_han=gioi_han)

@@ -12,6 +12,21 @@
 > **Muốn public thật sau này — ĐỪNG LÀM LẠI TỪ ĐẦU:** nhánh local **`public-ready`** đã có sẵn trọn gói (history sạch không .deb qua `git filter-repo` · Dockerfile tải ODA tuỳ chọn qua `ODA_DEB_URL` · thông báo .dxf-only thân thiện · .gitignore chặn .deb). Đánh đổi: cloud chỉ đọc .dxf tới khi đặt `ODA_DEB_URL`. Mirror backup: `D:/Dat-Antigravity/_backup_repo_truoc_khi_public_20260717/repo-mirror.git`.
 
 
+## ✅ 2026-08-07 — **B4: TOOL #37 ĐÃ VÀO CODE SẢN PHẨM** (36 → 37 MCP tool) — ĐỌC KHỐI NÀY TRƯỚC
+> **HEAD mới = commit LOCAL, CHƯA push, CHƯA LIVE.** Đặc tả `DAC_TA_TOOL37.md` ghi rõ *chỉ sau **B7** sạch phát-hiện-CAO mới được bàn commit/LIVE* — commit này chỉ để **giữ ngữ cảnh**, KHÔNG phải mark done. Nhật ký số đo đầy đủ: khối 2026-08-07 ở `claude-progress.md`.
+> ⚠⚠ **#37 SỐNG TRONG CODE NHƯNG CỔNG CHƯA CANH NÓ** — `check.sh` chưa có một ca test nào cho #37 (đó là B5). Cổng xanh hiện tại chỉ chứng minh **không hồi quy**.
+> ⚠ **Cây làm việc còn 10+ commit CHƯA PUSH** (từ phiên trước, gồm `d4a7c33` lát 4a). `origin/main` = `2ea25b7`, Render `/version` = `2ea25b7` ⇒ **lát 4a chưa lên cloud**; bản cloud vẫn còn 6 câu bịa mà lát 4a đã chặn.
+>
+> **BA BẤT BIẾN CỨNG ĐẠT:** hàm #36 hash `275f19e9…` 0 byte đổi · `tests/test_bang_trac_doc.py` `8186f9c3…` không đổi · `SYSTEM_PROMPT` `239e8b7b…` FROZEN · `mcp_bridge.py` KHÔNG chạm (declaration sinh ĐỘNG từ `list_tools`, nên đăng ký ở `mcp_server.py` là đủ).
+> **BA THAY ĐỔI DUY NHẤT SO VỚI PROTO:** (1) `quet_bang` nhận **doc đã nạp** (không mở lại file — trần RAM đi theo SỐ doc, không theo MB) · (2) chuỗi ra payload qua `to_unicode` (đo: đổi **0/4.451 ô SỐ**, đổi 369/576 nhãn ⇒ nhãn TCVN3 đọc được, số không xê dịch) · (3) lọc `nhan_chua` chuẩn hoá garble **2 phía** = ĐIỀU KIỆN GO.
+> **SỐ:** nền B0 tái lập trên đầu ra SẢN PHẨM (a **2.556/2.556** · b **171/171** · min/max **226/226** · 0 mất · 0 thêm · **0/391** oan) · diff proto↔sản phẩm 5 file **0 lệch** + căn cứ cấu trúc (`tools_core` **0 đường ghi** vào `doc`) · GO có 2 đối chứng (A2 `'đáy kênh'`→**1.740**, `'đáy cống'`→**1.840**; gh60 mặc định KHÔNG chứa 1.740; tắt normalizer → 0 hàng) · tiêu chí (2) **6/6** · K1-K5 qua bridge THẬT 5/5 sạch · rổ neo khớp CHÍNH XÁC đặc tả (**160 neo · 55 mốc-mm · 80 mốc-mét**) · cổng **[49/49]** exit 0, **1.701 ca**, diff cổng trước↔sau **đúng 1 dòng** (`36`→`37`).
+>
+> **📌 HAI BÀI HỌC (tự bắt trong phiên):**
+> **(a)** Trên file nhiều bảng, **khớp theo CHỮ là bộ đo hỏng** — C1 có **30 hàng trùng y hệt nhãn** *'Cao trình tự nhiên (m)'*; phải khớp **handle**. Vòng đầu vì thế báo oan 3/6 đỏ (lần thứ 11 bộ trích hỏng).
+> **(b)** **`git diff` GIẤU được thay đổi thật:** ghi file bằng `newline='\n'` đổi CRLF→LF toàn `tools_core.py` mà diff vẫn hiện "thuần chèn" (vì `core.autocrlf=true` chuẩn hoá hai phía). Chỉ **đếm byte `\r\n` so với backup** mới thấy. ⇒ khi script tự động ghi đè file sản phẩm, **luôn đối chiếu byte với bản backup**, đừng tin diff.
+>
+> **⏭ CÒN LẠI:** **B5** (`tests/test_bang_ke_khung.py` 18 ca G-01..G-18 + bước `check.sh`) · **B6** (cổng tổng + diff corpus 142 file so baseline B0) · **B7** (red-team vòng 2 sau tích hợp, ≥5 file kích-hoạt-mới, BẮT BUỘC). Sau khi #37 LIVE: lát **grounding-có-đơn-vị** (lỗ ×1000 ở `mcp_bridge`) — user đã chốt xếp NGAY SAU.
+
 ## 🛡 2026-08-06 — RÀ TẦNG 3 (hàng rào chống bịa): TRẠNG THÁI THẬT + 2 đầu mục mới (`feature_list` 90 → **91**)
 > **⛔ ĐÍNH CHÍNH TRÍ NHỚ CŨ — 3 "kênh lọt" ĐÃ VÁ XONG, đừng nêu lại như việc còn treo.** `neo-grounding-sach` **LIVE `5548fe1`+`5756b37`** bịt cả ba: (1) mã-hiệu gạch nối sinh neo ÂM (`DẦM D2-10`→−10; **68/76 file** có ≥1 neo âm; 24/76 neo âm rơi ĐÚNG dải cao độ = cấp phép bịa id135) · (2) **TÊN FILE** (cùng nội dung byte, đổi tên thành `MC coc -13.7 va 7500.dxf` → 2 câu bịa chuyển từ CHẶN sang LỌT) · (3) **HANDLE hex** (kết quả 3 handle + chữ KHÔNG SỐ vẫn sinh rổ `[1,2,9,38,13876]`). Cộng `lat4a-prose-0-chu-so-cao-do`. **Hiệu quả đo: lớp id135 lọt `0,0%`.** Chạy lại 2026-08-06: **6 suite hàng rào 471 ca, 0 FAIL** (grounding 57 · neo 34 · neo-rỗng 29 · handle 44 · i3 24 · takeoff 283).
 >
@@ -98,7 +113,7 @@
 > **Ngưỡng GO:** `3.6-flash` **không thua** ở trục **bẫy ảo giác** và **không tụt recall**. Thắng tốc độ/tiền mà thua bẫy = **NO_GO**.
 > ⚠ **Kỷ luật đo:** đọc tay ≥10 ca trước khi tin số tổng hợp. *Trong chính phiên này phép đo cho **3 kết quả sai liên tiếp** (12,6% trùng khớp · 98/198 "không neo" · "Flash giỏi hơn Pro") — cả 3 đều trông hợp lý* (`[[feedback-kiem-bo-trich-truoc-khi-tin-so]]`).
 
-## 🏁 CHỐT SỔ PHIÊN 2026-08-06→08-07 — **ĐỌC KHỐI NÀY TRƯỚC**
+## 🏁 CHỐT SỔ PHIÊN 2026-08-06→08-07 — (khối "đọc trước" nay là khối **B4 2026-08-07** ở đầu file)
 > **HEAD `7e24bc5`+docs · tree SẠCH · cổng `[49/49]` PASS — `EXIT_CODE_THẬT=0`, 0 dòng `FAIL:`, **tổng 1.701 ca** (1.680 + 21 ca lát 4a), đo lại lúc chốt sổ · 36 MCP tool · `feature_list` 91 mục** (72 done · 1 partial · 14 deferred · 4 planned). ⚠ pytest **VẪN crash** (kiểm lại cuối phiên, không phải nhớ) — cổng là `check.sh`. **KHÔNG có `specs/specs.json`**.
 >
 > ### ⭐⭐ CHUẨN MỚI CỦA USER — ÁP CHO MỌI VIỆC ĐỌC-SỐ, ĐỪNG THƯƠNG LƯỢNG LẠI
