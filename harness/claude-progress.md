@@ -9,6 +9,40 @@
 > Mới nhất ở TRÊN CÙNG. Bàn giao đầy đủ: `session-handoff.md`. Nhật ký chi tiết hơn nữa: `../GHI_CHU_HOAN_THIEN.md`.
 
 ---
+## Session 2026-08-06→08-07 — 🏁 CHỐT SỔ: **lát 4a LIVE** · **3 vòng NO_GO có số** · **TOOL #37 proto B0-B3 HOÀN TẤT** · chuẩn mới của user
+> **CHỐT SỔ:** HEAD **`7e24bc5`**, tree SẠCH. **CỔNG `[49/49]` PASS** (xem khối kết quả cuối entry). **8 commit**: `d4a7c33` (lát 4a — code) · `0a3dfaa` · `ef94b4a` · `d690e3d` · `51131f1` · `a68d23e` · `fd30737` · `7e24bc5` (7 commit docs/sổ). `feature_list.json` **85 → 91 mục** (72 done · 1 partial · 14 deferred · 4 planned — 4 planned và 1 số mục là của **phiên song song**, đã nhận nguyên trạng có ghi nguồn trong commit message).
+> ⚠ pytest **VẪN crash** (`ValueError: I/O operation on closed file` → `no tests ran`) — kiểm lại cuối phiên, không phải nhớ. **KHÔNG có `specs/specs.json`** → `feature_list.json`. (Hai điều này lặp mỗi phiên; checklist dòng 8 đã ghi.)
+>
+> ### ⭐ CHUẨN MỚI CỦA USER (2026-08-06) — ÁP CHO MỌI VIỆC ĐỌC-SỐ VỀ SAU
+> *"Đọc đúng và trả lời đúng còn ảnh hưởng tới chức năng chính tiếp theo là **DỰ TOÁN**. Chính xác gần như phải TUYỆT ĐỐI. Dù một sai sót nhỏ cũng ảnh hưởng toàn bộ dự án — **tuyệt đối không 9-bỏ-làm-10**."*
+> ⇒ **số SAI = lỗi · số THIẾU = lỗi · đọc đúng hoặc TỪ CHỐI RÕ**. Phương án chỉ *giảm sai mà không đọc đúng* (kiểu "NÍN") = **cầm máu, KHÔNG phải lời giải**; phải trình user như LỰA CHỌN kèm giá, không tự quyết. Memory `[[feedback-chinh-xac-gan-tuyet-doi]]`.
+>
+> ### ✅ VIỆC DUY NHẤT VÀO CODE SẢN PHẨM: LÁT 4a (`d4a7c33`) — bịt kênh bơm rổ neo thứ 4
+> `ghi_chu`/`ly_do` của tool **đi trọn vào rổ neo** (không ở tuple loại-trừ, `_strip_neo` không lọc chuỗi tự do). **5 chuỗi đã vá** ở `cao_do_min_max` + `thong_tin_tang`; nguy nhất: ví dụ `'cốt - 14.260'` bơm **14.26** (chữ ký id135) và `'(±0.000, +3.600…)'` bơm **3.6** (chiều cao tầng điển hình = số model dễ bịa nhất) — **6 câu bịa lật LỌT→CHẶN**. Vá bằng cách viết số **bằng chữ**/**placeholder**, giữ nguyên 100% thông tin. Test 31→**52**; tự kiểm ngược gỡ vá = **đúng 15 ca đỏ**; cổng `[49/49]`, **33/33 suite khác giữ nguyên TỪNG CON SỐ**.
+>
+> ### ⛔ BA VÒNG NO_GO CÓ SỐ (đừng mở lại — chi tiết ở `feature_list` mục `muc4-lat4-routing-nudge` + `muc4-lat-ghep-cuaso-ngansach`)
+> **(1) Lát 4b routing-nudge**: trần tuyệt đối **2 bản vẽ** (bắn 54 file trúng 2 = 3,7%) ⇒ ngưỡng tiền lệ ≥3 **bất khả thi về số học**; và đích đến trả **số sai** ở lệnh gọi mặc định (`1.800` thay vì `1.740`), hàng rào **quay ngược** (bảo lãnh số sai, chặn số đúng).
+> **(2) Cả HỌ luật "nối dài ≤ K×bước cột"**: F5 `max(đi-tiếp)=5,46 > min(dừng)=0,76` **chồng lấn tuyệt đối**; chấm bằng thước khung-nét độc lập thì nối dài K=1,25 làm F5 **ĐI XUỐNG** (79,8%→75,4%). Lợi ích trên 4 file đích là **thuộc tính BỐ CỤC**, không phải của luật.
+> **(3) Gộp min/max qua block**: bản vẽ tự ghi `'cống bên trái/phải tuyến'`, `'KÊNH THUỶ NÔNG HOÀN TRẢ'` ⇒ gộp ra dải **không cống nào có**.
+> 🔴 **PHÁT HIỆN NGOÀI PHẠM VI, QUAN TRỌNG NHẤT VỀ AN TOÀN:** lỗ **×1000 CÓ SẴN trong HEAD** — 1 lượt `doc_bang_trac_doc(nhan_chua='Khoảng cách')` trên C2 cấp **13/33 mốc mm** + **6 câu bịa LỌT**. Đòn bẩy ở `_is_grounded`/ANY-GROUNDED trong `mcp_bridge`, **KHÔNG ở tool #36**. User đã chốt: lát **grounding-có-đơn-vị** xếp **NGAY SAU** khi #37 LIVE.
+>
+> ### 🔬 NỀN ĐO MỚI — thước đọc tay + phân xử số tranh chấp
+> **Thước sự-thật-nền ĐỌC TAY 391 hàng / 4.283 ô / 5 file** (`_lat4/su_that_nen_doc_tay.json`), biên bằng khung nét ngang+dọc, mỗi hàng 5-7 dấu hiệu quan sát được, **không luật ứng viên nào tham gia** — dựng vì cả 2 vòng trước đều bị chấm bằng thước do chính thuật toán sinh ra.
+> **PHÂN XỬ số tranh chấp 23/23 vs 9/24** (3 bộ trích độc lập trùng 100% per-bảng): **agent ĐÚNG NGUYÊN VĂN** — 23/23 khớp đẳng thức (74/74 phương trình, Decimal nguyên-cent KHÔNG dung sai), O-B 97/97 ô. **Số 9/24 của tôi là ARTIFACT** = lần thứ **10** bộ trích hỏng: chữ cộng dồn viết DỌC có mỏ neo thật `align_point` nhưng `insert` **tụt theo ĐỘ DÀI chuỗi` ⇒ dải ±1.0 chặt cụt 65/171 ô. 📌 **BÀI HỌC KỸ THUẬT:** TEXT căn lề (`halign≠0`) thì toạ độ NGHĨA là **`align_point`, KHÔNG phải `insert`**.
+>
+> ### 🔨 TOOL #37 `doc_bang_ke_khung` — ĐẶC TẢ + PROTO B0-B3 HOÀN TẤT (**0 dòng code sản phẩm bị đụng**)
+> Đặc tả chốt sau red-team: **`DAC_TA_TOOL37.md`** (gốc repo) — tool MỚI additive, #36 nguyên từng byte; phân tầng a-PHẲNG / b-ĐẲNG-THỨC (`da_chung_minh` BOOL, gate `so_pt≥2`+xen kẽ) / c-TỪ-CHỐI-ĐÍCH-DANH + 4 nhánh từ chối cấp file; mỏ neo `(rotation, align_point)`; Decimal nguyên; `gioi_han` sống. **User chốt 4 quyết định**: LIVE #37 rồi vá ×1000 ngay sau · trần 60/200 · V-H = từ chối đích danh · ưu tiên trên-xuống + mục lục.
+> **B1 — 4 cụm + 5 guard sinh thêm giữa chừng, TẤT CẢ qua review người:** ① fail-closed: **80.224 dải rơi-không-vết → 0** (V-D nguyên văn **BỊ ĐO BÁC**, 49 hàng nền mất → ghép-dải-gần-bằng) · ② mỏ neo + V-F2a/b: soi entity 4 ca drift (**bản cũ neo SAI cả 4**), guard chữ-khổ-lớn **cứu hàng `2A` 9 giá trị thật** + giết hàng giả, **06.TB6 +18 hàng THẬT** (o_doc 125→407) · ③ gate chứng minh: F5 **23→9 claim** đúng từng số, 74/74 phương trình kiểm ĐỘC LẬP, corpus diff **0 mọi trục** · ④ lưới trục + V-H2 3 vế: **25/25 hàng chế-tạo bị chặn, oan 0/420** (vế RATIO **bỏ đúng luật knife-edge**).
+> **B3 red-team → `đủ_điều_kiện_B4 = false`, bắt 4 CAO** mà **59/60 fixture tự viết vẫn pass** (đúng tiền lệ): bảng-vanish · nhánh câm khung nhỏ · mode-flip · ghép-x nuốt bảng kề. **Đã vá xong, gate xanh trọn**: vanish=0 · census **108 dải → 0** · mode-flip lộ · 2 bảng kề tách đúng · ma trận kỷ luật **75/75** · corpus diff **0 ngoài kỳ vọng**.
+> **12 ngưỡng mới đều có plateau đo được, 0 knife-edge. 3 đề xuất sai bị CHÍNH PHÉP ĐO bác trước khi vào code** (V-D nguyên văn · vế RATIO · vế rot90-đứng-một-mình giết 193 hàng nền).
+>
+> ### 📌 BÀI HỌC PHIÊN NÀY
+> **(a) Đi đo tính năng A lại tìm ra lỗi của tính năng B — và lỗi đó đáng giá hơn.** Lát 4 ra NO_GO, nhưng đường đi tới NO_GO lộ 5 chuỗi rò neo đang chạy LIVE + lỗ ×1000 có sẵn.
+> **(b) `align_point` vs `insert`** — lần thứ 10 bộ trích hỏng, lần này theo hướng **BI QUAN**, suýt vứt một hướng ĐÚNG.
+> **(c) Không nhận nguyên xi kết luận agent, kể cả khi nó đúng số:** ca `1.800/1.740` — phần **số** đúng, phần **mức nghiêm trọng** sai (bảo tool im lặng, thực tế lộ 4 đường); phân biệt được hai cái đó **đổi hẳn khuyến nghị**.
+> **(d) Nhịp làm việc hiệu quả đã thành khuôn:** *máy đo → dừng đúng luật khi lệch kỳ vọng → người soi ENTITY → ghim*. 4/4 cụm không lọt thay đổi nào chưa qua mắt người. Scan corpus dài **mồ côi 5 lần** vì agent hết lượt — reviewer chạy lại ngoài workflow là thủ tục chuẩn, không phải sự cố.
+
+---
 ## Session 2026-08-06 (nối) — 🔬 Tool #36 có **HAI** cơ chế cắt · **thước đo bị cong** · lát ghép ĐANG LÀM
 > **HEAD `d4a7c33` · cây SẠCH · suite #36 `35 PASS / 0 FAIL`** (bản vá dở đã HOÀN TÁC, lưu `_lat4/lat4c_WIP.patch`). `feature_list` **86 → 87**. Chi tiết đầy đủ: khối 2026-08-06 ở `session-handoff.md`. Nghiên cứu `wf_7d902824-ad4`.
 > **① Ngoài trần `_BTD_CAP_TONG=60` còn CỬA SỔ NGANG `40*p` cắt NGANG GIỮA MỘT HÀNG.** Đọc thẳng `entitydb`: dãy handle liên tục `41E9C→41EC2`, bước x đúng **2.000 không đứt**, `'1.940'` trong / `'1.840'` ngoài ⇒ min thật **1.840**, tool đọc **1.940**.

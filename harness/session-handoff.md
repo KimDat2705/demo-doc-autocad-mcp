@@ -98,6 +98,33 @@
 > **Ngưỡng GO:** `3.6-flash` **không thua** ở trục **bẫy ảo giác** và **không tụt recall**. Thắng tốc độ/tiền mà thua bẫy = **NO_GO**.
 > ⚠ **Kỷ luật đo:** đọc tay ≥10 ca trước khi tin số tổng hợp. *Trong chính phiên này phép đo cho **3 kết quả sai liên tiếp** (12,6% trùng khớp · 98/198 "không neo" · "Flash giỏi hơn Pro") — cả 3 đều trông hợp lý* (`[[feedback-kiem-bo-trich-truoc-khi-tin-so]]`).
 
+## 🏁 CHỐT SỔ PHIÊN 2026-08-06→08-07 — **ĐỌC KHỐI NÀY TRƯỚC**
+> **HEAD `7e24bc5`+docs · tree SẠCH · cổng `[49/49]` PASS (, 0 dòng , **tổng 1.701 ca** — đo lại lúc chốt sổ) · 36 MCP tool · `feature_list` 91 mục** (72 done · 1 partial · 14 deferred · 4 planned). ⚠ pytest **VẪN crash** (kiểm lại cuối phiên, không phải nhớ) — cổng là `check.sh`. **KHÔNG có `specs/specs.json`**.
+>
+> ### ⭐⭐ CHUẨN MỚI CỦA USER — ÁP CHO MỌI VIỆC ĐỌC-SỐ, ĐỪNG THƯƠNG LƯỢNG LẠI
+> *"Chính xác gần như phải TUYỆT ĐỐI vì số chảy vào **DỰ TOÁN**. Tuyệt đối không 9-bỏ-làm-10."*
+> ⇒ **số SAI = lỗi · số THIẾU = lỗi · ĐỌC ĐÚNG hoặc TỪ CHỐI RÕ.** Phương án chỉ *"ngừng nói sai"* mà không đọc đúng = **cầm máu**, phải trình user như lựa chọn kèm giá. `[[feedback-chinh-xac-gan-tuyet-doi]]`
+>
+> ### ✅ DUY NHẤT VÀO CODE SẢN PHẨM PHIÊN NÀY: lát 4a (`d4a7c33`)
+> Bịt **kênh bơm rổ neo thứ 4** = prose của chính tool. 5 chuỗi vá ở `cao_do_min_max`+`thong_tin_tang`; `14.26` (chữ ký id135) và `3.6` (chiều cao tầng điển hình) hết bảo lãnh câu bịa; **6 câu bịa lật LỌT→CHẶN**; test 31→52; gỡ vá = đúng 15 ca đỏ; 33/33 suite khác giữ nguyên từng số.
+>
+> ### ⛔ 3 HƯỚNG NO_GO CÓ SỐ + 1 LỖ CÓ SẴN (đừng mở lại)
+> lát 4b routing-nudge (trần **2 bản vẽ**, đích đến trả số sai) · cả **HỌ** luật nối-dài-theo-K (F5 chồng lấn tuyệt đối, làm ĐI XUỐNG 79,8→75,4%) · gộp min/max qua block (bản vẽ tự ghi *cống trái/phải*, *KÊNH hoàn trả*).
+> 🔴 **LỖ ×1000 CÓ SẴN TRONG HEAD** (không do lát nào đẻ): 1 lượt `nhan_chua='Khoảng cách'` trên C2 → **13/33 mốc mm + 6 câu bịa LỌT**; đòn bẩy ở `_is_grounded`/ANY-GROUNDED trong `mcp_bridge`. **User đã chốt: lát grounding-có-đơn-vị xếp NGAY SAU khi #37 LIVE.**
+>
+> ### 🔨 TOOL #37 — PROTO B0-B3 HOÀN TẤT, **CHỜ USER GẬT B4**
+> Đặc tả: **`DAC_TA_TOOL37.md`**; đính chính phải áp khi tích hợp: **`D:\Dat-Antigravity\_lat4\b4_dinh_chinh_dacta.md`**; sổ đo từng cụm + phán quyết reviewer: **`_lat4/b1_ket_qua.jsonl`**; proto: `_lat4/proto_khung/khung_doc.py`.
+> **0 dòng code sản phẩm bị đụng suốt B0-B3.** 4 cụm + 5 guard + red-team bắt 4 CAO + vá xong, tất cả qua review người. Số tổng so với LIVE: fail-closed **80.224 dải → 0** · **25/25 hàng chế-tạo bị chặn, oan 0/420** · hàng `2A` 9 giá trị thật sống lại · **06.TB6 +18 hàng THẬT** · F5 **9 claim thật** thay 23 claim lỏng · trần rổ neo giữ (mm 55≤60 · mét 85≤90 · corpus 135≤143).
+> **B4-B7 còn lại:** port vào `tools_core.py` (**diff hàm #36 = 0 byte**, SYSTEM_PROMPT `239e8b7b` không đổi) + garble-normalizer 2 phía (ĐIỀU KIỆN GO) → `tests/test_bang_ke_khung.py` → thêm bước `check.sh` → **red-team sau-tích-hợp trên ≥5 file kích-hoạt-mới** (bắt buộc, không bỏ).
+>
+> ### ⚠ SỐ ĐỪNG TRÍCH LẠI (đã bị bác trong phiên)
+> `9/24` đẳng thức F5 (artifact `insert` vs `align_point` — số thật **23/23**) · `'gh60 trả 40/41 bảng'` (đếm bảng không 1-1) · tần suất mode-flip corpus (hook census mù, **chưa có số**) · `'13.097 số bbox khung nhỏ'` (artifact bình đồ — dùng **108**) · `'919 nhãn rot=90 ngoài scope'` (đo vòng tròn) · `'29 hàng lưới-trục'`/`'5 hàng dedup'` (số trước V-D).
+>
+> ### 📌 GHI CHÚ VẬN HÀNH
+> **(a)** `feature_list` dùng `deferred` cho **HAI** loại khác hẳn nhau — *hồ sơ NO_GO đã đóng* (10 mục) và *việc thật còn chờ*. Đừng đếm gộp.
+> **(b)** Scan corpus 142 file **mồ côi 5 lần** khi agent hết lượt → reviewer chạy lại ngoài workflow là **thủ tục chuẩn**, không phải sự cố.
+> **(c)** Phiên song song (hỏi-đáp, không code) đã thêm `KE_HOACH_NANG_CAP_MODEL.md` + `KET_QUA_DO_RESIDUAL_TOAN_CORPUS.md` + 4 mục `planned`; đã nhận nguyên trạng, ghi rõ nguồn trong commit. **Sự cố API key 403 billing** (Google chặn cấp project) vẫn đang mở — chặn mọi việc cần Gemini, **không** chặn việc offline.
+
 ## 🔨 2026-08-07 — THI CÔNG TOOL #37 (proto): **B1 XONG 4/4 cụm + 5 guard** · **red-team B3: 4 CAO đang vá** · CHƯA chạm code sản phẩm
 > **Toàn bộ ở PROTO `D:\Dat-Antigravity\_lat4\proto_khung\` — 0 dòng repo bị đụng.** Workflow `wf_9cfa893f` (B0→B3, cổng dừng từng cụm, 4 lần scan corpus mồ côi đều được reviewer chạy lại ngoài). Sổ chi tiết + phán quyết reviewer TỪNG cụm: `_lat4/b1_ket_qua.jsonl`. Quy trình lặp ổn định: cụm tự đo phần nhanh → dừng đúng luật khi corpus dở → reviewer chạy nốt + soi entity → ghim.
 > **B1 4/4 cụm ĐÃ QUA REVIEW:** ①V-C/D/E — 80.224 dải rơi-không-vết→0 (census MISMATCH=0); V-D nguyên văn BỊ ĐO BÁC (49 hàng nền mất)→ghép-dải-gần-bằng QY_TOL=0.05 · ②V-F/G + **V-F2a/b** — soi entity 4 ca drift: bản cũ neo SAI cả 4; guard chữ-khổ-lớn K=8 **cứu hàng '2A' 9 giá trị thật** + giết hàng giả Ø10a200 (bắn 1/142 file); **06.TB6 +18 hàng a THẬT (o_doc 125→407)** · ③V-A/B — F5 23→9 claim đúng từng số, 74/74 pt Decimal độc lập, corpus diff **0 mọi trục** · ④V-H/I/J/K + **V-H2 ba vế** — vế RATIO bỏ đúng luật knife-edge (thật 2.64-46 đan xen chế-tạo 3.63-506); probe entity tìm 3 tín hiệu plateau (nhãn-lặp T=4 · callout-rải-khối topology-INSERT · nhãn-dựng-đứng tol=20 phủ 90/270) bắt **10/10 hàng thoát, oan 0/420**; V-I dedup=681 trùng mô phỏng; V-J mục lục A2 có 'đáy kênh hoàn trả'.
