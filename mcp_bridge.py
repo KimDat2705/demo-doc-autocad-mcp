@@ -82,6 +82,59 @@ def _is_overloaded(e):
                                 "overloaded", "quota", "rate limit", "rate_limit", "high demand"))
 
 
+# ── GĐ1.4 — ĐƯA THAM SỐ SINH RA ENV (để ĐO ĐƯỢC mà không sửa code) ───────────────────────
+# MẶC ĐỊNH GIỮ Y HỆT HÀNH VI CŨ: temperature=0, max_output_tokens=8192, KHÔNG truyền
+# thinking_config. Env chỉ để chạy A/B, không phải để đổi ngầm.
+# ⚠ `temperature=0` là LỰA CHỌN CHỐNG BỊA CỐT LÕI của dự án (ghi ở docstring đầu file), trong
+#   khi tài liệu Gemini 3 khuyên GIỮ 1.0 và cảnh báo dưới 1.0 "may lead to looping or degraded
+#   performance". Đây là XUNG ĐỘT THIẾT KẾ THẬT (rủi ro R1) — phải A/B RIÊNG biến này, KHÔNG
+#   đổi cùng lúc với model.
+# ⚠ `max_output_tokens` là ngân sách CHUNG cho token SUY NGHĨ + câu trả lời (rủi ro R2,
+#   googleapis/python-genai#2062). Gemini 3 mặc định thinking_level='high' ⇒ suy nghĩ có thể
+#   ăn hết ngân sách → finishReason=MAX_TOKENS → CÂU TRẢ LỜI RỖNG. Dự án ĐÃ TỪNG dính lớp bug
+#   empty-response. KHÔNG bỏ trống max_output_tokens (bỏ trống = treo vô hạn).
+def _env_float(ten, mac_dinh):
+    try:
+        return float(os.environ.get(ten, mac_dinh))
+    except Exception:
+        return float(mac_dinh)
+
+
+GEN_TEMPERATURE = _env_float("GEMINI_TEMPERATURE", "0")
+try:
+    GEN_MAX_OUTPUT_TOKENS = int(os.environ.get("GEMINI_MAX_OUTPUT_TOKENS", "8192"))
+except Exception:
+    GEN_MAX_OUTPUT_TOKENS = 8192
+GEN_THINKING_LEVEL = (os.environ.get("GEMINI_THINKING_LEVEL", "") or "").strip()
+
+
+def _thinking_cfg():
+    """Trả `thinking_config` nếu env có đặt, ngược lại None (giữ mặc định của model).
+    Bọc try: SDK cũ không có ThinkingConfig thì bỏ qua thay vì làm chết cả tiến trình."""
+    if not GEN_THINKING_LEVEL:
+        return None
+    try:
+        return types.ThinkingConfig(thinking_level=GEN_THINKING_LEVEL)
+    except Exception:
+        return None
+
+
+class _CanChayLaiTuDau(Exception):
+    """GĐ1.2 — TÍN HIỆU NỘI BỘ: phải ĐỔI MODEL nhưng `contents` ĐÃ NHIỄM chữ ký suy luận.
+
+    Gemini 3 đính THOUGHT SIGNATURE vào mỗi `function_call` và bắt buộc gửi lại nguyên vẹn;
+    chữ ký của model này bị model KHÁC từ chối ('Corrupted thought signature') ⇒ đổi model
+    GIỮA CHỪNG một request đã có lượt gọi tool = 400.
+    Vì vậy khi cần tụt model mà đã trót gọi tool, ta KHÔNG mang `contents` nhiễm sang model
+    mới — ta ném tín hiệu này để chạy lại request TỪ ĐẦU với `contents` sạch (history + câu
+    hỏi), bắt đầu từ model kế tiếp.
+    ⚠ Đây KHÔNG phải lỗi: nó là đường đi bình thường của nhánh dự phòng."""
+
+    def __init__(self, chi_so_model):
+        self.chi_so_model = chi_so_model
+        super().__init__("can chay lai tu dau voi model chi so %d" % chi_so_model)
+
+
 def _model_chet(e):
     """Lỗi có phải 'MODEL NÀY KHÔNG CÒN TỒN TẠI' (404 NOT_FOUND) không?
 
@@ -119,6 +172,14 @@ def _gen_fallback(client, contents, cfg, state):
             if not (_is_overloaded(e) or _model_chet(e)) or i >= len(MODELS) - 1:
                 state["i"] = i          # dừng ở model này (lỗi không-quá-tải hoặc đã là model cuối)
                 raise
+            # GĐ1.2 — ĐÃ TRÓT GỌI TOOL thì `contents` mang chữ ký suy luận của model vừa hỏng.
+            # Gửi nguyên `contents` đó sang model KẾ = 400 'Corrupted thought signature' với
+            # Gemini 3. Ném tín hiệu để caller dựng lại `contents` SẠCH và chạy lại từ đầu.
+            # (Trong CÙNG một model thì không sao: code append NGUYÊN đối tượng `cand.content`
+            #  nên chữ ký được giữ đúng — chỉ đường ĐỔI MODEL mới hỏng.)
+            if state.get("da_goi_tool"):
+                state["i"] = i + 1
+                raise _CanChayLaiTuDau(i + 1)
             last = e                    # 429/503 và còn model -> thử model kế
     if last is not None:
         raise last
@@ -1173,16 +1234,45 @@ def _get_client():
 
 def tra_loi_ai(bridge, q, file_summary="", history=None):
     """Vòng hỏi-đáp: Gemini gọi MCP tool qua bridge. Trả {answer, evidence, anh_id, ai}.
+
+    GĐ1.2 — LỚP BỌC CHẠY-LẠI-TỪ-ĐẦU: nếu giữa chừng phải tụt model mà request đã có lượt gọi
+    tool, `_gen_fallback` ném `_CanChayLaiTuDau` thay vì mang `contents` nhiễm chữ ký suy luận
+    sang model mới. Ở đây ta dựng lại TRẠNG THÁI SẠCH (contents từ history + q, rổ neo, evidence
+    đều làm mới) rồi chạy lại với model kế. Tool có bị gọi lại — chấp nhận, vì đây là nhánh hiếm
+    và đổi lấy việc KHÔNG gửi chữ ký lạ (400 chắc chắn).
+    Trần vòng lặp = số model trong chuỗi ⇒ không thể lặp vô hạn."""
+    bat_dau, lan = 0, 0
+    while lan < max(1, len(MODELS)):
+        lan += 1
+        try:
+            return _tra_loi_ai_mot_lan(bridge, q, file_summary, history, bat_dau)
+        except _CanChayLaiTuDau as e:
+            # Chỉ chạy lại khi tín hiệu THỰC SỰ TIẾN sang model kế. Tín hiệu không tiến (hoặc
+            # đã hết chuỗi) mà vẫn lặp thì thành vòng vô tận — thoát ngay.
+            if e.chi_so_model >= len(MODELS) or e.chi_so_model <= bat_dau:
+                break
+            bat_dau = e.chi_so_model
+    # Tới đây nghĩa là đã cạn đường đổi model. TUYỆT ĐỐI không để tín hiệu NỘI BỘ rò ra ngoài
+    # thành ngoại lệ lạ cho app.py — trả câu trung thực, cùng khuôn nhánh quá-tải.
+    return {"answer": "⚠ AI phải đổi model giữa chừng nhiều lần và không hoàn tất được lượt hỏi này. "
+                      "Vui lòng thử lại sau ít phút.",
+            "evidence": [], "anh_id": None, "file_id": None, "ai": True}
+
+
+def _tra_loi_ai_mot_lan(bridge, q, file_summary="", history=None, model_bat_dau=0):
+    """MỘT LƯỢT chạy trọn vẹn với chuỗi model bắt đầu từ `model_bat_dau`.
     history = danh sách [{role:'user'|'model', text}] các lượt TRƯỚC (để nhớ ngữ cảnh, vd đang tính cột nào
     rồi đối tác nhắn số thiếu ở lượt sau). CHỈ gồm câu hỏi + câu trả lời cuối, không gồm bước gọi tool."""
     tools = gemini_tools(bridge.tools)
     _ten_llm = _ten_tool_cho_llm(bridge.tools)   # L0: tập tên hợp lệ cho vòng dispatch (chặn host-only + tên lạ)
     cfg = types.GenerateContentConfig(
         system_instruction=SYSTEM_PROMPT + ("\n\nBản vẽ đang nạp: " + file_summary if file_summary else ""),
-        tools=tools, temperature=0, max_output_tokens=8192,
+        tools=tools, temperature=GEN_TEMPERATURE, max_output_tokens=GEN_MAX_OUTPUT_TOKENS,
+        thinking_config=_thinking_cfg(),
         automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True))
     client = _get_client()
-    _mstate = {"i": 0}          # Robustness H: chỉ số model đang dùng trong chuỗi MODELS (giữ qua các lượt của request)
+    # GĐ1.2: `da_goi_tool` cho `_gen_fallback` biết `contents` đã nhiễm chữ ký suy luận chưa.
+    _mstate = {"i": model_bat_dau, "da_goi_tool": False}   # Robustness H: chỉ số model trong chuỗi MODELS
     contents = []
     for h in (history or []):
         r = "model" if h.get("role") == "model" else "user"
@@ -1201,6 +1291,8 @@ def tra_loi_ai(bridge, q, file_summary="", history=None):
     for _ in range(MAX_TURNS):
         try:
             resp = _gen_fallback(client, contents, cfg, _mstate)   # H: chuỗi model dự phòng 429/503
+        except _CanChayLaiTuDau:
+            raise                 # GĐ1.2: tín hiệu chạy-lại, KHÔNG phải lỗi — để lớp bọc bắt
         except Exception as e:
             if _is_overloaded(e):     # MỌI model trong chuỗi đều cạn/quá tải -> báo LỘ, KHÔNG crash (robustness)
                 return {"answer": "⚠ AI đang quá tải hoặc hết lượt truy vấn (đã thử %d model). Vui lòng thử lại sau ít phút." % len(MODELS),
@@ -1222,6 +1314,7 @@ def tra_loi_ai(bridge, q, file_summary="", history=None):
         fcalls = [p.function_call for p in parts if getattr(p, "function_call", None)]
         if fcalls:
             da_goi = True
+            _mstate["da_goi_tool"] = True   # GĐ1.2: từ đây contents mang chữ ký suy luận
             ten_tool_da_goi |= {getattr(x, "name", "") or "" for x in fcalls}   # A2
             contents.append(cand.content)
             rparts = []
@@ -1305,7 +1398,8 @@ def tra_loi_ai(bridge, q, file_summary="", history=None):
         "những gì đã có. TUYỆT ĐỐI KHÔNG nói 'câu hỏi cần quá nhiều bước'."))]))
     cfg_final = types.GenerateContentConfig(
         system_instruction=SYSTEM_PROMPT + ("\n\nBản vẽ đang nạp: " + file_summary if file_summary else ""),
-        temperature=0, max_output_tokens=8192)   # KHÔNG truyền tools -> model buộc tự trả lời từ dữ liệu đã có
+        temperature=GEN_TEMPERATURE, max_output_tokens=GEN_MAX_OUTPUT_TOKENS,
+        thinking_config=_thinking_cfg())   # KHÔNG truyền tools -> model buộc tự trả lời từ dữ liệu đã có
     try:
         resp = _gen_fallback(client, contents, cfg_final, _mstate)   # H: chuỗi model dự phòng cho câu trả lời cuối
         cand = (resp.candidates or [None])[0]

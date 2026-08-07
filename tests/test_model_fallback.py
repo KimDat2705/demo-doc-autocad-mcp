@@ -202,6 +202,84 @@ def main():
        all(m.startswith("gemini-2.5") for m in B._FALLBACK_DEFAULT.split(",") if m.strip()),
        B._FALLBACK_DEFAULT)
 
+    # ══ GĐ1.2 — ĐỔI MODEL GIỮA CHỪNG PHẢI CHẠY LẠI TỪ ĐẦU (thought signature) ═══════════
+    # Gemini 3 đính chữ ký suy luận vào mỗi function_call và TỪ CHỐI chữ ký của model khác
+    # ('Corrupted thought signature') ⇒ mang `contents` đã có lượt gọi tool sang model kế = 400.
+    print("\n-- [E] đổi model khi ĐÃ gọi tool -> phải CHẠY LẠI TỪ ĐẦU, không mang contents cũ --")
+    _saveM = B.MODELS
+    try:
+        B.MODELS = ["m1", "m2", "m3"]
+        # (a) CHƯA gọi tool -> tụt model bình thường, KHÔNG ném tín hiệu (đường cũ giữ nguyên)
+        cl = FakeClient({"m1": ApiErr(429), "m2": "ok"})
+        st = {"i": 0, "da_goi_tool": False}
+        r = B._gen_fallback(cl, "x", None, st)
+        ok("E1 chưa gọi tool -> tụt model TẠI CHỖ (không chạy lại, không phí lượt)",
+           r == {"_model": "m2"} and st.get("i") == 1, (r, st))
+        # (b) ĐÃ gọi tool -> PHẢI ném tín hiệu chạy-lại, KHÔNG được gọi model kế với contents cũ
+        cl2 = FakeClient({"m1": ApiErr(429), "m2": "ok"})
+        st2 = {"i": 0, "da_goi_tool": True}
+        try:
+            B._gen_fallback(cl2, "contents_da_nhiem", None, st2)
+            ok("E2 đã gọi tool -> phải ném _CanChayLaiTuDau", False, "không ném")
+        except B._CanChayLaiTuDau as ex:
+            ok("E2 đã gọi tool -> ném _CanChayLaiTuDau trỏ model KẾ",
+               ex.chi_so_model == 1, ex.chi_so_model)
+            ok("E3 ĐỐI CHỨNG QUYẾT ĐỊNH: model kế KHÔNG hề được gọi với contents nhiễm "
+               "(chỉ m1 bị gọi)", cl2.models.calls == ["m1"], cl2.models.calls)
+        # (c) lớp bọc tra_loi_ai: nhận tín hiệu -> chạy lại với model_bat_dau ĐÃ TIẾN
+        goi = []
+        _save1 = B._tra_loi_ai_mot_lan
+
+        def _gia(bridge, q, fs="", hist=None, model_bat_dau=0):
+            goi.append(model_bat_dau)
+            if len(goi) == 1:
+                raise B._CanChayLaiTuDau(1)
+            return {"answer": "xong", "evidence": [], "ai": True}
+        B._tra_loi_ai_mot_lan = _gia
+        try:
+            out = B.tra_loi_ai(None, "hỏi")
+            ok("E4 lớp bọc chạy lại với model_bat_dau TIẾN LÊN (0 -> 1) rồi trả kết quả",
+               out.get("answer") == "xong" and goi == [0, 1], (out, goi))
+        finally:
+            B._tra_loi_ai_mot_lan = _save1
+        # (d) chống lặp vô hạn: tín hiệu KHÔNG tiến -> phải thoát, không quay vòng mãi
+        goi2 = []
+
+        def _gia2(bridge, q, fs="", hist=None, model_bat_dau=0):
+            goi2.append(model_bat_dau)
+            if len(goi2) < 9:
+                raise B._CanChayLaiTuDau(0)      # tín hiệu KHÔNG tiến
+            return {"answer": "cuoi", "evidence": [], "ai": True}
+        B._tra_loi_ai_mot_lan = _gia2
+        try:
+            B.tra_loi_ai(None, "hỏi")
+            ok("E5 tín hiệu không tiến -> KHÔNG lặp vô hạn (thoát sau ít lượt)",
+               len(goi2) <= 3, goi2)
+        except Exception as ex:
+            ok("E5 tín hiệu không tiến -> KHÔNG lặp vô hạn", False, type(ex).__name__)
+        finally:
+            B._tra_loi_ai_mot_lan = _save1
+    finally:
+        B.MODELS = _saveM
+
+    # ══ GĐ1.4 — THAM SỐ SINH RA ENV, MẶC ĐỊNH GIỮ NGUYÊN HÀNH VI CŨ ═════════════════════
+    print("\n-- [F] tham số sinh ra env: mặc định PHẢI y hệt hành vi trước lát này --")
+    ok("F1 temperature mặc định = 0 (lựa chọn CHỐNG BỊA cốt lõi, không được đổi ngầm)",
+       B.GEN_TEMPERATURE == 0.0, B.GEN_TEMPERATURE)
+    ok("F2 max_output_tokens mặc định = 8192 (không bỏ trống — bỏ trống là treo vô hạn)",
+       B.GEN_MAX_OUTPUT_TOKENS == 8192, B.GEN_MAX_OUTPUT_TOKENS)
+    ok("F3 thinking_level mặc định RỖNG -> KHÔNG truyền thinking_config (giữ mặc định model)",
+       B.GEN_THINKING_LEVEL == "" and B._thinking_cfg() is None, B.GEN_THINKING_LEVEL)
+    _sv = B.GEN_THINKING_LEVEL
+    try:
+        B.GEN_THINKING_LEVEL = "low"
+        ok("F4 đặt env -> _thinking_cfg() dựng được ThinkingConfig (đo được mà không sửa code)",
+           B._thinking_cfg() is not None)
+    finally:
+        B.GEN_THINKING_LEVEL = _sv
+    ok("F5 _env_float chịu được giá trị rác (không làm chết tiến trình)",
+       B._env_float("BIEN_KHONG_TON_TAI_XYZ", "0") == 0.0)
+
     print("\n%d PASS / %d FAIL" % (PASS, FAIL))
     return 1 if FAIL else 0
 
