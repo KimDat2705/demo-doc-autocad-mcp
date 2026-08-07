@@ -12,7 +12,31 @@
 > **Muốn public thật sau này — ĐỪNG LÀM LẠI TỪ ĐẦU:** nhánh local **`public-ready`** đã có sẵn trọn gói (history sạch không .deb qua `git filter-repo` · Dockerfile tải ODA tuỳ chọn qua `ODA_DEB_URL` · thông báo .dxf-only thân thiện · .gitignore chặn .deb). Đánh đổi: cloud chỉ đọc .dxf tới khi đặt `ODA_DEB_URL`. Mirror backup: `D:/Dat-Antigravity/_backup_repo_truoc_khi_public_20260717/repo-mirror.git`.
 
 
-## 🔑 2026-08-07 — **API ĐÃ ĐƯỢC GIA HẠN, HOẠT ĐỘNG TRỞ LẠI** + vá **CHUỖI MODEL DỰ PHÒNG CHẾT** + **E2E #37 lần đầu** — ĐỌC KHỐI NÀY TRƯỚC
+## ✅ 2026-08-07 — **VAN NHƯỜNG (#36 → #37) ĐÃ LÀM XONG** — ĐỌC KHỐI NÀY TRƯỚC
+> **Cổng `[50/50]` PASS exit 0 · 1.788 → 1.795 ca · 0 FAIL · diff cổng ĐÚNG 1 DÒNG** (suite #36 35→42). Red-team van: **SẠCH, 0 phát hiện**.
+>
+> ### 🎯 VAN LÀM ĐƯỢC ĐÚNG VIỆC — ĐO E2E QUA MODEL THẬT, TRƯỚC/SAU
+> **Routing sang #37: 2/5 → 5/5 câu.** Ba ca đổi hẳn kết quả:
+> · *"đáy cống thiết kế thấp nhất?"* — TRƯỚC: #36 → **1.900 SAI**; SAU: #37 → **1.840 ĐÚNG**.
+> · *"hàng đáy kênh hoàn trả có giá trị nào?"* — TRƯỚC: #36 → chỉ `1.840`×17, **THIẾU 1.740**; SAU: #37 → liệt kê **cả 1.840 lẫn 1.740**, kết luận min **1.740** / max **1.840** = khớp nền.
+> · *"khoảng cách mặt cắt min/max"* — TRƯỚC #36 trả đúng 3/20; SAU #37 **vẫn 3/20** ⇒ **không mất gì khi #36 nhường**.
+> · Câu BẪY vẫn **TỪ CHỐI**.
+>
+> ### ⚠ ĐO TRƯỚC-KHI-CODE KHÔNG THẤY HẾT — BÀI HỌC LỚN NHẤT CỦA LÁT NÀY
+> ĐO 0 kết luận *"V1 (chỉ nhường hàng #37 ĐỌC được) == V2 (nhường cả hàng #37 TỪ CHỐI)"* vì **đo trên đầu ra #36 TRƯỚC van** — lúc đó mọi hàng đều rơi vào tập đọc-được. **Sau khi code mới lộ:** van GỠ hàng ⇒ **GIẢI PHÓNG ngân sách** của #36 ⇒ các block trước đây bị trần cắt **LẠI HIỆN RA**. Đo lại: **6 hàng sống sót trên C1/C2 (D7995·D79A9·A1003·A100A·A1011·A1024) ĐỀU là hàng #37 xếp TẦNG c (từ chối đích danh)**, đều mang nhãn `'Khoảng cách (m)'` (đúng lớp nhãn từng gây lỗ ×1000) và **min rơi về 0**. ⇒ V1 tự tay ĐẨY LÊN đúng những hàng bộ đọc tốt hơn đã CHÊ, biến chúng thành câu trả lời TỰ TIN. **Đã chuyển sang V2**, 6 hàng đó biến mất.
+> 📌 **Phép đo trước-khi-code chỉ thấy được thế giới TRƯỚC bản vá. Bản vá đổi cả phân phối đầu vào của chính nó ⇒ phải ĐO LẠI SAU KHI CODE, không được coi đo-trước là đủ.**
+>
+> ### 📊 CĂN CỨ SỐ
+> #36 trả **16 hàng** trên 5 file đích, #37 phủ **16/16**, trong đó #36 **SAI 10** / đúng 6; 6 hàng đúng đó #37 trả **đúng y giá trị** (khoá bằng ca T7). Corpus 142 file: #36 chỉ kích hoạt **4 file**, cả 4 được #37 phủ, **0 file** nào #36 đọc mà #37 im ⇒ **van KHÔNG BAO GIỜ làm mất dữ liệu**.
+> **RED-TEAM (0 phát hiện):** thứ tự gọi #36/#37 bất biến · **fail-OPEN** (ép quét khung ném lỗi → #36 vẫn trả đủ 4 hàng) · rổ neo nhánh nhường **RỖNG** 4/4 file · file #37-im thì van không đụng · corpus **đúng 4 file** đổi trạng thái, không lan.
+> **Chi phí:** lượt #36 đầu tiên trả tiền quét khung (A2 23 ms · C2 418 ms), lượt sau ăn cache (5 ms · 339 ms). C2 cao hơn trước vì van gỡ hàng nên #36 duyệt thêm block — chấp nhận được, ghi nhận.
+>
+> ### 🔁 THAY ĐỔI HỢP ĐỒNG #36 — KHAI BÁO TRƯỚC, KHÔNG SỬA-TEST-CHO-XANH
+> **4 ca đổi định nghĩa: D1 · D2 · D5 · N1** (đặc tả tiên đoán D2/D3/D5/N1/R3+R2 — **thực tế khác**, ghi đúng thực tế). **Không ca nào bị NỚI LỎNG**: mỗi ca giữ NGUYÊN nội dung kiểm, chỉ chuyển sang chạy trên **đường VAN-TẮT** (cũng chính là đường fail-open), rồi THÊM ca mới khoá van: **V1-V5 · N0 · E1-van**. Suite #36 **35 → 42 ca**.
+> ⚠ Hai khoá hash trong suite #37 (`G-16a`/`G-16b`) đã **TÁI ĐÓNG BĂNG** kèm lý do ghi ngay trong file — ai thấy chúng đỏ mà **không** có mục khai báo tương ứng ở sổ này thì đó là thay đổi LỌT, **phải dừng điều tra, đừng cập nhật hash cho xanh**.
+> ⚠ Test #36 từng **CHẾT GIỮA CHỪNG** (`IndexError` ở `g["blocks"][0]` khi blocks rỗng) nên vòng đầu chỉ thấy 4 ca đỏ — **con số đó chưa đủ**; đã vá.
+
+## 🔑 2026-08-07 — **API ĐÃ ĐƯỢC GIA HẠN, HOẠT ĐỘNG TRỞ LẠI** + vá **CHUỖI MODEL DỰ PHÒNG CHẾT** + **E2E #37 lần đầu**
 > **API SỐNG (user báo + tôi gọi thật xác minh).** Sự cố 403 billing ở khối 2026-08-06 phía dưới **ĐÃ HẾT** — đừng trích lại như đang xảy ra.
 >
 > ### 🔴 BUG LIVE PHÁT HIỆN NGAY KHI API SỐNG — NẶNG HƠN SỔ GHI

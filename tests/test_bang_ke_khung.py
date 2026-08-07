@@ -43,9 +43,19 @@ import mcp_bridge as B                       # noqa: E402
 
 PASS = FAIL = SKIP = 0
 
-# ── Mốc ĐÓNG BĂNG cho nhóm [R] (lát additive: 3 thứ này KHÔNG được đổi) ────────────────
-HASH_TEST36 = "8186f9c3281687a4"                                    # tests/test_bang_trac_doc.py
-HASH_HAM36 = "275f19e956e7e6e10cd2da2ff6f33b1496342e42298bf66ac313867c615f2f26"
+# ── Mốc ĐÓNG BĂNG cho nhóm [R] ────────────────────────────────────────────────────────
+# Ý NGHĨA CỦA KHOÁ NÀY: bắt thay đổi vào #36 mà KHÔNG ai khai báo. Nó KHÔNG cấm đổi #36 —
+# nó buộc mọi lần đổi phải là quyết định CÓ CHỦ Ý, có số đo, có ghi sổ.
+# 🔁 TÁI ĐÓNG BĂNG 2026-08-07 — lát VAN NHƯỜNG (#36 -> #37) ĐỔI #36 CÓ CHỦ Ý, khai báo trước:
+#    · trước: HASH_TEST36 8186f9c3281687a4 · HAM36 275f19e956e7e6e1…
+#    · căn cứ: #36 trả 16 hàng trên 5 file đích, #37 phủ 16/16, trong đó #36 SAI 10 hàng;
+#      corpus 142 file: 0 file nào #36 đọc mà #37 im ⇒ van không làm mất dữ liệu.
+#    · 4 ca #36 đổi định nghĩa (D1·D2·D5·N1) đều GIỮ nguyên nội dung kiểm, chỉ chuyển sang
+#      chạy trên đường VAN-TẮT, cộng ca mới V1-V5/N0/E1-van khoá chính cái van.
+#    ⚠ Ai thấy hai ca này đỏ mà KHÔNG có mục khai báo tương ứng trong sổ harness thì đó là
+#      thay đổi LỌT, phải dừng lại điều tra — đừng cập nhật hash cho xanh.
+HASH_TEST36 = "316fd7d6fd13b5e7"                                    # tests/test_bang_trac_doc.py
+HASH_HAM36 = "b6ea93262f0d975d17001d0c57265eca1bb6bd54dff07bc948dfe72356834a98"
 HASH_PROMPT = "239e8b7ba707d5a0dd53c065af3397c8fcfb2c9f689a6f20d4249c09994f11c0"
 
 # ── File corpus THẬT (ngoài repo) — thiếu thì SKIP ─────────────────────────────────────
@@ -356,12 +366,14 @@ def main():
     # ══ [R] HỒI QUY — lát ADDITIVE ═════════════════════════════════════════════════
     print("\n-- [R] #37 là lát ADDITIVE: #36 + prompt phải BẤT BIẾN --")
     h36 = hashlib.sha256(io.open(os.path.join(HERE, "test_bang_trac_doc.py"), "rb").read()).hexdigest()
-    ok("G-16a hash tests/test_bang_trac_doc.py không đổi", h36[:16] == HASH_TEST36, h36[:16])
+    ok("G-16a hash tests/test_bang_trac_doc.py khớp mốc ĐÃ KHAI BÁO (đổi mà không khai = LỌT)",
+       h36[:16] == HASH_TEST36, h36[:16])
     src = io.open(os.path.join(ROOT, "tools_core.py"), encoding="utf-8").read()
     i = src.index("    def doc_bang_trac_doc(self")
     j = src.index("    def ", src.index("def _btd_num", i))
     hh = hashlib.sha256(src[i:j].encode("utf-8")).hexdigest()
-    ok("G-16b vùng hàm #36 trong tools_core.py = 0 BYTE đổi", hh == HASH_HAM36, hh[:16])
+    ok("G-16b vùng hàm #36 khớp mốc ĐÃ KHAI BÁO (lát additive: 0 byte; lát đổi-hợp-đồng: tái đóng băng CÓ GHI SỔ)",
+       hh == HASH_HAM36, hh[:16])
     hp = hashlib.sha256(B.SYSTEM_PROMPT.encode("utf-8")).hexdigest()
     ok("G-16c SYSTEM_PROMPT byte-lock không đổi (đăng ký tool KHÔNG được đụng prompt)",
        hp == HASH_PROMPT, hp[:16])

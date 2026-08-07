@@ -1078,6 +1078,27 @@ def _ole_ngoai_modelspace(doc):
     return out
 
 
+# ── VAN NHƯỜNG (#36 -> #37): prose chuyển hướng ────────────────────────────────────────────
+# ⚠ RÀNG BUỘC CỨNG, đã khoá bằng test:
+#  · 0 CHỮ SỐ — mọi chuỗi trong tool-result đều bị `_collect_numbers` quét, một con số nêu làm
+#    ví dụ sẽ thành NEO grounding và bảo lãnh câu bịa trùng số đó (tiền lệ lát 4a).
+#  · KHÔNG chứa cụm nào của `mcp_bridge._REFUSAL_MARKERS` ('không tìm thấy', 'không có thông
+#    tin', 'không có trong bản vẽ'...) — dính một cụm là `_guard_text` THOÁT SỚM, bỏ kiểm CẢ
+#    BÀI trả lời, tức tự tay tắt hàng rào chống bịa.
+#  · KHÔNG được khẳng định bản vẽ THIẾU số liệu — đây là nhánh NHƯỜNG, dữ liệu vẫn còn nguyên
+#    và đọc được ở tool kia; nói thiếu là nói SAI về chính kết quả máy.
+VAN_NHUONG_TRON = (
+    "Bảng của bản vẽ này đã được NHƯỜNG cho tool doc_bang_ke_khung — tool đó đọc CÙNG những "
+    "hàng ấy nhưng lấy biên hàng theo NÉT KẺ mà người vẽ vẽ ra, thay vì đoán biên theo khoảng "
+    "cách như ở đây, nên giá trị đọc ra đáng tin hơn. Số liệu VẪN CÒN NGUYÊN trong bản vẽ: hãy "
+    "gọi doc_bang_ke_khung để lấy các hàng đó, lọc bằng nhan_chua nếu cần đúng một hàng. "
+    "⛔ Đừng kết luận bản vẽ thiếu số liệu, và đừng lấy số từ trí nhớ.")
+VAN_NHUONG_MOT_PHAN = (
+    " ⚠ MỘT SỐ HÀNG CỦA BẢNG ĐÃ ĐƯỢC NHƯỜNG cho tool doc_bang_ke_khung (tool đó lấy biên hàng "
+    "theo nét kẻ thật nên đọc đúng hơn ở những hàng ấy) — phần trả về đây CHƯA phải toàn bộ "
+    "bảng. Muốn đủ hàng thì gọi thêm doc_bang_ke_khung; đừng kết luận bảng chỉ có bấy nhiêu hàng.")
+
+
 class Drawing:
     """Một bản vẽ đã nạp: GIỮ doc (render) + dữ liệu trích xuất (tra cứu). Chống bịa: số do CODE."""
 
@@ -2292,12 +2313,21 @@ class Drawing:
         except Exception:
             cap = self._BTD_CAP_TONG
         loc = _norm(nhan_chua or "") if nhan_chua else ""
+        self._van_bo = 0            # VAN NHƯỜNG: đếm hàng đã nhường cho #37 trong LƯỢT NÀY
         try:
             blocks, tong_gt, bi_cat = self._btd_quet(loc, cap)
         except Exception:
             return {"co_bang": False, "blocks": [], "_vitri": {"so_block": 0},
                     "ghi_chu": "Không đọc được bảng trắc dọc (lỗi nội bộ) — bỏ qua an toàn, không đoán."}
         if not blocks:
+            # ⛔ PHÂN BIỆT HAI NGHĨA — gộp là NÓI SAI VỀ CHÍNH KẾT QUẢ MÁY: (a) máy không nhận ra
+            # bảng nào, với (b) máy CÓ nhận ra nhưng đã NHƯỜNG trọn cho tool đọc-theo-khung-nét.
+            # Nói "bản vẽ KHÔNG có bảng trắc dọc đọc được" ở nhánh (b) là mệnh đề SAI, và còn dạy
+            # model kết luận bản vẽ thiếu số liệu trong khi số liệu đó đọc được ở tool kia.
+            if self._van_bo:
+                return {"co_bang": False, "blocks": [], "_vitri": {"so_block": 0,
+                                                                   "so_hang_da_nhuong": self._van_bo},
+                        "ghi_chu": VAN_NHUONG_TRON}
             return {"co_bang": False, "blocks": [], "_vitri": {"so_block": 0},
                     "ghi_chu": ("Bản vẽ này KHÔNG có bảng trắc dọc đọc được (không tìm thấy cột chú "
                                 "giải có cấu trúc hàng đều). Đây là kết quả ĐỌC, không phải suy đoán: "
@@ -2324,6 +2354,7 @@ class Drawing:
                             "cống, dù ô không có dấu cộng/trừ. ⛔ KHÔNG tự cộng/trung bình; muốn nêu "
                             "min/max thì dùng đúng ô 'nho_nhat'/'lon_nhat' đã trích sẵn kèm handle. "
                             "Nếu nhãn tờ và bảng mâu thuẫn thì nêu CẢ HAI, không tự hoà giải."
+                            + (VAN_NHUONG_MOT_PHAN if self._van_bo else "")
                             + (" ⚠ KẾT QUẢ CHƯA ĐẦY ĐỦ — đã chạm giới hạn số giá trị trả về nên còn "
                                "phần chưa trả. TUYỆT ĐỐI không kết luận nhỏ nhất/lớn nhất của TOÀN "
                                "bảng từ phần này; hãy gọi lại với nhan_chua thu hẹp về đúng hàng cần."
@@ -2370,6 +2401,39 @@ class Drawing:
                     if b.get("_bi_cat"):
                         bi_cat = True
         return ra, tong, bi_cat
+
+    def _van_khung_handles(self):
+        """VAN NHƯỜNG — tập handle NHÃN của MỌI hàng nằm trong BẢNG-KHUNG của tool #37,
+        gồm cả hàng #37 ĐỌC ĐƯỢC lẫn hàng #37 TỪ CHỐI đích danh.
+
+        ⚠ BẢN ĐẦU CHỈ LẤY HÀNG ĐỌC-ĐƯỢC — SAI, và phép đo trước-khi-code KHÔNG THỂ thấy cái
+        sai đó. Lý do: đo trên đầu ra #36 TRƯỚC van thì mọi hàng đều rơi vào tập đọc-được nên
+        hai định nghĩa trông Y HỆT. Nhưng van GỠ hàng ⇒ GIẢI PHÓNG ngân sách của #36 ⇒ những
+        block trước đây bị trần cắt nay LẠI HIỆN RA. Đo sau khi code: 6 hàng sống sót trên
+        C1/C2 (D7995 · D79A9 · A1003 · A100A · A1011 · A1024) đều là hàng #37 XẾP TẦNG c
+        (từ chối đích danh), đều mang nhãn 'Khoảng cách (m)' — đúng lớp nhãn từng gây lỗ
+        nhân-nghìn — và min rơi về 0, dấu hiệu hàng bị cắt cụt.
+        ⇒ Để V1 thì van tự tay ĐẨY LÊN đúng những hàng mà bộ đọc tốt hơn đã CHÊ, biến chúng
+        thành câu trả lời TỰ TIN. Đó là lớp lỗi 'sai tự tin' dự án chống, tệ hơn cả lỗi ban
+        đầu. Chuẩn của dự án là ĐỌC ĐÚNG HOẶC TỪ CHỐI RÕ: #37 đã từ chối đích danh kèm nhãn +
+        handle + lý do, model vẫn thấy hàng TỒN TẠI — đó là từ chối RÕ, không phải mất dữ liệu.
+
+        Cache theo Drawing: van cần tập này ở MỌI lượt gọi #36, mà quét khung là phần đắt —
+        đo thật: #36 mất 3-106 ms còn quét khung mất 11-212 ms ⇒ không cache thì #36 chậm
+        1,6-6,0 lần. Cache xong thì chi phí chỉ trả MỘT lần cho mỗi bản vẽ."""
+        if getattr(self, "_van_cache", None) is None:
+            try:
+                qs = quet_bang(self.doc)
+                s = set()
+                for bg in (qs.get("bang") or []):
+                    for r in bg["rows"]:
+                        s.add(r["nhan"]["handle"])
+                    for tc in (bg.get("tc_khong_nhan") or []):
+                        s.add(tc["nhan"]["handle"])
+                self._van_cache = s
+            except Exception:
+                self._van_cache = set()     # FAIL-OPEN: van hỏng thì #36 chạy như cũ
+        return self._van_cache
 
     def _btd_tach_block(self, cot):
         cot = sorted(cot, key=lambda t: -(t.get("y") or 0.0))
@@ -2452,6 +2516,26 @@ class Drawing:
             return None
         if loc:
             cap_hang = [(nh, ds) for nh, ds in cap_hang if loc in _norm(nh.get("vn") or "")]
+            if not cap_hang:
+                return None
+
+        # ══ VAN NHƯỜNG (#36 -> #37) ═══════════════════════════════════════════════════════
+        # Hàng nào tool #37 ĐỌC ĐƯỢC thì #36 NHƯỜNG, vì biên hàng của #37 là NÉT KẺ người vẽ
+        # vẽ ra, còn #36 đoán biên bằng cửa sổ khoảng cách nên cắt nhầm.
+        # ĐO TRƯỚC KHI CODE (5 file đích, đối chiếu sự-thật-nền đọc tay v_hoiquy_kq.json):
+        #   · #36 trả 16 hàng — #37 phủ ĐÚNG 16/16, KHÔNG hàng nào nằm ngoài bảng-khung;
+        #   · trong 16 hàng đó, 10 hàng #36 đang trả SAI min/max và 6 hàng đang ĐÚNG;
+        #   · toàn corpus 142 file: #36 chỉ kích hoạt ở 4 file, CẢ 4 đều được #37 phủ, và
+        #     0 file nào #36 đọc được mà #37 im ⇒ van KHÔNG BAO GIỜ làm mất dữ liệu.
+        # Đánh đổi ĐÃ KHAI: mất 6 hàng #36-đang-đúng, đổi lấy việc chặn 10 hàng #36-đang-SAI;
+        # 6 hàng đó #37 trả ĐÚNG Y GIÁ TRỊ (đã khoá bằng ca T7 của test #37).
+        # FAIL-OPEN có chủ ý: quét khung hỏng -> tập rỗng -> #36 chạy y như cũ. Van là lớp
+        # LÀM TỐT HƠN, không được phép tự nó gây mất dữ liệu.
+        van = self._van_khung_handles()
+        if van:
+            _truoc = len(cap_hang)
+            cap_hang = [(nh, ds) for nh, ds in cap_hang if nh.get("handle") not in van]
+            self._van_bo = getattr(self, "_van_bo", 0) + (_truoc - len(cap_hang))
             if not cap_hang:
                 return None
 

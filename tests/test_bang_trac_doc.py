@@ -59,6 +59,33 @@ def main():
     if d1 is None:
         bo_qua("D1-D4: cần file đích của lát 0", F1)
     else:
+        # ══ VAN NHƯỜNG (#36 -> #37), 2026-08-07 — THAY ĐỔI HỢP ĐỒNG, KHAI BÁO TRƯỚC ═══════
+        # Hàng nào nằm trong BẢNG-KHUNG của tool #37 thì #36 NHƯỜNG. Căn cứ ĐO TRƯỚC KHI CODE:
+        # #36 trả 16 hàng trên 5 file đích, #37 phủ ĐÚNG 16/16; trong đó 10 hàng #36 đang trả
+        # SAI min/max so sự-thật-nền đọc tay, 6 hàng đúng — và 6 hàng đó #37 trả ĐÚNG Y GIÁ TRỊ
+        # (khoá bằng ca T7 của test #37). Toàn corpus 142 file: #36 chỉ kích hoạt ở 4 file, cả 4
+        # đều được #37 phủ, 0 file nào #36 đọc mà #37 im ⇒ van KHÔNG BAO GIỜ làm mất dữ liệu.
+        # 4 ca ĐỔI ĐỊNH NGHĨA: D1 · D2 · D5 · N1. KHÔNG ca nào bị NỚI LỎNG — mỗi ca giữ NGUYÊN
+        # nội dung kiểm cũ, chỉ chạy trên đường VAN-TẮT (đường fail-open, cũng là hành vi trên
+        # file không có bảng-khung), rồi THÊM ca mới khoá chính cái van.
+        r_van = d1.doc_bang_trac_doc()
+        ok("V1: file CÓ bảng-khung -> #36 NHƯỜNG trọn (co_bang=False + câu chuyển hướng)",
+           r_van.get("co_bang") is False and "doc_bang_ke_khung" in (r_van.get("ghi_chu") or ""),
+           (r_van.get("co_bang"), (r_van.get("ghi_chu") or "")[:50]))
+        ok("V2: câu nhường KHÔNG khẳng định bản vẽ thiếu số liệu (dữ liệu vẫn còn, chỉ đổi cửa đọc)",
+           "vẫn còn nguyên" in (r_van.get("ghi_chu") or "").lower())
+        ok("V3: câu nhường 0 CHỮ SỐ (số trong prose thành neo grounding — tiền lệ lát 4a)",
+           not any(c.isdigit() for c in (r_van.get("ghi_chu") or "")))
+        ok("V4: câu nhường KHÔNG dính _REFUSAL_MARKERS (dính = _guard_text thoát sớm, bỏ kiểm cả bài)",
+           not any(m in (r_van.get("ghi_chu") or "").lower() for m in B._REFUSAL_MARKERS))
+        ok("V5: số hàng đã nhường nằm TRONG _vitri (số đếm không được vào rổ neo)",
+           (r_van.get("_vitri") or {}).get("so_hang_da_nhuong") and
+           not B._collect_numbers(B._strip_neo(r_van)),
+           (r_van.get("_vitri"), sorted(B._collect_numbers(B._strip_neo(r_van)))[:4]))
+
+        # ĐỐI CHỨNG QUYẾT ĐỊNH: TẮT van (fail-open) -> #36 phải chạy Y NHƯ TRƯỚC LÁT NÀY.
+        # Van là lớp LÀM TỐT HƠN; nếu quét khung hỏng thì KHÔNG được phép tự nó gây mất dữ liệu.
+        d1._van_cache = set()
         r = d1.doc_bang_trac_doc()
         ok("D1: nhận ra bảng trắc dọc (co_bang=True)", r.get("co_bang") is True, r.get("ghi_chu", "")[:60])
         nhan = [h["nhan"] for b in r.get("blocks", []) for h in b["hang"]]
@@ -93,6 +120,18 @@ def main():
     if d1 is None:
         bo_qua("N1-N5: cần file đích", F1)
     else:
+        # VAN NHƯỜNG: trên file CÓ bảng-khung thì #36 không còn trả hàng nào ⇒ rổ neo phải RỖNG.
+        # Đây là ca MỚI, thay cho nửa "phải có giá trị" của N1 cũ (spec khai trước: 'giá trị CÒN
+        # TRẢ vẫn vào rổ; nếu van chặn hết hàng thì rổ phải RỖNG'). Rổ rỗng là ĐÚNG: #36 không
+        # khẳng định con số nào thì cũng không được cấp neo bảo lãnh cho con số nào.
+        # ⚠ khối [D] ở trên đã TẮT van trên CHÍNH đối tượng d1 này (d1._van_cache = set()).
+        # Không bật lại thì ca N0 đo nhầm đường van-TẮT và báo đỏ oan — state rò giữa hai khối.
+        d1._van_cache = None
+        rv = d1.doc_bang_trac_doc()
+        ok("N0: van chặn hết hàng -> rổ neo của #36 RỖNG (không trả số thì không cấp neo)",
+           not (rv.get("blocks") or []) and not B._collect_numbers(B._strip_neo(rv)),
+           sorted(B._collect_numbers(B._strip_neo(rv)))[:6])
+        d1._van_cache = set()          # TẮT van -> các ca N1-N5 giữ NGUYÊN nội dung kiểm cũ
         r = d1.doc_bang_trac_doc()
         sach = B._collect_numbers(B._strip_neo(r))
         that = set()
@@ -220,8 +259,11 @@ def main():
         bo_qua("E1: cần file đích thứ hai", F2)
     else:
         r2 = d2.doc_bang_trac_doc()
+        ok("E1-van: file KHÁC cũng được NHƯỜNG (van theo DỮ LIỆU, không thuộc lòng 1 file)",
+           r2.get("co_bang") is False and "doc_bang_ke_khung" in (r2.get("ghi_chu") or ""))
+        d2._van_cache = set()          # TẮT van -> ca E1 gốc giữ NGUYÊN nội dung kiểm
         ok("E1: tool CÓ THỂ trả True trên file KHÁC (không phải chỉ thuộc lòng 1 file)",
-           r2.get("co_bang") is True)
+           d2.doc_bang_trac_doc().get("co_bang") is True)
     ok("E2: tool CÓ THỂ trả False (không phải luôn bắn)",
        (_nap(KC).doc_bang_trac_doc().get("co_bang") is False) if _nap(KC) else True)
     if d1 is not None:
