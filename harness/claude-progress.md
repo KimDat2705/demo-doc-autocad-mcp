@@ -9,6 +9,45 @@
 > Mới nhất ở TRÊN CÙNG. Bàn giao đầy đủ: `session-handoff.md`. Nhật ký chi tiết hơn nữa: `../GHI_CHU_HOAN_THIEN.md`.
 
 ---
+## Session 2026-08-07 (CHỐT SỔ) — 🏁 **TOOL #37 B0-B7 XONG + LIVE** · **VAN NHƯỜNG** · **API SỐNG LẠI** · **NÂNG CẤP MODEL GĐ1+GĐ2**
+> **7 commit**: `fc35897` (B4) · `f085610` (B5) · `b193350` (B6) · `bb84379` (B7) · `da0c993` (vá chuỗi model chết) · `36ab4ba` (van nhường) · `825eacd` (A/B 3 model). **Cây SẠCH.**
+> **CLOUD LIVE `36ab4ba`** (verify `/version` + `/health`). ⚠ **2 commit cuối CHƯA push** (`825eacd` + chốt sổ) — xem mục CÒN LẠI.
+> **CỔNG**: `[49/49] 1.701 ca` → `[50/50] **1.805 ca**` / **0 FAIL** · **36 → 37 MCP tool** · `feature_list` **91 → 93 mục** (74 done · 2 partial · 13 deferred · 4 planned).
+> ⚠ **pytest VẪN crash** (`ValueError: I/O operation on closed file` → **`no tests ran`**, exit 1) — KHÔNG phải test đỏ, là pytest không chạy nổi trong repo này. **KHÔNG có `specs/specs.json`** (không có cả thư mục `specs/`) → sổ đặc tả là `feature_list.json`. Hai điều này lặp mỗi phiên.
+>
+> ### ✅ 1. TOOL #37 `doc_bang_ke_khung` — B0→B7 XONG TRỌN, ĐÃ LIVE
+> **B4 tích hợp** (`fc35897`): port proto vào `tools_core.py`, **3 thay đổi duy nhất** so với proto — quet_bang nhận doc ĐÃ NẠP · chuỗi ra payload qua `to_unicode` · lọc `nhan_chua` chuẩn hoá garble 2 phía. Nền B0 tái lập trên đầu ra SẢN PHẨM: a **2.556/2.556** · b **171/171** · min/max **226/226** · 0 mất · 0 thêm · **0/391 oan**.
+> **B5 bộ test** (`f085610`): `tests/test_bang_ke_khung.py` **77 ca**, 7 nhóm, mỗi vế gate một CẶP bắn/không-bắn; **47 fixture vào repo** ⇒ 69/77 ca chạy được cả trên cloud. **Tự kiểm ngược 6/6 mutation đỏ ĐÚNG CHỖ.**
+> **B6 corpus** (`b193350`): **142 file** — `p37` lệch **0/142** · `t36` lệch **0/142** · tổng ô **7.207 = 7.207** · 9/9 DXFStructureError giữ `loi_doc_file`. Đường sản phẩm ≡ đường đọc-file **phủ trọn 142 file** (119 + 14 file to chạy riêng `READFILE_MAX_MB=400`, tổng 1.186 MB). K1-K5 qua bridge THẬT trên **93 file**: 0 lỗi. Union mốc-mm **135 ≤ trần 143**; lệch +2 so đặc tả đã đo có đối chứng ⇒ **bản vá đóng góp ĐÚNG 0 mốc**.
+> **B7 red-team** (`bb84379`): **SẠCH, 0 phát hiện**. Tầng 1 câu bịa: **P1 = 7 = đúng mốc, KHÔNG TĂNG** (đối chứng `_vn=identity` cũng 7 ⇒ B4 đóng góp +0). Tầng 2 đánh vào 3 delta của bản port: doc dùng lại **bất biến 10/10 tool xen giữa** · `to_unicode` sinh **0/9.139** chữ số từ chuỗi không-số · `nhan_chua` model-cấp bơm **0 neo** · tham số thù địch không crash/rò.
+>
+> ### ✅ 2. VAN NHƯỜNG #36 → #37 (`36ab4ba`) — thứ THỰC SỰ chữa được lỗi số sai
+> **E2E chứng minh #37 MỘT MÌNH KHÔNG đủ**: model vẫn thường chọn #36 → *"đáy cống thấp nhất"* trả **1.900** (đúng 1.840); *"hàng đáy kênh"* chỉ `1.840`×17, **thiếu 1.740**. Sau van: **routing sang #37 từ 2/5 → 5/5 câu**, 1.900→**1.840 ĐÚNG**, hàng đáy kênh liệt kê **cả 1.740**, câu *"khoảng cách mặt cắt"* **vẫn 3/20** (không mất gì), câu BẪY vẫn từ chối.
+> **Hợp đồng #36 đổi — KHAI BÁO TRƯỚC**: 4 ca D1·D2·D5·N1, **không ca nào bị nới lỏng** (giữ nguyên nội dung kiểm, chuyển sang chạy trên đường VAN-TẮT) + 7 ca mới V1-V5/N0/E1-van; suite #36 **35 → 42**. Hash `G-16a`/`G-16b` **tái đóng băng kèm lý do trong file**.
+>
+> ### ✅ 3. API GIA HẠN → phát hiện **BUG LIVE nặng hơn sổ ghi** (`da0c993`)
+> Sổ ghi *"`gemini-2.0-flash` đã tắt"* (một nấc). **Đo thật: CẢ HAI nấc đều 404** (`no longer available` / `is not found`), mà `_is_overloaded` không nhận 404 ⇒ **chuỗi dự phòng CHƯA TỪNG chạy được**; một cú 429/503 là demo văng lỗi. Vá: chuỗi → `gemini-2.5-flash-lite` (cùng thế hệ) + `_model_chet()` tách riêng + câu báo lỗi đúng loại.
+>
+> ### ✅ 4. NÂNG CẤP MODEL — GĐ1 xong, GĐ2 xong, **GO cho `3.6-flash`** (`825eacd`)
+> **GĐ1**: chạy-lại-từ-đầu khi đổi model (thought-signature) · env-hoá temp/max_out/thinking (mặc định GIỮ Y HỆT) · SDK 2.10.0 → **2.17.0** · test 22 → **42 ca**.
+> **GĐ2**: R3 **không cần `id`** · R2 **không kích ở 8192** · R1 **giữ được `temperature=0`**. A/B **198 câu × 3 model = 594 lượt, 0 DÒNG RƠI** (nhờ `--nghi` chống 429 mới thêm — lần trước hỏng 127/198 dòng đúng vì thiếu).
+> | Trục | `2.5-flash` | `3.6-flash` | `3.5-flash-lite` |
+> |---|---|---|---|
+> | Bẫy ảo giác (ĐỌC TAY) | 3 vi phạm | **3** | **2** |
+> | Đúng số /172 | 147 | **164** | 155 |
+> | Recall "không có" | 34,3% | 19,8% | **18,0%** |
+> | Thời gian trung vị | 3,6s | 8,4s | **2,3s** |
+> | Chi phí/câu | $0,0113 | **$0,0909 (×8,0)** | chưa có giá |
+> **Mục 2.6 hàng rào: GIẾT OAN = 0/198 × 3 model (ràng buộc CỨNG) · VÙNG MÙ = 0** ⇒ xoá sạch **117/179** hàng REFUSE mù của dữ liệu cũ.
+>
+> ### 📌 BÀI HỌC PHIÊN NÀY — **bộ đo hỏng 8 LẦN, tự bắt hết**
+> **(a) Đo-trước KHÔNG thay thế được đo-lại-sau-khi-vá.** Van nhường: đo-trước bảo V1≡V2; sau khi code mới lộ — van gỡ hàng ⇒ **giải phóng ngân sách** ⇒ block bị trần cắt **lại hiện ra**; 6 hàng sống sót **đều là hàng #37 ĐÃ TỪ CHỐI** ⇒ V1 tự tay đẩy hàng bị chê lên thành câu trả lời TỰ TIN. Đã chuyển V2.
+> **(b) So số phải so CÙNG ĐẠI LƯỢNG.** B7 báo *"11 > 7 = TRƯỢT"* — hoá ra con số 7 đo trên **23 câu × 4 file**, tôi chạy 28 câu × 5 file. Cùng phạm vi thì **đúng 7**.
+> **(c) Heuristic từ-khoá-từ-chối chấm ra NO_GO ngược.** 7/10/11 "không từ chối" ⇒ trông như cả hai model mới thua trục quyết định; **đọc tay 12 ca** thì phần lớn là **TRẢ LỜI ĐÚNG**.
+> **(d) Dấu phân cách hàng nghìn làm hỏng trục đúng-số**: `8.024` vs `8024` **hạ oan 3.6 mất 11 ca**.
+> **(e) `git diff` GIẤU được thay đổi thật** (ghi file đổi CRLF→LF, `core.autocrlf` chuẩn hoá hai phía) · **(f) so hash phải dùng CÙNG chế độ đọc** với ca test đang khoá nó (`rb` vs text) · **(g) khớp hàng theo CHỮ là bộ đo hỏng** khi file có 30 hàng trùng nhãn · **(h) test tự viết có thể CHẾT GIỮA CHỪNG** (`IndexError`) làm "4 ca đỏ" thành con số chưa đủ.
+
+---
 ## Session 2026-08-07 — ✅ **B4 TÍCH HỢP TOOL #37** + ✅ **B5 BỘ TEST** (36 → 37 MCP tool · cổng `[49/49]` → **`[50/50]`** · **1.701 → 1.778 ca** · diff hàm #36 = 0 byte)
 > **TRẠNG THÁI:** commit LOCAL, **CHƯA push, CHƯA LIVE** (đặc tả: chỉ sau **B7** sạch phát-hiện-CAO mới được bàn commit/LIVE — commit này chỉ để **giữ ngữ cảnh**, không phải mark done). `feature_list` **91 mục** (72 done · **2 partial** · 13 deferred · 4 planned); mục `muc4-lat-ghep-cuaso-ngansach` `deferred` → **`partial`**.
 > ✅ **B5 XONG: cổng ĐÃ CANH #37** — `tests/test_bang_ke_khung.py` **77 ca / 0 FAIL**, bước `[50/50]` của `check.sh`. (Cảnh báo "cổng chưa canh #37" ở bản ghi trước ĐÃ HẾT HIỆU LỰC.)
