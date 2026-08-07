@@ -153,6 +153,60 @@ def _model_chet(e):
            ("is not found" in s and "model" in s)
 
 
+def _het_gio(e):
+    """Lỗi HẾT GIỜ CHỜ (timeout) — cùng họ 'tạm thời' với quá tải: ĐÁNG thử model KẾ.
+
+    Vì sao cần (bug CAO 2026-08-07, vá TRƯỚC khi đổi model 3.6-flash): `HttpRetryOptions`
+    chỉ retry theo MÃ HTTP, mà timeout (httpx.ReadTimeout/ConnectTimeout, TimeoutError)
+    KHÔNG có mã HTTP ⇒ trước bản vá, một lượt quá trần 60s làm `_gen_fallback` NÉM thẳng
+    thay vì tụt model, rồi app.py phơi NGUYÊN VĂN exception Python ra trình duyệt đối tác.
+    3.6-flash chậm ×2,3 (trung vị lượt hỏi 4,7s → 10,8s) nên đuôi phân phối tiến sát trần
+    60s — lớp lỗi này nóng lên theo model mới. Nhận diện KIỂU + TÊN LỚP trước (bền, không
+    cần import httpx), chuỗi thông điệp sau (vớt các wrapper lạ)."""
+    if isinstance(e, TimeoutError):              # gồm cả socket.timeout (alias từ Py3.10)
+        return True
+    tn = type(e).__name__.lower()
+    if "timeout" in tn or "timedout" in tn:      # httpx.ReadTimeout/ConnectTimeout/PoolTimeout…
+        return True
+    s = str(e).lower()
+    return "timed out" in s or "deadline exceeded" in s
+
+
+def _la_max_tokens(fr):
+    """finish_reason có phải MAX_TOKENS không (nhận cả enum lẫn chuỗi — cùng phép chuẩn
+    hoá với `_msg_finish` để hai chỗ không bao giờ lệch nhau)."""
+    return (getattr(fr, "name", str(fr)) if fr is not None else None) == "MAX_TOKENS"
+
+
+# Bug CAO 2026-08-07 (b): MAX_TOKENS + text RỖNG (phần suy nghĩ ăn hết ngân sách chung
+# max_output_tokens) từng là NGÕ CỤT — trả câu lỗi ngay lượt đầu, không nhắc, không thử lại,
+# trong khi nhắc-rỗng H.10 chỉ phủ ca finish_reason thường. Gemini 3 suy nghĩ dài hơn hẳn
+# (đo thật ×3,1 token ra) nên ca này nóng lên. Nhắc ĐÚNG MỘT LẦN rồi mới bó tay.
+# CỐ Ý không kèm chữ số nào trong lời nhắc (kỷ luật prose-không-chữ-số của lát 4a).
+_NHAC_CAT = ("Phần suy nghĩ của bạn quá dài nên câu trả lời bị cắt trước khi kịp xuất hiện. "
+             "Hãy làm lại NGẮN GỌN: đi thẳng vào kết quả từ dữ liệu công cụ đã có "
+             "(chỉ gọi thêm công cụ nếu thật sự cần), không diễn giải dài.")
+
+# Bug CAO 2026-08-07 (a): câu bị MAX_TOKENS cắt CỤT mà VẪN CÓ text từng được trả về NHƯ CÂU
+# HOÀN CHỈNH — `if special and not text` vứt cảnh báo khi text tồn tại. Câu cụt qua được cả
+# grounding-guard (số của nó có neo thật) nên không hàng rào nào bắt; vd cắt sau vế 'thép
+# tròn' của luật R8b thành khẳng định SAI không dấu vết. Cảnh báo KHÔNG chứa chữ số.
+_CANH_BAO_CAT = ("\n\n⚠ Câu trả lời bị CẮT do chạm giới hạn độ dài — phần cuối có thể còn "
+                 "thiếu. Hãy hỏi hẹp lại (tách từng hạng mục) để nhận câu trả lời trọn vẹn.")
+
+
+def _noi_canh_bao_cat(ans, text_goc, bi_cat):
+    """NỐI cảnh báo cắt-cụt vào CUỐI câu (khuôn additive của `_apply_i1` — chỉ nối thêm,
+    không sửa ký tự nào của câu). CHỈ nối khi câu cuối cùng còn GIỮ văn bản model sinh ra:
+    guard đã THAY cả câu (REFUSE_MESSAGE/KHONG_TRA_DUOC) thì thôi — câu từ chối không phải
+    câu bị cắt, nối vào là gợi ý sai rằng 'bản vẽ có mà bị cắt mất'. Kiểm bằng PHÉP CHỨA
+    (text gốc còn trong câu trả lời), không so danh sách thông điệp guard — danh sách khoá
+    cứng là bề mặt dễ quên (bài học `_KHOA_HANDLE` hỏng im lặng 2 lần)."""
+    if bi_cat and text_goc and text_goc in (ans or ""):
+        return ans + _CANH_BAO_CAT
+    return ans
+
+
 def _gen_fallback(client, contents, cfg, state):
     """generate_content với CHUỖI MODEL: thử MODELS[state['i']:] theo thứ tự; gặp 429/503 -> model KẾ (fail-forward).
     state['i'] = chỉ số model đang dùng OK (lần gọi sau trong CÙNG request bắt đầu từ đây -> không dò lại model đã
@@ -169,7 +223,9 @@ def _gen_fallback(client, contents, cfg, state):
             # này, một model chết trong chuỗi làm CHẾT LUÔN cả request thay vì tụt sang model kế —
             # và đo thật cho thấy cả chuỗi mặc định cũ đều đã chết, nên nhánh dự phòng thực tế
             # KHÔNG BAO GIỜ chạy được.
-            if not (_is_overloaded(e) or _model_chet(e)) or i >= len(MODELS) - 1:
+            # + `_het_gio` (2026-08-07): timeout cũng TẠM THỜI như quá tải — không có mã HTTP nên
+            # HttpRetryOptions không đỡ; không nhận ở đây thì lượt quá 60s ném thẳng exception thô.
+            if not (_is_overloaded(e) or _model_chet(e) or _het_gio(e)) or i >= len(MODELS) - 1:
                 state["i"] = i          # dừng ở model này (lỗi không-quá-tải hoặc đã là model cuối)
                 raise
             # GĐ1.2 — ĐÃ TRÓT GỌI TOOL thì `contents` mang chữ ký suy luận của model vừa hỏng.
@@ -1284,6 +1340,7 @@ def _tra_loi_ai_mot_lan(bridge, q, file_summary="", history=None, model_bat_dau=
     tool_handles = set()          # I1: MỌI handle THẬT tool đã phát -> validate handle model trích dẫn
     kb_cau_hoi = []               # L5: câu hỏi confirm-only từ '_kb' của tool results -> frontend render nút bấm
     da_goi, da_nhac, da_nhac_rong = False, False, False
+    da_nhac_cat = False           # 2026-08-07: nhắc-lại-vì-MAX_TOKENS-rỗng, đúng 1 lần (chống ngõ cụt)
     # A2: TÊN mọi tool model YÊU CẦU — ghi kể cả tool bị L0 chặn (tên lạ/host-only). Ghi cả như vậy là
     # LỆCH VỀ PHÍA AN TOÀN: tên lạ sẽ KHÔNG ⊆ _TOOL_DIEN_GIAI ⇒ bản vá KHÔNG kích.
     ten_tool_da_goi = set()
@@ -1304,9 +1361,23 @@ def _tra_loi_ai_mot_lan(bridge, q, file_summary="", history=None, model_bat_dau=
                                   "Đây là lỗi CẤU HÌNH phía máy chủ, không phải quá tải — chờ cũng không hết. "
                                   "Vui lòng báo kỹ thuật cập nhật biến môi trường GEMINI_MODEL / GEMINI_FALLBACK_MODELS.",
                         "evidence": _flat_ev(evidence), "anh_id": anh_id, "file_id": file_id, "ai": True}
+            if _het_gio(e):
+                # Timeout ở model CUỐI chuỗi (model trước đã được fail-forward thử rồi). Trước vá:
+                # exception thô chảy qua app.py ra thẳng trình duyệt đối tác. Câu trả lời trung
+                # thực đúng loại lỗi, cùng khuôn hai nhánh trên; KHÔNG chứa chữ số.
+                return {"answer": "⚠ AI phản hồi quá chậm (hết thời gian chờ). Vui lòng thử lại; "
+                                  "nếu vẫn chậm, hãy tách nhỏ câu hỏi hoặc hỏi hẹp hơn.",
+                        "evidence": _flat_ev(evidence), "anh_id": anh_id, "file_id": file_id, "ai": True}
             raise                     # lỗi khác (safety/malformed/cấu hình) -> để app.py bắt như cũ
         cand = (resp.candidates or [None])[0]
         if not cand or not cand.content:
+            # 2026-08-07: MAX_TOKENS có thể ăn sạch tới mức content=None — cùng lớp ngõ-cụt với
+            # nhánh text-rỗng dưới, nên cùng được NHẮC 1 lần. KHÔNG append cand.content (không có
+            # gì để append); chỉ thêm lời nhắc user → không đụng chữ ký suy luận.
+            if cand is not None and _la_max_tokens(getattr(cand, "finish_reason", None)) and not da_nhac_cat:
+                da_nhac_cat = True
+                contents.append(types.Content(role="user", parts=[types.Part(text=_NHAC_CAT)]))
+                continue
             return {"answer": _msg_finish(getattr(cand, "finish_reason", None)) or
                     "AI tạm không trả về nội dung, vui lòng thử lại.",
                     "evidence": _flat_ev(evidence), "anh_id": anh_id, "file_id": file_id, "ai": True}
@@ -1363,9 +1434,20 @@ def _tra_loi_ai_mot_lan(bridge, q, file_summary="", history=None, model_bat_dau=
             contents.append(types.Content(role="user", parts=rparts))
             continue
         text = "".join(getattr(p, "text", "") or "" for p in parts if not getattr(p, "thought", False)).strip()
-        special = _msg_finish(getattr(cand, "finish_reason", None))
+        _fr = getattr(cand, "finish_reason", None)
+        special = _msg_finish(_fr)
         if special and not text:
+            # 2026-08-07: MAX_TOKENS rỗng (suy nghĩ ăn hết ngân sách chung) từng là NGÕ CỤT.
+            # NHẮC đúng 1 lần "trả lời ngắn gọn ngay" rồi mới trả câu lỗi. CỐ Ý không append
+            # cand.content: phần thought cụt không mang thông tin, và bỏ nó tránh luôn việc
+            # gửi lại part suy-nghĩ của model này cho model khác (chữ ký suy luận Gemini 3).
+            # Ca KHÁC MAX_TOKENS (SAFETY/RECITATION/…) giữ nguyên đường cũ — nhắc lại vô ích.
+            if _la_max_tokens(_fr) and not da_nhac_cat:
+                da_nhac_cat = True
+                contents.append(types.Content(role="user", parts=[types.Part(text=_NHAC_CAT)]))
+                continue
             return {"answer": special, "evidence": _flat_ev(evidence), "anh_id": anh_id, "file_id": file_id, "ai": True}
+        bi_cat = _la_max_tokens(_fr) and bool(text)   # câu CÓ text nhưng bị cắt cụt -> nối cảnh báo lúc trả
         if (not da_goi) and (not da_nhac) and any(c.isdigit() for c in text):
             da_nhac = True
             contents.append(cand.content)
@@ -1387,6 +1469,7 @@ def _tra_loi_ai_mot_lan(bridge, q, file_summary="", history=None, model_bat_dau=
         _goc = _a3_trich_trang_in(_goc, text, tool_numbers, ten_tool_da_goi, evidence)  # A3: cứu câu TRÍCH NGUYÊN VĂN chữ trang in
         _goc = _a2_khong_tra_duoc(_goc, text, tool_numbers, ten_tool_da_goi)
         _ans, _hk = _apply_i1(_goc, tool_handles, tool_numbers, bridge, q)   # I1: đối chiếu handle trích dẫn (nối cảnh báo)
+        _ans = _noi_canh_bao_cat(_ans, text, bi_cat)         # 2026-08-07: câu cụt phải LỘ là cụt (sau guard, additive)
         return {"answer": _ans, "answer_goc": _goc, "handle_kiem": _hk, "kb_cau_hoi": kb_cau_hoi,
                 "evidence": _flat_ev(evidence), "anh_id": anh_id, "file_id": file_id, "ai": True}
 
@@ -1410,6 +1493,9 @@ def _tra_loi_ai_mot_lan(bridge, q, file_summary="", history=None, model_bat_dau=
             _goc = _a3_trich_trang_in(_goc, text, tool_numbers, ten_tool_da_goi, evidence)  # A3
             _goc = _a2_khong_tra_duoc(_goc, text, tool_numbers, ten_tool_da_goi)
             _ans, _hk = _apply_i1(_goc, tool_handles, tool_numbers, bridge, q)   # I1: đối chiếu handle trích dẫn
+            # 2026-08-07: đường ép-trả-lời cuối trước đây KHÔNG đọc finish_reason -> câu cụt
+            # trả về như câu trọn vẹn. Cùng bản vá additive với đường chính.
+            _ans = _noi_canh_bao_cat(_ans, text, _la_max_tokens(getattr(cand, "finish_reason", None)))
             return {"answer": _ans, "answer_goc": _goc, "handle_kiem": _hk, "kb_cau_hoi": kb_cau_hoi,
                     "evidence": _flat_ev(evidence), "anh_id": anh_id, "file_id": file_id, "ai": True}
     except Exception:

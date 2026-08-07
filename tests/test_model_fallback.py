@@ -280,6 +280,141 @@ def main():
     ok("F5 _env_float chịu được giá trị rác (không làm chết tiến trình)",
        B._env_float("BIEN_KHONG_TON_TAI_XYZ", "0") == 0.0)
 
+    # ══ 3 LỖI CAO 2026-08-07 — vá TRƯỚC khi đổi model 3.6-flash (nóng lên theo Gemini 3) ═══
+    # Nhóm [T] — TIMEOUT: HttpRetryOptions chỉ retry theo MÃ HTTP mà timeout KHÔNG có mã HTTP
+    # ⇒ trước vá: không fail-forward, và app.py phơi nguyên văn exception Python ra trình duyệt.
+    # 3.6-flash chậm ×2,3 (trung vị 4,7s → 10,8s) nên đuôi phân phối tiến sát trần 60s/lượt.
+    print("\n-- [T] timeout: fail-forward như quá tải + câu trung thực khi cạn chuỗi --")
+    _ReadTimeout = type("ReadTimeout", (Exception,), {})   # mô phỏng httpx.ReadTimeout (nhận theo TÊN LỚP)
+    ok("T1 TimeoutError -> hết giờ", B._het_gio(TimeoutError("timed out")))
+    ok("T2 lớp tên ReadTimeout -> hết giờ (nhận theo TÊN LỚP, không cần import httpx)",
+       B._het_gio(_ReadTimeout("The read operation timed out")))
+    ok("T3 thông điệp 'deadline exceeded' trần (không mã HTTP) -> hết giờ",
+       B._het_gio(Exception("Deadline Exceeded")))
+    ok("T4 ĐỐI CHỨNG: 400/404-model-chết/safety KHÔNG phải hết giờ",
+       not B._het_gio(ApiErr(400)) and not B._het_gio(e404) and not B._het_gio(Exception("SAFETY blocked")))
+    ok("T5 ĐỐI CHỨNG: 429 đi đường quá-tải, _het_gio KHÔNG giẫm chân", not B._het_gio(ApiErr(429)))
+    _saveM = B.MODELS
+    try:
+        B.MODELS = ["m1", "m2"]
+        cl = FakeClient({"m1": _ReadTimeout("timed out"), "m2": "ok"})
+        st = {"i": 0, "da_goi_tool": False}
+        try:
+            r = B._gen_fallback(cl, "x", None, st)
+        except Exception as ex:
+            r = "NÉM:%s" % type(ex).__name__
+        ok("T6 timeout ở model chính -> TỤT model kế (fail-forward)",
+           r == {"_model": "m2"} and cl.models.calls == ["m1", "m2"], (r, cl.models.calls))
+        cl2 = FakeClient({"m1": _ReadTimeout("timed out"), "m2": "ok"})
+        st2 = {"i": 0, "da_goi_tool": True}
+        try:
+            B._gen_fallback(cl2, "contents_nhiem", None, st2)
+            ok("T7 timeout khi ĐÃ gọi tool -> phải chạy-lại-từ-đầu", False, "không ném")
+        except B._CanChayLaiTuDau as ex:
+            ok("T7 timeout khi ĐÃ gọi tool -> _CanChayLaiTuDau trỏ model kế, KHÔNG gửi contents nhiễm",
+               ex.chi_so_model == 1 and cl2.models.calls == ["m1"], (ex.chi_so_model, cl2.models.calls))
+        except Exception as ex:
+            ok("T7 timeout khi ĐÃ gọi tool -> phải chạy-lại-từ-đầu", False, type(ex).__name__)
+    finally:
+        B.MODELS = _saveM
+    # T8: cạn CHUỖI vì timeout -> tra_loi_ai phải trả CÂU trung thực, không để exception thô lên app.py
+    _saveg, _savec = B._gen_fallback, B._get_client
+    B._get_client = lambda: None
+
+    def _fg_to(cl, co, cf, st):
+        raise _ReadTimeout("The read operation timed out")
+    B._gen_fallback = _fg_to
+    try:
+        r = B.tra_loi_ai(_Bridge(), "Đếm cột")
+        ok("T8 cạn chuỗi vì timeout -> câu trung thực (không exception thô ra trình duyệt)",
+           "quá chậm" in r.get("answer", "") and "ReadTimeout" not in r.get("answer", ""),
+           str(r.get("answer"))[:90])
+    except Exception as ex:
+        ok("T8 cạn chuỗi vì timeout -> câu trung thực", False, "ném thô: %s" % type(ex).__name__)
+    finally:
+        B._gen_fallback, B._get_client = _saveg, _savec
+
+    # Nhóm [C] — MAX_TOKENS mà VẪN CÓ text: trước vá, `if special and not text` VỨT cảnh báo
+    # ⇒ câu CỤT được trả về như câu hoàn chỉnh (qua được cả grounding-guard vì số của nó có neo).
+    # Vd vi phạm luật R8b của chính dự án: cắt sau vế 'thép tròn' thành khẳng định SAI không dấu vết.
+    print("\n-- [C] MAX_TOKENS còn text: NỐI cảnh báo cắt; guard đã refuse thì KHÔNG nối --")
+    _seqc = [0]
+
+    def _lam_fg(script):
+        def _fg2(cl, co, cf, st):
+            r2 = script[min(_seqc[0], len(script) - 1)]
+            _seqc[0] += 1
+            return r2
+        return _fg2
+    _saveg, _savec, _savet = B._gen_fallback, B._get_client, B.MAX_TURNS
+    B._get_client = lambda: None
+    try:
+        _seqc[0] = 0
+        B._gen_fallback = _lam_fg([_R(_C([_P(text="Bản vẽ có bảng thép hình và bảng thép tròn.")],
+                                          fin="MAX_TOKENS"))])
+        r = B.tra_loi_ai(_Bridge(), "Có những bảng thép nào?")
+        ok("C1 câu bị cắt -> GIỮ nội dung + NỐI cảnh báo bị cắt",
+           "bảng thép hình" in r["answer"] and "bị CẮT" in r["answer"], r["answer"][:120])
+        _seqc[0] = 0
+        B._gen_fallback = _lam_fg([_R(_C([_P(text="Bản vẽ có bảng thép hình và bảng thép tròn.")],
+                                          fin="STOP"))])
+        r = B.tra_loi_ai(_Bridge(), "Có những bảng thép nào?")
+        ok("C2 ĐỐI CHỨNG finish=STOP -> KHÔNG nối cảnh báo", "bị CẮT" not in r["answer"], r["answer"][:120])
+        # C3: câu cụt mang SỐ KHÔNG NGUỒN -> guard refuse; cảnh báo cắt KHÔNG được nối vào câu refuse
+        # (refuse không phải câu bị cắt — nối vào là gợi ý sai rằng 'bản vẽ có mà bị cắt mất').
+        _seqc[0] = 0
+        _r_cut_so = _R(_C([_P(text="Diện tích sàn 60.5 m2.")], fin="MAX_TOKENS"))
+        B._gen_fallback = _lam_fg([_r_cut_so, _r_cut_so])   # lượt 1 dính nhắc 'chưa gọi tool', lượt 2 vào guard
+        r = B.tra_loi_ai(_Bridge(), "Diện tích sàn?")
+        ok("C3 guard refuse câu cụt-không-nguồn -> KHÔNG nối cảnh báo cắt vào câu refuse",
+           "bị CẮT" not in r["answer"] and "60.5" not in r["answer"], r["answer"][:120])
+        # C4: đường ÉP-TRẢ-LỜI cuối (hết MAX_TURNS) cũng phải nối cảnh báo — trước vá nó không đọc finish_reason
+        _FC = type("FC", (), {"__init__": lambda s, n: (setattr(s, "name", n), setattr(s, "args", {}))[0]})
+        _pf = _P(); _pf.function_call = _FC("tim_kiem")
+        _seqc[0] = 0
+        B.MAX_TURNS = 1
+        B._gen_fallback = _lam_fg([_R(_C([_pf])),
+                                   _R(_C([_P(text="Móng gồm đài móng và giằng móng.")], fin="MAX_TOKENS"))])
+        r = B.tra_loi_ai(_Bridge(), "Móng gồm gì?")
+        ok("C4 đường ép-trả-lời cuối: câu bị cắt cũng phải mang cảnh báo",
+           "đài móng" in r["answer"] and "bị CẮT" in r["answer"], r["answer"][:120])
+    finally:
+        B._gen_fallback, B._get_client, B.MAX_TURNS = _saveg, _savec, _savet
+
+    # Nhóm [M] — MAX_TOKENS RỖNG (thinking ăn hết ngân sách): trước vá là NGÕ CỤT — trả câu lỗi
+    # ngay lượt đầu, không nhắc lại, trong khi nhắc-rỗng H.10 chỉ phủ ca finish_reason thường.
+    print("\n-- [M] MAX_TOKENS rỗng: NHẮC 1 lần (trả lời ngắn gọn) rồi mới bó tay --")
+    _saveg, _savec = B._gen_fallback, B._get_client
+    B._get_client = lambda: None
+    try:
+        _seqc[0] = 0
+        B._gen_fallback = _lam_fg([_R(_C([_P(thought=True)], fin="MAX_TOKENS")),
+                                   _R(_C([_P(text="Có hai bảng thép trong bản vẽ.")]))])
+        r = B.tra_loi_ai(_Bridge(), "Có mấy bảng thép?")
+        ok("M1 MAX_TOKENS rỗng lượt đầu -> NHẮC rồi phục hồi câu trả lời",
+           r["answer"] == "Có hai bảng thép trong bản vẽ." and _seqc[0] == 2, (r["answer"][:60], _seqc[0]))
+        _seqc[0] = 0
+        _r_mt = _R(_C([_P(thought=True)], fin="MAX_TOKENS"))
+        B._gen_fallback = _lam_fg([_r_mt, _r_mt])
+        r = B.tra_loi_ai(_Bridge(), "Có mấy bảng thép?")
+        ok("M2 MAX_TOKENS rỗng CẢ 2 lượt -> báo bị cắt (nhắc ĐÚNG 1 lần, không lặp vô hạn)",
+           "bị cắt" in r["answer"] and _seqc[0] == 2, (r["answer"][:60], _seqc[0]))
+        _CN = type("CN", (), {"__init__": lambda s, fin: (setattr(s, "content", None),
+                                                          setattr(s, "finish_reason", fin))[0]})
+        _seqc[0] = 0
+        B._gen_fallback = _lam_fg([_R(_CN("MAX_TOKENS")),
+                                   _R(_C([_P(text="Có hai bảng thép trong bản vẽ.")]))])
+        r = B.tra_loi_ai(_Bridge(), "Có mấy bảng thép?")
+        ok("M3 MAX_TOKENS mà content=None -> cũng được nhắc-phục-hồi",
+           r["answer"] == "Có hai bảng thép trong bản vẽ." and _seqc[0] == 2, (r["answer"][:60], _seqc[0]))
+        _seqc[0] = 0
+        B._gen_fallback = _lam_fg([_R(_C([_P(thought=True)], fin="SAFETY"))])
+        r = B.tra_loi_ai(_Bridge(), "Có mấy bảng thép?")
+        ok("M4 ĐỐI CHỨNG: SAFETY rỗng -> trả NGAY thông điệp bộ lọc, KHÔNG tốn lượt nhắc",
+           "bộ lọc an toàn" in r["answer"] and _seqc[0] == 1, (r["answer"][:60], _seqc[0]))
+    finally:
+        B._gen_fallback, B._get_client = _saveg, _savec
+
     print("\n%d PASS / %d FAIL" % (PASS, FAIL))
     return 1 if FAIL else 0
 
