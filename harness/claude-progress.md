@@ -41,8 +41,16 @@
 > **⭐ TỰ KIỂM NGƯỢC 6/6 MUTATION ĐỎ ĐÚNG CHỖ** (cổng xanh không chứng minh gì nếu test không đỏ được): gỡ garble-normalizer → T1/T2/T7 · gỡ gate V-A → G-05/G-07/T5b · gỡ `_vn` → T1/T2/T7 · để số đếm ra ngoài `_vitri` → N1/G-12a · bỏ mục lục V-J → G-18 · bỏ vết `khung_nho` → D2. `tools_core.py` khôi phục **nguyên byte** sau mỗi lần (hash `6ab80476` trước = sau).
 > **🔒 KHOÁ MỘT QUYẾT ĐỊNH NO_GO:** ca `G-NOGO` khoá việc **vế RATIO của V-H đã BỎ** (bảng CAO và bảng THẤP phải đọc GIỐNG HỆT) — ai định thêm lại `NGƯỠNG_CAO` sẽ thấy ca đỏ và phải đọc `b1c4_censu_ketluan.md` trước (hàng THẬT ratio 2.64-46.0 **đan xen** chế tạo 3.63-506 ⇒ không tồn tại ngưỡng).
 >
+> ### ✅ B6 — CORPUS 142 FILE + KỶ LUẬT TOÀN BỘ: **ĐẠT, 0 LỖI**
+> **⚠ Với B4 thì DANH SÁCH KỲ VỌNG LÀ RỖNG** — khác các cụm B1 trước (chúng có danh sách file được-phép-đổi). B4 không đụng một ký tự logic ⇒ **mọi khác biệt `p37` đều là LỖI**. Đây là mức chặt nhất có thể yêu cầu.
+> **① DIFF CORPUS (quét 19,6 phút, `READFILE_MAX_MB` giữ MẶC ĐỊNH 45 = đúng cổng baseline dùng):** `p37` lệch **0/142 file** · `t36` (#36 hàng xóm) lệch **0/142** · trạng thái khớp từng nhóm `{co_bang 93 · khung_khong_bang 33 · khong_khung 7 · loi_doc_file 9}` · **9/9** DXFStructureError giữ `loi_doc_file` · **tổng ô đọc được toàn corpus 7.207 = 7.207**.
+> **② ĐƯỜNG SẢN PHẨM ≡ ĐƯỜNG ĐỌC-FILE, PHỦ TRỌN 142 FILE.** Lượt đầu: 119 KHỚP · 14 bị cổng 45MB chặn · 9 file DXF hỏng. **Không bỏ im 14 file bị chặn** — chúng chính là các bản KẾT CẤU LỚN NHẤT (bỏ ra là mẫu đo lệch hẳn về file nhỏ) ⇒ chạy lại riêng với `READFILE_MAX_MB=400`: **14/14 KHỚP**, tổng **1.186 MB**, file to nhất **212 MB**, 14,1 phút.
+> **③ K1-K5 qua `mcp_bridge` THẬT trên 93 FILE KÍCH HOẠT: 0 lỗi** (đặc tả đòi ≥30 — vượt xa; danh sách file lấy TỪ kết quả quét, không tự chọn tay). Σ neo cộng-theo-file **543**.
+> **④ UNION MỐC-MM CORPUS-WIDE = 135**, trần khai **≤143**. ⚠ Lệch **+2** so con số **133** trong đặc tả ⇒ **KHÔNG để số đó không giải thích**: đo có đối chứng (đọc file MỘT lần, dựng payload HAI lần: `_vn=to_unicode` vs `_vn=identity`) ⇒ **bản vá giải-mã-phông đóng góp ĐÚNG 0 mốc** (135 cả hai chiều, **0/93 file khác biệt**). ⇒ chênh +2 **có từ TRƯỚC B4**, không do lát này đẻ ra, và nằm trong trần.
+> **📌 Lần thứ 3 CRLF làm hỏng bộ đo trong phiên:** kiểm hash hàm #36 bằng one-liner đọc `'rb'` cho `083d5921` (lệch!) trong khi đọc chế độ TEXT — đúng như ca G-16b của suite — cho `275f19e9` KHỚP. Cả file `tools_core.py` hash không đổi (`6ab80476`) nên biết ngay là artifact. 📌 **Đọc file để so hash thì phải dùng CÙNG chế độ đọc với ca test đang khoá nó.**
+>
 > ### ⏭ CÒN LẠI (không tự khởi động)
-> **B6** cổng tổng + **diff corpus 142 file so baseline B0** · **B7** red-team vòng 2 sau tích hợp trên ≥5 file kích-hoạt-mới (**bắt buộc**, memory `[[feedback-red-team-2-tang]]`). **Sau #37 LIVE:** lát grounding-có-đơn-vị (lỗ ×1000 ở `mcp_bridge`) — user đã chốt xếp NGAY SAU.
+> **B7** red-team vòng 2 sau tích hợp trên ≥5 file kích-hoạt-mới (**bắt buộc**, memory `[[feedback-red-team-2-tang]]`) — **việc DUY NHẤT còn lại trước khi bàn commit/LIVE**. **Sau #37 LIVE:** lát grounding-có-đơn-vị (lỗ ×1000 ở `mcp_bridge`) — user đã chốt xếp NGAY SAU.
 
 ---
 ## Session 2026-08-06→08-07 — 🏁 CHỐT SỔ: **lát 4a LIVE** · **3 vòng NO_GO có số** · **TOOL #37 proto B0-B3 HOÀN TẤT** · chuẩn mới của user
