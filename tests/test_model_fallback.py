@@ -145,6 +145,63 @@ def main():
     finally:
         B._gen_fallback, B._get_client = _saveg, _savec
 
+    # ══ MODEL BỊ KHAI TỬ (404) — bản vá 2026-08-07 ═══════════════════════════════════════
+    # NỀN ĐO THẬT (ngày API được gia hạn): CẢ HAI model dự phòng cũ đều 404 —
+    # 'gemini-2.0-flash' nguyên văn "This model ... is no longer available", 'gemini-1.5-flash'
+    # "is not found". Trước vá: 404 không nằm trong fail-forward ⇒ một cú 429 trên model chính
+    # làm CHẾT LUÔN request thay vì tụt model. Nhóm ca này khoá đúng lỗ đó.
+    print("\n-- [404] model bị nhà cung cấp khai tử: PHẢI fail-forward, và PHẢI báo đúng loại --")
+    e404 = ApiErr(404, "404 NOT_FOUND. This model models/gemini-2.0-flash is no longer available.")
+    e404b = ApiErr(404, "404 NOT_FOUND. models/gemini-1.5-flash is not found for API version v1beta")
+    ok("D1 nhận diện model chết (404 'no longer available')", B._model_chet(e404))
+    ok("D2 nhận diện model chết (404 'is not found')", B._model_chet(e404b))
+    ok("D3 ĐỐI CHỨNG: 404 KHÔNG bị nhận nhầm là quá tải (hai NGHĨA khác nhau)",
+       not B._is_overloaded(e404))
+    ok("D4 ĐỐI CHỨNG NGƯỢC: 429 vẫn là quá tải, KHÔNG phải model chết",
+       B._is_overloaded(ApiErr(429)) and not B._model_chet(ApiErr(429)))
+    ok("D5 ĐỐI CHỨNG: 400 (malformed) không thuộc CẢ HAI nhóm -> vẫn ném, không dò model",
+       not B._is_overloaded(ApiErr(400)) and not B._model_chet(ApiErr(400)))
+
+    _saveM = B.MODELS
+    try:
+        B.MODELS = ["m_chinh", "m_chet", "m_song"]
+        cl = FakeClient({"m_chinh": ApiErr(429), "m_chet": e404, "m_song": "ok"})
+        st = {}
+        # ⚠ PHẢI BỌC try: gỡ bản vá fail-forward thì _gen_fallback NÉM ở model chết. Không bọc
+        # thì ngoại lệ giết cả suite -> mất luôn D7-D10 và người đọc chỉ thấy "script chết",
+        # không thấy ca nào hỏng. Tự kiểm ngược đã bắt đúng điểm yếu này của chính ca test.
+        try:
+            r = B._gen_fallback(cl, "x", None, st)
+        except Exception as ex:
+            r = "NÉM:%s" % type(ex).__name__
+        # resp giả của FakeModels là {"_model": <tên>} — kiểm ĐÚNG model nào đã phục vụ,
+        # chứ không kiểm chuỗi "ok" (bộ giả không trả chuỗi đó).
+        ok("D6 chuỗi 429 -> model CHẾT -> model SỐNG: đi hết được tới model sống",
+           r == {"_model": "m_song"} and st.get("i") == 2 and cl.models.calls == ["m_chinh", "m_chet", "m_song"],
+           (r, st, cl.models.calls))
+        ok("D7 vết `tried` ghi đủ cả hai model hỏng (thất bại phải LỘ)",
+           [t[0] for t in st.get("tried", [])] == ["m_chinh", "m_chet"], st.get("tried"))
+        # MỌI model đều chết -> phải NÉM (để caller trả câu 'lỗi cấu hình', không im lặng)
+        st2 = {}
+        cl2 = FakeClient({"m_chinh": e404, "m_chet": e404b, "m_song": e404})
+        try:
+            B._gen_fallback(cl2, "x", None, st2)
+            ok("D8 mọi model chết -> phải NÉM", False, "không ném")
+        except Exception as ex:
+            ok("D8 mọi model chết -> NÉM đúng lỗi cuối (caller trả câu lỗi-cấu-hình)",
+               B._model_chet(ex))
+    finally:
+        B.MODELS = _saveM
+
+    ok("D9 chuỗi dự phòng MẶC ĐỊNH không còn chứa model đã khai tử",
+       "gemini-2.0-flash" not in B._FALLBACK_DEFAULT and "gemini-1.5-flash" not in B._FALLBACK_DEFAULT,
+       B._FALLBACK_DEFAULT)
+    # Cùng THẾ HỆ với model chính: Gemini 3 đính thought-signature và từ chối chữ ký model khác,
+    # nên đổi sang 3.x GIỮA CHỪNG một request sẽ 400. Ca này chặn việc vô tình nhét 3.x vào chuỗi.
+    ok("D10 model dự phòng CÙNG THẾ HỆ với model chính (chống lỗi thought-signature khi đổi giữa chừng)",
+       all(m.startswith("gemini-2.5") for m in B._FALLBACK_DEFAULT.split(",") if m.strip()),
+       B._FALLBACK_DEFAULT)
+
     print("\n%d PASS / %d FAIL" % (PASS, FAIL))
     return 1 if FAIL else 0
 

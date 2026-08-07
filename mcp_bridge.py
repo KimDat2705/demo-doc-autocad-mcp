@@ -52,7 +52,17 @@ MAX_TURNS = int(os.environ.get("GEMINI_MAX_TURNS", "14"))
 # cạn/quá tải SAU retry -> NHẢY model kế trong chuỗi (fail-forward), KHÔNG lùi lại model đã hỏng trong cùng
 # request. Cấu hình chuỗi phụ qua env GEMINI_FALLBACK_MODELS (danh sách ngăn phẩy). Mặc định 2.0-flash,1.5-flash
 # (free-tier phổ biến); deploy nên đặt theo model account có quyền. Chuỗi rỗng -> hành vi CŨ (1 model).
-_FALLBACK_DEFAULT = "gemini-2.0-flash,gemini-1.5-flash"
+# ⛔ ĐO THẬT 2026-08-07 (ngay khi API được gia hạn): CẢ HAI model dự phòng cũ ĐÃ CHẾT —
+# `gemini-2.0-flash` trả 404 nguyên văn "This model models/gemini-2.0-flash is no longer
+# available", `gemini-1.5-flash` trả 404 "is not found". Nghĩa là chuỗi dự phòng ĐÃ MỤC CẢ HAI
+# NẤC, không phải một nấc như sổ ghi trước đây. Hậu quả LIVE: một cú 429/503 trên model chính
+# làm `_gen_fallback` nhảy sang model chết -> 404 -> `_is_overloaded(404)=False` -> NÉM LỖI thay
+# vì tụt model ⇒ người dùng nhận lỗi đúng lúc hệ đang tải cao.
+# Thay bằng `gemini-2.5-flash-lite` — đo thật là CÒN SỐNG và CÙNG THẾ HỆ 2.5 với model chính.
+# ⚠ CỐ Ý KHÔNG dùng 3.x ở đây: Gemini 3 đính THOUGHT SIGNATURE vào mỗi function_call và từ chối
+# chữ ký của model khác, nên đổi sang 3.x GIỮA CHỪNG một request (đúng việc _gen_fallback làm)
+# sẽ 400. Chuyển 3.x là lát riêng, phải vá "chạy lại request TỪ ĐẦU" + A/B trước.
+_FALLBACK_DEFAULT = "gemini-2.5-flash-lite"
 MODELS = [MODEL] + [m.strip() for m in os.environ.get("GEMINI_FALLBACK_MODELS", _FALLBACK_DEFAULT).split(",")
                     if m.strip() and m.strip() != MODEL]
 _OVERLOAD_CODES = {429, 500, 502, 503, 504}   # 429 cạn quota · 503 quá tải · 5xx transient (khớp HttpRetryOptions)
@@ -72,6 +82,24 @@ def _is_overloaded(e):
                                 "overloaded", "quota", "rate limit", "rate_limit", "high demand"))
 
 
+def _model_chet(e):
+    """Lỗi có phải 'MODEL NÀY KHÔNG CÒN TỒN TẠI' (404 NOT_FOUND) không?
+
+    TÁCH RIÊNG khỏi `_is_overloaded` CÓ CHỦ Ý — hai thứ khác nhau về NGHĨA và về CÁCH BÁO:
+      · quá tải  -> model vẫn tồn tại, lỗi TẠM THỜI, nói với người dùng "thử lại sau";
+      · model chết -> lỗi CẤU HÌNH VĨNH VIỄN, nói "thử lại sau" là SAI SỰ THẬT.
+    Nhưng ở tầng CHỌN MODEL thì cả hai đều đáng NHẢY SANG MODEL KẾ. Docstring cũ của
+    `_is_overloaded` xếp 404 vào nhóm "thử model khác KHÔNG giúp" — đúng cho 400/safety/key-sai,
+    SAI hẳn cho model bị khai tử: đó chính là ca mà thử model khác là việc DUY NHẤT giúp được.
+    Đo thật 2026-08-07: cả `gemini-2.0-flash` lẫn `gemini-1.5-flash` đều 404 kiểu này."""
+    for attr in ("code", "status_code", "status"):
+        if getattr(e, attr, None) == 404:
+            return True
+    s = str(e).lower()
+    return ("404" in s and "not_found" in s) or "no longer available" in s or \
+           ("is not found" in s and "model" in s)
+
+
 def _gen_fallback(client, contents, cfg, state):
     """generate_content với CHUỖI MODEL: thử MODELS[state['i']:] theo thứ tự; gặp 429/503 -> model KẾ (fail-forward).
     state['i'] = chỉ số model đang dùng OK (lần gọi sau trong CÙNG request bắt đầu từ đây -> không dò lại model đã
@@ -84,7 +112,11 @@ def _gen_fallback(client, contents, cfg, state):
             return resp
         except Exception as e:
             state.setdefault("tried", []).append((MODELS[i], type(e).__name__))
-            if not _is_overloaded(e) or i >= len(MODELS) - 1:
+            # + `_model_chet`: model bị Google khai tử (404) cũng PHẢI fail-forward. Trước bản vá
+            # này, một model chết trong chuỗi làm CHẾT LUÔN cả request thay vì tụt sang model kế —
+            # và đo thật cho thấy cả chuỗi mặc định cũ đều đã chết, nên nhánh dự phòng thực tế
+            # KHÔNG BAO GIỜ chạy được.
+            if not (_is_overloaded(e) or _model_chet(e)) or i >= len(MODELS) - 1:
                 state["i"] = i          # dừng ở model này (lỗi không-quá-tải hoặc đã là model cuối)
                 raise
             last = e                    # 429/503 và còn model -> thử model kế
@@ -1172,6 +1204,13 @@ def tra_loi_ai(bridge, q, file_summary="", history=None):
         except Exception as e:
             if _is_overloaded(e):     # MỌI model trong chuỗi đều cạn/quá tải -> báo LỘ, KHÔNG crash (robustness)
                 return {"answer": "⚠ AI đang quá tải hoặc hết lượt truy vấn (đã thử %d model). Vui lòng thử lại sau ít phút." % len(MODELS),
+                        "evidence": _flat_ev(evidence), "anh_id": anh_id, "file_id": file_id, "ai": True}
+            if _model_chet(e):
+                # KHÔNG được gộp vào câu "quá tải ... thử lại sau" — model bị khai tử là lỗi CẤU
+                # HÌNH VĨNH VIỄN, bảo người dùng chờ là nói sai sự thật và giấu việc cần sửa env.
+                return {"answer": "⚠ Chuỗi model đã cấu hình không còn khả dụng (nhà cung cấp đã ngừng model). "
+                                  "Đây là lỗi CẤU HÌNH phía máy chủ, không phải quá tải — chờ cũng không hết. "
+                                  "Vui lòng báo kỹ thuật cập nhật biến môi trường GEMINI_MODEL / GEMINI_FALLBACK_MODELS.",
                         "evidence": _flat_ev(evidence), "anh_id": anh_id, "file_id": file_id, "ai": True}
             raise                     # lỗi khác (safety/malformed/cấu hình) -> để app.py bắt như cũ
         cand = (resp.candidates or [None])[0]

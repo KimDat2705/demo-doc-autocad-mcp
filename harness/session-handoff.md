@@ -12,7 +12,26 @@
 > **Muốn public thật sau này — ĐỪNG LÀM LẠI TỪ ĐẦU:** nhánh local **`public-ready`** đã có sẵn trọn gói (history sạch không .deb qua `git filter-repo` · Dockerfile tải ODA tuỳ chọn qua `ODA_DEB_URL` · thông báo .dxf-only thân thiện · .gitignore chặn .deb). Đánh đổi: cloud chỉ đọc .dxf tới khi đặt `ODA_DEB_URL`. Mirror backup: `D:/Dat-Antigravity/_backup_repo_truoc_khi_public_20260717/repo-mirror.git`.
 
 
-## ✅ 2026-08-07 — **B4 TÍCH HỢP + B5 BỘ TEST: TOOL #37 ĐÃ VÀO CODE SẢN PHẨM VÀ ĐÃ CÓ CỔNG CANH** — ĐỌC KHỐI NÀY TRƯỚC
+## 🔑 2026-08-07 — **API ĐÃ ĐƯỢC GIA HẠN, HOẠT ĐỘNG TRỞ LẠI** + vá **CHUỖI MODEL DỰ PHÒNG CHẾT** + **E2E #37 lần đầu** — ĐỌC KHỐI NÀY TRƯỚC
+> **API SỐNG (user báo + tôi gọi thật xác minh).** Sự cố 403 billing ở khối 2026-08-06 phía dưới **ĐÃ HẾT** — đừng trích lại như đang xảy ra.
+>
+> ### 🔴 BUG LIVE PHÁT HIỆN NGAY KHI API SỐNG — NẶNG HƠN SỔ GHI
+> Sổ cũ ghi *"`gemini-2.0-flash` đã bị Google TẮT HẲN"* (một nấc). **ĐO THẬT: CẢ HAI nấc đều chết** — `gemini-2.0-flash` trả 404 nguyên văn *"This model models/gemini-2.0-flash is no longer available"*, `gemini-1.5-flash` trả 404 *"is not found"*. Và `_is_overloaded` **không nhận 404** ⇒ một cú 429/503 trên model chính làm **NÉM LỖI thay vì tụt model** ⇒ **chuỗi dự phòng CHƯA TỪNG chạy được**; demo văng lỗi đúng lúc tải cao. Ảnh hưởng **MỌI câu hỏi**, không riêng #37.
+> **✅ ĐÃ VÁ:** `_FALLBACK_DEFAULT` → **`gemini-2.5-flash-lite`** (đo thật CÒN SỐNG, **CÙNG THẾ HỆ 2.5**) · thêm **`_model_chet(e)` TÁCH RIÊNG** khỏi `_is_overloaded` (quá tải = tạm thời, "thử lại sau"; model chết = lỗi CẤU HÌNH VĨNH VIỄN, bảo chờ là nói SAI SỰ THẬT) · `_gen_fallback` fail-forward trên **cả hai** · câu báo lỗi RIÊNG cho ca chuỗi-model-chết. Test `test_model_fallback` **22 → 32 ca**, tự kiểm ngược **2/2 mutation đỏ đúng chỗ**. Cổng **[50/50] PASS, 1.778 → 1.788 ca**, diff cổng đúng **1 dòng** (suite fallback), mọi suite khác giữ nguyên.
+> ⚠ **CỐ Ý KHÔNG dùng 3.x làm dự phòng:** Gemini 3 đính **thought signature** vào mỗi `function_call` và **từ chối chữ ký của model khác** ⇒ đổi sang 3.x GIỮA CHỪNG một request (đúng việc `_gen_fallback` làm) sẽ **400**. Chuyển 3.x là lát riêng, phải vá "chạy lại request TỪ ĐẦU" + A/B trước (`KE_HOACH_NANG_CAP_MODEL.md`).
+>
+> ### 🧪 E2E TOOL #37 QUA MODEL THẬT — LẦN ĐẦU LÀM ĐƯỢC (suốt B0-B7 API đang khoá)
+> **ROUTING HOẠT ĐỘNG:** model **tự tìm ra #37 chỉ qua MÔ TẢ TOOL**, dù `SYSTEM_PROMPT` không hề nhắc tên nó.
+> · *"đáy kênh hoàn trả thấp nhất?"* → gọi **#37** → **1.740 ĐÚNG** (đây chính là ca #36 đang trả SAI) · *"liệt kê hàng bảng kẻ khung"* → **#37** → đúng, kèm `o_chu` *'0.0%/0.4%'* (cơ chế `co_chu_xen_khac_muc` chạy thật) · *"khoảng cách mặt cắt min/max"* → #36 → 3/20 ĐÚNG.
+> · **3/3 câu BẪY bị TỪ CHỐI** (cọc khoan nhồi · đáy móng · khối lượng bê tông) ⇒ **không quan sát thấy tăng bịa** khi #37 sống.
+> ### ⛔ NHƯNG: **#37 MỘT MÌNH KHÔNG CHỮA ĐƯỢC LỖI SỐ SAI** — đo được, quan trọng nhất phiên
+> Model **vẫn thường xuyên chọn #36** cho cùng dữ liệu: *"đáy cống thấp nhất?"* → #36 → **1.900** (đúng **1.840**) · *"hàng đáy kênh có giá trị nào?"* → #36 → chỉ `1.840`×17, **THIẾU 1.740**. Cả hai là hàng mà #37 đọc ĐÚNG.
+> ⇒ **Thứ chữa được lớp lỗi này là VAN NHƯỜNG #36 (bước 2 của Q1), KHÔNG phải lát ×1000.** ×1000 siết *độ dễ dãi của hàng rào* (chỉ số tổng hợp); van nhường sửa **lỗi QUAN SÁT ĐƯỢC**. **Đề xuất đảo thứ tự — CHỜ USER QUYẾT, không tự đảo** (user từng chốt ×1000 xếp ngay sau #37 LIVE).
+>
+> ### ⚙ CƠ HỌC TRIỂN KHAI
+> `render.yaml` **KHÔNG** đặt `autoDeploy: false` ⇒ **push = deploy tự động**. Muốn "push mà chưa deploy" thì phải sửa config trước.
+
+## ✅ 2026-08-07 — **B4 TÍCH HỢP + B5 BỘ TEST: TOOL #37 ĐÃ VÀO CODE SẢN PHẨM VÀ ĐÃ CÓ CỔNG CANH**
 > **HEAD mới = commit LOCAL, CHƯA push, CHƯA LIVE.** Đặc tả `DAC_TA_TOOL37.md` ghi rõ *chỉ sau **B7** sạch phát-hiện-CAO mới được bàn commit/LIVE* — commit này chỉ để **giữ ngữ cảnh**, KHÔNG phải mark done. Nhật ký số đo đầy đủ: khối 2026-08-07 ở `claude-progress.md`.
 > **Cổng: `[49/49]` → `[50/50]` PASS exit 0 · 1.701 → 1.778 ca · 0 FAIL.** Bỏ phần đánh-số-lại thì diff cổng B4→B5 **đúng 2 dòng** (bước mới); 49 bước cũ giữ nguyên từng con số.
 > **B5:** `tests/test_bang_ke_khung.py` **77 ca / 0 FAIL**, 7 nhóm, **mỗi vế gate một CẶP bắn/không-bắn**; fixture nằm TRONG repo (`tests/fixtures_khung/`, 47 file, 0 định danh khách hàng) nên **69/77 ca chạy được cả trên cloud**. **Tự kiểm ngược 6/6 mutation đỏ ĐÚNG CHỖ** (gỡ normalizer / gate V-A / `_vn` / kỷ luật `_vitri` / mục lục V-J / vết `khung_nho`), `tools_core.py` khôi phục nguyên byte sau mỗi lần.
