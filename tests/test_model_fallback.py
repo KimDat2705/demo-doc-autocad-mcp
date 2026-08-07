@@ -196,11 +196,32 @@ def main():
     ok("D9 chuỗi dự phòng MẶC ĐỊNH không còn chứa model đã khai tử",
        "gemini-2.0-flash" not in B._FALLBACK_DEFAULT and "gemini-1.5-flash" not in B._FALLBACK_DEFAULT,
        B._FALLBACK_DEFAULT)
-    # Cùng THẾ HỆ với model chính: Gemini 3 đính thought-signature và từ chối chữ ký model khác,
-    # nên đổi sang 3.x GIỮA CHỪNG một request sẽ 400. Ca này chặn việc vô tình nhét 3.x vào chuỗi.
-    ok("D10 model dự phòng CÙNG THẾ HỆ với model chính (chống lỗi thought-signature khi đổi giữa chừng)",
-       all(m.startswith("gemini-2.5") for m in B._FALLBACK_DEFAULT.split(",") if m.strip()),
-       B._FALLBACK_DEFAULT)
+    # ⚠ D10 CŨ ĐÃ BỊ THAY (2026-08-07) — nó ghim chuỗi "gemini-2.5" và soi `_FALLBACK_DEFAULT`,
+    # nên MÙ ĐÚNG CHIỀU NGUY HIỂM: đặt env GEMINI_MODEL=gemini-3.6-flash mà giữ dự phòng 2.5 thì
+    # chuỗi THẬT trộn thế hệ nhưng cổng vẫn XANH; ngược lại sửa cho ĐÚNG (chuỗi 3.x) lại ĐỎ OAN.
+    # Bản mới soi `MODELS` (đại lượng THẬT, đã gộp env) và so THẾ HỆ với chính `MODELS[0]`.
+    # Xem nhóm [G] ở cuối file.
+
+    # ══ [N] `_is_overloaded` KHỚP CHUỖI CON — số trong lỗi 400 bị nhận nhầm là quá tải ═══
+    # Đo thật: '15042' chứa chuỗi con '504' ⇒ lỗi CẤU HÌNH VĨNH VIỄN bị xử như quá tải ⇒ máy
+    # nói "thử lại sau ít phút" = SAI SỰ THẬT, chờ không hết. Gemini 3 sinh lỗi 400 mang SỐ
+    # nhiều hơn hẳn 2.5 (đếm token / ngân sách / thought signature) nên lớp lỗi này nóng lên.
+    print("\n-- [N] _is_overloaded: số nằm TRONG số khác không được tính là mã lỗi --")
+    ok("N1 '400 ... token count 15042 exceeds limit' -> KHÔNG phải quá tải (bug: 15042 ⊃ 504)",
+       not B._is_overloaded(Exception("400 INVALID_ARGUMENT: token count 15042 exceeds limit")))
+    ok("N2 '400 ... maximum 502400 tokens' -> KHÔNG phải quá tải",
+       not B._is_overloaded(Exception("400 INVALID_ARGUMENT: maximum 502400 tokens")))
+    ok("N3 số thực '1.5039' -> KHÔNG phải quá tải", not B._is_overloaded(Exception("cost 1.5039 usd")))
+    ok("N4 ĐỐI CHỨNG: '429 RESOURCE_EXHAUSTED' vẫn là quá tải",
+       B._is_overloaded(Exception("429 RESOURCE_EXHAUSTED: quota")))
+    ok("N5 ĐỐI CHỨNG: '503 model overloaded, high demand' vẫn là quá tải",
+       B._is_overloaded(Exception("503 model overloaded, high demand")))
+    ok("N6 ĐỐI CHỨNG: mã nằm trong JSON lỗi thật \"{'code': 429,\" vẫn bắt được",
+       B._is_overloaded(Exception("ClientError: {'error': {'code': 429, 'status': 'RESOURCE_EXHAUSTED'}}")))
+    ok("N7 ĐỐI CHỨNG: 'HTTP/1.1 503 Service Unavailable' vẫn bắt được",
+       B._is_overloaded(Exception("HTTP/1.1 503 Service Unavailable")))
+    ok("N8 ĐỐI CHỨNG: thuộc tính .code vẫn thắng chuỗi (đường chính, không đụng)",
+       B._is_overloaded(ApiErr(503)) and not B._is_overloaded(ApiErr(400)))
 
     # ══ GĐ1.2 — ĐỔI MODEL GIỮA CHỪNG PHẢI CHẠY LẠI TỪ ĐẦU (thought signature) ═══════════
     # Gemini 3 đính chữ ký suy luận vào mỗi function_call và TỪ CHỐI chữ ký của model khác
@@ -264,7 +285,13 @@ def main():
 
     # ══ GĐ1.4 — THAM SỐ SINH RA ENV, MẶC ĐỊNH GIỮ NGUYÊN HÀNH VI CŨ ═════════════════════
     print("\n-- [F] tham số sinh ra env: mặc định PHẢI y hệt hành vi trước lát này --")
-    ok("F1 temperature mặc định = 0 (lựa chọn CHỐNG BỊA cốt lõi, không được đổi ngầm)",
+    # ⛔ ĐÍNH CHÍNH 2026-08-07 — ĐỌC TRƯỚC KHI DỰA VÀO CA NÀY. `temperature=0` KHÔNG CÒN là
+    # "hàng rào chống bịa" từ khi model chính lên Gemini 3: đo thật (prompt entropy cao, 5 lượt)
+    # `gemini-2.5-flash` cho 1 đáp án/5 lần (tất định) còn `gemini-3.6-flash` cho 5 đáp án/5 lần
+    # (tản hoàn toàn) ⇒ Gemini 3 BỎ QUA tham số này. Ca F1 nay chỉ khoá "code không đổi giá trị
+    # NGẦM", KHÔNG còn khoá tính tất định. Chống bịa dựa HOÀN TOÀN vào hàng rào phía code
+    # (grounding-guard / rổ neo). Vẫn TRUYỀN 0: vô hại hôm nay và đúng nếu chuỗi tụt về đời 2.x.
+    ok("F1 temperature mặc định = 0 (⚠ Gemini 3 BỎ QUA — ca này chỉ khoá 'không đổi ngầm')",
        B.GEN_TEMPERATURE == 0.0, B.GEN_TEMPERATURE)
     ok("F2 max_output_tokens mặc định = 8192 (không bỏ trống — bỏ trống là treo vô hạn)",
        B.GEN_MAX_OUTPUT_TOKENS == 8192, B.GEN_MAX_OUTPUT_TOKENS)
@@ -414,6 +441,153 @@ def main():
            "bộ lọc an toàn" in r["answer"] and _seqc[0] == 1, (r["answer"][:60], _seqc[0]))
     finally:
         B._gen_fallback, B._get_client = _saveg, _savec
+
+    # ══ [G] CỔNG THẾ HỆ — thay D10 cũ (đo được là MÙ đúng chiều nguy hiểm) ═══════════════
+    # Gemini 3 đính thought signature vào mỗi function_call và TỪ CHỐI chữ ký model khác.
+    # Bản vá chạy-lại-từ-đầu ([E]) đỡ được nhánh CÓ GỌI TOOL, nhưng chạy lại = gọi lại TOÀN BỘ
+    # tool (×2 thời gian, ×2 RAM, ×2 tác dụng phụ ghi ảnh/Excel). Nên chuỗi CÙNG THẾ HỆ vẫn là
+    # cấu hình ĐÚNG: nó tránh hẳn đường chạy-lại thay vì chỉ xử lý được nó.
+    print("\n-- [G] chuỗi model phải CÙNG THẾ HỆ — soi MODELS (đại lượng thật), không soi hằng --")
+    ok("G1 _the_he đọc đúng đời model", [B._the_he(m) for m in
+       ("gemini-3.6-flash", "gemini-3.5-flash-lite", "gemini-2.5-flash", "gemini-2.0-flash")]
+       == ["3", "3", "2", "2"],
+       [B._the_he(m) for m in ("gemini-3.6-flash", "gemini-3.5-flash-lite", "gemini-2.5-flash", "gemini-2.0-flash")])
+    ok("G2 _the_he trả None cho tên không đọc được (KHÔNG đoán bừa)",
+       B._the_he("mo-hinh-la") is None and B._the_he("") is None and B._the_he(None) is None)
+    ok("G3 chuỗi 3.x thuần -> ĐẠT",
+       B._chuoi_cung_the_he(["gemini-3.6-flash", "gemini-3.5-flash", "gemini-3.5-flash-lite"]))
+    # ⭐ CA QUYẾT ĐỊNH: đúng trạng thái mà cổng D10 CŨ để lọt (env đổi model chính, quên đổi dự phòng)
+    ok("G4 ⭐ chuỗi TRỘN 3.6 -> 2.5-lite (D10 cũ để LỌT) -> phải BỊ BẮT",
+       not B._chuoi_cung_the_he(["gemini-3.6-flash", "gemini-2.5-flash-lite"]))
+    ok("G5 chuỗi 2.5 thuần (cấu hình CŨ) -> vẫn ĐẠT (bản mới không đỏ oan cấu hình cũ)",
+       B._chuoi_cung_the_he(["gemini-2.5-flash", "gemini-2.5-flash-lite"]))
+    ok("G6 chuỗi 1 model -> ĐẠT (không có gì để trộn)", B._chuoi_cung_the_he(["gemini-3.6-flash"]))
+    ok("G7 tên không đọc được thế hệ -> KHÔNG ĐẠT (fail-closed, bắt khai báo rõ)",
+       not B._chuoi_cung_the_he(["gemini-3.6-flash", "mo-hinh-la"]))
+    # ⭐ G11 do TỰ-KIỂM-NGƯỢC bắt ra: G7 ở trên KHÔNG hề khoá được vế "trả None". Mutation đổi
+    # `_the_he` từ None sang '0' vẫn để G7 XANH, vì '0' != '3' nên chuỗi vẫn bị coi là trộn.
+    # Ca DUY NHẤT phân biệt được là CẢ HAI tên đều không đọc nổi: fail-closed thì False, còn
+    # đoán-bừa-một-giá-trị-chung thì True. Không có ca này thì bất biến fail-closed là vô chủ.
+    ok("G11 ⭐ CẢ CHUỖI không đọc được thế hệ -> vẫn KHÔNG ĐẠT (khoá đúng vế 'trả None')",
+       not B._chuoi_cung_the_he(["mo-hinh-la", "mo-hinh-khac"]))
+    # Soi CẤU HÌNH THẬT đang chạy — đây mới là thứ D10 lẽ ra phải kiểm từ đầu
+    ok("G8 ⭐ MODELS THẬT (đã gộp env GEMINI_MODEL/GEMINI_FALLBACK_MODELS) cùng thế hệ",
+       B._chuoi_cung_the_he(B.MODELS), B.MODELS)
+    ok("G9 MODELS[0] == MODEL và không trùng lặp (giữ hợp đồng H.9)",
+       B.MODELS[0] == B.MODEL and len(B.MODELS) == len(set(B.MODELS)), B.MODELS)
+    ok("G10 mặc định code: model chính là 3.6-flash (GA, thay 2.5-flash)",
+       B.MODEL == "gemini-3.6-flash" or os.environ.get("GEMINI_MODEL"), B.MODEL)
+
+    # ══ [P] TÍN HIỆU CHẠY-LẠI KHÔNG ĐƯỢC NUỐT + contents NHIỄM PHẢI ĐƯỢC KHAI BÁO ════════
+    print("\n-- [P] chạy-lại-từ-đầu: 2 đường nhắc phải khai contents nhiễm; lượt ép-cuối không nuốt --")
+    _saveg, _savec, _savet = B._gen_fallback, B._get_client, B.MAX_TURNS
+    B._get_client = lambda: None
+    _cap = []
+
+    def _fg_bat(cl, co, cf, st):
+        """Ghi lại cờ da_goi_tool TẠI MỖI lượt để xem đường nhắc có khai báo nhiễm không."""
+        _cap.append(bool(st.get("da_goi_tool")))
+        i = len(_cap) - 1
+        return _kb_script[min(i, len(_kb_script) - 1)]
+    try:
+        # (a) đường nhắc 'CHƯA gọi tool mà nêu số' — append cand.content của model ⇒ contents NHIỄM
+        _cap[:] = []
+        _kb_script = [_R(_C([_P(text="Có 12 cột.")])), _R(_C([_P(text="Không có thông tin này trong bản vẽ.")]))]
+        B._gen_fallback = _fg_bat
+        B.tra_loi_ai(_Bridge(), "Mấy cột?")
+        ok("P1 sau nhắc 'chưa gọi tool' -> lượt sau PHẢI thấy da_goi_tool=True (contents đã nhiễm)",
+           _cap == [False, True], _cap)
+        # (b) đường nhắc RỖNG — cũng append cand.content
+        _cap[:] = []
+        _kb_script = [_R(_C([_P(thought=True)])), _R(_C([_P(text="Đã trả lời.")]))]
+        B.tra_loi_ai(_Bridge(), "Hỏi gì đó")
+        ok("P2 sau nhắc RỖNG -> lượt sau PHẢI thấy da_goi_tool=True",
+           _cap == [False, True], _cap)
+        # (c) ĐỐI CHỨNG: không nhắc lần nào thì KHÔNG được tự bật cờ
+        _cap[:] = []
+        _kb_script = [_R(_C([_P(text="Trả lời thẳng, không số.")]))]
+        B.tra_loi_ai(_Bridge(), "Hỏi gì đó")
+        ok("P3 ĐỐI CHỨNG: trả lời thẳng, không nhắc -> cờ vẫn False (không bật bừa)",
+           _cap == [False], _cap)
+        # (d) lượt ÉP-TRẢ-LỜI CUỐI: _CanChayLaiTuDau KHÔNG được `except Exception: pass` nuốt
+        _FC2 = type("FC", (), {"__init__": lambda s, n: (setattr(s, "name", n), setattr(s, "args", {}))[0]})
+        _pf2 = _P(); _pf2.function_call = _FC2("tim_kiem")
+        B.MAX_TURNS = 1
+        _lan = [0]
+
+        def _fg_cuoi(cl, co, cf, st):
+            _lan[0] += 1
+            if _lan[0] == 1:
+                st["da_goi_tool"] = True
+                return _R(_C([_pf2]))          # lượt tool -> hết MAX_TURNS -> vào ép-trả-lời cuối
+            raise B._CanChayLaiTuDau(1)        # lượt ép-cuối gặp 429 -> tín hiệu tụt model
+        B._gen_fallback = _fg_cuoi
+        _save1 = B._tra_loi_ai_mot_lan
+        _bd = []
+        _thuc = B._tra_loi_ai_mot_lan
+
+        def _theo_doi(bridge, q, fs="", hist=None, model_bat_dau=0):
+            _bd.append(model_bat_dau)
+            if len(_bd) == 1:
+                return _thuc(bridge, q, fs, hist, model_bat_dau)
+            return {"answer": "đã chạy lại trên model kế", "evidence": [], "ai": True}
+        B._tra_loi_ai_mot_lan = _theo_doi
+        try:
+            r = B.tra_loi_ai(_Bridge(), "Móng gồm gì?")
+            ok("P4 ⭐ tín hiệu chạy-lại ở lượt ÉP-CUỐI không bị nuốt -> chạy lại trên model kế",
+               r.get("answer") == "đã chạy lại trên model kế" and _bd == [0, 1], (r.get("answer"), _bd))
+        finally:
+            B._tra_loi_ai_mot_lan = _save1
+    finally:
+        B._gen_fallback, B._get_client, B.MAX_TURNS = _saveg, _savec, _savet
+
+    # ══ [Q] TỤT MODEL PHẢI LỘ — không được âm thầm đổi chất lượng ═══════════════════════
+    # 3.6-flash 164/172 số đúng vs 3.5-flash-lite 155/172 + BỊA HANDLE 2 ca. Một câu do model
+    # dự phòng viết ra mà không phân biệt được = vi phạm "thất bại phải LỘ" của chính dự án.
+    print("\n-- [Q] payload phải khai model NÀO đã trả lời --")
+    _saveg, _savec, _saveM = B._gen_fallback, B._get_client, B.MODELS
+    B._get_client = lambda: None
+    try:
+        B.MODELS = ["mChinh", "mPhu"]
+        _st_gia = [0]
+
+        def _fg_q(cl, co, cf, st):
+            st["i"] = _st_gia[0]
+            return _R(_C([_P(text="Bản vẽ có hai bảng thép.")]))
+        B._gen_fallback = _fg_q
+        _st_gia[0] = 0
+        r = B.tra_loi_ai(_Bridge(), "Có bảng gì?")
+        ok("Q1 chạy trên model CHÍNH -> payload khai đúng tên", r.get("model_da_dung") == "mChinh", r.get("model_da_dung"))
+        _st_gia[0] = 1
+        r = B.tra_loi_ai(_Bridge(), "Có bảng gì?")
+        ok("Q2 ⭐ ĐÃ TỤT sang model phụ -> payload khai model PHỤ (không im lặng)",
+           r.get("model_da_dung") == "mPhu", r.get("model_da_dung"))
+        # Q3 do RED-TEAM bắt: bản đầu dùng MODELS[i] trần nên i=-1 trả model CUỐI (chỉ số âm
+        # của Python) — trường dựng ra để LỘ sự thật mà khai SAI TÊN thì tệ hơn không khai.
+        ok("Q3 ⭐ chỉ số RÁC (-1 / vượt trần / không phải int) -> trả None, KHÔNG đoán bừa",
+           all(B._model_dang_dung(s) is None for s in
+               ({"i": -1}, {"i": 99}, {"i": "x"}, {"i": None}, {"i": True})),
+           [B._model_dang_dung(s) for s in ({"i": -1}, {"i": 99}, {"i": "x"}, {"i": None}, {"i": True})])
+        # ⭐ Q4 — TRIPWIRE do RED-TEAM sinh ra. Tên model 'gemini-3.6-flash' CHỨA CHỮ SỐ, và
+        # `_collect_numbers` trên nó cho ra {3.6} — đúng dải mà chính dự án dùng làm ca thử
+        # ('3.6m' trong I3-U). Hôm nay nó VÔ HẠI vì rổ neo chỉ dựng từ RAW result của tool, không
+        # từ payload trả về. Ca này KHOÁ điều đó lại: nếu ai đó về sau đưa `model_da_dung` vào
+        # tool result / `ghi_chu` / rổ neo thì câu bịa '3.6' sẽ ĐƯỢC BẢO LÃNH và ca này ĐỎ.
+        # Đây đúng khuôn "rổ neo bị bơm từ ngoài" — kênh thứ 5, chặn trước khi nó kịp mở.
+        _FC3 = type("FC", (), {"__init__": lambda s, n: (setattr(s, "name", n), setattr(s, "args", {}))[0]})
+        _pf3 = _P(); _pf3.function_call = _FC3("tim_kiem")
+        _b_rong = type("BR", (), {"tools": [], "call": lambda s, *a, **k: {"ket_qua": []}})()
+        _sq = [0]
+
+        def _fg_bia(cl, co, cf, st):
+            _sq[0] += 1
+            return _R(_C([_pf3])) if _sq[0] == 1 else _R(_C([_P(text="Cao độ đáy móng là -3.6 m.")]))
+        B._gen_fallback = _fg_bia
+        r = B.tra_loi_ai(_b_rong, "Cao độ đáy móng?")
+        ok("Q4 ⭐ tool KHÔNG trả số nào -> câu '-3.6 m' vẫn BỊ CHẶN (tên model không thành neo)",
+           "3.6" not in r["answer"], r["answer"][:100])
+    finally:
+        B._gen_fallback, B._get_client, B.MODELS = _saveg, _savec, _saveM
 
     print("\n%d PASS / %d FAIL" % (PASS, FAIL))
     return 1 if FAIL else 0

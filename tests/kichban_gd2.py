@@ -3,7 +3,9 @@
 Mỗi ca: (câu hỏi cho AI, [ten_dai_luong, ma, inputs_bo_sung] để lấy GROUND TRUTH từ engine).
 Hỗ trợ hội thoại nhiều lượt (history). Ghi kichban_gd2_ketqua.jsonl."""
 import os, sys, io, json, time
-os.environ["READFILE_MAX_MB"] = "300"; os.environ["GEMINI_MODEL"] = "gemini-2.5-flash"
+os.environ["READFILE_MAX_MB"] = "300"
+# setdefault (KHONG gan de) — xem ly do o tests/kichban_test.py
+os.environ.setdefault("GEMINI_MODEL", "gemini-3.6-flash")
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.normpath(os.path.join(HERE, "..")))

@@ -16,6 +16,22 @@ services:
     envVars:
       - key: GEMINI_API_KEY
         sync: false      # nhập tay trên dashboard, KHÔNG commit
+      # --- MODEL (chốt 2026-08-07) — GHI TƯỜNG MINH, cùng kỷ luật với MAX_SESSIONS/MAX_BAN_VE dưới:
+      #     blueprint KHÔNG đặt = deploy ăn theo mặc định trong code, sửa lén trên dashboard thì
+      #     lần deploy lại từ blueprint là MẤT. Hai khoá dưới PHẢI ĐỔI CÙNG NHAU (cổng [G] khoá).
+      - key: GEMINI_MODEL
+        value: "gemini-3.6-flash"   # A/B 198 câu × 3 model: đúng số 164/172 (2.5-flash 147), recall
+                                    # hơn 14,5 điểm, trục BẪY hoà 3-3 => ngưỡng GO đặt trước = ĐẠT.
+                                    # GIÁ: chậm ×2,3 và đắt hơn (×8 là tính theo giá NIÊM YẾT — đo lại
+                                    # thấy implicit caching đang chạy sẵn nên đó là CẬN TRÊN).
+                                    # ⛔ Gemini 3 BỎ QUA `temperature` (đo: 2.5 tất định 1 đáp án/5 lần,
+                                    # 3.6 tản 5/5) => chống bịa dựa HOÀN TOÀN vào hàng rào phía code.
+      - key: GEMINI_FALLBACK_MODELS
+        value: "gemini-3.5-flash,gemini-3.5-flash-lite"   # CÙNG ĐỜI 3.x với model chính: trộn đời làm
+                                    # vỡ thought signature => phải chạy lại từ đầu = gọi lại TOÀN BỘ tool
+                                    # (×2 thời gian, ×2 RAM trên gói free vốn đã sát trần). Cả 3 model đã
+                                    # ĐO THẬT là còn sống (đối chứng âm gemini-2.0-flash ra 404 CHẾT).
+                                    # ⚠ 3.5-flash-lite BỊA HANDLE 2/198 ca => chỉ dùng làm nấc CUỐI.
       - key: MAX_UPLOAD_MB
         value: "150"
       - key: READFILE_MAX_MB

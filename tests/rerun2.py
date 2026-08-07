@@ -3,7 +3,8 @@
 Đối chiếu file mẫu. Ghi rerun2_results.jsonl."""
 import os, sys, io, json, time
 os.environ["READFILE_MAX_MB"] = "300"
-os.environ["GEMINI_MODEL"] = "gemini-2.5-flash"
+# setdefault: script nay TAI HIEN phep do cu tren 2.5-flash, nhung khong duoc DE env tu ngoai
+os.environ.setdefault("GEMINI_MODEL", "gemini-2.5-flash")
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.normpath(os.path.join(HERE, "..")))

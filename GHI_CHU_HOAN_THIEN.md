@@ -8,7 +8,7 @@
 
 ## Demo 2 là gì (1 phút)
 Web app đọc + tính toán bản vẽ AutoCAD **qua MCP (Model Context Protocol)**. LLM = **Google Gemini** (`gemini-2.5-flash`,
-đổi qua env `GEMINI_MODEL`). Kiến trúc: `app.py` (Flask host, giữ lịch sử hội thoại) → `mcp_bridge.py` (cầu nối Gemini↔MCP,
+đổi qua env `GEMINI_MODEL`; **mặc định `gemini-3.6-flash` từ 2026-08-07**, dự phòng cùng đời 3.x). Kiến trúc: `app.py` (Flask host, giữ lịch sử hội thoại) → `mcp_bridge.py` (cầu nối Gemini↔MCP,
 system prompt chống bịa) → `mcp_server.py` (MCP server chuẩn, **20 tool**) → `tools_core.py` (lõi đọc ezdxf + engine tính toán).
 ODA File Converter chuyển .dwg→.dxf. **KHÔNG cần AutoCAD → deploy cloud được.**
 - **Live:** https://doc-autocad-mcp-demo.onrender.com  · **Repo:** github.com/KimDat2705/demo-doc-autocad-mcp (private)

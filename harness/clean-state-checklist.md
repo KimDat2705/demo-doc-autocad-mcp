@@ -30,7 +30,29 @@ Chạy TRƯỚC mỗi commit và cuối mỗi phiên (một phiên = một "tran
 - [ ] `python tests/test_bang_trac_doc.py` = **42/42 PASS** (35 cũ + van nhường: V1-V5/N0/E1-van; 4 ca D1·D2·D5·N1 ĐỔI ĐỊNH NGHĨA — chạy trên đường VAN-TẮT, KHÔNG nới lỏng)
 - [ ] `python tests/test_takeoff_chong_bia.py` = **283/283 PASS** (offline; nhóm A-Y + [Z0] R1 + [Z] P3 + P4 + [id84] 12 ca + [I3-U L1] 4 ca + **[I3-U L2] 10 ca** (quy đổi '3.6m'→mm code-only tag-only/degrade-safe + C1-lite standing invariant)) — *cần env READFILE_MAX_MB=300; check.sh tự set*
 - [ ] `python tests/test_qa_data.py` = **129/129** (đọc — cần ../input_files/_dxf + ../demo_doc_autocad)
-- [ ] `python tests/test_model_fallback.py` = **58/58 PASS** (42 cũ + **3 lỗi CAO 2026-08-07 vá TRƯỚC khi đổi model 3.6-flash**: [T] timeout fail-forward + câu trung thực (trước vá: exception thô ra trình duyệt) · [C] MAX_TOKENS-còn-text nối cảnh báo CẮT ở CẢ 2 đường trả, guard-refuse thì KHÔNG nối · [M] MAX_TOKENS-rỗng nhắc đúng 1 lần thay vì ngõ cụt) (nền cũ: [D] 404 model khai tử + [E] chạy-lại-từ-đầu + [F] env-hoá + [H.10] empty-nudge; offline mock; tự-kiểm-ngược 6/6 mutation + red-team 14/14 `redteam_va_3loi.py`)
+- [ ] `python tests/test_model_fallback.py` = **84/84 PASS** — 42 cũ + **3 lỗi CAO** + **lát ĐỔI MODEL 3.6-flash**:
+      · [T] timeout fail-forward + câu trung thực (trước vá: exception thô ra trình duyệt)
+      · [C] MAX_TOKENS-còn-text nối cảnh báo CẮT ở CẢ 2 đường trả; guard-refuse thì KHÔNG nối
+      · [M] MAX_TOKENS-rỗng nhắc đúng 1 lần thay vì ngõ cụt
+      · [N] `_is_overloaded` không nhận nhầm số nằm TRONG số khác (`'15042'` ⊃ `'504'`)
+      · **[G] cổng THẾ HỆ thay D10 cũ** — soi `MODELS` (đã gộp env), so đời với `MODELS[0]`.
+        ⚠ **D10 cũ MÙ ĐÚNG CHIỀU NGUY HIỂM**: `GEMINI_MODEL=gemini-3.6-flash` + dự phòng 2.5 thì
+        chuỗi THẬT trộn đời mà cổng vẫn XANH; sửa cho ĐÚNG lại ĐỎ OAN. Kiểm lại bằng env thật.
+      · [P] 2 đường nhắc phải khai `da_goi_tool` · tín hiệu chạy-lại KHÔNG bị nuốt ở lượt ép-cuối
+      · [Q] payload khai `model_da_dung`; chỉ số rác -> **None** (không đoán); **Q4 tripwire**: tên
+        model chứa chữ số (`3.6`) KHÔNG được thành neo grounding
+      (offline mock; **tự-kiểm-ngược 6/6 + 8/8 mutation** · red-team `redteam_va_3loi.py` 14/14 +
+      `redteam_doi_model.py` 36/36 — red-team bắt **2 lỗi do CHÍNH bản vá đẻ ra**: `MODELS[-1]`
+      khai sai tên model, và kênh neo tiềm tàng từ tên model)
+- [ ] **MODEL (chốt 2026-08-07):** `mcp_bridge.MODEL` = **`gemini-3.6-flash`**, `_FALLBACK_DEFAULT` =
+      **`gemini-3.5-flash,gemini-3.5-flash-lite`** (CÙNG ĐỜI 3.x). `render.yaml` ghi TƯỜNG MINH cả
+      `GEMINI_MODEL` lẫn `GEMINI_FALLBACK_MODELS` — hai khoá này **phải đổi cùng nhau**.
+      Cả 3 model đã **ĐO THẬT là còn sống**; đối chứng âm `gemini-2.0-flash` ra CHẾT 404.
+- [ ] ⛔ **`temperature=0` KHÔNG CÒN LÀ HÀNG RÀO** kể từ khi lên Gemini 3 — đo thật: `2.5-flash`
+      cho **1 đáp án/5 lần**, `3.6-flash` cho **5 đáp án/5 lần** (prompt entropy cao). Gemini 3 BỎ
+      QUA tham số này. Chống bịa nay dựa HOÀN TOÀN vào hàng rào phía code (grounding-guard, rổ neo).
+      ⇒ **Mọi phép đo E2E phải chạy NHIỀU LƯỢT lấy phân bố, KHÔNG kết luận từ một lượt.**
+      (Suite trong cổng đều OFFLINE nên không bị ảnh hưởng.)
 - [ ] `python tests/test_size_guard.py` = **9/9** · `test_file_ttl.py` = **12/12** · `test_health.py` = **11/11** (robustness I/J/L, offline)
 - [ ] `python tests/test_session.py` = **36/36 PASS** (robustness K + **[K.7] R11 IDOR** cross-session 404 + **[K.8] F-A** race evict né phiên bận + **[K.9] bounded lock** 3 route có trần chờ + body từ chối đủ 4 khoá chữ)
 - [ ] **CHỊU TẢI (2026-07-30):** `test_admission` **63** [trần SỐ BẢN VẼ `MAX_BAN_VE`; A.13-A.17 = ca red-team-impl bắt] · `test_bridge_close` **28** [dọn tiến trình mồ côi + `call()` không treo sau close; B.6 qua đường truyền MCP THẬT] · `test_ty_le_do` **17** [DIMLFAC — bản vẽ tự khai hệ số tỉ lệ đo]

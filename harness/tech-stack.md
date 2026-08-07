@@ -9,7 +9,7 @@
 | Web host | **Flask** | 3.1.3 | Máy chủ web + "custom MCP host"; UI là HTML/JS nhúng trong biến `PAGE` (không dùng template engine) |
 | WSGI | **gunicorn** | 23.0.0 | Chạy production: 1 worker · 4 threads · timeout 600s (1 worker vì giữ 1 phiên MCP + 1 bản vẽ/lượt) |
 | Giao thức AI | **MCP** (FastMCP) | 1.27.0 | `mcp_server.py` = MCP server stdio; `mcp_bridge.py` = MCP client (ClientSession/stdio_client) |
-| LLM | **google-genai** (Gemini) | 2.10.0 | Model mặc định **gemini-2.5-flash** (đổi qua env `GEMINI_MODEL`); temperature=0, max_output_tokens=8192, auto-function-calling DISABLE, retry 429/5xx (3 lần), timeout 60s |
+| LLM | **google-genai** (Gemini) | 2.17.0 | Model mặc định **gemini-3.6-flash** (chốt 2026-08-07; đổi qua env `GEMINI_MODEL`), chuỗi dự phòng CÙNG ĐỜI `gemini-3.5-flash,gemini-3.5-flash-lite`; max_output_tokens=8192, auto-function-calling DISABLE, retry 429/5xx (3 lần), timeout 60s + fail-forward khi TIMEOUT. ⛔ `temperature=0` vẫn được truyền nhưng **Gemini 3 BỎ QUA** (đo thật: 2.5-flash 1 đáp án/5 lần, 3.6-flash 5/5) ⇒ KHÔNG còn là hàng rào chống bịa |
 | Đọc CAD | **ezdxf** | 1.4.4 | Đọc .dxf + `addons.drawing` để render ảnh |
 | Convert DWG | **ODA File Converter** | Qt6 (Linux .deb / .exe Windows) | .dwg→.dxf trên server (Linux qua `xvfb-run`); **KHÔNG cần AutoCAD** → deploy cloud được |
 | Vẽ ảnh | **matplotlib** | 3.10.9 | Backend **Agg** (headless, `MPLBACKEND=Agg`) → PNG khoanh đỏ cấu kiện |

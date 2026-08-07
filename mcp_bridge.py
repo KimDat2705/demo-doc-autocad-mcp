@@ -32,11 +32,25 @@ def _load_env():
 
 _load_env()
 API_KEY = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY") or ""
-# Mặc định gemini-2.5-flash: ỔN ĐỊNH + NHANH (2-8s) + quota free cao + chất lượng đủ tốt
-# (giữ trap-refusal + answer multi-part). Đã thử 3.5-flash nhưng bản mới hay 503 "high demand"
-# (timeout) -> không ổn cho đối tác. Pro preview thì quota ~25 req là cạn (429).
-# -> 2.5-flash là cân bằng tốt nhất cho DEMO. Đổi qua env GEMINI_MODEL khi cần (vd 3.5-flash lúc hết tải).
-MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
+# ⭐ 2026-08-07 — MẶC ĐỊNH ĐỔI `gemini-2.5-flash` -> `gemini-3.6-flash` (user chốt sau khi có số).
+# CĂN CỨ = A/B 198 câu × 3 model, 594 lượt hỏi THẬT, 0 dòng rơi:
+#     trục BẪY ảo giác (đọc TAY 12 ca)  2.5-flash 3 vi phạm · 3.6-flash 3 · 3.5-flash-lite 2
+#     ĐÚNG SỐ /172                      147 · 164 · 155
+#     RECALL "không có"                 34,3% · 19,8% · 18,0%   (thấp = tốt)
+#     HANDLE BỊA                        0 · 0 · 2               (lý do KHÔNG chọn lite làm chính)
+# Ngưỡng GO đặt TRƯỚC khi đo ("3.6 không thua ở trục bẫy VÀ không tụt recall") = ĐẠT.
+# GIÁ PHẢI TRẢ, khai báo thẳng: chậm ×2,3 (trung vị lượt hỏi 4,7s -> 10,8s) và đắt hơn — tỉ số
+# ×8 trong sổ là tính tay theo giá NIÊM YẾT, đo lại thấy implicit caching ĐANG chạy sẵn (trúng
+# 75,2% phần tĩnh) nên ×8 là CẬN TRÊN, chưa phải hoá đơn thật.
+# ⛔ MẤT MÁT PHẢI BIẾT: Gemini 3 BỎ QUA `temperature` (đo thật: 2.5-flash ở temp=0 cho 1 đáp án
+#    /5 lần, 3.6-flash cho 5 đáp án/5 lần). `temperature=0` — "lựa chọn chống bịa cốt lõi" ghi ở
+#    docstring dưới — KHÔNG còn hiệu lực từ đây; chống bịa dựa HOÀN TOÀN vào hàng rào phía code
+#    (grounding-guard, rổ neo). Hệ quả đo lường: mọi phép đo E2E phải chạy NHIỀU LƯỢT lấy phân bố,
+#    KHÔNG kết luận từ một lượt nữa. (Suite trong cổng đều OFFLINE nên không bị ảnh hưởng.)
+# Lịch sử: mặc định cũ 2.5-flash được chọn vì ổn định + nhanh + quota free cao; lý do "3.5-flash
+# hay 503 high demand / Pro preview cạn quota ~25 req" là đo trên FREE TIER, đã hết hiệu lực sau
+# khi gia hạn thanh toán. Đổi qua env GEMINI_MODEL khi cần.
+MODEL = os.environ.get("GEMINI_MODEL", "gemini-3.6-flash")
 # Trần chờ MCP server con sẵn sàng. 40s hard-code trước đây MỎNG: đo thật thời gian spawn biến động 2.06s ->
 # 17.97s trên CÙNG máy local, mà CPU chia sẻ của Render free chậm hơn ~3.3x (import app 9.62s so với ~2.9s local).
 try:
@@ -50,22 +64,66 @@ MAX_TURNS = int(os.environ.get("GEMINI_MAX_TURNS", "14"))
 # ---- Robustness H — CHUỖI MODEL DỰ PHÒNG khi model chính 429 (cạn quota) / 503 (quá tải) KÉO DÀI ----
 # Phân tầng: SDK (HttpRetryOptions) đã retry HTTP 429/5xx ~3 lần/model cho blip tạm; H kích khi model VẪN
 # cạn/quá tải SAU retry -> NHẢY model kế trong chuỗi (fail-forward), KHÔNG lùi lại model đã hỏng trong cùng
-# request. Cấu hình chuỗi phụ qua env GEMINI_FALLBACK_MODELS (danh sách ngăn phẩy). Mặc định 2.0-flash,1.5-flash
-# (free-tier phổ biến); deploy nên đặt theo model account có quyền. Chuỗi rỗng -> hành vi CŨ (1 model).
+# request. Cấu hình chuỗi phụ qua env GEMINI_FALLBACK_MODELS (danh sách ngăn phẩy). Chuỗi rỗng -> hành vi CŨ.
 # ⛔ ĐO THẬT 2026-08-07 (ngay khi API được gia hạn): CẢ HAI model dự phòng cũ ĐÃ CHẾT —
 # `gemini-2.0-flash` trả 404 nguyên văn "This model models/gemini-2.0-flash is no longer
 # available", `gemini-1.5-flash` trả 404 "is not found". Nghĩa là chuỗi dự phòng ĐÃ MỤC CẢ HAI
 # NẤC, không phải một nấc như sổ ghi trước đây. Hậu quả LIVE: một cú 429/503 trên model chính
 # làm `_gen_fallback` nhảy sang model chết -> 404 -> `_is_overloaded(404)=False` -> NÉM LỖI thay
 # vì tụt model ⇒ người dùng nhận lỗi đúng lúc hệ đang tải cao.
-# Thay bằng `gemini-2.5-flash-lite` — đo thật là CÒN SỐNG và CÙNG THẾ HỆ 2.5 với model chính.
-# ⚠ CỐ Ý KHÔNG dùng 3.x ở đây: Gemini 3 đính THOUGHT SIGNATURE vào mỗi function_call và từ chối
-# chữ ký của model khác, nên đổi sang 3.x GIỮA CHỪNG một request (đúng việc _gen_fallback làm)
-# sẽ 400. Chuyển 3.x là lát riêng, phải vá "chạy lại request TỪ ĐẦU" + A/B trước.
-_FALLBACK_DEFAULT = "gemini-2.5-flash-lite"
+# ⭐ 2026-08-07 (lát đổi model): model chính lên `gemini-3.6-flash` ⇒ chuỗi phụ PHẢI lên 3.x theo,
+# nếu không thì mỗi lần tụt model là một lần TRỘN THẾ HỆ. Chuỗi mới `3.5-flash -> 3.5-flash-lite`.
+# ĐO THẬT trước khi chốt (đúng lớp lỗi phiên trước để lọt — chuỗi dự phòng chưa từng chạy được mà
+# không ai biết vì không ai đo): gọi thật từng model, `3.6-flash`/`3.5-flash`/`3.5-flash-lite` đều
+# SỐNG, đối chứng ÂM `gemini-2.0-flash` ra CHẾT 404 ⇒ phép đo có khả năng ra kết quả khác.
+# ⚠ VÌ SAO VẪN PHẢI CÙNG THẾ HỆ dù đã có bản vá chạy-lại-từ-đầu: bản vá đó ĐỠ ĐƯỢC lỗi 400
+# 'Corrupted thought signature', nhưng cái giá là GỌI LẠI TOÀN BỘ TOOL (×2 thời gian, ×2 RAM trên
+# gói free đã sát trần, ×2 tác dụng phụ ghi ảnh/Excel). Cùng thế hệ TRÁNH HẲN đường đó thay vì chỉ
+# xử lý được nó. Cổng [G] khoá bất biến này trên `MODELS` (đại lượng thật, đã gộp env).
+_FALLBACK_DEFAULT = "gemini-3.5-flash,gemini-3.5-flash-lite"
 MODELS = [MODEL] + [m.strip() for m in os.environ.get("GEMINI_FALLBACK_MODELS", _FALLBACK_DEFAULT).split(",")
                     if m.strip() and m.strip() != MODEL]
 _OVERLOAD_CODES = {429, 500, 502, 503, 504}   # 429 cạn quota · 503 quá tải · 5xx transient (khớp HttpRetryOptions)
+# Mã lỗi trong CHUỖI thông điệp phải đứng RIÊNG, không được nằm lọt trong một con số khác.
+# ĐO THẬT (bug TRUNG 2026-08-07): vế cũ dùng `str(c) in s` trần nên `'400 INVALID_ARGUMENT: token
+# count 15042 exceeds limit'` khớp '504' ⇒ `_is_overloaded` = True ⇒ một lỗi CẤU HÌNH VĨNH VIỄN
+# bị xử như quá tải: hoặc tụt model âm thầm, hoặc trả "⚠ đang quá tải, thử lại sau ít phút" =
+# NÓI SAI SỰ THẬT (chờ không bao giờ hết). Gemini 3 sinh lỗi 400 mang SỐ nhiều hơn hẳn 2.5 (đếm
+# token / ngân sách / thought signature) nên lớp lỗi này nóng lên đúng lúc đổi model.
+# Chặn cả hai phía bằng digit VÀ dấu chấm: '15042' (digit trước) và '1.5039' (chấm trước) đều rớt.
+# Đây là SIẾT PHẠM VI của một hàng rào, KHÔNG đổi luật: mọi ca quá-tải thật vẫn đi qua nhánh
+# thuộc tính `.code` (đường chính) hoặc nhánh từ-khoá ngữ nghĩa bên dưới.
+_RE_MA_QUA_TAI = re.compile(r"(?<![\d.])(?:429|500|502|503|504)(?![\d.])")
+
+# `models/` là dạng tên HỢP LỆ của API (models/gemini-3.6-flash). Không nuốt tiền tố này thì một
+# cấu hình đúng luật sẽ làm cổng [G] ĐỎ OAN — mà cổng đỏ oan là đường ngắn nhất dẫn tới việc ai đó
+# nới lỏng chính cái cổng đó. Vẫn fail-closed với tên thật sự không đọc được.
+_RE_THE_HE = re.compile(r"^(?:models/)?gemini-(\d+)\.")
+
+
+def _the_he(m):
+    """Đời (thế hệ) của một tên model: 'gemini-3.6-flash' -> '3'. KHÔNG đọc được -> None.
+
+    Trả None thay vì đoán là CỐ Ý (fail-closed): tên lạ đi qua `_chuoi_cung_the_he` sẽ bị coi là
+    KHÔNG đạt, buộc người cấu hình khai báo rõ, thay vì im lặng cho qua một chuỗi có thể trộn."""
+    if not m or not isinstance(m, str):
+        return None
+    g = _RE_THE_HE.match(m.strip())
+    return g.group(1) if g else None
+
+
+def _chuoi_cung_the_he(models):
+    """Mọi model trong chuỗi có CÙNG ĐỜI với model đầu chuỗi không?
+
+    Thay cổng D10 cũ — cổng đó ghim chuỗi 'gemini-2.5' và soi HẰNG `_FALLBACK_DEFAULT`, nên MÙ
+    ĐÚNG CHIỀU NGUY HIỂM: đặt env GEMINI_MODEL=gemini-3.6-flash mà giữ dự phòng 2.5 thì chuỗi
+    THẬT trộn thế hệ nhưng cổng vẫn XANH; ngược lại sửa cho ĐÚNG lại ĐỎ OAN. Bản này soi chính
+    danh sách `MODELS` và so tương đối với `MODELS[0]`, nên đúng với MỌI đời model về sau."""
+    ds = [m for m in (models or []) if m]
+    if len(ds) <= 1:
+        return True
+    g0 = _the_he(ds[0])
+    return g0 is not None and all(_the_he(m) == g0 for m in ds[1:])
 
 
 def _is_overloaded(e):
@@ -76,7 +134,7 @@ def _is_overloaded(e):
         if isinstance(v, int) and v in _OVERLOAD_CODES:
             return True
     s = str(e).lower()
-    if any(str(c) in s for c in _OVERLOAD_CODES):
+    if _RE_MA_QUA_TAI.search(s):
         return True
     return any(k in s for k in ("resource_exhausted", "resourceexhausted", "unavailable",
                                 "overloaded", "quota", "rate limit", "rate_limit", "high demand"))
@@ -170,6 +228,27 @@ def _het_gio(e):
         return True
     s = str(e).lower()
     return "timed out" in s or "deadline exceeded" in s
+
+
+def _model_dang_dung(state):
+    """Tên model THỰC SỰ đã trả lời lượt này (theo con trỏ chuỗi `state['i']`).
+
+    Vì sao cần (bug TRUNG 2026-08-07 — "thất bại phải LỘ"): `state['tried']` được GHI nhưng
+    grep toàn repo không có chỗ nào ĐỌC; payload trả về không mang tên model; `/config` và
+    `/health` chỉ echo model CẤU HÌNH. Nên một câu do model DỰ PHÒNG viết ra không phân biệt
+    được với câu của model chính — trong khi chênh lệch chất lượng là THẬT và đã đo:
+    3.6-flash 164/172 số đúng, còn nhánh `3.5-flash-lite` BỊA HANDLE 2 ca.
+
+    ⚠ TRẢ None KHI KHÔNG BIẾT CHẮC, không đoán. Red-team bắt: bản đầu dùng `MODELS[i]` trần nên
+    `i = -1` trả về model CUỐI chuỗi (Python đánh chỉ số âm từ cuối) — một trường sinh ra để LỘ
+    sự thật mà lại khai SAI TÊN MODEL thì tệ hơn là không khai."""
+    try:
+        i = state.get("i", 0) if isinstance(state, dict) else 0
+        if isinstance(i, bool) or not isinstance(i, int):
+            return None
+        return MODELS[i] if 0 <= i < len(MODELS) else None
+    except Exception:
+        return None
 
 
 def _la_max_tokens(fr):
@@ -1450,6 +1529,7 @@ def _tra_loi_ai_mot_lan(bridge, q, file_summary="", history=None, model_bat_dau=
         bi_cat = _la_max_tokens(_fr) and bool(text)   # câu CÓ text nhưng bị cắt cụt -> nối cảnh báo lúc trả
         if (not da_goi) and (not da_nhac) and any(c.isdigit() for c in text):
             da_nhac = True
+            _mstate["da_goi_tool"] = True   # 2026-08-07: append Content DO MODEL SINH = contents NHIỄM
             contents.append(cand.content)
             contents.append(types.Content(role="user", parts=[types.Part(text=(
                 "Bạn nêu con số nhưng CHƯA gọi công cụ. Hãy GỌI công cụ phù hợp rồi trả lời lại theo kết quả. "
@@ -1458,6 +1538,7 @@ def _tra_loi_ai_mot_lan(bridge, q, file_summary="", history=None, model_bat_dau=
         if not text:
             if not da_nhac_rong:      # Gemini 2.5-flash đôi khi trả part 'thought' RỖNG (không text/không tool) ở lượt đầu
                 da_nhac_rong = True   # -> NHẮC 1 lần (thay vì bỏ cuộc ngay) để model thật sự trả lời/gọi tool (robustness E2E)
+                _mstate["da_goi_tool"] = True   # 2026-08-07: như trên — Content của model vào contents = NHIỄM
                 contents.append(cand.content)
                 contents.append(types.Content(role="user", parts=[types.Part(text=(
                     "Bạn CHƯA đưa ra câu trả lời. Hãy GỌI công cụ phù hợp rồi TRẢ LỜI bằng văn bản. "
@@ -1471,6 +1552,7 @@ def _tra_loi_ai_mot_lan(bridge, q, file_summary="", history=None, model_bat_dau=
         _ans, _hk = _apply_i1(_goc, tool_handles, tool_numbers, bridge, q)   # I1: đối chiếu handle trích dẫn (nối cảnh báo)
         _ans = _noi_canh_bao_cat(_ans, text, bi_cat)         # 2026-08-07: câu cụt phải LỘ là cụt (sau guard, additive)
         return {"answer": _ans, "answer_goc": _goc, "handle_kiem": _hk, "kb_cau_hoi": kb_cau_hoi,
+                "model_da_dung": _model_dang_dung(_mstate),  # 2026-08-07: tụt model KHÔNG được âm thầm
                 "evidence": _flat_ev(evidence), "anh_id": anh_id, "file_id": file_id, "ai": True}
 
     # Hết lượt tool mà chưa chốt (Flash hay LẶP gọi tool) -> ÉP trả lời NGAY từ dữ liệu ĐÃ thu,
@@ -1497,7 +1579,15 @@ def _tra_loi_ai_mot_lan(bridge, q, file_summary="", history=None, model_bat_dau=
             # trả về như câu trọn vẹn. Cùng bản vá additive với đường chính.
             _ans = _noi_canh_bao_cat(_ans, text, _la_max_tokens(getattr(cand, "finish_reason", None)))
             return {"answer": _ans, "answer_goc": _goc, "handle_kiem": _hk, "kb_cau_hoi": kb_cau_hoi,
+                    "model_da_dung": _model_dang_dung(_mstate),
                     "evidence": _flat_ev(evidence), "anh_id": anh_id, "file_id": file_id, "ai": True}
+    except _CanChayLaiTuDau:
+        # 2026-08-07: TRƯỚC VÁ bị `except Exception: pass` dưới NUỐT — đúng lượt mà `da_goi_tool`
+        # gần như LUÔN True (đã chạy hết MAX_TURNS gọi tool), nên đường tụt model MẤT HẲN và
+        # người dùng nhận câu "hỏi cụ thể từng phần" = SAI NGUYÊN NHÂN, giấu việc hệ đang quá tải.
+        # Giá của việc chạy lại (gọi lại toàn bộ tool) đã khai ở docstring `tra_loi_ai`; trần lặp
+        # = số model nên bị chặn cứng. Cùng khuôn với `except _CanChayLaiTuDau: raise` ở vòng chính.
+        raise
     except Exception:
         pass
     return {"answer": "Câu hỏi cần tra cứu phức tạp. Hãy thử hỏi cụ thể từng phần (ví dụ hỏi riêng số lượng, riêng kích thước).",

@@ -2,7 +2,11 @@
 """Chạy BỘ KỊCH BẢN TEST (tổng quát -> chi tiết -> phức tạp -> bẫy) trên demo 2 (2.5-flash)
 để lấy ĐÁP ÁN THẬT + đối chiếu ground truth. File: KIẾN TRÚC CT-A (file cửa đối tác dùng)."""
 import os, sys, io, json, time
-os.environ["READFILE_MAX_MB"] = "300"; os.environ["GEMINI_MODEL"] = "gemini-2.5-flash"
+os.environ["READFILE_MAX_MB"] = "300"
+# setdefault (KHONG gan de): gan truc tiep se DE env dat tu ngoai, nen sau khi doi model tren prod
+# thi kich ban van cham model CU -> "cong xanh nhung xanh cho model khong chay". Muon tai hien phep
+# do cu thi dat GEMINI_MODEL=gemini-2.5-flash truoc khi chay.
+os.environ.setdefault("GEMINI_MODEL", "gemini-3.6-flash")
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 sys.path.insert(0, os.path.normpath(os.path.join(os.path.dirname(__file__), "..")))
 import mcp_bridge
