@@ -99,7 +99,7 @@
 > ⚠ **Kỷ luật đo:** đọc tay ≥10 ca trước khi tin số tổng hợp. *Trong chính phiên này phép đo cho **3 kết quả sai liên tiếp** (12,6% trùng khớp · 98/198 "không neo" · "Flash giỏi hơn Pro") — cả 3 đều trông hợp lý* (`[[feedback-kiem-bo-trich-truoc-khi-tin-so]]`).
 
 ## 🏁 CHỐT SỔ PHIÊN 2026-08-06→08-07 — **ĐỌC KHỐI NÀY TRƯỚC**
-> **HEAD `7e24bc5`+docs · tree SẠCH · cổng `[49/49]` PASS (, 0 dòng , **tổng 1.701 ca** — đo lại lúc chốt sổ) · 36 MCP tool · `feature_list` 91 mục** (72 done · 1 partial · 14 deferred · 4 planned). ⚠ pytest **VẪN crash** (kiểm lại cuối phiên, không phải nhớ) — cổng là `check.sh`. **KHÔNG có `specs/specs.json`**.
+> **HEAD `7e24bc5`+docs · tree SẠCH · cổng `[49/49]` PASS — `EXIT_CODE_THẬT=0`, 0 dòng `FAIL:`, **tổng 1.701 ca** (1.680 + 21 ca lát 4a), đo lại lúc chốt sổ · 36 MCP tool · `feature_list` 91 mục** (72 done · 1 partial · 14 deferred · 4 planned). ⚠ pytest **VẪN crash** (kiểm lại cuối phiên, không phải nhớ) — cổng là `check.sh`. **KHÔNG có `specs/specs.json`**.
 >
 > ### ⭐⭐ CHUẨN MỚI CỦA USER — ÁP CHO MỌI VIỆC ĐỌC-SỐ, ĐỪNG THƯƠNG LƯỢNG LẠI
 > *"Chính xác gần như phải TUYỆT ĐỐI vì số chảy vào **DỰ TOÁN**. Tuyệt đối không 9-bỏ-làm-10."*
