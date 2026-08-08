@@ -12,6 +12,34 @@
 > **Muốn public thật sau này — ĐỪNG LÀM LẠI TỪ ĐẦU:** nhánh local **`public-ready`** đã có sẵn trọn gói (history sạch không .deb qua `git filter-repo` · Dockerfile tải ODA tuỳ chọn qua `ODA_DEB_URL` · thông báo .dxf-only thân thiện · .gitignore chặn .deb). Đánh đổi: cloud chỉ đọc .dxf tới khi đặt `ODA_DEB_URL`. Mirror backup: `D:/Dat-Antigravity/_backup_repo_truoc_khi_public_20260717/repo-mirror.git`.
 
 
+## 🧪 2026-08-08 — **ĐẦU MỤC 2/3: E2E BẢN VẼ LỚN (24,4 MB) TRÊN BẢN LIVE** — đúng số trọn vẹn, lộ 1 lỗ CÓ SẴN
+> **Phạm vi — nói trước để không overclaim:** bộ 198 câu ĐÃ chạy trên `3.6-flash` (`run06`) nhưng chạy **LOCAL**. Thứ chưa từng kiểm là **BẢN DEPLOY** có kham nổi bản vẽ lớn không (RAM 512MB · trần 60s/lượt với model chậm ×2,3 · `LOCK_WAIT_S=3` · `MAX_BAN_VE=1`). Đây KHÔNG phải phép chấm lại chất lượng model.
+> **Bản vẽ:** `ketcau` = **24,4 MB** (244× file 0,1MB của lượt E2E trước), 126 layer / 21.077 đối tượng. Câu hỏi + nhãn `ky_vong` lấy **nguyên** từ `tests/battery.json` — nhãn ĐỘC LẬP, viết từ trước, không phải tôi tự ra đề (đúng bài học §3.1 của `QUY_TRINH_DO_AB.md`).
+>
+> | Trục | Kết quả |
+> |---|---|
+> | **Đúng số** | **24/24 lượt · 8/8 câu đúng TRỌN 3/3** |
+> | Chống bịa | 3/6 lượt · **1/2 câu** — id100 từ chối trọn 3/3 · **id85 VI PHẠM 3/3** |
+> | Câu bị cắt | **0** |
+> | Thời gian | trung vị **3,8s** · p95 13,9s · **MAX 65,0s** (1/30 lượt >50s) |
+> | RAM | 139,3 → **416,3 MB** / trần 512 (**81%**) · `errors: 0` suốt 30 lượt |
+> | Nạp 24,4MB lên LIVE | **~87s** |
+>
+> **Vượt qua được cả 2 bẫy bộ-trích đã biết:** model viết `13.379,9` và `18.072` kiểu dấu phân cách VN — bộ chấm chuẩn hoá HAI CHIỀU nên không hạ oan (đúng lớp lỗi từng làm mất 11 ca); và câu id76 *"cột C4 tiết diện bao nhiêu"* — model nêu **CẢ HAI** `220×500` và `220×400` như `ky_vong` đòi, không chọn bừa một.
+>
+> ### 🔴 id85 — LỖ CÓ SẴN, KHÔNG PHẢI HỒI QUY, VÀ GUARD VỀ NGUYÊN TẮC KHÔNG BẮT ĐƯỢC
+> Câu *"Công trình cao bao nhiêu mét (từ cos ±0.000 đến đỉnh)?"* — `ky_vong` đòi **TỪ CHỐI** suy chiều cao từ cao độ (cao độ là **text toạ độ**, không phải khoảng cách hình học đo được). Đọc tay 3/3 lượt: model đều trả *"Chiều cao công trình … **10.8 m**"*, có lượt còn suy thêm *"3.6 m/tầng, ước tính 2 tầng chính + mái"*.
+> **Đối chiếu 3 model (dữ liệu A/B có sẵn, offline, miễn phí):** `2.5-flash` → *"công trình cao 10.8m"* · `3.6-flash` → *"10.8 m"* · `3.5-flash-lite` → *"7.2 mét (ước tính khoảng 2 tầng)"* — **vi phạm, và còn LẤY NHẦM `+7.200` làm đỉnh**. ⇒ **CẢ BA model đều vi phạm ⇒ KHÔNG phải hồi quy của việc đổi model.** (3.6-flash thực ra là bản đọc đúng nhất trong ba.)
+> ⛔ **Vì sao grounding-guard không thể bắt:** `10.8` **CÓ NEO THẬT** (`+10.800` nằm trong kết quả tool, kèm handle `11FA7D`). Guard chỉ chặn số **không truy được nguồn**; đây là **số đúng + bước SUY DIỄN NGỮ NGHĨA sai** (cao độ text cao nhất ≠ đỉnh công trình — có thể là chi tiết cục bộ, mặt cắt, hay hạng mục khác). Đúng lớp *"trích ĐÚNG nhưng GÁN SAI NGHĨA"* mà khối comment `_a3_trich_trang_in` đã tự khai là **rủi ro tồn dư không chặn hết được**.
+> ⇒ Đây là đầu mục RIÊNG (hàng rào suy-diễn), **không** giải được bằng lát ×1000 hay bằng đổi model. Chưa mở.
+>
+> ### 📌 MỘT LẦN NỮA SUÝT GHI SAI — cứu bằng repro, không bằng suy luận
+> Lượt nạp thứ hai trả `RemoteDisconnected` và `/health.metrics` reset về 0 ⇒ tôi kết luận *"upload bản vẽ thứ hai làm tiến trình sập vì RAM"*. **Chạy repro có quan sát thì SAI:** 2 lần nạp 24,4MB liên tiếp **đều OK** (88,8s và 86,7s), RAM giữ ~365MB, không restart. Đường **thay bản vẽ** (`MAX_BAN_VE=1` → đuổi bản cũ) **chạy đúng**. Sự cố kia là **một lần lẻ, không tái hiện được**.
+> ⇒ Nối dài `QUY_TRINH_DO_AB.md` §1.8: một lần quan sát bất thường **không phải** một phép đo. Repro trước, kết luận sau.
+>
+> ### ⏭ SỐ ĐỂ DÀNH CHO NHÓM C (chịu tải, đang HOÃN)
+> 24,4 MB → đỉnh **416 MB / 512 MB = 81%**. Đây là số ĐO THẬT trên Linux/Render, thay cho ước cũ. Trần `READFILE_MAX_MB=45` hiện tại **chưa từng được đo ở mức 45MB** — dư địa còn lại mỏng hơn con số cấu hình gợi ý. Đừng nâng trần khi chưa đo.
+
 ## 🏁 2026-08-07 (PHIÊN NỐI) — **`gemini-3.6-flash` ĐÃ LIVE `683f0e4`** · vá 3 lỗi CAO · thay cổng D10 mù
 > **CLOUD LIVE `683f0e4`** (verify `/version` + `/config` + `/health`). **6 commit tồn đọng đã PUSH HẾT — `origin/main` = HEAD, cây SẠCH.**
 > **CỔNG `[50/50]` PASS · `EXIT_CODE_THẬT=0` · 1.805 → 1.847 ca · 0 FAIL.** Đối chiếu TỪNG DÒNG với cổng baseline: **lệch ĐÚNG 1 dòng** (suite fallback 42→84), 47 suite còn lại giữ nguyên từng con số — hợp lý vì mọi suite trong cổng đều OFFLINE.
