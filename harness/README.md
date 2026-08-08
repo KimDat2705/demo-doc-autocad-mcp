@@ -17,6 +17,7 @@ tổng quát** (hệ thống là gì / tổ chức ra sao / chạy-kiểm thế 
 | `evaluator-rubric.md` | Chấm 1–5 theo 9 tiêu chí (mức nhiệm vụ) + bảng điểm demo 2 |
 | `quality-document.md` | Bảng điểm theo chiều (A/B) + bằng chứng cổng + **giới hạn thật** (không tô hồng) |
 | `clean-state-checklist.md` | Checklist trước commit / cuối phiên |
+| `QUY_TRINH_DO_AB.md` | ⭐ **20 cách phép đo A/B tự hỏng** + cách chặn từng cái — đọc TRƯỚC khi viết dòng script đo đầu tiên (đổi prompt / đổi model / bật-tắt cơ chế) |
 | `session-handoff.md` | Bàn giao phiên (làm gì / còn gì / quyết định / file sửa / commit) |
 | `benchmark_questions.json` | Bộ câu hỏi + đáp án chuẩn (đọc từ file thật) — neo về tiêu chí rubric |
 | `scripts/check.sh` | Cổng: import+đếm tool / no-key / test chống bịa → "HARNESS GATE: PASS/FAIL" |
