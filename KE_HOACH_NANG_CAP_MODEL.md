@@ -1,5 +1,38 @@
 # KẾ HOẠCH NÂNG CẤP MODEL GEMINI (2.5-flash → 3.6-flash)
 
+> ## ⛔ ĐÍNH CHÍNH 2026-08-08 — "HẠN CỨNG 16/10/2026" KHÔNG CÓ NGUỒN GOOGLE
+>
+> Toàn bộ file này dựng trên tiền đề *"Google ấn định 16/10/2026, còn ~10 tuần, không làm = demo
+> chết"*. **Tra lại tận nguồn thì tiền đề đó không đứng được:**
+>
+> | Nguồn | Nói gì về `gemini-2.5-flash` |
+> |---|---|
+> | **Trang deprecations của Gemini API** (chính endpoint dự án dùng) | Bảng có 4 cột *Model · Release date · Shutdown date · Recommended replacement*. Hàng `gemini-2.5-flash`: Release **17/06/2025**, Shutdown = **"No shutdown date announced"**, Replacement = **rỗng**. Chuỗi "October 16, 2026" **KHÔNG xuất hiện ở bất kỳ đâu trên trang** |
+> | **Trang deprecations của Vertex AI** | Chỉ có ĐÚNG MỘT mục: module Generative AI trong Vertex SDK (tắt 24/06/2026). **Không có mốc model nào**, không có 16/10 |
+> | **Trang model-versions của Vertex** | Không có mốc khai tử nào |
+> | **Gọi API thật 2026-08-08** | `gemini-2.5-flash` và `gemini-2.5-flash-lite` **đều SỐNG**, đều có mặt trong `models.list()` |
+>
+> **Nguồn thật của con số 16/10:** chính file này, mục NGUỒN, dòng cuối — `benchr.org`, một trang
+> **tổng hợp bên thứ ba**. Nó bị chép vào ô "BẮT BUỘC" của bảng đầu file rồi lan sang
+> `feature_list.json` và `session-handoff.md` như một sự thật đã kiểm.
+>
+> ⚠ **Giả thuyết "16/10 là mốc của Vertex, không phải Gemini API" cũng KHÔNG kiểm chứng được** —
+> tôi không tìm thấy nó trên trang Vertex nào. Đừng chép lại giả thuyết đó như đính chính.
+>
+> ### Điều này ĐỔI gì và KHÔNG đổi gì
+> **ĐỔI:** GĐ4 (dọn `2.5-flash` khỏi mặc định/tài liệu/test) **không còn bị một mốc ngày ép**.
+> Hạ ưu tiên, không phải việc gấp.
+> **KHÔNG ĐỔI:** quyết định lên `3.6-flash` vẫn đúng — nó thắng bằng **chất lượng đo được**
+> (đúng số 164/172 so với 147), không phải vì sợ hạn. Và `2.5-flash` vẫn nằm ở nhánh dự phòng
+> nên vẫn phải theo dõi.
+> **CẢNH BÁO NGƯỢC LẠI — "không có ngày công bố" KHÔNG bằng "an toàn":** chính trang đó ghi
+> *"shutdown dates listed indicate the **earliest possible dates**"*, và dự án đã tận mắt thấy
+> `gemini-2.0-flash` + `gemini-1.5-flash` **chết thật** trong khi sổ ghi là còn sống. Có forum báo
+> `2.5-flash` trả 404 ngày 09/07/2026 — hôm nay đo lại thì sống, nên đó là sự cố tạm thời hoặc
+> báo nhầm, nhưng nó cho thấy model **có thể chết không báo trước**.
+> ⇒ **Thứ bảo vệ được là PHÉP ĐO ĐỊNH KỲ, không phải cái mốc ngày trong tài liệu.** Chạy
+> `scratchpad/do_model_song.py` (gọi thật từng model, có đối chứng âm) mỗi khi nghi ngờ.
+
 > **Nghiên cứu 2026-08-06.** Trạng thái: **NGHIÊN CỨU XONG — CHƯA CODE.**
 > Nhóm việc: **A** (chức năng chính — model là tầng định tuyến + diễn giải của đường đọc-đúng).
 > ⛔ **CHẶN:** API key đang bị Google khoá vì **chưa gia hạn thanh toán** (sếp xác nhận 2026-08-06).
