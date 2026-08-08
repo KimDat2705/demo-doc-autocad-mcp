@@ -9,6 +9,68 @@
 > Mới nhất ở TRÊN CÙNG. Bàn giao đầy đủ: `session-handoff.md`. Nhật ký chi tiết hơn nữa: `../GHI_CHU_HOAN_THIEN.md`.
 
 ---
+## 🏁 2026-08-07 (PHIÊN NỐI) — **`gemini-3.6-flash` ĐÃ LIVE `683f0e4`** · vá 3 lỗi CAO · thay cổng D10 mù
+> **CLOUD LIVE `683f0e4`** (verify `/version` + `/config` + `/health`). **6 commit tồn đọng đã PUSH HẾT — `origin/main` = HEAD, cây SẠCH.**
+> **CỔNG `[50/50]` PASS · `EXIT_CODE_THẬT=0` · 1.805 → 1.847 ca · 0 FAIL.** Đối chiếu TỪNG DÒNG với cổng baseline: **lệch ĐÚNG 1 dòng** (suite fallback 42→84), 47 suite còn lại giữ nguyên từng con số — hợp lý vì mọi suite trong cổng đều OFFLINE.
+>
+> ### ⛔ PHÉP ĐO LẬT 3 GIẢ ĐỊNH CỦA CHÍNH KẾ HOẠCH — đọc trước khi trích lại bất cứ số nào
+> **① `temperature=0` KHÔNG CÒN TÁC DỤNG trên Gemini 3.** Đo thật (prompt entropy cao, 5 lượt, **đối chứng dương ĐẠT**): `2.5-flash` cho **1 đáp án/5 lần** (`'738291'`×5), `3.6-flash` cho **5 đáp án/5 lần**. Rủi ro "R1" của kế hoạch ghi là *"xung đột thiết kế, phải A/B riêng"* — sai bản chất: **tham số bị BỎ QUA**. Thứ `mcp_bridge.py` tự khai là *"lựa chọn CHỐNG BỊA cốt lõi"* nay **không bảo vệ gì**; đây là thuộc tính của Gemini 3 nói chung nên chọn `3.5-flash-lite` cũng không tránh được. **HỆ QUẢ PHẢI NHỚ:** chống bịa dựa HOÀN TOÀN vào hàng rào phía code, và **mọi phép đo E2E từ nay phải chạy NHIỀU LƯỢT lấy phân bố** — kết luận từ một lượt là vô nghĩa. Nhãn ca test F1 đã sửa (nó từng khẳng định đây là hàng rào chống bịa).
+> **② 31 khai báo tool gửi cho Gemini, KHÔNG phải 37** — `gemini_tools()` lọc 6 tool host-only. Mọi phép tính caching theo 37 lệch ~19% ở vế tool.
+> **③ implicit caching ĐANG CHẠY SẴN** (đo sạch, danh sách cache explicit rỗng): trúng **75,2%** phần tĩnh 3 lần liên tiếp rồi **RƠI VỀ 0%** lần thứ 4 ⇒ con số **"×8 tiền" là tính tay theo GIÁ NIÊM YẾT, là CẬN TRÊN**, chưa phải hoá đơn.
+>
+> ### ✅ ĐO CHUỖI MODEL TRƯỚC KHI CHỐT (đúng lớp lỗi phiên trước để lọt)
+> Phiên trước phát hiện chuỗi dự phòng **chưa từng chạy được** mà không ai biết — vì không ai đo. Lần này gọi thật từng model: `3.6-flash` / `3.5-flash` / `3.5-flash-lite` **đều SỐNG**; **đối chứng ÂM `gemini-2.0-flash` ra CHẾT 404** ⇒ phép đo có khả năng ra kết quả khác, không phải tautology.
+>
+> ### ✅ GĐ0 — 3 LỖI CAO vá TRƯỚC (`de981fb`), đều là bug HÔM NAY chỉ nóng lên theo Gemini 3
+> **(a) Câu bị CẮT trả về ÂM THẦM như câu hoàn chỉnh** — `if special and not text` vứt cảnh báo khi CÓ text; câu cụt đi qua được **cả grounding-guard** (số của nó có neo thật) nên không hàng rào nào bắt. 3.6-flash sinh **×3,1 token ra** ⇒ tần suất tăng mạnh. Vá: `_noi_canh_bao_cat()` NỐI cảnh báo ở **cả 2 đường trả**, và **không nối vào câu guard đã thay** (kiểm bằng PHÉP CHỨA, không so danh sách thông điệp — danh sách khoá cứng là bề mặt dễ quên).
+> **(b) `MAX_TOKENS` + text RỖNG = NGÕ CỤT** (không nhắc/không retry/không tụt model) — vá: nhắc ĐÚNG 1 lần, phủ cả ca `content=None`. Cố ý KHÔNG append phần thought cụt ⇒ né luôn việc gửi part suy-nghĩ của model này cho model khác.
+> **(c) TIMEOUT không được nhận là quá tải** ⇒ 0 fail-forward và **phơi nguyên văn exception Python ra trình duyệt đối tác**. Vá: `_het_gio()` nhận theo KIỂU + TÊN LỚP (không cần import httpx).
+>
+> ### ✅ GĐ3 — ĐỔI MODEL
+> `MODEL` → `gemini-3.6-flash` · `_FALLBACK_DEFAULT` → `gemini-3.5-flash,gemini-3.5-flash-lite` (**CÙNG ĐỜI 3.x**) · `render.yaml` ghi **TƯỜNG MINH** cả `GEMINI_MODEL` lẫn `GEMINI_FALLBACK_MODELS` (trước đó blueprint KHÔNG đặt ⇒ deploy ăn mặc định code; sửa trên dashboard thì deploy lại từ blueprint là MẤT) · 3 script E2E đổi `os.environ[...]=` (GÁN ĐÈ) sang `setdefault` — gán đè khiến sau khi đổi model prod, kịch bản vẫn chấm **model CŨ** = *"cổng xanh nhưng xanh cho model không chạy"*. `rerun2.py` GIỮ 2.5-flash vì nó TÁI HIỆN phép đo cũ.
+> **Vì sao vẫn phải cùng đời** dù đã có bản vá chạy-lại-từ-đầu: bản vá đỡ được lỗi 400 *Corrupted thought signature*, nhưng giá của nó là **gọi lại TOÀN BỘ tool** (×2 thời gian, ×2 RAM trên gói free vốn đã sát trần, ×2 tác dụng phụ ghi ảnh/Excel). Cùng đời **tránh hẳn** đường đó thay vì chỉ xử lý được nó.
+>
+> ### ⭐ CỔNG D10 CŨ MÙ ĐÚNG CHIỀU NGUY HIỂM — đã thay bằng nhóm `[G]`
+> D10 ghim chuỗi `'gemini-2.5'` và soi **HẰNG** `_FALLBACK_DEFAULT`, nên: đặt env `GEMINI_MODEL=gemini-3.6-flash` mà giữ dự phòng 2.5 ⇒ chuỗi THẬT trộn đời **mà cổng vẫn XANH** (đúng trạng thái nó sinh ra để chặn); ngược lại sửa cho ĐÚNG lại **ĐỎ OAN**. Bản mới soi `MODELS` (đại lượng THẬT, đã gộp env) và so đời **tương đối** với `MODELS[0]` ⇒ đúng với mọi đời model về sau; fail-closed khi không đọc nổi tên; nuốt tiền tố `models/`. **Kiểm lại bằng env THẬT:** cấu hình trộn ⇒ G8 **FAIL** đúng như mong đợi, cấu hình 2.5 cũ vẫn xanh (không đỏ oan).
+>
+> ### ✅ Kèm 3 lỗi TRUNG cùng vùng
+> · `_is_overloaded` khớp **CHUỖI CON**: `'400 … token count 15042 exceeds'` chứa `'504'` ⇒ lỗi CẤU HÌNH VĨNH VIỄN bị xử như quá tải → máy nói *"thử lại sau ít phút"* = **NÓI SAI SỰ THẬT**. Gemini 3 sinh lỗi 400 mang SỐ nhiều hơn hẳn 2.5. Thay bằng regex có ranh giới hai phía. Đây là **SIẾT PHẠM VI, KHÔNG đổi luật**.
+> · 2 đường NHẮC append `cand.content` mà không đặt `da_goi_tool` ⇒ contents nhiễm gửi thẳng sang model khác.
+> · Tín hiệu `_CanChayLaiTuDau` bị `except Exception: pass` **NUỐT** ở lượt ép-trả-lời cuối — đúng lượt mà `da_goi_tool` gần như LUÔN True.
+> · **+ `model_da_dung`** trong payload: `state['tried']` được GHI nhưng không chỗ nào ĐỌC; tụt sang dự phòng là **tụt chất lượng ÂM THẦM** (`3.5-flash-lite` bịa handle 2/198 ca).
+>
+> ### 🧪 E2E THẬT TRÊN BẢN LIVE — 5 lượt/câu, chấm bằng SỰ THẬT NỀN đọc từ file
+> | Trục | Kết quả |
+> |---|---|
+> | Đúng số | **20/20 lượt** (4/4 câu đúng TRỌN 5/5) |
+> | Chống bịa | **10/10 lượt** từ chối (2/2 câu bẫy) |
+> | Ổn định | **5/6** câu cho CÙNG tập số suốt 5 lượt |
+> | Câu bị cắt | **0** |
+> | Thời gian | trung vị **5,0s** · p95 6,8s · max 7,0s (trần 60s) · `errors: 0` |
+>
+> Câu *"tổng số lượng cửa"* đòi **cộng 7 giá trị rời rạc** → đúng **141 bộ** cả 5 lượt (việc chính của bóc tách). Về nỗi lo `temperature` chết: **tập số ổn định 5/5 ở cả 4 câu thật**, câu duy nhất biến thiên là một câu TỪ CHỐI nói thêm ngữ cảnh ⇒ biến thiên nằm ở **diễn đạt, không ở con số**.
+> ⚠ **GIỚI HẠN — ĐỪNG SUY RỘNG:** file đo là **0,1MB / 35 đối tượng**. Chứng minh được: deploy chạy, chuỗi 3.x đúng, trả lời đúng+ổn định+từ chối bẫy ở quy mô này. **CHƯA chứng minh gì cho bản vẽ lớn** (nơi 3.6-flash đo được 8,4s trung vị và 4 lượt gọi model).
+>
+> ### 📌 BÀI HỌC PHIÊN NÀY — bộ trích của CHÍNH TÔI hỏng 2 lần trong 1 phép đo E2E
+> **(a)** Ra đề *"liệt kê bảng thống kê thép"* cho file **không có** bảng thép, rồi chấm câu trả lời ĐÚNG (*"bản vẽ không có"*) thành **TỪ CHỐI OAN** ⇒ báo *"recall 1/2"* = **số rác**. Sửa: đọc sự thật nền bằng `ezdxf` TRƯỚC khi ra đề.
+> **(b)** Đo *"ổn định"* bằng so **CHUỖI NGUYÊN VĂN** ⇒ đếm khác-diễn-đạt thành khác-đáp-án (*"3/4 câu không ổn định"*). Sửa: chấm trên **TẬP SỐ + PHÁN QUYẾT**. Cùng họ với bài học `'8.024'` vs `'8024'` từng hạ oan 3.6-flash mất 11 ca.
+> ⇒ Nối dài `[[feedback-kiem-bo-trich-truoc-khi-tin-so]]`: **lần thứ 12–13**.
+>
+> ### ⚠ RED-TEAM BẮT 2 LỖI DO CHÍNH BẢN VÁ ĐẺ RA (lại đúng *"bản vá cũng là code mới"*)
+> · `_model_dang_dung({'i':-1})` trả model **CUỐI** chuỗi (chỉ số âm Python) ⇒ trường dựng ra để *"thất bại phải LỘ"* lại **KHAI SAI TÊN MODEL**. Đổi hợp đồng: không chắc thì trả `None`.
+> · Tên model `gemini-3.6-flash` sinh số **3.6** qua `_collect_numbers` — **trùng dải chính dự án dùng làm ca thử** (`'3.6m'` I3-U). Hôm nay VÔ HẠI (rổ neo chỉ dựng từ RAW result của tool), nhưng đã đóng **tripwire Q4** chặn trước kênh bơm rổ neo thứ 5.
+> · Và **mutation check bắt lỗ trong test tôi vừa viết**: ca G7 tưởng khoá được vế *"trả None"* nhưng đổi `None`→`'0'` vẫn xanh ⇒ thêm G11.
+>
+> ### 📋 BẰNG CHỨNG
+> `test_model_fallback` **42 → 84** PASS/0 FAIL · tự-kiểm-ngược **6/6 + 8/8 mutation đỏ ĐÚNG CHỖ** (khôi phục khớp TỪNG BYTE) · red-team `redteam_va_3loi.py` **14/14** + `redteam_doi_model.py` **36/36** · cổng `[50/50]` 1.847 ca · đối chiếu BYTE kiểu xuống dòng trên cả 10 file: không lệch (`render.yaml` bị công cụ ghi đổi LF→CRLF toàn file mà `git diff` GIẤU vì autocrlf — đã nắn lại và kiểm bằng byte).
+>
+> ### 🎯 VIỆC ĐANG CHỜ
+> 1. **CONTEXT CACHING** — đã nghiên cứu + đo khả thi, **chưa code**. Đo thật: explicit trúng **99,9%**, phần tĩnh **10.711 token** (SYSTEM_PROMPT 5.761 + 31 tool ≈ 4.950). **Đòn bẩy thật KHÔNG phải "75%→99%"** mà là **bỏ được cái rơi-về-0 không báo trước** của implicit. 3 ràng buộc đã xác minh bằng gọi thật: (i) truyền lại `tools`/`system_instruction` kèm `cached_content` → **400 THẬT**; (ii) `cached_content` sống chung được với `thinking_config` + `automatic_function_calling(disable=True)` ✅; (iii) **`file_summary` đang nối vào `system_instruction` và đổi theo từng bản vẽ** ⇒ cache MISS mỗi lần nạp file mới, phải đẩy xuống message user đầu. Chi tiết `[[project-context-caching-gemini]]`.
+> 2. **Lát ×1000 grounding-có-đơn-vị** (`mcp_bridge`) — vẫn treo từ trước.
+> 3. **E2E trên bản vẽ LỚN** với 3.6-flash (đo LIVE mới chỉ phủ file 0,1MB).
+> 4. Đọc tay nốt **14/26 ca bẫy** chưa soi (con số 3/3/2 vẫn là CẬN DƯỚI).
+> 5. ⚠ **XÁC MINH LẠI "hạn cứng 16/10/2026"** — agent tra cứu báo trang deprecations của **Gemini API** ghi `gemini-2.5-flash` *"No shutdown date announced"*, còn 16/10 là mốc của **Vertex AI** (nền tảng khác). **Chưa tự kiểm.** Nếu đúng thì áp lực GĐ4 nhẹ hơn sổ ghi nhiều.
+
 ## Session 2026-08-07 (CHỐT SỔ) — 🏁 **TOOL #37 B0-B7 XONG + LIVE** · **VAN NHƯỜNG** · **API SỐNG LẠI** · **NÂNG CẤP MODEL GĐ1+GĐ2**
 > **7 commit**: `fc35897` (B4) · `f085610` (B5) · `b193350` (B6) · `bb84379` (B7) · `da0c993` (vá chuỗi model chết) · `36ab4ba` (van nhường) · `825eacd` (A/B 3 model). **Cây SẠCH.**
 > **CLOUD LIVE `36ab4ba`** (verify `/version` + `/health`). ⚠ **2 commit cuối CHƯA push** (`825eacd` + chốt sổ) — xem mục CÒN LẠI.
